@@ -35,12 +35,16 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "helmet": "^8.0.0",
+    "luxon": "^3.5.0",
     "morgan": "^1.10.0",
+    "pino": "^9.5.0",
+    "socket.io": "^4.8.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/luxon": "^3.4.2",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.8.1",
     "eslint": "^9.14.0",

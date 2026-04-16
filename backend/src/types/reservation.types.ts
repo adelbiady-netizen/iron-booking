@@ -1,94 +1,58 @@
-import type { ReservationStatus, ReservationSource, ServicePeriod, ZoneType } from '@prisma/client';
+export type ReservationStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "SEATED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW";
 
-export interface TimeRange {
-  start: Date; // UTC
-  end: Date;   // UTC
-}
+export type ReservationSource =
+  | "HOST"
+  | "PHONE"
+  | "ONLINE"
+  | "WALK_IN";
 
-export interface AssignedTable {
-  tableId: string;
-  tableNumber: string;
-  zoneType: ZoneType;
-  minCapacity: number;
-  idealCapacity: number;
-  maxCapacity: number;
-  isPrimary: boolean;
-}
+export type ServicePeriod =
+  | "BREAKFAST"
+  | "BRUNCH"
+  | "LUNCH"
+  | "DINNER"
+  | "LATE_NIGHT";
 
-export interface ScoreBreakdown {
-  fitScore: number;
-  zoneScore: number;
-  vipScore: number;
-  comboScore: number;
-  utilizationScore: number;
-  preferredBonus: number;
-  total: number;
-}
+export type ZoneType = string;
 
-export interface TableAssignment {
-  tables: AssignedTable[];
-  totalCapacity: number;
-  isCombination: boolean;
-  score: number;
-  scoreBreakdown: ScoreBreakdown;
-}
-
-export interface SlotOption {
-  startTime: Date;           // UTC
-  endTime: Date;             // UTC
-  durationMin: number;
-  localStartTime: string;    // "HH:MM" in restaurant timezone — for display
-  assignment: TableAssignment;
-  alternativeAssignments: TableAssignment[];
-}
-
-export interface PeriodAvailability {
-  period: ServicePeriod;
-  openTime: string;         // "HH:MM" local
-  closeTime: string;        // "HH:MM" local
-  lastSeatingTime: string;  // "HH:MM" local
-  slots: SlotOption[];
-}
-
-export interface AvailabilityResponse {
-  date: string;               // "YYYY-MM-DD"
-  restaurantTimezone: string;
-  servicePeriods: PeriodAvailability[];
-}
-
-export interface AvailabilityQuery {
+export interface ReservationItem {
+  id: string;
   restaurantId: string;
+  tableId?: string | null;
+  guestName: string;
+  guestPhone?: string | null;
+  guestEmail?: string | null;
   guestCount: number;
-  date: string;               // "YYYY-MM-DD" in restaurant local time
-  preferredPeriod?: ServicePeriod;
-  preferredZone?: ZoneType;
-  durationMin?: number;
+  startTime: string;
+  endTime: string;
+  durationMin: number;
+  servicePeriod?: ServicePeriod | null;
+  status: ReservationStatus;
+  source?: ReservationSource | null;
+  zoneType?: ZoneType | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateReservationInput {
   restaurantId: string;
-  customerId?: string;
-
-  // Guest info (required even if customerId is set — for fast display)
   guestName: string;
   guestPhone?: string;
   guestEmail?: string;
   guestCount: number;
-
-  // Time
-  requestedStartTime: Date; // UTC — caller converts from local wall-clock before calling
-  durationMin?: number;     // if omitted, uses service period or restaurant default
-
-  // Preferences
-  preferredZone?: ZoneType;
-  preferredTableId?: string;
-
-  // Notes
-  guestNotes?: string;
-  staffNotes?: string;
-
+  startTime: string;
+  durationMin: number;
+  servicePeriod?: ServicePeriod;
   source?: ReservationSource;
-  createdById?: string; // staffId
+  zoneType?: ZoneType;
+  notes?: string;
 }
 
 export interface UpdateReservationInput {
@@ -96,34 +60,11 @@ export interface UpdateReservationInput {
   guestPhone?: string;
   guestEmail?: string;
   guestCount?: number;
-  requestedStartTime?: Date;
+  startTime?: string;
   durationMin?: number;
-  preferredZone?: ZoneType;
-  guestNotes?: string;
-  staffNotes?: string;
+  servicePeriod?: ServicePeriod;
   status?: ReservationStatus;
-}
-
-export interface ReservationView {
-  id: string;
-  confirmationCode: string;
-  restaurantId: string;
-  customerId?: string;
-  guestName: string;
-  guestPhone?: string;
-  guestEmail?: string;
-  guestCount: number;
-  startTime: Date;
-  endTime: Date;
-  durationMin: number;
-  servicePeriod: ServicePeriod;
-  status: ReservationStatus;
-  source: ReservationSource;
-  tables: AssignedTable[];
-  isVIP: boolean;
-  guestNotes?: string;
-  staffNotes?: string;
-  seatedAt?: Date;
-  departedAt?: Date;
-  createdAt: Date;
+  source?: ReservationSource;
+  zoneType?: ZoneType;
+  notes?: string;
 }
