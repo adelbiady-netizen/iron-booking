@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "npx prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "render-build": "npx prisma generate && npx prisma migrate deploy && tsc -p tsconfig.json",
+    "render-build": "npm run build",
     "db:push": "npx prisma db push",
     "db:migrate": "npx prisma migrate dev",
     "db:migrate:deploy": "npx prisma migrate deploy",
@@ -48,5 +48,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
