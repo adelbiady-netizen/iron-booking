@@ -18,10 +18,19 @@ const app = express();
 
 // ─── Security & Logging ──────────────────────────────────────────────────────
 app.use(helmet());
+
+// 🔥 FIXED CORS FOR PRODUCTION
 app.use(cors({
-  origin: config.corsOrigin,
+  origin: [
+    'https://ironbooking.com',
+    'https://www.ironbooking.com',
+    'https://iron-booking.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:5174',
+  ],
   credentials: true,
 }));
+
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '1mb' }));
 
