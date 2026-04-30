@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme variables ──────────────────────────────────────────────────────── */
+/* All iron-* values are space-separated RGB channels so Tailwind's            */
+/* rgb(var(--iron-*) / <alpha-value>) opacity modifier pattern works.          */
+
+:root,
+[data-theme="dark"] {
+  --iron-bg:           15 17 16;       /* #0F1110 */
+  --iron-card:         26 29 26;       /* #1A1D1A */
+  --iron-border:       42 47 42;       /* #2A2F2A */
+  --iron-text:         255 255 255;    /* #FFFFFF */
+  --iron-muted:        160 167 160;    /* #A0A7A0 */
+  --iron-green:        75 95 42;       /* #4B5F2A */
+  --iron-green-light:  111 138 60;     /* #6F8A3C */
+
+  /* Canvas map (hex — used in inline style backgroundColor) */
+  --canvas-bg:              #18181b;
+  --canvas-dot:             #3f3f46;
+  --canvas-table-bg:        #1c1c1e;
+  --canvas-status-occupied: #86efac;   /* green-200 */
+  --canvas-status-reserved: #60a5fa;   /* blue-400  */
+
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --iron-bg:           244 245 240;    /* #F4F5F0 */
+  --iron-card:         255 255 255;    /* #FFFFFF */
+  --iron-border:       216 221 212;    /* #D8DDD4 */
+  --iron-text:         26 29 26;       /* #1A1D1A */
+  --iron-muted:        107 116 128;    /* #6B7480 */
+  --iron-green:        75 95 42;       /* #4B5F2A */
+  --iron-green-light:  55 75 28;       /* #37481C */
+
+  /* Canvas map */
+  --canvas-bg:              #EAEDE6;
+  --canvas-dot:             #C8CCC4;
+  --canvas-table-bg:        #FFFFFF;
+  --canvas-status-occupied: #15803d;   /* green-700 */
+  --canvas-status-reserved: #1d4ed8;   /* blue-700  */
+
+  color-scheme: light;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+
+html, body, #root {
+  height: 100%;
+}
+
+/* Scrollbar — inherits from theme variables */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--iron-border)) rgb(var(--iron-bg));
+}
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+*::-webkit-scrollbar-track {
+  background: rgb(var(--iron-bg));
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--iron-border));
+  border-radius: 3px;
+}
+
+/* Native date/time inputs: inherit the page color-scheme */
+input[type="date"],
+input[type="time"] {
+  color-scheme: inherit;
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-toast {
+  animation: toast-in 0.18s ease-out forwards;
+}
+
+/* Action bar HIGH-priority pulse — slow, gentle fade */
+@keyframes action-pulse {
+  0%, 72%, 100% { opacity: 1; }
+  86%           { opacity: 0.5; }
+}
+.animate-action-pulse {
+  animation: action-pulse 3.5s ease-in-out infinite;
+}
+
+/* Row flash on creation/update */
+@keyframes row-flash {
+  0%   { background-color: rgb(var(--iron-green) / 0.25); }
+  100% { background-color: transparent; }
+}
+.animate-flash {
+  animation: row-flash 1.8s ease-out forwards;
+}

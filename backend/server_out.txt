@@ -1,0 +1,7 @@
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+[DB] Connected
+[Iron Booking] Server running on port 3001 (development)
+[0mGET /health [32m200[0m 2.361 ms - 74[0m
+
+C:\Users\User\my-project\iron-booking\backend>

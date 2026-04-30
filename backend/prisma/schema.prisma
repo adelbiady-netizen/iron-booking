@@ -1,0 +1,439 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Restaurant ─────────────────────────────────────────────────────────────
+
+model Restaurant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  timezone    String   @default("America/New_York")
+  phone       String?
+  email       String?
+  address     String?
+
+  // Operational settings stored as structured JSON
+  settings    Json     @default("{}")
+  // {
+  //   defaultTurnMinutes: number        (e.g. 90)
+  //   slotIntervalMinutes: number       (e.g. 15)
+  //   maxPartySize: number              (e.g. 20)
+  //   depositRequired: boolean
+  //   depositAmountCents: number
+  //   autoConfirm: boolean
+  //   bufferBetweenTurnsMinutes: number (e.g. 15 — cleaning/reset time)
+  //   openingHour: string               "11:00"
+  //   closingHour: string               "22:00"
+  //   lastSeatingOffset: number         minutes before close (e.g. 60)
+  // }
+
+  // Set true for the internal _system restaurant that SUPER_ADMIN users belong to
+  isSystem    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users            User[]
+  guests           Guest[]
+  tables           Table[]
+  tableCombinations TableCombination[]
+  sections         Section[]
+  reservations     Reservation[]
+  waitlistEntries  WaitlistEntry[]
+  blockedPeriods   BlockedPeriod[]
+  operatingHours   OperatingHour[]
+  floorObjects     FloorObject[]
+
+  @@map("restaurants")
+}
+
+// ─── Users (Staff) ──────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  restaurantId String
+  email        String
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole  @default(HOST)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, email])
+  @@index([restaurantId])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN  // cross-restaurant system admin
+  ADMIN        // restaurant-level admin
+  MANAGER
+  HOST
+  SERVER
+}
+
+// ─── Operating Hours ─────────────────────────────────────────────────────────
+
+model OperatingHour {
+  id           String  @id @default(uuid())
+  restaurantId String
+  dayOfWeek    Int     // 0=Sunday … 6=Saturday
+  openTime     String  // "HH:mm"
+  closeTime    String  // "HH:mm"
+  lastSeating  String  // "HH:mm" — last reservation slot
+  isOpen       Boolean @default(true)
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, dayOfWeek])
+  @@map("operating_hours")
+}
+
+// ─── Sections ────────────────────────────────────────────────────────────────
+
+model Section {
+  id           String  @id @default(uuid())
+  restaurantId String
+  name         String  // "Main Dining", "Bar", "Patio", "Private"
+  sortOrder    Int     @default(0)
+  color        String  @default("#6366f1") // UI color for section
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables       Table[]
+
+  @@unique([restaurantId, name])
+  @@map("sections")
+}
+
+// ─── Tables ──────────────────────────────────────────────────────────────────
+
+model Table {
+  id           String      @id @default(uuid())
+  restaurantId String
+  sectionId    String?
+  name         String      // "T1", "Bar 3", "Patio 7"
+  minCovers    Int
+  maxCovers    Int
+  shape        TableShape  @default(RECTANGLE)
+  isCombinable Boolean     @default(false)
+  isActive     Boolean     @default(true)
+
+  // Floor plan position (pixels, relative to section canvas)
+  posX         Float       @default(0)
+  posY         Float       @default(0)
+  width        Float       @default(80)
+  height       Float       @default(80)
+  rotation     Float       @default(0)
+
+  // Override turn time at table level (null = use restaurant default)
+  turnTimeMinutes Int?
+
+  notes        String?     // permanent notes ("wobbly leg", "near kitchen")
+
+  // Operational lock — independent of timed BlockedPeriods
+  locked       Boolean   @default(false)
+  lockReason   String?
+  lockedUntil  DateTime?
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant        Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  section           Section?           @relation(fields: [sectionId], references: [id])
+  reservations      Reservation[]
+  blockedPeriods    BlockedPeriod[]
+  combinationsA     TableCombination[] @relation("CombinationTableA")
+  combinationsB     TableCombination[] @relation("CombinationTableB")
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, sectionId])
+  @@map("tables")
+}
+
+enum TableShape {
+  ROUND
+  SQUARE
+  RECTANGLE
+  OVAL
+  BOOTH
+}
+
+// ─── Table Combinations ──────────────────────────────────────────────────────
+// Pre-defined joinable table configs. A combination is two adjacent tables
+// that can be pushed together. For 3+ tables, model as chained pairs.
+
+model TableCombination {
+  id           String  @id @default(uuid())
+  restaurantId String
+  name         String  // "T1+T2", "Boardroom"
+  tableAId     String
+  tableBId     String
+  minCovers    Int
+  maxCovers    Int
+  isActive     Boolean @default(true)
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tableA       Table      @relation("CombinationTableA", fields: [tableAId], references: [id])
+  tableB       Table      @relation("CombinationTableB", fields: [tableBId], references: [id])
+
+  @@unique([restaurantId, tableAId, tableBId])
+  @@map("table_combinations")
+}
+
+// ─── Guests (CRM) ────────────────────────────────────────────────────────────
+
+model Guest {
+  id           String   @id @default(uuid())
+  restaurantId String
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+
+  isVip        Boolean  @default(false)
+  isBlacklisted Boolean @default(false)
+
+  // Stored as arrays of strings for flexibility
+  allergies    String[] @default([])
+  tags         String[] @default([])  // "birthday regular", "wine lover"
+  preferences  Json     @default("{}") // { seatingPref: "window", dietaryNotes: "" }
+
+  internalNotes String?  // host-only notes, not shown to guest
+
+  // Aggregated stats (updated via triggers or scheduled job)
+  visitCount   Int      @default(0)
+  noShowCount  Int      @default(0)
+  cancelCount  Int      @default(0)
+  lastVisitAt  DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@unique([restaurantId, email])
+  @@index([restaurantId])
+  @@index([restaurantId, phone])
+  @@index([restaurantId, lastName])
+  @@map("guests")
+}
+
+// ─── Reservations ────────────────────────────────────────────────────────────
+
+model Reservation {
+  id           String            @id @default(uuid())
+  restaurantId String
+  guestId      String?
+  tableId      String?           // null until assigned
+
+  // Booking details
+  partySize    Int
+  date         DateTime          @db.Date // date only
+  time         String            // "HH:mm" — stored separately for slot logic
+  duration     Int               // minutes (computed from restaurant default + overrides)
+
+  status       ReservationStatus @default(PENDING)
+  source       ReservationSource @default(PHONE)
+
+  // Guest info (denormalized for speed — allows reservations without Guest record)
+  guestName    String
+  guestPhone   String?
+  guestEmail   String?
+
+  // Occasion & special requests
+  occasion     String?           // "birthday", "anniversary", "business"
+  guestNotes   String?           // what the guest told us
+  hostNotes    String?           // internal host notes
+
+  // Tags for filtering/reporting
+  tags         String[]          @default([])
+
+  // Deposit tracking
+  depositRequired   Boolean      @default(false)
+  depositAmountCents Int?
+  depositPaidAt     DateTime?
+  depositRefundedAt DateTime?
+
+  // Guest confirmation (SMS/link flow)
+  isConfirmedByGuest Boolean   @default(false)
+  confirmationToken  String?   @unique
+  confirmationSentAt DateTime?
+
+  // Lifecycle timestamps
+  confirmedAt  DateTime?
+  remindedAt   DateTime?
+  reminderCount Int      @default(0)
+  seatedAt     DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  noShowAt     DateTime?
+
+  // For move history — which table was previously assigned
+  previousTableId String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest        Guest?         @relation(fields: [guestId], references: [id])
+  table        Table?         @relation(fields: [tableId], references: [id])
+  activityLog  ReservationActivity[]
+
+  @@index([restaurantId, date])
+  @@index([restaurantId, status])
+  @@index([restaurantId, tableId, date])
+  @@index([guestId])
+  @@map("reservations")
+}
+
+enum ReservationStatus {
+  PENDING       // created, not yet confirmed
+  CONFIRMED     // confirmed (deposit paid or auto-confirmed)
+  SEATED        // guest is at the table
+  COMPLETED     // table cleared, turn complete
+  CANCELLED     // cancelled by guest or host
+  NO_SHOW       // guest never arrived
+}
+
+enum ReservationSource {
+  ONLINE        // direct online booking
+  PHONE         // phone call
+  WALK_IN       // converted from walk-in/waitlist
+  OPENTABLE     // OT integration
+  RESY          // Resy integration
+  INTERNAL      // created by host in the system
+}
+
+// ─── Reservation Activity Log ────────────────────────────────────────────────
+
+model ReservationActivity {
+  id            String   @id @default(uuid())
+  reservationId String
+  action        String   // "CONFIRMED", "TABLE_ASSIGNED", "MOVED", "NOTE_ADDED", etc.
+  actor         String   // user name or "system"
+  details       Json?    // { from: X, to: Y } etc.
+  timestamp     DateTime @default(now())
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+  @@map("reservation_activity")
+}
+
+// ─── Waitlist ─────────────────────────────────────────────────────────────────
+
+model WaitlistEntry {
+  id           String          @id @default(uuid())
+  restaurantId String
+  date         DateTime        @db.Date
+  guestName    String
+  guestPhone   String?
+  partySize    Int
+  status       WaitlistStatus  @default(WAITING)
+  source       WaitlistSource  @default(WALK_IN)
+
+  // Quote given when added
+  quotedWaitMinutes  Int?
+
+  // Timestamps
+  addedAt      DateTime        @default(now())
+  notifiedAt   DateTime?       // when we sent "table ready" notification
+  seatedAt     DateTime?
+  leftAt       DateTime?       // guest decided to leave
+
+  notes        String?
+
+  // If converted to reservation
+  reservationId String?
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, date, status])
+  @@map("waitlist_entries")
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED   // told table is ready, waiting confirmation
+  SEATED
+  LEFT       // chose to leave
+  REMOVED    // host removed
+}
+
+enum WaitlistSource {
+  WALK_IN
+  PHONE
+  ONLINE
+}
+
+// ─── Blocked Periods ─────────────────────────────────────────────────────────
+// Block a table or the entire restaurant for events, maintenance, VIP holds.
+
+model BlockedPeriod {
+  id           String      @id @default(uuid())
+  restaurantId String
+  tableId      String?     // null = all tables (restaurant-level block)
+  reason       String
+  type         BlockType   @default(EVENT)
+  startTime    DateTime
+  endTime      DateTime
+  createdBy    String      // user name
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table        Table?     @relation(fields: [tableId], references: [id])
+
+  @@index([restaurantId, tableId, startTime, endTime])
+  @@map("blocked_periods")
+}
+
+enum BlockType {
+  EVENT       // private event
+  MAINTENANCE // table out of service
+  VIP_HOLD    // holding for a specific guest
+  STAFF_MEAL
+}
+
+// ─── Floor Plan Objects ───────────────────────────────────────────────────────
+// Non-table decorative/structural elements: walls, zones, bars, etc.
+// Scoped to a restaurant; fully independent of reservations and table lifecycle.
+
+model FloorObject {
+  id           String       @id @default(uuid())
+  restaurantId String
+  kind         FloorObjKind
+  label        String
+  posX         Float        @default(0)
+  posY         Float        @default(0)
+  width        Float        @default(100)
+  height       Float        @default(20)
+  rotation     Float        @default(0)
+  color        String?
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@map("floor_objects")
+}
+
+enum FloorObjKind {
+  WALL
+  DIVIDER
+  BAR
+  ENTRANCE
+  ZONE
+}
