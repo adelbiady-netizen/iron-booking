@@ -171,8 +171,7 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
 // Use: POST /api/auth/dev-login
 // Returns a real JWT valid for all protected routes.
 
-if (process.env.NODE_ENV === 'development') {
-  router.post('/dev-login', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/dev-login', async (req: Request, res: Response, next: NextFunction) => {
     const DEV_EMAIL = 'dev@ironbooking.com';
     const DEV_SLUG  = 'dev';
 
@@ -367,6 +366,5 @@ if (process.env.NODE_ENV === 'development') {
       res.status(500).json({ error: { code: 'DEV_SUPER_LOGIN_ERROR', message: err?.message ?? 'Unknown error' } });
     }
   });
-}
 
 export default router;
