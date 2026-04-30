@@ -13,7 +13,6 @@ export const config = {
   jwtExpiresIn: optional('JWT_EXPIRES_IN', '8h'),
   databaseUrl: optional('DATABASE_URL', ''),
 
-  corsOrigin: optional('CORS_ORIGIN', 'http://localhost:5173'),
   publicBaseUrl: optional('PUBLIC_BASE_URL', 'http://localhost:3001'),
 
   // Business rule defaults (overridden per-restaurant via settings JSON)
