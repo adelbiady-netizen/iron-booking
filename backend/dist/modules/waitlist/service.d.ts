@@ -1,0 +1,128 @@
+import { prisma } from '../../lib/prisma';
+export declare function estimateWaitMinutes(restaurantId: string, date: Date, partySize: number): Promise<number>;
+export declare function listWaitlist(restaurantId: string, date: string): Promise<{
+    id: string;
+    restaurantId: string;
+    notes: string | null;
+    partySize: number;
+    date: Date;
+    status: import("@prisma/client").$Enums.WaitlistStatus;
+    source: import("@prisma/client").$Enums.WaitlistSource;
+    guestName: string;
+    guestPhone: string | null;
+    seatedAt: Date | null;
+    quotedWaitMinutes: number | null;
+    addedAt: Date;
+    notifiedAt: Date | null;
+    leftAt: Date | null;
+    reservationId: string | null;
+}[]>;
+export declare function getWaitlistEntry(restaurantId: string, id: string): Promise<{
+    id: string;
+    restaurantId: string;
+    notes: string | null;
+    partySize: number;
+    date: Date;
+    status: import("@prisma/client").$Enums.WaitlistStatus;
+    source: import("@prisma/client").$Enums.WaitlistSource;
+    guestName: string;
+    guestPhone: string | null;
+    seatedAt: Date | null;
+    quotedWaitMinutes: number | null;
+    addedAt: Date;
+    notifiedAt: Date | null;
+    leftAt: Date | null;
+    reservationId: string | null;
+}>;
+export declare function addToWaitlist(restaurantId: string, data: {
+    guestName: string;
+    guestPhone?: string;
+    partySize: number;
+    date: string;
+    source?: string;
+    notes?: string;
+}): Promise<{
+    id: string;
+    restaurantId: string;
+    notes: string | null;
+    partySize: number;
+    date: Date;
+    status: import("@prisma/client").$Enums.WaitlistStatus;
+    source: import("@prisma/client").$Enums.WaitlistSource;
+    guestName: string;
+    guestPhone: string | null;
+    seatedAt: Date | null;
+    quotedWaitMinutes: number | null;
+    addedAt: Date;
+    notifiedAt: Date | null;
+    leftAt: Date | null;
+    reservationId: string | null;
+}>;
+export declare function updateWaitlistEntry(restaurantId: string, id: string, data: {
+    guestName?: string;
+    guestPhone?: string;
+    partySize?: number;
+    notes?: string;
+}): Promise<{
+    id: string;
+    restaurantId: string;
+    notes: string | null;
+    partySize: number;
+    date: Date;
+    status: import("@prisma/client").$Enums.WaitlistStatus;
+    source: import("@prisma/client").$Enums.WaitlistSource;
+    guestName: string;
+    guestPhone: string | null;
+    seatedAt: Date | null;
+    quotedWaitMinutes: number | null;
+    addedAt: Date;
+    notifiedAt: Date | null;
+    leftAt: Date | null;
+    reservationId: string | null;
+}>;
+export declare function notifyGuest(restaurantId: string, id: string): Promise<{
+    id: string;
+    restaurantId: string;
+    notes: string | null;
+    partySize: number;
+    date: Date;
+    status: import("@prisma/client").$Enums.WaitlistStatus;
+    source: import("@prisma/client").$Enums.WaitlistSource;
+    guestName: string;
+    guestPhone: string | null;
+    seatedAt: Date | null;
+    quotedWaitMinutes: number | null;
+    addedAt: Date;
+    notifiedAt: Date | null;
+    leftAt: Date | null;
+    reservationId: string | null;
+}>;
+export declare function seatWaitlistGuest(restaurantId: string, id: string, tableId?: string): Promise<{
+    entry: Awaited<ReturnType<typeof prisma.waitlistEntry.update>>;
+    reservation: any;
+}>;
+export declare function removeFromWaitlist(restaurantId: string, id: string, reason: 'LEFT' | 'REMOVED'): Promise<{
+    id: string;
+    restaurantId: string;
+    notes: string | null;
+    partySize: number;
+    date: Date;
+    status: import("@prisma/client").$Enums.WaitlistStatus;
+    source: import("@prisma/client").$Enums.WaitlistSource;
+    guestName: string;
+    guestPhone: string | null;
+    seatedAt: Date | null;
+    quotedWaitMinutes: number | null;
+    addedAt: Date;
+    notifiedAt: Date | null;
+    leftAt: Date | null;
+    reservationId: string | null;
+}>;
+export declare function getWaitlistStats(restaurantId: string, date: string): Promise<{
+    waiting: number;
+    notified: number;
+    seated: number;
+    left: number;
+    avgQuotedWait: number | null;
+}>;
+//# sourceMappingURL=service.d.ts.map

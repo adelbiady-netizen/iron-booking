@@ -1,26 +1,45 @@
 import { useState } from 'react';
-import { api } from '../api';
+import { api, BASE } from '../api';
 import type { AuthUser } from '../types';
 
 interface Props {
   onLogin: (token: string, user: AuthUser) => void;
 }
 
+interface DiagInfo {
+  url: string;
+  fetchStarted: boolean;
+  errorName: string;
+  errorMessage: string;
+}
+
 export default function LoginPage({ onLogin }: Props) {
   const [email, setEmail] = useState('dev@ironbooking.com');
   const [password, setPassword] = useState('dev123');
   const [error, setError] = useState<string | null>(null);
+  const [diag, setDiag] = useState<DiagInfo | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function capture(url: string, fetchStarted: boolean, err: unknown): string {
+    const errorName    = err instanceof Error ? err.name    : String(typeof err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    setDiag({ url, fetchStarted, errorName, errorMessage });
+    return `[${errorName}] ${errorMessage} — URL: ${url}`;
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setDiag(null);
     setLoading(true);
+    const url = `${BASE}/auth/login`;
+    let fetchStarted = false;
     try {
+      fetchStarted = true;
       const r = await api.auth.login(email, password);
       onLogin(r.token, r.user);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+    } catch (err) {
+      setError(capture(url, fetchStarted, err));
     } finally {
       setLoading(false);
     }
@@ -28,12 +47,16 @@ export default function LoginPage({ onLogin }: Props) {
 
   async function devLogin() {
     setError(null);
+    setDiag(null);
     setLoading(true);
+    const url = `${BASE}/auth/dev-login`;
+    let fetchStarted = false;
     try {
+      fetchStarted = true;
       const r = await api.auth.devLogin();
       onLogin(r.token, r.user);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Dev login failed');
+    } catch (err) {
+      setError(capture(url, fetchStarted, err));
     } finally {
       setLoading(false);
     }
@@ -41,12 +64,16 @@ export default function LoginPage({ onLogin }: Props) {
 
   async function devSuperLogin() {
     setError(null);
+    setDiag(null);
     setLoading(true);
+    const url = `${BASE}/auth/dev-super-login`;
+    let fetchStarted = false;
     try {
+      fetchStarted = true;
       const r = await api.auth.devSuperLogin();
       onLogin(r.token, r.user);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Dev super login failed');
+    } catch (err) {
+      setError(capture(url, fetchStarted, err));
     } finally {
       setLoading(false);
     }
@@ -100,10 +127,19 @@ export default function LoginPage({ onLogin }: Props) {
               />
             </div>
 
+            {/* ── Error panel ── */}
             {error && (
-              <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
-                {error}
-              </p>
+              <div className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2 space-y-1 break-all">
+                <p className="font-semibold">Login failed</p>
+                {diag && (
+                  <>
+                    <p><span className="text-red-300">URL:</span> {diag.url}</p>
+                    <p><span className="text-red-300">Fetch started:</span> {String(diag.fetchStarted)}</p>
+                    <p><span className="text-red-300">Error name:</span> {diag.errorName}</p>
+                    <p><span className="text-red-300">Error message:</span> {diag.errorMessage}</p>
+                  </>
+                )}
+              </div>
             )}
 
             <button
@@ -131,6 +167,13 @@ export default function LoginPage({ onLogin }: Props) {
               Dev login · SUPER_ADMIN (Admin Portal)
             </button>
           </div>
+        </div>
+
+        {/* ── Always-visible diagnostic panel ── */}
+        <div className="mt-4 bg-iron-card border border-iron-border rounded-lg px-3 py-2.5 text-[10px] text-iron-muted font-mono space-y-1 break-all">
+          <p className="text-iron-muted/60 font-semibold uppercase tracking-widest text-[9px]">Debug info</p>
+          <p><span className="text-iron-text">BASE:</span> {BASE}</p>
+          <p><span className="text-iron-text">UA:</span> {navigator.userAgent}</p>
         </div>
 
         <p className="text-center text-iron-muted text-xs mt-4">

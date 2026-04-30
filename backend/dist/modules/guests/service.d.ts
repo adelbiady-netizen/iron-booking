@@ -1,0 +1,184 @@
+import { Prisma } from '@prisma/client';
+export declare function searchGuests(restaurantId: string, query: {
+    search?: string;
+    isVip?: boolean;
+    isBlacklisted?: boolean;
+    tag?: string;
+    page: number;
+    limit: number;
+}): Promise<{
+    data: {
+        id: string;
+        phone: string | null;
+        email: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
+        firstName: string;
+        lastName: string;
+        isVip: boolean;
+        isBlacklisted: boolean;
+        allergies: string[];
+        tags: string[];
+        preferences: Prisma.JsonValue;
+        internalNotes: string | null;
+        visitCount: number;
+        noShowCount: number;
+        cancelCount: number;
+        lastVisitAt: Date | null;
+    }[];
+    meta: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}>;
+export declare function getGuest(restaurantId: string, id: string): Promise<{
+    reservations: ({
+        table: {
+            name: string;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
+        tags: string[];
+        guestId: string | null;
+        tableId: string | null;
+        partySize: number;
+        date: Date;
+        time: string;
+        duration: number;
+        status: import("@prisma/client").$Enums.ReservationStatus;
+        source: import("@prisma/client").$Enums.ReservationSource;
+        guestName: string;
+        guestPhone: string | null;
+        guestEmail: string | null;
+        occasion: string | null;
+        guestNotes: string | null;
+        hostNotes: string | null;
+        depositRequired: boolean;
+        depositAmountCents: number | null;
+        depositPaidAt: Date | null;
+        depositRefundedAt: Date | null;
+        confirmedAt: Date | null;
+        remindedAt: Date | null;
+        seatedAt: Date | null;
+        completedAt: Date | null;
+        cancelledAt: Date | null;
+        noShowAt: Date | null;
+        previousTableId: string | null;
+    })[];
+} & {
+    id: string;
+    phone: string | null;
+    email: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    restaurantId: string;
+    firstName: string;
+    lastName: string;
+    isVip: boolean;
+    isBlacklisted: boolean;
+    allergies: string[];
+    tags: string[];
+    preferences: Prisma.JsonValue;
+    internalNotes: string | null;
+    visitCount: number;
+    noShowCount: number;
+    cancelCount: number;
+    lastVisitAt: Date | null;
+}>;
+export declare function findOrCreateGuest(restaurantId: string, data: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+}): Promise<{
+    guest: any;
+    created: boolean;
+}>;
+export declare function createGuest(restaurantId: string, data: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    isVip?: boolean;
+    allergies?: string[];
+    tags?: string[];
+    preferences?: object;
+    internalNotes?: string;
+}): Promise<{
+    id: string;
+    phone: string | null;
+    email: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    restaurantId: string;
+    firstName: string;
+    lastName: string;
+    isVip: boolean;
+    isBlacklisted: boolean;
+    allergies: string[];
+    tags: string[];
+    preferences: Prisma.JsonValue;
+    internalNotes: string | null;
+    visitCount: number;
+    noShowCount: number;
+    cancelCount: number;
+    lastVisitAt: Date | null;
+}>;
+export declare function updateGuest(restaurantId: string, id: string, data: Partial<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    isVip: boolean;
+    isBlacklisted: boolean;
+    allergies: string[];
+    tags: string[];
+    preferences: object;
+    internalNotes: string;
+}>): Promise<{
+    id: string;
+    phone: string | null;
+    email: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    restaurantId: string;
+    firstName: string;
+    lastName: string;
+    isVip: boolean;
+    isBlacklisted: boolean;
+    allergies: string[];
+    tags: string[];
+    preferences: Prisma.JsonValue;
+    internalNotes: string | null;
+    visitCount: number;
+    noShowCount: number;
+    cancelCount: number;
+    lastVisitAt: Date | null;
+}>;
+export declare function mergeGuests(restaurantId: string, primaryId: string, duplicateId: string): Promise<{
+    id: string;
+    phone: string | null;
+    email: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    restaurantId: string;
+    firstName: string;
+    lastName: string;
+    isVip: boolean;
+    isBlacklisted: boolean;
+    allergies: string[];
+    tags: string[];
+    preferences: Prisma.JsonValue;
+    internalNotes: string | null;
+    visitCount: number;
+    noShowCount: number;
+    cancelCount: number;
+    lastVisitAt: Date | null;
+}>;
+//# sourceMappingURL=service.d.ts.map
