@@ -18,9 +18,19 @@ const app = express();
 
 app.use(helmet());
 
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'https://ironbooking.com',
+  'https://www.ironbooking.com',
+];
+
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
