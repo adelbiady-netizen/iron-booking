@@ -58,7 +58,7 @@ export const T = {
   // ── FloorBoard ─────────────────────────────────────────────────────────────
   floorBoard: {
     errorTitle:       'Cannot reach server',
-    errorHint:        'Check the backend is running on port 3001.',
+    errorHint:        'Check the backend is reachable at iron-booking-api.onrender.com.',
     errorRetry:       'Dashboard will retry automatically.',
     emptyTitle:       'No tables configured',
     emptyHint:        'Add tables via the admin panel, then refresh.',

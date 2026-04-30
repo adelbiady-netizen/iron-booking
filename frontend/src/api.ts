@@ -1,6 +1,6 @@
 import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, Reservation, Section, Table, WaitlistEntry } from './types';
 
-export const BASE = "https://iron-booking.onrender.com/api";
+export const BASE = "https://iron-booking-api.onrender.com/api";
 
 // Carries field-level validation errors from the backend (Zod VALIDATION_ERROR responses).
 export class ApiError extends Error {
