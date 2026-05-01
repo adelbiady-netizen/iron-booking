@@ -189,6 +189,11 @@ export const api = {
       request<WaitlistEntry[]>(`/waitlist?date=${date}${time ? `&time=${encodeURIComponent(time)}` : ''}`),
     add: (body: { guestName: string; partySize: number; guestPhone?: string; date: string; notes?: string }) =>
       request<WaitlistEntry>('/waitlist', { method: 'POST', body: JSON.stringify(body) }),
+    seat: (id: string, tableId?: string) =>
+      request<{ entry: WaitlistEntry; reservation: Reservation }>(`/waitlist/${id}/seat`, {
+        method: 'POST',
+        body: JSON.stringify({ tableId }),
+      }),
     remove: (id: string, reason: 'LEFT' | 'REMOVED') =>
       request<WaitlistEntry>(`/waitlist/${id}/remove`, { method: 'POST', body: JSON.stringify({ reason }) }),
   },

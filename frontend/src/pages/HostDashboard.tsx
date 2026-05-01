@@ -109,7 +109,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [waitlist,            setWaitlist]            = useState<WaitlistEntry[]>([]);
   const [waitlistLoading,     setWaitlistLoading]     = useState(false);
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
-  const [seatFromWaitlist,    setSeatFromWaitlist]    = useState<WaitlistEntry | null>(null);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
   const [layoutMode,           setLayoutMode]           = useState(false);
@@ -463,10 +462,21 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setWaitlist(prev => [...prev, entry]);
   }, [date]);
 
-  const handleWaitlistSeat = useCallback((entry: WaitlistEntry) => {
-    setSeatFromWaitlist(entry);
-    setCreateMode('walkin');
-  }, []);
+  const handleWaitlistSeat = useCallback(async (entry: WaitlistEntry) => {
+    try {
+      const { reservation } = await api.waitlist.seat(entry.id);
+      setReservations(prev => [...prev, reservation]);
+      setRefreshKey(k => k + 1);
+      setWaitlist(prev => prev.filter(e => e.id !== entry.id));
+      setWaitlistRefreshKey(k => k + 1);
+      setSelectedRes(reservation);
+      setHighlightId(reservation.id);
+      setTimeout(() => setHighlightId(null), 2000);
+      showToast(T.hostDashboard.toastSeated);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+    }
+  }, [showToast]);
 
   const handleWaitlistCancel = useCallback(async (entry: WaitlistEntry) => {
     try {
@@ -492,22 +502,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
 
   const handleSuggestionSeat = useCallback(async (tableId: string, entry: WaitlistEntry) => {
     try {
-      let r = await api.reservations.create({
-        guestName:  entry.guestName,
-        partySize:  entry.partySize,
-        date:       todayStr(),
-        time:       nowTime(),
-        source:     'WALK_IN',
-        guestPhone: entry.guestPhone ?? undefined,
-      });
-      r = await api.reservations.seat(r.id, tableId);
-      setReservations(prev => [...prev, r]);
+      const { reservation } = await api.waitlist.seat(entry.id, tableId);
+      setReservations(prev => [...prev, reservation]);
       setRefreshKey(k => k + 1);
-      setSelectedRes(r);
-      setHighlightId(r.id);
-      setTimeout(() => setHighlightId(null), 2000);
-      await api.waitlist.remove(entry.id, 'REMOVED');
       setWaitlist(prev => prev.filter(e => e.id !== entry.id));
+      setWaitlistRefreshKey(k => k + 1);
+      setSelectedRes(reservation);
+      setHighlightId(reservation.id);
+      setTimeout(() => setHighlightId(null), 2000);
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? 'table';
       showToast(T.hostDashboard.toastSeatAt(entry.guestName, tableName));
     } catch (err) {
@@ -525,13 +527,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setHighlightId(created.id);
     showToast(created.status === 'SEATED' ? T.hostDashboard.toastSeated : T.hostDashboard.toastCreated);
     setTimeout(() => setHighlightId(null), 2000);
-    // If seating from waitlist, remove the entry
-    if (seatFromWaitlist) {
-      api.waitlist.remove(seatFromWaitlist.id, 'REMOVED').catch(() => {});
-      setWaitlist(prev => prev.filter(e => e.id !== seatFromWaitlist.id));
-      setSeatFromWaitlist(null);
-    }
-  }, [showToast, seatFromWaitlist]);
+  }, [showToast]);
 
   const handleDateChange = useCallback((d: string) => {
     setDate(d);
@@ -692,13 +688,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           defaultTime={time}
           tables={allTables}
           preselectedTableId={preselectedTableId ?? undefined}
-          initialData={seatFromWaitlist ? {
-            guestName: seatFromWaitlist.guestName,
-            partySize: seatFromWaitlist.partySize,
-            guestPhone: seatFromWaitlist.guestPhone ?? undefined,
-          } : undefined}
           gapHint={gapHint ?? undefined}
-          onClose={() => { setCreateMode(null); setPreselectedTableId(null); setSeatFromWaitlist(null); setGapHint(null); }}
+          onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); }}
           onCreated={handleCreated}
         />
       )}
