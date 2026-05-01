@@ -172,6 +172,28 @@ export async function updateGuest(restaurantId: string, id: string, data: Partia
   return prisma.guest.update({ where: { id }, data: data as any });
 }
 
+export async function lookupGuestByPhone(restaurantId: string, rawPhone: string) {
+  const normalized = normalizePhone(rawPhone);
+  // Require at least 7 digits — ignore partial/empty input
+  if (normalized.replace(/\D/g, '').length < 7) return null;
+
+  return prisma.guest.findFirst({
+    where: { restaurantId, phone: normalized },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      isVip: true,
+      allergies: true,
+      tags: true,
+      internalNotes: true,
+      visitCount: true,
+      noShowCount: true,
+      lastVisitAt: true,
+    },
+  });
+}
+
 export async function mergeGuests(restaurantId: string, primaryId: string, duplicateId: string) {
   const [primary, duplicate] = await Promise.all([
     assertGuest(restaurantId, primaryId),

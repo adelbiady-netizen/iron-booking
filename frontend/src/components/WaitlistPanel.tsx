@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
-import type { WaitlistEntry } from '../types';
+import { useState, useMemo, useEffect } from 'react';
+import type { GuestLookupResult, WaitlistEntry } from '../types';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
+import { api } from '../api';
 import { T } from '../strings';
 
 function waitMins(addedAt: string, opNow: number): number {
@@ -34,6 +35,8 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   const [name,      setName]      = useState('');
   const [partySize, setPartySize] = useState('2');
   const [phone,     setPhone]     = useState('');
+  const [guestHint,     setGuestHint]     = useState<GuestLookupResult | null>(null);
+  const [hintDismissed, setHintDismissed] = useState(false);
   const [busyNotify, setBusyNotify] = useState<string | null>(null);
   const [busy,      setBusy]      = useState(false);
   const [error,     setError]     = useState<string | null>(null);
@@ -47,7 +50,24 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
 
   function resetForm() {
     setName(''); setPartySize('2'); setPhone(''); setError(null);
+    setGuestHint(null); setHintDismissed(false);
   }
+
+  // Debounced guest lookup by phone
+  useEffect(() => {
+    if (!phone.trim()) { setGuestHint(null); setHintDismissed(false); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { guest } = await api.guests.lookupByPhone(phone);
+        setGuestHint(guest);
+        setHintDismissed(false);
+        if (guest) {
+          setName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
+        }
+      } catch { /* non-fatal */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [phone]);
 
   async function handleAdd() {
     if (!name.trim()) return;
@@ -145,6 +165,26 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                 className="flex-1 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
               />
             </div>
+            {guestHint && !hintDismissed && (
+              <div className="rounded-lg border border-iron-green/30 bg-iron-green/5 px-2.5 py-2">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-iron-green-light text-xs font-medium">{guestHint.firstName} {guestHint.lastName}</span>
+                    {guestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
+                  </div>
+                  <button type="button" onClick={() => setHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
+                </div>
+                <div className="text-[11px] text-iron-muted space-y-0.5">
+                  <div>
+                    {guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}
+                    {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
+                    {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
+                  </div>
+                  {guestHint.allergies.length > 0 && <div className="text-red-400">⚠ {guestHint.allergies.join(', ')}</div>}
+                  {guestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{guestHint.internalNotes}</div>}
+                </div>
+              </div>
+            )}
             {error && <p className="text-red-400 text-[11px]">{error}</p>}
             <div className="flex gap-2">
               <button

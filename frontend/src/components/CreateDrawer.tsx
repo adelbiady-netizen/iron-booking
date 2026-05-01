@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Reservation, Table } from '../types';
+import { useState, useEffect } from 'react';
+import type { GuestLookupResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { T } from '../strings';
 
@@ -148,8 +148,27 @@ export default function CreateDrawer({
   const [wiNotes, setWiNotes] = useState('');
   const [wiTable, setWiTable] = useState(preselectedTableId ?? '');
 
+  const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
+  const [hintDismissed,  setHintDismissed]  = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [busy,  setBusy]  = useState(false);
+
+  // Debounced guest lookup by phone
+  useEffect(() => {
+    if (!resPhone.trim()) { setGuestHint(null); setHintDismissed(false); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { guest } = await api.guests.lookupByPhone(resPhone);
+        setGuestHint(guest);
+        setHintDismissed(false);
+        if (guest) {
+          setResName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
+        }
+      } catch { /* non-fatal */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [resPhone]);
 
   function nowStr() {
     const d = new Date();
@@ -302,6 +321,26 @@ export default function CreateDrawer({
                   onChange={e => setResPhone(e.target.value)}
                   placeholder={T.createDrawer.placeholderPhone}
                 />
+                {guestHint && !hintDismissed && (
+                  <div className="mt-1.5 rounded-lg border border-iron-green/30 bg-iron-green/5 px-2.5 py-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-iron-green-light text-xs font-medium">{guestHint.firstName} {guestHint.lastName}</span>
+                        {guestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
+                      </div>
+                      <button type="button" onClick={() => setHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
+                    </div>
+                    <div className="text-[11px] text-iron-muted space-y-0.5">
+                      <div>
+                        {guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}
+                        {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
+                        {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
+                      </div>
+                      {guestHint.allergies.length > 0 && <div className="text-red-400">⚠ {guestHint.allergies.join(', ')}</div>}
+                      {guestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{guestHint.internalNotes}</div>}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

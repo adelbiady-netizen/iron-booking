@@ -203,6 +203,19 @@ export interface FloorObjectData {
   color: string | null;
 }
 
+export interface GuestLookupResult {
+  id: string;
+  firstName: string;
+  lastName: string;
+  isVip: boolean;
+  allergies: string[];
+  tags: string[];
+  internalNotes: string | null;
+  visitCount: number;
+  noShowCount: number;
+  lastVisitAt: string | null;
+}
+
 export interface CreateReservationBody {
   guestName: string;
   guestPhone?: string;

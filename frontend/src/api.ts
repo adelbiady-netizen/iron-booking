@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestLookupResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -198,6 +198,11 @@ export const api = {
       request<WaitlistEntry>(`/waitlist/${id}/notify`, { method: 'POST' }),
     remove: (id: string, reason: 'LEFT' | 'REMOVED') =>
       request<WaitlistEntry>(`/waitlist/${id}/remove`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  },
+
+  guests: {
+    lookupByPhone: (phone: string) =>
+      request<{ guest: GuestLookupResult | null }>(`/guests/lookup?phone=${encodeURIComponent(phone)}`),
   },
 
   admin: {

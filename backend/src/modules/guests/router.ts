@@ -62,6 +62,15 @@ router.post('/find-or-create', async (req: Request, res: Response, next: NextFun
   } catch (err) { next(err); }
 });
 
+// GET /guests/lookup?phone=... — read-only phone lookup, never creates
+router.get('/lookup', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const phone = typeof req.query.phone === 'string' ? req.query.phone : '';
+    const guest = await service.lookupGuestByPhone(req.auth.restaurantId, phone);
+    res.json({ guest });
+  } catch (err) { next(err); }
+});
+
 // GET /guests/:id
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
