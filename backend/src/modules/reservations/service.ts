@@ -14,6 +14,7 @@ import {
   MoveTableInput,
   ListReservationsQuery,
 } from './schema';
+import { findOrCreateGuest, splitName } from '../guests/service';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -180,11 +181,28 @@ export async function createReservation(
 
   const status: ReservationStatus = settings.autoConfirm ? 'CONFIRMED' : 'PENDING';
 
+  // Auto-link Guest CRM record when phone or email is present and no explicit guestId provided
+  let resolvedGuestId = input.guestId ?? null;
+  if (!resolvedGuestId && (input.guestPhone || input.guestEmail)) {
+    try {
+      const { firstName, lastName } = splitName(input.guestName);
+      const { guest } = await findOrCreateGuest(restaurantId, {
+        firstName,
+        lastName,
+        email: input.guestEmail,
+        phone: input.guestPhone,
+      });
+      resolvedGuestId = guest.id;
+    } catch {
+      // Non-fatal: reservation proceeds without a guest link
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     const reservation = await tx.reservation.create({
       data: {
         restaurantId,
-        guestId: input.guestId ?? null,
+        guestId: resolvedGuestId,
         tableId: input.tableId ?? null,
         partySize: input.partySize,
         date,
@@ -217,9 +235,9 @@ export async function createReservation(
       occasion: input.occasion ?? null,
     });
 
-    if (input.guestId) {
+    if (resolvedGuestId) {
       await tx.guest.update({
-        where: { id: input.guestId },
+        where: { id: resolvedGuestId },
         data: { visitCount: { increment: 1 } },
       });
     }

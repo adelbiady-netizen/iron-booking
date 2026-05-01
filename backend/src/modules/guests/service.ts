@@ -2,6 +2,23 @@ import { prisma } from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../../lib/errors';
 
+// ─── Shared helpers (exported for use in other services) ──────────────────────
+
+export function normalizePhone(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('+')) {
+    return '+' + trimmed.slice(1).replace(/\D/g, '');
+  }
+  return trimmed.replace(/\D/g, '');
+}
+
+export function splitName(fullName: string): { firstName: string; lastName: string } {
+  const trimmed = fullName.trim();
+  const idx = trimmed.indexOf(' ');
+  if (idx === -1) return { firstName: trimmed, lastName: trimmed };
+  return { firstName: trimmed.slice(0, idx), lastName: trimmed.slice(idx + 1).trim() };
+}
+
 async function assertGuest(restaurantId: string, id: string) {
   const g = await prisma.guest.findUnique({ where: { id } });
   if (!g || g.restaurantId !== restaurantId) throw new NotFoundError('Guest', id);
@@ -67,31 +84,49 @@ export async function findOrCreateGuest(restaurantId: string, data: {
   email?: string;
   phone?: string;
 }): Promise<{ guest: any; created: boolean }> {
-  // Lookup by email first, then phone
-  let existing = null;
+  const normalizedPhone = data.phone ? normalizePhone(data.phone) : null;
+
+  // Phone-first lookup (normalized match)
+  if (normalizedPhone) {
+    const byPhone = await prisma.guest.findFirst({
+      where: { restaurantId, phone: normalizedPhone },
+    });
+    if (byPhone) return { guest: byPhone, created: false };
+  }
+
+  // Fallback: email lookup
   if (data.email) {
-    existing = await prisma.guest.findFirst({
+    const byEmail = await prisma.guest.findFirst({
       where: { restaurantId, email: data.email },
     });
+    if (byEmail) return { guest: byEmail, created: false };
   }
-  if (!existing && data.phone) {
-    existing = await prisma.guest.findFirst({
-      where: { restaurantId, phone: data.phone },
+
+  // Create new guest record
+  try {
+    const guest = await prisma.guest.create({
+      data: {
+        restaurantId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email ?? null,
+        phone: normalizedPhone ?? null,
+      },
     });
+    return { guest, created: true };
+  } catch (err: any) {
+    // P2002 = unique constraint violation — race condition where another request
+    // created the same guest between our lookup and create. Re-fetch and return it.
+    if (err?.code === 'P2002') {
+      const existing = normalizedPhone
+        ? await prisma.guest.findFirst({ where: { restaurantId, phone: normalizedPhone } })
+        : data.email
+        ? await prisma.guest.findFirst({ where: { restaurantId, email: data.email } })
+        : null;
+      if (existing) return { guest: existing, created: false };
+    }
+    throw err;
   }
-
-  if (existing) return { guest: existing, created: false };
-
-  const guest = await prisma.guest.create({
-    data: {
-      restaurantId,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email ?? null,
-      phone: data.phone ?? null,
-    },
-  });
-  return { guest, created: true };
 }
 
 export async function createGuest(restaurantId: string, data: {

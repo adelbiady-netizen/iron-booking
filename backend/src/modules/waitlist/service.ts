@@ -3,6 +3,7 @@ import { WaitlistStatus, Prisma } from '@prisma/client';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
 import { getFloorState } from '../tables/service';
 import { sendWhatsApp } from '../../lib/sms';
+import { findOrCreateGuest, splitName } from '../guests/service';
 
 function parseDateArg(dateStr: string): Date {
   return new Date(dateStr + 'T00:00:00.000Z');
@@ -138,10 +139,27 @@ export async function addToWaitlist(restaurantId: string, data: {
   const date = parseDateArg(data.date);
   const quotedWaitMinutes = await estimateWaitMinutes(restaurantId, date, data.partySize);
 
+  // Auto-link Guest CRM record when phone is present
+  let guestId: string | null = null;
+  if (data.guestPhone || data.guestName) {
+    try {
+      const { firstName, lastName } = splitName(data.guestName);
+      const { guest } = await findOrCreateGuest(restaurantId, {
+        firstName,
+        lastName,
+        phone: data.guestPhone,
+      });
+      guestId = guest.id;
+    } catch {
+      // Non-fatal: entry created without guest link
+    }
+  }
+
   return prisma.waitlistEntry.create({
     data: {
       restaurantId,
       date,
+      guestId,
       guestName: data.guestName,
       guestPhone: data.guestPhone ?? null,
       partySize: data.partySize,
@@ -214,11 +232,28 @@ export async function seatWaitlistGuest(
   });
   const s = settings.settings as Record<string, any>;
 
+  // Resolve guest CRM link: use existing link from entry, or try to resolve
+  let resolvedGuestId: string | null = entry.guestId ?? null;
+  if (!resolvedGuestId && entry.guestPhone) {
+    try {
+      const { firstName, lastName } = splitName(entry.guestName);
+      const { guest } = await findOrCreateGuest(restaurantId, {
+        firstName,
+        lastName,
+        phone: entry.guestPhone,
+      });
+      resolvedGuestId = guest.id;
+    } catch {
+      // Non-fatal: seat without guest link
+    }
+  }
+
   // Convert to a reservation
   const reservation = await prisma.$transaction(async (tx) => {
     const res = await tx.reservation.create({
       data: {
         restaurantId,
+        guestId: resolvedGuestId,
         partySize: entry.partySize,
         date: entry.date,
         time: new Date().toTimeString().slice(0, 5),
@@ -241,6 +276,13 @@ export async function seatWaitlistGuest(
         reservationId: res.id,
       },
     });
+
+    if (resolvedGuestId) {
+      await tx.guest.update({
+        where: { id: resolvedGuestId },
+        data: { visitCount: { increment: 1 }, lastVisitAt: new Date() },
+      });
+    }
 
     return res;
   });

@@ -220,8 +220,9 @@ model Guest {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  reservations Reservation[]
+  restaurant      Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservations    Reservation[]
+  waitlistEntries WaitlistEntry[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -337,6 +338,7 @@ model ReservationActivity {
 model WaitlistEntry {
   id           String          @id @default(uuid())
   restaurantId String
+  guestId      String?         // nullable FK — auto-linked on add/seat
   date         DateTime        @db.Date
   guestName    String
   guestPhone   String?
@@ -359,8 +361,10 @@ model WaitlistEntry {
   reservationId String?
 
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest        Guest?     @relation(fields: [guestId], references: [id])
 
   @@index([restaurantId, date, status])
+  @@index([restaurantId, guestId])
   @@map("waitlist_entries")
 }
 
