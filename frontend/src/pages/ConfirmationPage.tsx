@@ -139,7 +139,7 @@ export default function ConfirmationPage({ token }: Props) {
   });
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center px-5 pt-12 pb-16 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col items-center px-5 pt-8 pb-10 overflow-x-hidden">
 
       {/* ── Atmospheric background ──────────────────────────────────────── */}
       <AtmosphericBg />
@@ -311,16 +311,39 @@ export default function ConfirmationPage({ token }: Props) {
 
 function AtmosphericBg() {
   return (
-    <div
-      className="fixed inset-0 -z-10"
-      style={{
-        background: [
-          'radial-gradient(ellipse 140% 55% at 50% -10%, rgba(34,197,94,0.09) 0%, transparent 55%)',
-          'radial-gradient(ellipse 80% 45% at 10% 105%, rgba(59,130,246,0.04) 0%, transparent 50%)',
-          'linear-gradient(170deg, #111827 0%, #0d1117 45%, #090c12 100%)',
-        ].join(', '),
-      }}
-    />
+    <>
+      {/* Base gradient */}
+      <div
+        className="fixed inset-0 -z-20"
+        style={{
+          background: [
+            'radial-gradient(ellipse 150% 60% at 50% -15%, rgba(34,197,94,0.10) 0%, transparent 52%)',
+            'radial-gradient(ellipse 80% 45% at 10% 105%, rgba(59,130,246,0.04) 0%, transparent 50%)',
+            'linear-gradient(170deg, #111827 0%, #0d1117 45%, #090c12 100%)',
+          ].join(', '),
+        }}
+      />
+      {/* Subtle warm glow centred behind card */}
+      <div
+        className="fixed -z-10"
+        style={{
+          top: '25%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '480px',
+          height: '480px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.022) 0%, transparent 65%)',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Cinematic vignette */}
+      <div
+        className="fixed inset-0 -z-10 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0,0,0,0.45) 100%)',
+        }}
+      />
+    </>
   );
 }
 
@@ -328,23 +351,34 @@ function AtmosphericBg() {
 
 function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
   return (
-    <div className="text-center mb-6">
-      <div className="flex items-center justify-center mb-4">
+    <div className="text-center mb-5">
+      {/* Logo / monogram with ambient glow */}
+      <div className="relative flex items-center justify-center mb-3.5">
+        {/* Glow halo behind logo */}
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: '90px',
+            height: '90px',
+            background: 'radial-gradient(circle, rgba(34,197,94,0.14) 0%, transparent 70%)',
+          }}
+        />
         {identity?.logoUrl ? (
           <img
             src={identity.logoUrl}
             alt={identity.name}
-            className="h-14 max-w-[200px] object-contain"
+            className="relative h-[4.5rem] max-w-[220px] object-contain"
           />
         ) : (
           <div
-            className="w-14 h-14 rounded-full flex items-center justify-center backdrop-blur-sm select-none"
+            className="relative w-[4.5rem] h-[4.5rem] rounded-full flex items-center justify-center backdrop-blur-sm select-none"
             style={{
               background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.13)',
+              boxShadow: '0 0 28px rgba(34,197,94,0.10), 0 0 60px rgba(34,197,94,0.05)',
             }}
           >
-            <span className="text-white/80 text-xl font-semibold">
+            <span className="text-white/80 text-2xl font-medium">
               {identity?.name ? identity.name.charAt(0).toUpperCase() : '◆'}
             </span>
           </div>
@@ -352,7 +386,12 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
       </div>
 
       {identity?.name && (
-        <h2 className="text-white text-2xl font-semibold tracking-tight">{identity.name}</h2>
+        <h2
+          className="text-[1.4rem] font-medium tracking-[-0.025em]"
+          style={{ color: '#f0ebe0' }}
+        >
+          {identity.name}
+        </h2>
       )}
     </div>
   );
@@ -363,11 +402,17 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="w-full rounded-3xl p-7 backdrop-blur-2xl"
+      className="w-full rounded-[28px] p-6 backdrop-blur-[52px]"
       style={{
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
+        background: 'rgba(12,16,26,0.62)',
+        border: '1px solid rgba(255,255,255,0.065)',
+        boxShadow: [
+          '0 2px 0 rgba(255,255,255,0.07) inset',
+          '0 -1px 0 rgba(0,0,0,0.3) inset',
+          '0 32px 72px rgba(0,0,0,0.55)',
+          '0 8px 24px rgba(0,0,0,0.35)',
+          '0 0 0 0.5px rgba(255,255,255,0.04)',
+        ].join(', '),
       }}
     >
       {children}
@@ -382,18 +427,19 @@ function DateHero({ date, time, partySize, occasion }: {
 }) {
   return (
     <div className="text-center">
-      <p className="text-white/25 text-[11px] font-medium uppercase tracking-[0.14em] mb-1">
+      <p className="text-white/20 text-[10px] font-medium uppercase tracking-[0.18em] mb-1.5">
         {fmtWeekday(date)}
       </p>
-      <p className="text-white text-[2rem] font-semibold tracking-tight leading-none mb-1.5">
+      <p
+        className="font-semibold leading-none mb-2"
+        style={{ fontSize: '2.25rem', letterSpacing: '-0.03em', color: '#f8f5ef' }}
+      >
         {fmtMonthDay(date)}
       </p>
-      <p className="text-white/55 text-lg mb-5">{fmt12Time(time)}</p>
+      <p className="text-white/38 text-[17px] font-light mb-5">{fmt12Time(time)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
-        <Chip>
-          {partySize === 1 ? '1 guest' : `${partySize} guests`}
-        </Chip>
+        <Chip>{partySize === 1 ? '1 guest' : `${partySize} guests`}</Chip>
         {occasion && <OccasionChip>{occasion}</OccasionChip>}
       </div>
     </div>
@@ -475,7 +521,21 @@ function ConfirmBtn({ onClick, children }: { onClick: () => void; children: Reac
     <button
       type="button"
       onClick={onClick}
-      className="w-full bg-white hover:bg-white/90 active:scale-[0.98] text-[#0d1117] font-semibold py-4 rounded-2xl text-[15px] tracking-wide transition-all"
+      className="w-full active:scale-[0.98] font-semibold py-4 rounded-3xl text-[15px] transition-all"
+      style={{
+        background: '#f5f0e8',
+        color: '#0a0c10',
+        letterSpacing: '0.018em',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(0,0,0,0.25)',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLButtonElement).style.background = '#faf7f2';
+        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(0,0,0,0.25), 0 0 36px rgba(245,240,232,0.16)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.background = '#f5f0e8';
+        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(0,0,0,0.25)';
+      }}
     >
       {children}
     </button>
@@ -487,7 +547,21 @@ function LateBtn({ onClick, children }: { onClick: () => void; children: React.R
     <button
       type="button"
       onClick={onClick}
-      className="w-full active:scale-[0.98] font-medium py-3.5 rounded-2xl text-[14px] text-amber-300/75 bg-amber-500/[0.07] border border-amber-500/[0.20] hover:bg-amber-500/[0.12] transition-all"
+      className="w-full active:scale-[0.98] font-light py-3.5 rounded-3xl text-[14px] transition-all"
+      style={{
+        background: 'rgba(251,191,36,0.04)',
+        border: '0.5px solid rgba(251,191,36,0.18)',
+        color: 'rgba(255,210,100,0.62)',
+        letterSpacing: '0.01em',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(251,191,36,0.07)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,210,100,0.78)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(251,191,36,0.04)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,210,100,0.62)';
+      }}
     >
       {children}
     </button>
@@ -499,7 +573,10 @@ function CancelLink({ onClick, children }: { onClick: () => void; children: Reac
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-center text-[12px] py-2 mt-0.5 transition-colors text-red-400/30 hover:text-red-400/55"
+      className="w-full text-center text-[11px] py-2 mt-0.5 transition-colors"
+      style={{ color: 'rgba(255,255,255,0.13)', letterSpacing: '0.01em' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.26)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.13)'; }}
     >
       {children}
     </button>
@@ -524,10 +601,26 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               href={googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 max-w-[160px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-full text-[13px] text-white/50 hover:text-white/75 transition-all no-underline"
+              className="flex-1 max-w-[160px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-full text-[13px] transition-all no-underline"
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.09)',
+                background: 'rgba(255,255,255,0.042)',
+                border: '0.5px solid rgba(255,255,255,0.11)',
+                color: 'rgba(255,255,255,0.48)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.20)',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.background = 'rgba(255,255,255,0.08)';
+                el.style.color = 'rgba(255,255,255,0.72)';
+                el.style.transform = 'translateY(-1px)';
+                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.30)';
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.background = 'rgba(255,255,255,0.042)';
+                el.style.color = 'rgba(255,255,255,0.48)';
+                el.style.transform = '';
+                el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.20)';
               }}
             >
               <PinIcon /> Maps
@@ -538,10 +631,26 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               href={wazeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 max-w-[160px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-full text-[13px] text-white/50 hover:text-white/75 transition-all no-underline"
+              className="flex-1 max-w-[160px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-full text-[13px] transition-all no-underline"
               style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.09)',
+                background: 'rgba(255,255,255,0.042)',
+                border: '0.5px solid rgba(255,255,255,0.11)',
+                color: 'rgba(255,255,255,0.48)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.20)',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.background = 'rgba(255,255,255,0.08)';
+                el.style.color = 'rgba(255,255,255,0.72)';
+                el.style.transform = 'translateY(-1px)';
+                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.30)';
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.background = 'rgba(255,255,255,0.042)';
+                el.style.color = 'rgba(255,255,255,0.48)';
+                el.style.transform = '';
+                el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.20)';
               }}
             >
               <CarIcon /> Waze
@@ -580,7 +689,7 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
 }) {
   const hasLinks = websiteUrl || instagramUrl;
   return (
-    <div className="mt-10 pb-2 text-center">
+    <div className="mt-6 pb-2 text-center">
       {hasLinks && (
         <div className="flex items-center justify-center gap-6 mb-4">
           {websiteUrl && (
