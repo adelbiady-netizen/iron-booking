@@ -710,20 +710,20 @@ function LateBtn({ onClick, children }: { onClick: () => void; children: React.R
       className="w-full active:scale-[0.98] font-light rounded-[20px] text-[15px] transition-all"
       style={{
         padding: '15px 24px',
-        background: 'rgba(148,115,50,0.08)',
-        border: '1px solid rgba(185,148,72,0.20)',
-        color: 'rgba(208,172,104,0.72)',
+        background: 'rgba(148,115,50,0.12)',
+        border: '1px solid rgba(185,148,72,0.34)',
+        color: 'rgba(220,185,118,0.90)',
         letterSpacing: '0.012em',
       }}
       onMouseEnter={e => {
         const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'rgba(148,115,50,0.14)';
-        b.style.color = 'rgba(208,172,104,0.90)';
+        b.style.background = 'rgba(148,115,50,0.20)';
+        b.style.color = 'rgba(228,196,132,1.0)';
       }}
       onMouseLeave={e => {
         const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'rgba(148,115,50,0.08)';
-        b.style.color = 'rgba(208,172,104,0.72)';
+        b.style.background = 'rgba(148,115,50,0.12)';
+        b.style.color = 'rgba(220,185,118,0.90)';
       }}
     >
       {children}
@@ -737,9 +737,9 @@ function CancelLink({ onClick, children }: { onClick: () => void; children: Reac
       type="button"
       onClick={onClick}
       className="w-full text-center text-[12px] py-2.5 transition-colors"
-      style={{ color: 'rgba(255,255,255,0.18)', letterSpacing: '0.015em' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.18)'; }}
+      style={{ color: 'rgba(255,255,255,0.40)', letterSpacing: '0.015em' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.62)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.40)'; }}
     >
       {children}
     </button>
@@ -754,10 +754,10 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
   if (!address && !googleMapsUrl && !wazeUrl) return null;
 
   const pillBase = {
-    background: 'rgba(255,255,255,0.034)',
-    border: '1px solid rgba(255,255,255,0.090)',
-    color: 'rgba(255,255,255,0.42)',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+    background: 'rgba(255,255,255,0.068)',
+    border: '1px solid rgba(255,255,255,0.160)',
+    color: 'rgba(255,255,255,0.64)',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
   };
 
   return (
@@ -765,7 +765,7 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
       {address && (
         <p
           className="text-[13px] leading-relaxed mb-4 mx-auto"
-          style={{ color: 'rgba(255,255,255,0.42)', maxWidth: '300px' }}
+          style={{ color: 'rgba(255,255,255,0.58)', maxWidth: '300px' }}
         >
           {address}
         </p>
@@ -781,8 +781,8 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               style={{ ...pillBase, padding: '9px 20px' }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.075)';
-                el.style.color = 'rgba(255,255,255,0.68)';
+                el.style.background = 'rgba(255,255,255,0.110)';
+                el.style.color = 'rgba(255,255,255,0.85)';
                 el.style.transform = 'translateY(-2px)';
                 el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.24)';
               }}
@@ -806,8 +806,8 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               style={{ ...pillBase, padding: '9px 20px' }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.075)';
-                el.style.color = 'rgba(255,255,255,0.68)';
+                el.style.background = 'rgba(255,255,255,0.110)';
+                el.style.color = 'rgba(255,255,255,0.85)';
                 el.style.transform = 'translateY(-2px)';
                 el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.24)';
               }}
@@ -865,20 +865,20 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 no-underline transition-all"
-                  style={{ color: 'rgba(255,255,255,0.52)' }}
+                  style={{ color: 'rgba(255,255,255,0.65)' }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.80)';
+                    el.style.color = 'rgba(255,255,255,0.90)';
                     el.style.textShadow = '0 0 20px rgba(255,255,255,0.18)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.52)';
+                    el.style.color = 'rgba(255,255,255,0.65)';
                     el.style.textShadow = '';
                   }}
                 >
                   <GlobeIcon />
-                  <span className="text-[12px] font-light tracking-wide">Website</span>
+                  <span className="text-[13px] font-light tracking-wide">Website</span>
                 </a>
               )}
               {instagramUrl && (
@@ -887,20 +887,20 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 no-underline transition-all"
-                  style={{ color: 'rgba(255,255,255,0.52)' }}
+                  style={{ color: 'rgba(255,255,255,0.65)' }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.80)';
+                    el.style.color = 'rgba(255,255,255,0.90)';
                     el.style.textShadow = '0 0 20px rgba(255,255,255,0.18)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.52)';
+                    el.style.color = 'rgba(255,255,255,0.65)';
                     el.style.textShadow = '';
                   }}
                 >
                   <InstagramIcon />
-                  <span className="text-[12px] font-light tracking-wide">Instagram</span>
+                  <span className="text-[13px] font-light tracking-wide">Instagram</span>
                 </a>
               )}
             </div>
