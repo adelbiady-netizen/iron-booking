@@ -264,6 +264,7 @@ export interface PublicReservation {
   restaurantName: string;
   restaurantAddress: string | null;
   restaurantLogoUrl: string | null;
+  restaurantCoverImageUrl: string | null;
   restaurantGoogleMapsUrl: string | null;
   restaurantWazeUrl: string | null;
   restaurantWebsiteUrl: string | null;

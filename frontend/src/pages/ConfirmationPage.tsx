@@ -18,6 +18,7 @@ type PageState =
 interface RestaurantIdentity {
   name: string;
   logoUrl: string | null;
+  coverUrl: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,7 +50,6 @@ function getReservation(state: PageState): PublicReservation | null {
   return null;
 }
 
-// Filters out system/dev restaurant names that should never be shown to guests.
 function sanitizeName(name: string | null | undefined): string | null {
   if (!name) return null;
   const t = name.trim();
@@ -72,19 +72,17 @@ export default function ConfirmationPage({ token }: Props) {
   const [identity, setIdentity] = useState<RestaurantIdentity | null>(null);
   const [mounted,  setMounted]  = useState(false);
 
-  // Entry animation — triggers on first paint
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Data fetch
   useEffect(() => {
     let aborted = false;
     api.public.getReservation(token)
       .then(r => {
         if (aborted) return;
-        setIdentity({ name: r.restaurantName, logoUrl: r.restaurantLogoUrl });
+        setIdentity({ name: r.restaurantName, logoUrl: r.restaurantLogoUrl, coverUrl: r.restaurantCoverImageUrl });
         if (r.status === 'CANCELLED') {
           setState({ phase: 'cancelled' });
         } else if (r.isConfirmedByGuest && !r.isRunningLate) {
@@ -101,8 +99,6 @@ export default function ConfirmationPage({ token }: Props) {
       });
     return () => { aborted = true; };
   }, [token]);
-
-  // ─── Handlers (logic unchanged) ───────────────────────────────────────────
 
   async function handleConfirm() {
     if (state.phase !== 'ready') return;
@@ -147,7 +143,8 @@ export default function ConfirmationPage({ token }: Props) {
     }
   }
 
-  const res = getReservation(state);
+  const res      = getReservation(state);
+  const hasCover = !!identity?.coverUrl;
 
   const fade = (delay: number) => ({
     className: `transition-all duration-500 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`,
@@ -155,18 +152,28 @@ export default function ConfirmationPage({ token }: Props) {
   });
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center px-5 pt-6 pb-10 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col items-center pb-10 overflow-x-hidden">
 
-      {/* ── Atmospheric background ──────────────────────────────────────── */}
       <AtmosphericBg />
 
-      {/* ── Restaurant identity header ───────────────────────────────────── */}
-      <div {...fade(0)} className={`w-full max-w-sm ${fade(0).className}`} style={fade(0).style}>
-        <RestaurantHero identity={identity} />
+      {/* ── Hero zone ───────────────────────────────────────────────────────── */}
+      <div className={`w-full ${fade(0).className}`} style={fade(0).style}>
+        {hasCover ? (
+          <CoverImageHero identity={identity!} />
+        ) : (
+          <div className="pt-6 px-5 w-full flex flex-col items-center">
+            <div className="w-full max-w-sm">
+              <RestaurantHero identity={identity} />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── Main card ────────────────────────────────────────────────────── */}
-      <div {...fade(80)} className={`w-full max-w-sm ${fade(80).className}`} style={fade(80).style}>
+      {/* ── Main card ────────────────────────────────────────────────────────── */}
+      <div
+        className={`w-full max-w-sm px-5 ${hasCover ? '-mt-14 relative z-10' : ''} ${fade(80).className}`}
+        style={fade(80).style}
+      >
 
         {/* Loading */}
         {state.phase === 'loading' && (
@@ -285,7 +292,7 @@ export default function ConfirmationPage({ token }: Props) {
 
       {/* ── Below-card utility zone ───────────────────────────────────────── */}
       <div
-        className={`w-full max-w-sm ${fade(160).className}`}
+        className={`w-full max-w-sm px-5 ${fade(160).className}`}
         style={fade(160).style}
       >
         {res && (
@@ -323,12 +330,11 @@ export default function ConfirmationPage({ token }: Props) {
   );
 }
 
-// ─── Background ───────────────────────────────────────────────────────────────
+// ─── Atmospheric background ───────────────────────────────────────────────────
 
 function AtmosphericBg() {
   return (
     <>
-      {/* Base gradient */}
       <div
         className="fixed inset-0 -z-20"
         style={{
@@ -339,15 +345,11 @@ function AtmosphericBg() {
           ].join(', '),
         }}
       />
-      {/* Ambient glow centred behind card */}
       <div
         className="fixed -z-10"
         style={{
-          top: '18%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '540px',
-          height: '540px',
+          top: '18%', left: '50%', transform: 'translateX(-50%)',
+          width: '540px', height: '540px',
           background: [
             'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.030) 0%, transparent 55%)',
             'radial-gradient(circle at 50% 60%, rgba(34,197,94,0.025) 0%, transparent 50%)',
@@ -355,18 +357,84 @@ function AtmosphericBg() {
           pointerEvents: 'none',
         }}
       />
-      {/* Cinematic vignette */}
       <div
         className="fixed inset-0 -z-10 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0,0,0,0.45) 100%)',
-        }}
+        style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0,0,0,0.45) 100%)' }}
       />
     </>
   );
 }
 
-// ─── Restaurant hero ──────────────────────────────────────────────────────────
+// ─── Cover image hero ─────────────────────────────────────────────────────────
+
+function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
+  const displayName = sanitizeName(identity.name);
+  const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
+
+  return (
+    <div className="relative w-full overflow-hidden" style={{ height: '300px' }}>
+      {/* Cover image with subtle zoom */}
+      <img
+        src={identity.coverUrl!}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ transform: 'scale(1.04)', transformOrigin: 'center 40%' }}
+      />
+
+      {/* Gradient — light veil at top, deep dark at bottom for logo legibility */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(9,12,18,0.18) 0%, rgba(9,12,18,0.44) 54%, rgba(9,12,18,0.90) 84%, rgba(9,12,18,0.99) 100%)',
+        }}
+      />
+
+      {/* Logo + name anchored at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-8 px-5">
+        <div className="relative flex items-center justify-center mb-3">
+          {/* Ambient glow halo */}
+          <div
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: '88px', height: '88px',
+              background: 'radial-gradient(circle, rgba(34,197,94,0.14) 0%, rgba(34,197,94,0.03) 55%, transparent 72%)',
+            }}
+          />
+          {identity.logoUrl ? (
+            <img
+              src={identity.logoUrl}
+              alt={displayName ?? 'Restaurant'}
+              className="relative h-[4rem] max-w-[200px] object-contain"
+              style={{ filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.70)) drop-shadow(0 0 32px rgba(0,0,0,0.50))' }}
+            />
+          ) : (
+            <div
+              className="relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-sm select-none"
+              style={{
+                background: 'rgba(255,255,255,0.09)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                boxShadow: '0 0 28px rgba(34,197,94,0.10), 0 0 60px rgba(34,197,94,0.04)',
+              }}
+            >
+              <span className="text-white/80 text-2xl font-medium">{initial}</span>
+            </div>
+          )}
+        </div>
+
+        {displayName && (
+          <h2
+            className="text-[1.35rem] font-medium tracking-[-0.022em] text-center"
+            style={{ color: '#f0ebe0', textShadow: '0 1px 10px rgba(0,0,0,0.55)' }}
+          >
+            {displayName}
+          </h2>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Gradient hero (fallback — no cover image) ────────────────────────────────
 
 function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
   const displayName = sanitizeName(identity?.name);
@@ -374,14 +442,11 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 
   return (
     <div className="text-center mb-5">
-      {/* Logo / monogram with ambient glow */}
       <div className="relative flex items-center justify-center mb-3.5">
-        {/* Glow halo */}
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: '96px',
-            height: '96px',
+            width: '96px', height: '96px',
             background: 'radial-gradient(circle, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0.04) 55%, transparent 72%)',
           }}
         />
@@ -406,10 +471,7 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
       </div>
 
       {displayName && (
-        <h2
-          className="text-[1.4rem] font-medium tracking-[-0.025em]"
-          style={{ color: '#f0ebe0' }}
-        >
+        <h2 className="text-[1.4rem] font-medium tracking-[-0.025em]" style={{ color: '#f0ebe0' }}>
           {displayName}
         </h2>
       )}
@@ -491,7 +553,7 @@ function OccasionChip({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Status notices (inside card) ─────────────────────────────────────────────
+// ─── Status notices ───────────────────────────────────────────────────────────
 
 function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'amber'; text: string }) {
   const styles = {
@@ -542,12 +604,10 @@ function ConfirmBtn({ onClick, children }: { onClick: () => void; children: Reac
     <button
       type="button"
       onClick={onClick}
-      className="w-full active:scale-[0.98] font-semibold py-4 rounded-3xl text-[15px] transition-all"
+      className="w-full active:scale-[0.98] py-4 rounded-3xl text-[15px] transition-all"
       style={{
-        background: '#f0ece4',
-        color: '#0a0c10',
-        letterSpacing: '0.022em',
-        fontWeight: 600,
+        background: '#f0ece4', color: '#0a0c10',
+        letterSpacing: '0.022em', fontWeight: 600,
         boxShadow: '0 1px 0 rgba(255,255,255,0.52) inset, 0 -1px 0 rgba(0,0,0,0.06) inset, 0 8px 24px rgba(0,0,0,0.25)',
       }}
       onMouseEnter={e => {
@@ -692,10 +752,7 @@ function InfoBlock({ label, icon, children }: { label: string; icon: React.React
   return (
     <div
       className="mt-3 rounded-2xl p-4"
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
-      }}
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className="text-white/20">{icon}</span>
@@ -716,15 +773,27 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
   return (
     <div className="mt-4 pb-2 text-center">
       {hasLinks && (
-        <div className="flex items-center justify-center gap-6 mb-4">
+        <div className="flex items-center justify-center gap-7 mb-4">
           {websiteUrl && (
             <a
               href={websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white/25 hover:text-white/45 text-[13px] transition-colors no-underline"
+              className="flex items-center gap-1.5 no-underline transition-all"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.color = 'rgba(255,255,255,0.82)';
+                el.style.textShadow = '0 0 18px rgba(255,255,255,0.16)';
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.color = 'rgba(255,255,255,0.55)';
+                el.style.textShadow = '';
+              }}
             >
-              Website
+              <GlobeIcon />
+              <span className="text-[12px] font-light tracking-wide">Website</span>
             </a>
           )}
           {instagramUrl && (
@@ -732,9 +801,21 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
               href={instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white/25 hover:text-white/45 text-[13px] transition-colors no-underline"
+              className="flex items-center gap-1.5 no-underline transition-all"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.color = 'rgba(255,255,255,0.82)';
+                el.style.textShadow = '0 0 18px rgba(255,255,255,0.16)';
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                el.style.color = 'rgba(255,255,255,0.55)';
+                el.style.textShadow = '';
+              }}
             >
-              Instagram
+              <InstagramIcon />
+              <span className="text-[12px] font-light tracking-wide">Instagram</span>
             </a>
           )}
         </div>
@@ -784,6 +865,22 @@ function PolicyIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
       <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15h8v2H8zm0-4h8v2H8z" />
+    </svg>
+  );
+}
+
+function GlobeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
     </svg>
   );
 }
