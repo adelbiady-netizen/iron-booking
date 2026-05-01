@@ -17,7 +17,9 @@ const ASSUMED_DURATION_MIN = 90;
 function freeInMins(table: FloorTable, operationalNow: number): number | null {
   if (table.liveStatus === 'AVAILABLE') return 0;
   if (table.liveStatus === 'OCCUPIED' && table.currentReservation) {
-    return Math.max(0, minutesUntilEnd(table.currentReservation.expectedEndTime, operationalNow));
+    // Never return 0 for an occupied table — 0 is reserved exclusively for AVAILABLE.
+    // Even if the turn is overdue the host hasn't cleared the table yet.
+    return Math.max(1, Math.round(minutesUntilEnd(table.currentReservation.expectedEndTime, operationalNow)));
   }
   return null;
 }

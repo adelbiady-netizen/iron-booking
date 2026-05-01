@@ -285,23 +285,41 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onCance
 
                 return (
                   <div className="mt-1.5 pl-6 flex flex-wrap gap-1">
-                    {sugs.map(sug => (
-                      <button
-                        key={sug.tableId}
-                        onClick={() => {
-                          if (sug.hasConflict && sug.conflictMin !== null) {
-                            setPendingConflict({ entryId: entry.id, tableId: sug.tableId, tableName: sug.tableName, conflictMin: sug.conflictMin });
-                          } else {
-                            onSeatAtTable?.(sug.tableId, entry);
-                          }
-                        }}
-                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border hover:border-iron-text/30 bg-iron-bg text-iron-muted hover:text-iron-text transition-colors"
-                      >
-                        <span>→ {sug.tableName}</span>
-                        <span style={{ color: sug.labelColor }}>· {sug.label}</span>
-                        {sug.hasConflict && <span className="text-amber-400 ml-0.5">⚠</span>}
-                      </button>
-                    ))}
+                    {sugs.map(sug => {
+                      const isAvailableNow = sug.minutesUntilFree === 0;
+                      if (!isAvailableNow) {
+                        // Table not yet free — show as informational only, not clickable
+                        return (
+                          <span
+                            key={sug.tableId}
+                            className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border/40 bg-iron-bg text-iron-muted/50 cursor-default select-none"
+                            title={sug.minutesUntilFree != null ? `Frees in ~${sug.minutesUntilFree}m` : 'Not available'}
+                          >
+                            <span>{sug.tableName}</span>
+                            <span className="opacity-60">
+                              {sug.minutesUntilFree != null ? `~${sug.minutesUntilFree}m` : sug.label}
+                            </span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <button
+                          key={sug.tableId}
+                          onClick={() => {
+                            if (sug.hasConflict && sug.conflictMin !== null) {
+                              setPendingConflict({ entryId: entry.id, tableId: sug.tableId, tableName: sug.tableName, conflictMin: sug.conflictMin });
+                            } else {
+                              onSeatAtTable?.(sug.tableId, entry);
+                            }
+                          }}
+                          className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border hover:border-iron-text/30 bg-iron-bg text-iron-muted hover:text-iron-text transition-colors"
+                        >
+                          <span>→ {sug.tableName}</span>
+                          <span style={{ color: sug.labelColor }}>· {sug.label}</span>
+                          {sug.hasConflict && <span className="text-amber-400 ml-0.5">⚠</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })()}

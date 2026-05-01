@@ -182,6 +182,16 @@ export async function seatWaitlistGuest(
     throw new BusinessRuleError(`Cannot seat a guest with status ${entry.status}`);
   }
 
+  if (tableId) {
+    const occupying = await prisma.reservation.findFirst({
+      where: { tableId, status: 'SEATED', date: entry.date },
+      select: { id: true, guestName: true },
+    });
+    if (occupying) {
+      throw new BusinessRuleError(`Table is currently occupied by ${occupying.guestName}`);
+    }
+  }
+
   const settings = await prisma.restaurant.findUniqueOrThrow({
     where: { id: restaurantId },
     select: { settings: true },
