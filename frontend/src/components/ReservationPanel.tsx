@@ -48,6 +48,7 @@ interface Props {
   waitlistLoading: boolean;
   onWaitlistAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
   onWaitlistSeat: (entry: WaitlistEntry) => void;
+  onWaitlistNotify: (entry: WaitlistEntry) => Promise<void>;
   onWaitlistCancel: (entry: WaitlistEntry) => void;
   onWaitlistNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];
@@ -61,7 +62,7 @@ interface Props {
 export default function ReservationPanel({
   reservations, selectedId, highlightId, onSelect, loading,
   onNewReservation, onWalkIn,
-  waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistCancel, onWaitlistNoShow,
+  waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
 }: Props) {
   const [tab,    setTab]    = useState<Tab>('reservations');
@@ -172,6 +173,7 @@ export default function ReservationPanel({
           loading={waitlistLoading}
           onAdd={onWaitlistAdd}
           onSeat={onWaitlistSeat}
+          onNotify={onWaitlistNotify}
           onCancel={onWaitlistCancel}
           onNoShow={onWaitlistNoShow}
           nextInLine={nextInLine}

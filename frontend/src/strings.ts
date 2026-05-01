@@ -139,6 +139,9 @@ export const T = {
     addLink:          '+ Add guest to waitlist',
     emptyTitle:       'Waitlist is empty',
     emptyHint:        'Add guests above when all tables are occupied.',
+    notifyButton:     'Notify',
+    notifiedJustNow:  'Notified just now',
+    notifiedAgo:      (n: number) => `Notified ${n}m ago`,
     noShow:           'No-show',
     cancelButton:     'Cancel',
     footerEmpty:      'No one waiting',
@@ -466,5 +469,7 @@ export const T = {
     toastNoShowFail:  'Failed',
     toastSeatFail:    'Failed to seat guest',
     toastSeatAt:      (name: string, table: string) => `${name} seated at ${table}`,
+    toastNotified:    (name: string) => `WhatsApp sent to ${name}`,
+    toastNotifyFail:  'Failed to send WhatsApp',
   },
 };

@@ -489,6 +489,16 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     }
   }, [showToast]);
 
+  const handleWaitlistNotify = useCallback(async (entry: WaitlistEntry) => {
+    try {
+      const updated = await api.waitlist.notify(entry.id);
+      setWaitlist(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e));
+      showToast(T.hostDashboard.toastNotified(entry.guestName));
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.hostDashboard.toastNotifyFail, 'error');
+    }
+  }, [showToast]);
+
   const handleWaitlistNoShow = useCallback(async (entry: WaitlistEntry) => {
     try {
       await api.waitlist.remove(entry.id, 'LEFT');
@@ -658,6 +668,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           waitlistLoading={waitlistLoading}
           onWaitlistAdd={handleWaitlistAdd}
           onWaitlistSeat={handleWaitlistSeat}
+          onWaitlistNotify={handleWaitlistNotify}
           onWaitlistCancel={handleWaitlistCancel}
           onWaitlistNoShow={handleWaitlistNoShow}
           nextInLine={nextInLine}

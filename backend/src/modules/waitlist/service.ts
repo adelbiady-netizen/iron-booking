@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { WaitlistStatus, Prisma } from '@prisma/client';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
 import { getFloorState } from '../tables/service';
+import { sendWhatsApp } from '../../lib/sms';
 
 function parseDateArg(dateStr: string): Date {
   return new Date(dateStr + 'T00:00:00.000Z');
@@ -165,6 +166,21 @@ export async function notifyGuest(restaurantId: string, id: string) {
   if (entry.status !== 'WAITING') {
     throw new BusinessRuleError(`Entry is already ${entry.status}`);
   }
+  if (!entry.guestPhone) {
+    throw new BusinessRuleError('Guest has no phone number on file');
+  }
+
+  const restaurant = await prisma.restaurant.findUniqueOrThrow({
+    where: { id: restaurantId },
+    select: { name: true },
+  });
+
+  const message =
+    `Hi ${entry.guestName}, your table is ready at ${restaurant.name}. Please come to the host stand.`;
+
+  // Send first — only stamp NOTIFIED if the message actually went out
+  await sendWhatsApp(entry.guestPhone, message);
+
   return prisma.waitlistEntry.update({
     where: { id },
     data: { status: 'NOTIFIED', notifiedAt: new Date() },

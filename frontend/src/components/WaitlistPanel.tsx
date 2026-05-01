@@ -19,6 +19,7 @@ interface Props {
   loading: boolean;
   onAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
   onSeat: (entry: WaitlistEntry) => void;
+  onNotify?: (entry: WaitlistEntry) => Promise<void>;
   onCancel: (entry: WaitlistEntry) => void;
   onNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];
@@ -28,11 +29,12 @@ interface Props {
   operationalNow?: number;
 }
 
-export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow }: Props) {
+export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [name,      setName]      = useState('');
   const [partySize, setPartySize] = useState('2');
   const [phone,     setPhone]     = useState('');
+  const [busyNotify, setBusyNotify] = useState<string | null>(null);
   const [busy,      setBusy]      = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [pendingConflict, setPendingConflict] = useState<{
@@ -228,13 +230,38 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onCance
                   </p>
                 </div>
               </div>
-              <div className="flex gap-1.5 pl-6">
+              <div className="flex flex-wrap gap-1.5 pl-6">
                 <button
                   onClick={() => onSeat(entry)}
                   className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors"
                 >
                   {T.waitlistPanel.seatButton}
                 </button>
+                {(() => {
+                  if (entry.notifiedAt) {
+                    const m = Math.floor((Date.now() - new Date(entry.notifiedAt).getTime()) / 60_000);
+                    return (
+                      <span className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 bg-blue-500/10">
+                        {m < 1 ? T.waitlistPanel.notifiedJustNow : T.waitlistPanel.notifiedAgo(m)}
+                      </span>
+                    );
+                  }
+                  if (entry.guestPhone && onNotify) {
+                    return (
+                      <button
+                        disabled={busyNotify === entry.id}
+                        onClick={async () => {
+                          setBusyNotify(entry.id);
+                          try { await onNotify(entry); } finally { setBusyNotify(null); }
+                        }}
+                        className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+                      >
+                        {busyNotify === entry.id ? '…' : T.waitlistPanel.notifyButton}
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
                 <button
                   onClick={() => onNoShow(entry)}
                   className="text-[11px] px-2.5 py-1 rounded-md border border-orange-900/20 text-orange-400 hover:bg-orange-900/10 transition-colors"

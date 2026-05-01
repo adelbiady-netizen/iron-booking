@@ -194,6 +194,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ tableId }),
       }),
+    notify: (id: string) =>
+      request<WaitlistEntry>(`/waitlist/${id}/notify`, { method: 'POST' }),
     remove: (id: string, reason: 'LEFT' | 'REMOVED') =>
       request<WaitlistEntry>(`/waitlist/${id}/remove`, { method: 'POST', body: JSON.stringify({ reason }) }),
   },
