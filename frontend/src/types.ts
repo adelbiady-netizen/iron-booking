@@ -203,6 +203,15 @@ export interface FloorObjectData {
   color: string | null;
 }
 
+export interface GuestSearchResult {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  isVip: boolean;
+  visitCount: number;
+}
+
 export interface GuestLookupResult {
   id: string;
   firstName: string;

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import type { GuestLookupResult, WaitlistEntry } from '../types';
+import type { GuestLookupResult, GuestSearchResult, WaitlistEntry } from '../types';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { api } from '../api';
@@ -37,6 +37,8 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   const [phone,     setPhone]     = useState('');
   const [guestHint,     setGuestHint]     = useState<GuestLookupResult | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
+  const [nameResults,   setNameResults]   = useState<GuestSearchResult[]>([]);
+  const [showNameDrop,  setShowNameDrop]  = useState(false);
   const [busyNotify, setBusyNotify] = useState<string | null>(null);
   const [busy,      setBusy]      = useState(false);
   const [error,     setError]     = useState<string | null>(null);
@@ -51,7 +53,24 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   function resetForm() {
     setName(''); setPartySize('2'); setPhone(''); setError(null);
     setGuestHint(null); setHintDismissed(false);
+    setNameResults([]); setShowNameDrop(false);
   }
+
+  // Debounced guest search by name — skipped when phone already identified a guest
+  useEffect(() => {
+    const q = name.trim();
+    if (q.length < 2 || (guestHint && !hintDismissed)) {
+      setNameResults([]); setShowNameDrop(false); return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await api.guests.search(q, 6);
+        setNameResults(data);
+        setShowNameDrop(data.length > 0);
+      } catch { /* non-fatal */ }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [name, guestHint, hintDismissed]);
 
   // Debounced guest lookup by phone
   useEffect(() => {
@@ -141,14 +160,49 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
       <div className="p-3 border-b border-iron-border">
         {showForm ? (
           <div className="space-y-2">
-            <input
-              autoFocus
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              placeholder={T.waitlistPanel.namePlaceholder}
-              className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
-            />
+            <div className="relative">
+              <input
+                autoFocus
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') setShowNameDrop(false);
+                  else if (e.key === 'Enter') handleAdd();
+                }}
+                onBlur={() => setShowNameDrop(false)}
+                placeholder={T.waitlistPanel.namePlaceholder}
+                className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
+              />
+              {showNameDrop && nameResults.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-iron-card border border-iron-border rounded-lg shadow-xl z-50 overflow-hidden">
+                  {nameResults.map(g => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => {
+                        setName(`${g.firstName} ${g.lastName}`);
+                        setPhone(g.phone ?? '');
+                        setShowNameDrop(false);
+                        setNameResults([]);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-iron-bg/60 text-left transition-colors border-b border-iron-border/30 last:border-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium text-iron-text">{g.firstName} {g.lastName}</span>
+                          {g.isVip && <span className="text-[9px] font-semibold text-amber-400">VIP</span>}
+                        </div>
+                        <div className="text-[10px] text-iron-muted mt-0.5 flex items-center gap-1.5">
+                          {g.phone && <span>{g.phone}</span>}
+                          {g.visitCount > 0 && <span className="text-iron-muted/60">{g.visitCount} visit{g.visitCount !== 1 ? 's' : ''}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <input
                 type="number" min={1} max={30}

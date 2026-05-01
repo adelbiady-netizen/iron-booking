@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { GuestLookupResult, Reservation, Table } from '../types';
+import type { GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { T } from '../strings';
 
@@ -150,6 +150,8 @@ export default function CreateDrawer({
 
   const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
   const [hintDismissed,  setHintDismissed]  = useState(false);
+  const [nameResults,    setNameResults]    = useState<GuestSearchResult[]>([]);
+  const [showNameDrop,   setShowNameDrop]   = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [busy,  setBusy]  = useState(false);
@@ -169,6 +171,22 @@ export default function CreateDrawer({
     }, 400);
     return () => clearTimeout(t);
   }, [resPhone]);
+
+  // Debounced guest search by name — skipped when phone already identified a guest
+  useEffect(() => {
+    const q = resName.trim();
+    if (q.length < 2 || (guestHint && !hintDismissed)) {
+      setNameResults([]); setShowNameDrop(false); return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await api.guests.search(q, 6);
+        setNameResults(data);
+        setShowNameDrop(data.length > 0);
+      } catch { /* non-fatal */ }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [resName, guestHint, hintDismissed]);
 
   function nowStr() {
     const d = new Date();
@@ -301,16 +319,47 @@ export default function CreateDrawer({
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
+              <div className="col-span-2 relative">
                 <Label>{T.createDrawer.fieldGuestName}</Label>
                 <Input
                   type="text"
                   value={resName}
                   onChange={e => setResName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') { setShowNameDrop(false); } }}
+                  onBlur={() => setShowNameDrop(false)}
                   placeholder={T.createDrawer.placeholderName}
                   required
                   autoFocus
                 />
+                {showNameDrop && nameResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-iron-card border border-iron-border rounded-lg shadow-xl z-50 overflow-hidden">
+                    {nameResults.map(g => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => {
+                          setResName(`${g.firstName} ${g.lastName}`);
+                          setResPhone(g.phone ?? '');
+                          setShowNameDrop(false);
+                          setNameResults([]);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-iron-bg/60 text-left transition-colors border-b border-iron-border/30 last:border-0"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-medium text-iron-text">{g.firstName} {g.lastName}</span>
+                            {g.isVip && <span className="text-[9px] font-semibold text-amber-400">VIP</span>}
+                          </div>
+                          <div className="text-[10px] text-iron-muted mt-0.5 flex items-center gap-1.5">
+                            {g.phone && <span>{g.phone}</span>}
+                            {g.visitCount > 0 && <span className="text-iron-muted/60">{g.visitCount} visit{g.visitCount !== 1 ? 's' : ''}</span>}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>

@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestLookupResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestLookupResult, GuestSearchResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -203,6 +203,10 @@ export const api = {
   guests: {
     lookupByPhone: (phone: string) =>
       request<{ guest: GuestLookupResult | null }>(`/guests/lookup?phone=${encodeURIComponent(phone)}`),
+    search: (query: string, limit = 6) =>
+      request<{ data: GuestSearchResult[]; meta: { total: number } }>(
+        `/guests?search=${encodeURIComponent(query)}&limit=${limit}`
+      ),
   },
 
   admin: {
