@@ -262,6 +262,15 @@ export interface GuestLookupResult {
 export interface PublicReservation {
   guestName: string;
   restaurantName: string;
+  restaurantAddress: string | null;
+  restaurantLogoUrl: string | null;
+  restaurantGoogleMapsUrl: string | null;
+  restaurantWazeUrl: string | null;
+  restaurantWebsiteUrl: string | null;
+  restaurantInstagramUrl: string | null;
+  restaurantParkingNotes: string | null;
+  restaurantCancellationPolicy: string | null;
+  restaurantSpecialInstructions: string | null;
   date: string;
   time: string;
   partySize: number;

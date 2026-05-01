@@ -9,17 +9,27 @@ interface Props {
 type PageState =
   | { phase: 'loading' }
   | { phase: 'error'; code: string; message: string }
-  | { phase: 'ready'; reservation: PublicReservation }
-  | { phase: 'confirmed' }
+  | { phase: 'ready';     reservation: PublicReservation }
+  | { phase: 'actioning'; reservation: PublicReservation; action: 'confirm' | 'cancel' | 'late' }
+  | { phase: 'confirmed'; reservation: PublicReservation }
   | { phase: 'cancelled' }
-  | { phase: 'late' }
-  | { phase: 'actioning'; action: 'confirm' | 'cancel' | 'late' };
+  | { phase: 'late';      reservation: PublicReservation };
 
 function fmtDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString([], {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
+}
+
+function getReservation(state: PageState): PublicReservation | null {
+  if (
+    state.phase === 'ready' ||
+    state.phase === 'actioning' ||
+    state.phase === 'confirmed' ||
+    state.phase === 'late'
+  ) return state.reservation;
+  return null;
 }
 
 export default function ConfirmationPage({ token }: Props) {
@@ -30,18 +40,17 @@ export default function ConfirmationPage({ token }: Props) {
     api.public.getReservation(token)
       .then(r => {
         if (cancelled) return;
-        // Already-confirmed state: show confirm screen directly
         if (r.status === 'CANCELLED') {
           setState({ phase: 'cancelled' });
         } else if (r.isConfirmedByGuest && !r.isRunningLate) {
-          setState({ phase: 'confirmed' });
+          setState({ phase: 'confirmed', reservation: r });
         } else {
           setState({ phase: 'ready', reservation: r });
         }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const code = err instanceof ApiError ? (err.message.includes('expired') ? 'EXPIRED' : 'ERROR') : 'ERROR';
+        const code    = err instanceof ApiError ? (err.message.toLowerCase().includes('expired') ? 'EXPIRED' : 'ERROR') : 'ERROR';
         const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
         setState({ phase: 'error', code, message });
       });
@@ -50,10 +59,11 @@ export default function ConfirmationPage({ token }: Props) {
 
   async function handleConfirm() {
     if (state.phase !== 'ready') return;
-    setState({ phase: 'actioning', action: 'confirm' });
+    const r = state.reservation;
+    setState({ phase: 'actioning', action: 'confirm', reservation: r });
     try {
       await api.public.confirm(token);
-      setState({ phase: 'confirmed' });
+      setState({ phase: 'confirmed', reservation: r });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not confirm. Please try again.';
       setState({ phase: 'error', code: 'ACTION_FAILED', message });
@@ -61,8 +71,11 @@ export default function ConfirmationPage({ token }: Props) {
   }
 
   async function handleCancel() {
-    if (state.phase !== 'ready' && state.phase !== 'confirmed') return;
-    setState({ phase: 'actioning', action: 'cancel' });
+    const r = state.phase === 'ready'     ? state.reservation
+            : state.phase === 'confirmed' ? state.reservation
+            : null;
+    if (!r) return;
+    setState({ phase: 'actioning', action: 'cancel', reservation: r });
     try {
       await api.public.cancel(token);
       setState({ phase: 'cancelled' });
@@ -73,26 +86,27 @@ export default function ConfirmationPage({ token }: Props) {
   }
 
   async function handleLate() {
-    if (state.phase !== 'ready' && state.phase !== 'confirmed') return;
-    setState({ phase: 'actioning', action: 'late' });
+    const r = state.phase === 'ready'     ? state.reservation
+            : state.phase === 'confirmed' ? state.reservation
+            : null;
+    if (!r) return;
+    setState({ phase: 'actioning', action: 'late', reservation: r });
     try {
       await api.public.late(token);
-      setState({ phase: 'late' });
+      setState({ phase: 'late', reservation: r });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not send notification. Please try again.';
       setState({ phase: 'error', code: 'ACTION_FAILED', message });
     }
   }
 
+  const res = getReservation(state);
+
   return (
     <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Brand mark */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-8 h-8 bg-[#22c55e] rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">IB</span>
-          </div>
-        </div>
+
+        <BrandMark logoUrl={res?.restaurantLogoUrl ?? null} name={res?.restaurantName ?? null} />
 
         {/* Loading */}
         {state.phase === 'loading' && (
@@ -101,7 +115,7 @@ export default function ConfirmationPage({ token }: Props) {
           </div>
         )}
 
-        {/* Actioning spinner */}
+        {/* Actioning */}
         {state.phase === 'actioning' && (
           <Card>
             <div className="text-center py-8">
@@ -115,20 +129,18 @@ export default function ConfirmationPage({ token }: Props) {
           </Card>
         )}
 
-        {/* Error / not found / expired */}
+        {/* Error */}
         {state.phase === 'error' && (
           <Card>
             <IconBadge color="#ef4444" icon="✕" />
             <h1 className="text-[#f1f5f9] font-bold text-xl text-center mb-2">
               {state.code === 'EXPIRED' ? 'Link Expired' : 'Link Not Found'}
             </h1>
-            <p className="text-[#94a3b8] text-sm text-center leading-relaxed">
-              {state.message}
-            </p>
+            <p className="text-[#94a3b8] text-sm text-center leading-relaxed">{state.message}</p>
           </Card>
         )}
 
-        {/* Cancelled outcome */}
+        {/* Cancelled */}
         {state.phase === 'cancelled' && (
           <Card>
             <IconBadge color="#ef4444" icon="✕" />
@@ -140,37 +152,64 @@ export default function ConfirmationPage({ token }: Props) {
         )}
 
         {/* Running late outcome */}
-        {state.phase === 'late' && (
-          <Card>
-            <IconBadge color="#f97316" icon="⏱" />
-            <h1 className="text-[#f1f5f9] font-bold text-xl text-center mb-2">We've Been Notified</h1>
-            <p className="text-[#94a3b8] text-sm text-center leading-relaxed">
-              The restaurant has been notified that you're running late. Your table is being held.
-            </p>
-          </Card>
-        )}
+        {state.phase === 'late' && (() => {
+          const r = state.reservation;
+          return (
+            <Card>
+              <IconBadge color="#f97316" icon="⏱" />
+              <h1 className="text-[#f1f5f9] font-bold text-xl text-center mb-2">We've Been Notified</h1>
+              <p className="text-[#94a3b8] text-sm text-center leading-relaxed mb-5">
+                The restaurant has been notified that you're running late. Your table is being held.
+              </p>
+              <AddressBlock
+                address={r.restaurantAddress}
+                googleMapsUrl={r.restaurantGoogleMapsUrl}
+                wazeUrl={r.restaurantWazeUrl}
+              />
+            </Card>
+          );
+        })()}
 
         {/* Confirmed outcome */}
-        {state.phase === 'confirmed' && (
-          <Card>
-            <IconBadge color="#22c55e" icon="✓" />
-            <h1 className="text-[#f1f5f9] font-bold text-xl text-center mb-2">You're Confirmed!</h1>
-            <p className="text-[#94a3b8] text-sm text-center leading-relaxed mb-6">
-              We look forward to seeing you. If your plans change, you can cancel below.
-            </p>
-            <div className="space-y-2">
-              <SecondaryBtn onClick={handleLate}>I'm running late</SecondaryBtn>
-              <DangerBtn onClick={handleCancel}>Cancel reservation</DangerBtn>
-            </div>
-          </Card>
-        )}
+        {state.phase === 'confirmed' && (() => {
+          const r = state.reservation;
+          return (
+            <Card>
+              <IconBadge color="#22c55e" icon="✓" />
+              <h1 className="text-[#f1f5f9] font-bold text-xl text-center mb-2">You're Confirmed!</h1>
+              <p className="text-[#94a3b8] text-sm text-center leading-relaxed mb-5">
+                We look forward to seeing you. If your plans change, you can cancel below.
+              </p>
 
-        {/* Active reservation — main action screen */}
+              <div className="bg-[#0f1117] rounded-xl p-4 mb-5 space-y-3">
+                <DetailRow label="Date"   value={fmtDate(r.date)} />
+                <DetailRow label="Time"   value={r.time} />
+                <DetailRow label="Party"  value={`${r.partySize} ${r.partySize === 1 ? 'guest' : 'guests'}`} />
+                {r.occasion && <DetailRow label="Occasion" value={r.occasion} />}
+              </div>
+
+              <AddressBlock
+                address={r.restaurantAddress}
+                googleMapsUrl={r.restaurantGoogleMapsUrl}
+                wazeUrl={r.restaurantWazeUrl}
+              />
+
+              <div className="space-y-2">
+                <SecondaryBtn onClick={handleLate}>I'm running late</SecondaryBtn>
+                <DangerBtn onClick={handleCancel}>Cancel reservation</DangerBtn>
+              </div>
+
+              {r.restaurantParkingNotes && <ParkingBlock notes={r.restaurantParkingNotes} />}
+              {r.restaurantCancellationPolicy && <PolicyBlock policy={r.restaurantCancellationPolicy} />}
+            </Card>
+          );
+        })()}
+
+        {/* Ready — main action screen */}
         {state.phase === 'ready' && (() => {
           const r = state.reservation;
           return (
             <Card>
-              {/* Restaurant name */}
               <p className="text-[#22c55e] text-xs font-semibold uppercase tracking-widest text-center mb-1">
                 {r.restaurantName}
               </p>
@@ -178,16 +217,20 @@ export default function ConfirmationPage({ token }: Props) {
                 Reservation Confirmation
               </h1>
 
-              {/* Details */}
               <div className="bg-[#0f1117] rounded-xl p-4 mb-5 space-y-3">
-                <DetailRow label="Guest" value={r.guestName} />
-                <DetailRow label="Date" value={fmtDate(r.date)} />
-                <DetailRow label="Time" value={r.time} />
-                <DetailRow label="Party" value={`${r.partySize} ${r.partySize === 1 ? 'guest' : 'guests'}`} />
+                <DetailRow label="Guest"   value={r.guestName} />
+                <DetailRow label="Date"    value={fmtDate(r.date)} />
+                <DetailRow label="Time"    value={r.time} />
+                <DetailRow label="Party"   value={`${r.partySize} ${r.partySize === 1 ? 'guest' : 'guests'}`} />
                 {r.occasion && <DetailRow label="Occasion" value={r.occasion} />}
               </div>
 
-              {/* Already confirmed notice */}
+              <AddressBlock
+                address={r.restaurantAddress}
+                googleMapsUrl={r.restaurantGoogleMapsUrl}
+                wazeUrl={r.restaurantWazeUrl}
+              />
+
               {r.isConfirmedByGuest && (
                 <div className="flex items-center gap-2 bg-[#22c55e]/10 border border-[#22c55e]/25 rounded-lg px-3 py-2 mb-4">
                   <span className="text-[#22c55e] text-sm">✓</span>
@@ -195,7 +238,6 @@ export default function ConfirmationPage({ token }: Props) {
                 </div>
               )}
 
-              {/* Running late notice */}
               {r.isRunningLate && (
                 <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/25 rounded-lg px-3 py-2 mb-4">
                   <span className="text-orange-400 text-sm">⏱</span>
@@ -203,35 +245,150 @@ export default function ConfirmationPage({ token }: Props) {
                 </div>
               )}
 
-              {/* Primary actions */}
               <div className="space-y-2">
-                {!r.isConfirmedByGuest && (
-                  <PrimaryBtn onClick={handleConfirm}>
-                    Confirm my reservation
-                  </PrimaryBtn>
-                )}
-                {!r.isRunningLate && (
-                  <SecondaryBtn onClick={handleLate}>
-                    I'm running late
-                  </SecondaryBtn>
-                )}
-                <DangerBtn onClick={handleCancel}>
-                  Cancel reservation
-                </DangerBtn>
+                {!r.isConfirmedByGuest && <PrimaryBtn onClick={handleConfirm}>Confirm my reservation</PrimaryBtn>}
+                {!r.isRunningLate && <SecondaryBtn onClick={handleLate}>I'm running late</SecondaryBtn>}
+                <DangerBtn onClick={handleCancel}>Cancel reservation</DangerBtn>
               </div>
+
+              {r.restaurantSpecialInstructions && (
+                <div className="mt-4 bg-[#0f1117] rounded-xl p-4">
+                  <p className="text-[#64748b] text-xs font-semibold uppercase tracking-wider mb-1.5">Please Note</p>
+                  <p className="text-[#94a3b8] text-sm leading-relaxed">{r.restaurantSpecialInstructions}</p>
+                </div>
+              )}
+
+              {r.restaurantParkingNotes && <ParkingBlock notes={r.restaurantParkingNotes} />}
+              {r.restaurantCancellationPolicy && <PolicyBlock policy={r.restaurantCancellationPolicy} />}
             </Card>
           );
         })()}
 
-        <p className="text-center text-[#475569] text-xs mt-6">
-          Iron Booking · Reservation management
-        </p>
+        <SocialFooter
+          websiteUrl={res?.restaurantWebsiteUrl ?? null}
+          instagramUrl={res?.restaurantInstagramUrl ?? null}
+          restaurantName={res?.restaurantName ?? null}
+        />
+
       </div>
     </div>
   );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function BrandMark({ logoUrl, name }: { logoUrl: string | null; name: string | null }) {
+  if (logoUrl) {
+    return (
+      <div className="flex items-center justify-center mb-6">
+        <img
+          src={logoUrl}
+          alt={name ?? 'Restaurant'}
+          className="h-12 max-w-[180px] object-contain"
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-center mb-6">
+      <div className="w-8 h-8 bg-[#22c55e] rounded-lg flex items-center justify-center">
+        <span className="text-white font-bold text-sm">IB</span>
+      </div>
+    </div>
+  );
+}
+
+function AddressBlock({
+  address, googleMapsUrl, wazeUrl,
+}: { address: string | null; googleMapsUrl: string | null; wazeUrl: string | null }) {
+  if (!address && !googleMapsUrl && !wazeUrl) return null;
+  return (
+    <div className="mb-5">
+      {address && (
+        <p className="text-[#94a3b8] text-sm text-center mb-3 leading-snug">{address}</p>
+      )}
+      {(googleMapsUrl || wazeUrl) && (
+        <div className={`grid gap-2 ${googleMapsUrl && wazeUrl ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {googleMapsUrl && (
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-[#2d3348] hover:border-[#475569] text-[#94a3b8] hover:text-[#e2e8f0] text-sm font-medium transition-colors no-underline"
+            >
+              <span>🗺</span> Google Maps
+            </a>
+          )}
+          {wazeUrl && (
+            <a
+              href={wazeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-[#2d3348] hover:border-[#475569] text-[#94a3b8] hover:text-[#e2e8f0] text-sm font-medium transition-colors no-underline"
+            >
+              <span>🚗</span> Waze
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ParkingBlock({ notes }: { notes: string }) {
+  return (
+    <div className="mt-3 bg-[#0f1117] rounded-xl p-4">
+      <p className="text-[#64748b] text-xs font-semibold uppercase tracking-wider mb-1.5">Parking</p>
+      <p className="text-[#94a3b8] text-sm leading-relaxed">{notes}</p>
+    </div>
+  );
+}
+
+function PolicyBlock({ policy }: { policy: string }) {
+  return (
+    <div className="mt-3 bg-[#0f1117] rounded-xl p-4">
+      <p className="text-[#64748b] text-xs font-semibold uppercase tracking-wider mb-1.5">Cancellation Policy</p>
+      <p className="text-[#94a3b8] text-sm leading-relaxed">{policy}</p>
+    </div>
+  );
+}
+
+function SocialFooter({
+  websiteUrl, instagramUrl, restaurantName,
+}: { websiteUrl: string | null; instagramUrl: string | null; restaurantName: string | null }) {
+  const hasLinks = websiteUrl || instagramUrl;
+  return (
+    <div className="mt-6 text-center">
+      {hasLinks && (
+        <div className="flex items-center justify-center gap-5 mb-3">
+          {websiteUrl && (
+            <a
+              href={websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#475569] hover:text-[#94a3b8] text-xs transition-colors no-underline"
+            >
+              Website
+            </a>
+          )}
+          {instagramUrl && (
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#475569] hover:text-[#94a3b8] text-xs transition-colors no-underline"
+            >
+              Instagram
+            </a>
+          )}
+        </div>
+      )}
+      <p className="text-[#475569] text-xs">
+        {restaurantName ?? 'Iron Booking'} · Reservation management
+      </p>
+    </div>
+  );
+}
 
 function Card({ children }: { children: React.ReactNode }) {
   return (

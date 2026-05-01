@@ -35,6 +35,19 @@ model Restaurant {
   // Set true for the internal _system restaurant that SUPER_ADMIN users belong to
   isSystem    Boolean  @default(false)
 
+  // Public-facing profile (all nullable — shown on guest confirmation page)
+  logoUrl              String?
+  coverImageUrl        String?
+  description          String?
+  cuisine              String?
+  websiteUrl           String?
+  instagramUrl         String?
+  googleMapsUrl        String?
+  wazeUrl              String?
+  parkingNotes         String?
+  cancellationPolicy   String?
+  specialInstructions  String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

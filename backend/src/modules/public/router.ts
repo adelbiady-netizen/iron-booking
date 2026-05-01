@@ -7,7 +7,22 @@ const router = Router();
 async function findReservation(token: string) {
   return prisma.reservation.findUnique({
     where: { confirmationToken: token },
-    include: { restaurant: { select: { name: true } } },
+    include: {
+      restaurant: {
+        select: {
+          name: true,
+          address: true,
+          logoUrl: true,
+          googleMapsUrl: true,
+          wazeUrl: true,
+          websiteUrl: true,
+          instagramUrl: true,
+          parkingNotes: true,
+          cancellationPolicy: true,
+          specialInstructions: true,
+        },
+      },
+    },
   });
 }
 
@@ -61,15 +76,24 @@ router.get('/reservation', async (req: Request, res: Response, next: NextFunctio
 
     const r = result.reservation;
     return res.json({
-      guestName:         r.guestName,
-      restaurantName:    r.restaurant.name,
-      date:              r.date.toISOString().split('T')[0],
-      time:              r.time,
-      partySize:         r.partySize,
-      status:            r.status,
-      isConfirmedByGuest: r.isConfirmedByGuest,
-      isRunningLate:     r.isRunningLate,
-      occasion:          r.occasion,
+      guestName:                    r.guestName,
+      restaurantName:               r.restaurant.name,
+      restaurantAddress:            r.restaurant.address,
+      restaurantLogoUrl:            r.restaurant.logoUrl,
+      restaurantGoogleMapsUrl:      r.restaurant.googleMapsUrl,
+      restaurantWazeUrl:            r.restaurant.wazeUrl,
+      restaurantWebsiteUrl:         r.restaurant.websiteUrl,
+      restaurantInstagramUrl:       r.restaurant.instagramUrl,
+      restaurantParkingNotes:       r.restaurant.parkingNotes,
+      restaurantCancellationPolicy: r.restaurant.cancellationPolicy,
+      restaurantSpecialInstructions: r.restaurant.specialInstructions,
+      date:                         r.date.toISOString().split('T')[0],
+      time:                         r.time,
+      partySize:                    r.partySize,
+      status:                       r.status,
+      isConfirmedByGuest:           r.isConfirmedByGuest,
+      isRunningLate:                r.isRunningLate,
+      occasion:                     r.occasion,
     });
   } catch (err) { next(err); }
 });
