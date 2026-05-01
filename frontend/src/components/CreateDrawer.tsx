@@ -102,6 +102,27 @@ function TableGrid({ tables, value, onChange, label }: TablePickerProps) {
   );
 }
 
+// ─── Time slot constants ──────────────────────────────────────────────────────
+
+const TIME_SLOTS: string[] = Array.from({ length: 28 }, (_, i) => {
+  const h = Math.floor(i / 2) + 10;
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${String(h).padStart(2, '0')}:${m}`;
+});
+
+function snapToSlot(time: string): string {
+  if (TIME_SLOTS.includes(time)) return time;
+  const [hStr, mStr] = time.split(':');
+  const total = parseInt(hStr, 10) * 60 + parseInt(mStr ?? '0', 10);
+  return TIME_SLOTS.reduce((best, slot) => {
+    const [sh, sm] = slot.split(':');
+    const slotTotal = parseInt(sh, 10) * 60 + parseInt(sm, 10);
+    const [bh, bm] = best.split(':');
+    const bestTotal = parseInt(bh, 10) * 60 + parseInt(bm, 10);
+    return Math.abs(total - slotTotal) < Math.abs(total - bestTotal) ? slot : best;
+  }, TIME_SLOTS[0]);
+}
+
 // ─── Main drawer ──────────────────────────────────────────────────────────────
 
 export default function CreateDrawer({
@@ -114,7 +135,7 @@ export default function CreateDrawer({
   const [resPhone,     setResPhone]     = useState('');
   const [resParty,     setResParty]     = useState(2);
   const [resDate,      setResDate]      = useState(defaultDate);
-  const [resTime,      setResTime]      = useState(gapHint?.startTime ?? defaultTime);
+  const [resTime,      setResTime]      = useState(snapToSlot(gapHint?.startTime ?? defaultTime));
   const [resDuration,  setResDuration]  = useState(gapHint ? String(gapHint.durationMins) : '');
   const [resGuestNote, setResGuestNote] = useState('');
   const [resHostNote,  setResHostNote]  = useState('');
@@ -333,12 +354,16 @@ export default function CreateDrawer({
 
               <div>
                 <Label>{T.createDrawer.fieldTime}</Label>
-                <Input
-                  type="time"
+                <select
                   value={resTime}
                   onChange={e => setResTime(e.target.value)}
                   required
-                />
+                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
+                >
+                  {TIME_SLOTS.map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
