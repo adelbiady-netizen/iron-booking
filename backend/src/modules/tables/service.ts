@@ -463,7 +463,8 @@ export async function getFloorInsights(
 
     // ── ENDING_SOON: occupied table where turn is nearly up ──────────────────
     if (table.liveStatus === 'OCCUPIED' && table.currentReservation) {
-      const mr = (table.currentReservation as { minutesRemaining: number }).minutesRemaining;
+      const expectedEnd = (table.currentReservation as { expectedEndTime: string }).expectedEndTime;
+      const mr = Math.round((new Date(expectedEnd).getTime() - Date.now()) / 60_000);
       if (mr < 10) {
         insights.push({
           type: 'ENDING_SOON',
