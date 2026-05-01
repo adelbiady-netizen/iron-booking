@@ -49,6 +49,22 @@ function getReservation(state: PageState): PublicReservation | null {
   return null;
 }
 
+// Filters out system/dev restaurant names that should never be shown to guests.
+function sanitizeName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const t = name.trim();
+  const lower = t.toLowerCase();
+  if (
+    lower === 'iron booking dev' ||
+    lower === 'iron booking' ||
+    lower === 'system' ||
+    lower === '_system' ||
+    lower === 'test restaurant' ||
+    t.length === 0
+  ) return null;
+  return t;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ConfirmationPage({ token }: Props) {
@@ -139,7 +155,7 @@ export default function ConfirmationPage({ token }: Props) {
   });
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center px-5 pt-8 pb-10 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col items-center px-5 pt-6 pb-10 overflow-x-hidden">
 
       {/* ── Atmospheric background ──────────────────────────────────────── */}
       <AtmosphericBg />
@@ -323,16 +339,19 @@ function AtmosphericBg() {
           ].join(', '),
         }}
       />
-      {/* Subtle warm glow centred behind card */}
+      {/* Ambient glow centred behind card */}
       <div
         className="fixed -z-10"
         style={{
-          top: '25%',
+          top: '18%',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '480px',
-          height: '480px',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.022) 0%, transparent 65%)',
+          width: '540px',
+          height: '540px',
+          background: [
+            'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.030) 0%, transparent 55%)',
+            'radial-gradient(circle at 50% 60%, rgba(34,197,94,0.025) 0%, transparent 50%)',
+          ].join(', '),
           pointerEvents: 'none',
         }}
       />
@@ -350,23 +369,26 @@ function AtmosphericBg() {
 // ─── Restaurant hero ──────────────────────────────────────────────────────────
 
 function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
+  const displayName = sanitizeName(identity?.name);
+  const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
+
   return (
     <div className="text-center mb-5">
       {/* Logo / monogram with ambient glow */}
       <div className="relative flex items-center justify-center mb-3.5">
-        {/* Glow halo behind logo */}
+        {/* Glow halo */}
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: '90px',
-            height: '90px',
-            background: 'radial-gradient(circle, rgba(34,197,94,0.14) 0%, transparent 70%)',
+            width: '96px',
+            height: '96px',
+            background: 'radial-gradient(circle, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0.04) 55%, transparent 72%)',
           }}
         />
         {identity?.logoUrl ? (
           <img
             src={identity.logoUrl}
-            alt={identity.name}
+            alt={displayName ?? 'Restaurant'}
             className="relative h-[4.5rem] max-w-[220px] object-contain"
           />
         ) : (
@@ -375,22 +397,20 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
             style={{
               background: 'rgba(255,255,255,0.07)',
               border: '1px solid rgba(255,255,255,0.13)',
-              boxShadow: '0 0 28px rgba(34,197,94,0.10), 0 0 60px rgba(34,197,94,0.05)',
+              boxShadow: '0 0 32px rgba(34,197,94,0.12), 0 0 70px rgba(34,197,94,0.05)',
             }}
           >
-            <span className="text-white/80 text-2xl font-medium">
-              {identity?.name ? identity.name.charAt(0).toUpperCase() : '◆'}
-            </span>
+            <span className="text-white/80 text-2xl font-medium">{initial}</span>
           </div>
         )}
       </div>
 
-      {identity?.name && (
+      {displayName && (
         <h2
           className="text-[1.4rem] font-medium tracking-[-0.025em]"
           style={{ color: '#f0ebe0' }}
         >
-          {identity.name}
+          {displayName}
         </h2>
       )}
     </div>
@@ -402,16 +422,17 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="w-full rounded-[28px] p-6 backdrop-blur-[52px]"
+      className="w-full rounded-[30px] p-6 backdrop-blur-[64px]"
       style={{
-        background: 'rgba(12,16,26,0.62)',
-        border: '1px solid rgba(255,255,255,0.065)',
+        background: 'rgba(8,11,20,0.70)',
+        border: '1px solid rgba(255,255,255,0.060)',
         boxShadow: [
-          '0 2px 0 rgba(255,255,255,0.07) inset',
-          '0 -1px 0 rgba(0,0,0,0.3) inset',
-          '0 32px 72px rgba(0,0,0,0.55)',
-          '0 8px 24px rgba(0,0,0,0.35)',
-          '0 0 0 0.5px rgba(255,255,255,0.04)',
+          '0 2px 0 rgba(255,255,255,0.075) inset',
+          '0 -1px 0 rgba(0,0,0,0.35) inset',
+          '0 40px 90px rgba(0,0,0,0.60)',
+          '0 16px 40px rgba(0,0,0,0.40)',
+          '0 4px 12px rgba(0,0,0,0.30)',
+          '0 0 0 0.5px rgba(255,255,255,0.038)',
         ].join(', '),
       }}
     >
@@ -523,18 +544,21 @@ function ConfirmBtn({ onClick, children }: { onClick: () => void; children: Reac
       onClick={onClick}
       className="w-full active:scale-[0.98] font-semibold py-4 rounded-3xl text-[15px] transition-all"
       style={{
-        background: '#f5f0e8',
+        background: '#f0ece4',
         color: '#0a0c10',
-        letterSpacing: '0.018em',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(0,0,0,0.25)',
+        letterSpacing: '0.022em',
+        fontWeight: 600,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.52) inset, 0 -1px 0 rgba(0,0,0,0.06) inset, 0 8px 24px rgba(0,0,0,0.25)',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLButtonElement).style.background = '#faf7f2';
-        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(0,0,0,0.25), 0 0 36px rgba(245,240,232,0.16)';
+        const b = e.currentTarget as HTMLButtonElement;
+        b.style.background = '#f7f2e8';
+        b.style.boxShadow = '0 1px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.07) inset, 0 8px 28px rgba(0,0,0,0.28), 0 0 42px rgba(240,236,228,0.18)';
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLButtonElement).style.background = '#f5f0e8';
-        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px rgba(0,0,0,0.25)';
+        const b = e.currentTarget as HTMLButtonElement;
+        b.style.background = '#f0ece4';
+        b.style.boxShadow = '0 1px 0 rgba(255,255,255,0.52) inset, 0 -1px 0 rgba(0,0,0,0.06) inset, 0 8px 24px rgba(0,0,0,0.25)';
       }}
     >
       {children}
@@ -687,9 +711,10 @@ function InfoBlock({ label, icon, children }: { label: string; icon: React.React
 function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
   websiteUrl: string | null; instagramUrl: string | null; restaurantName: string | null;
 }) {
+  const displayName = sanitizeName(restaurantName);
   const hasLinks = websiteUrl || instagramUrl;
   return (
-    <div className="mt-6 pb-2 text-center">
+    <div className="mt-4 pb-2 text-center">
       {hasLinks && (
         <div className="flex items-center justify-center gap-6 mb-4">
           {websiteUrl && (
@@ -715,7 +740,7 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
         </div>
       )}
       <p className="text-white/[0.14] text-[10px] tracking-widest uppercase">
-        {restaurantName ? `${restaurantName} · ` : ''}Powered by Iron Booking
+        {displayName ? `${displayName} · ` : ''}Powered by Iron Booking
       </p>
     </div>
   );
@@ -725,7 +750,7 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
 
 function PinIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
     </svg>
   );
@@ -733,7 +758,7 @@ function PinIcon() {
 
 function CarIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
       <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
     </svg>
   );
