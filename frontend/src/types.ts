@@ -203,6 +203,38 @@ export interface FloorObjectData {
   color: string | null;
 }
 
+export interface GuestListItem {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  isVip: boolean;
+  isBlacklisted: boolean;
+  visitCount: number;
+  noShowCount: number;
+  cancelCount: number;
+  lastVisitAt: string | null;
+  createdAt: string;
+}
+
+export interface GuestDetail extends GuestListItem {
+  allergies: string[];
+  tags: string[];
+  preferences: Record<string, unknown>;
+  internalNotes: string | null;
+  reservations: Array<{
+    id: string;
+    date: string;
+    time: string;
+    partySize: number;
+    status: ReservationStatus;
+    occasion: string | null;
+    guestNotes: string | null;
+    table: { name: string } | null;
+  }>;
+}
+
 export interface GuestSearchResult {
   id: string;
   firstName: string;

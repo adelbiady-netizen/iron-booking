@@ -22,6 +22,7 @@ interface Props {
   theme: Theme;
   onThemeChange: () => void;
   onAdminPortal?: () => void;
+  onGuestsPage?: () => void;
 }
 
 function SunIcon() {
@@ -67,6 +68,7 @@ export default function TopBar({
   zoom, zoomStep, onZoomChange,
   theme, onThemeChange,
   onAdminPortal,
+  onGuestsPage,
 }: Props) {
   const atMin  = zoom <= 75;
   const atMax  = zoom >= 150;
@@ -166,6 +168,14 @@ export default function TopBar({
 
       {/* User / session */}
       <div className="flex items-center gap-3">
+        {onGuestsPage && (
+          <button
+            onClick={onGuestsPage}
+            className="text-iron-muted text-xs border border-iron-border px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+          >
+            Guests
+          </button>
+        )}
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}

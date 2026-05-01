@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestLookupResult, GuestSearchResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -207,6 +207,22 @@ export const api = {
       request<{ data: GuestSearchResult[]; meta: { total: number } }>(
         `/guests?search=${encodeURIComponent(query)}&limit=${limit}`
       ),
+    list: (params: { search?: string; isVip?: boolean; isBlacklisted?: boolean; tag?: string; page?: number; limit?: number }) => {
+      const qs = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+      ).toString();
+      return request<{ data: GuestListItem[]; meta: { total: number; page: number; limit: number } }>(
+        `/guests${qs ? `?${qs}` : ''}`
+      );
+    },
+    getById: (id: string) =>
+      request<GuestDetail>(`/guests/${id}`),
+    update: (id: string, body: Partial<{
+      firstName: string; lastName: string; email: string | null; phone: string | null;
+      isVip: boolean; isBlacklisted: boolean; allergies: string[]; tags: string[];
+      preferences: Record<string, unknown>; internalNotes: string | null;
+    }>) =>
+      request<GuestDetail>(`/guests/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   },
 
   admin: {

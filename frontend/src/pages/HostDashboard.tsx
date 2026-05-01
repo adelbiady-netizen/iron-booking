@@ -15,6 +15,7 @@ import ToastContainer, { type ToastMessage } from '../components/Toast';
 import ActionBar from '../components/ActionBar';
 import LayoutEditor from '../components/LayoutEditor';
 import LockTableModal from '../components/LockTableModal';
+import GuestsPage from './GuestsPage';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -111,6 +112,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
+  const [activePage,           setActivePage]           = useState<'dashboard' | 'guests'>('dashboard');
   const [layoutMode,           setLayoutMode]           = useState(false);
   const [createMode,           setCreateMode]           = useState<CreateMode | null>(null);
   const [preselectedTableId,   setPreselectedTableId]   = useState<string | null>(null);
@@ -584,6 +586,21 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setLiveMode(false);
   }, [date, time]);
 
+  const handleGuestsPage = useCallback(() => {
+    setSelectedRes(null);
+    setCreateMode(null);
+    setActivePage('guests');
+  }, []);
+
+  if (activePage === 'guests') {
+    return (
+      <>
+        <GuestsPage onBack={() => setActivePage('dashboard')} />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
   if (layoutMode) {
     return (
       <LayoutEditor
@@ -615,6 +632,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         theme={theme}
         onThemeChange={onThemeChange}
         onAdminPortal={onAdminPortal}
+        onGuestsPage={handleGuestsPage}
       />
 
       {/* Secondary toolbar */}
