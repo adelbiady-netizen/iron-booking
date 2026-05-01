@@ -152,42 +152,40 @@ export default function ConfirmationPage({ token }: Props) {
   });
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center pb-10 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col items-center pb-12 overflow-x-hidden">
 
       <AtmosphericBg />
 
-      {/* ── Hero zone ───────────────────────────────────────────────────────── */}
+      {/* ── Hero zone ─────────────────────────────────────────────────────── */}
       <div className={`w-full ${fade(0).className}`} style={fade(0).style}>
         {hasCover ? (
           <CoverImageHero identity={identity!} />
         ) : (
-          <div className="pt-6 px-5 w-full flex flex-col items-center">
-            <div className="w-full max-w-sm">
+          <div className="pt-8 px-4 w-full flex flex-col items-center">
+            <div className="w-full max-w-[500px]">
               <RestaurantHero identity={identity} />
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Main card ────────────────────────────────────────────────────────── */}
+      {/* ── Main card ─────────────────────────────────────────────────────── */}
       <div
-        className={`w-full max-w-sm px-5 ${hasCover ? '-mt-14 relative z-10' : ''} ${fade(80).className}`}
+        className={`w-full max-w-[500px] px-4 ${hasCover ? '-mt-16 relative z-10' : ''} ${fade(80).className}`}
         style={fade(80).style}
       >
 
-        {/* Loading */}
         {state.phase === 'loading' && (
           <GlassCard>
-            <div className="py-10 flex items-center justify-center">
+            <div className="py-12 flex items-center justify-center">
               <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
             </div>
           </GlassCard>
         )}
 
-        {/* Actioning */}
         {state.phase === 'actioning' && (
           <GlassCard>
-            <div className="py-10 flex flex-col items-center gap-3">
+            <div className="py-12 flex flex-col items-center gap-3">
               <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
               <p className="text-white/35 text-sm">
                 {state.action === 'confirm' ? 'Confirming your table…'
@@ -198,7 +196,6 @@ export default function ConfirmationPage({ token }: Props) {
           </GlassCard>
         )}
 
-        {/* Error */}
         {state.phase === 'error' && (
           <GlassCard>
             <OutcomeIcon variant="error" />
@@ -209,7 +206,6 @@ export default function ConfirmationPage({ token }: Props) {
           </GlassCard>
         )}
 
-        {/* Cancelled */}
         {state.phase === 'cancelled' && (
           <GlassCard>
             <OutcomeIcon variant="neutral" />
@@ -220,7 +216,6 @@ export default function ConfirmationPage({ token }: Props) {
           </GlassCard>
         )}
 
-        {/* Running late outcome */}
         {state.phase === 'late' && (
           <GlassCard>
             <OutcomeIcon variant="late" />
@@ -231,7 +226,6 @@ export default function ConfirmationPage({ token }: Props) {
           </GlassCard>
         )}
 
-        {/* Confirmed */}
         {state.phase === 'confirmed' && (() => {
           const r = state.reservation;
           return (
@@ -240,15 +234,12 @@ export default function ConfirmationPage({ token }: Props) {
               <h1 className="text-white text-2xl font-semibold text-center tracking-tight mb-1">
                 See you {fmtWeekday(r.date)}
               </h1>
-              <p className="text-white/35 text-sm text-center mb-7">
+              <p className="text-white/35 text-sm text-center mb-8">
                 Your table is confirmed for {fmt12Time(r.time)}.
               </p>
-
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
-
-              <div className="h-px bg-white/[0.06] my-6" />
-
-              <div className="flex flex-col gap-2.5">
+              <Divider />
+              <div className="flex flex-col gap-3">
                 <LateBtn onClick={handleLate}>I'm running a bit late</LateBtn>
                 <CancelLink onClick={handleCancel}>I can't make it</CancelLink>
               </div>
@@ -256,7 +247,6 @@ export default function ConfirmationPage({ token }: Props) {
           );
         })()}
 
-        {/* Ready — main action screen */}
         {state.phase === 'ready' && (() => {
           const r = state.reservation;
           return (
@@ -264,7 +254,7 @@ export default function ConfirmationPage({ token }: Props) {
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
 
               {(r.isConfirmedByGuest || r.isRunningLate) && (
-                <div className="mt-1 mb-5 space-y-2">
+                <div className="mt-2 mb-5 space-y-2">
                   {r.isConfirmedByGuest && (
                     <StatusNotice icon="✓" color="green" text="Table confirmed" />
                   )}
@@ -274,9 +264,9 @@ export default function ConfirmationPage({ token }: Props) {
                 </div>
               )}
 
-              <div className="h-px bg-white/[0.06] my-6" />
+              <Divider />
 
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-3">
                 {!r.isConfirmedByGuest && (
                   <ConfirmBtn onClick={handleConfirm}>Confirm my table</ConfirmBtn>
                 )}
@@ -290,9 +280,9 @@ export default function ConfirmationPage({ token }: Props) {
         })()}
       </div>
 
-      {/* ── Below-card utility zone ───────────────────────────────────────── */}
+      {/* ── Utility zone ─────────────────────────────────────────────────── */}
       <div
-        className={`w-full max-w-sm px-5 ${fade(160).className}`}
+        className={`w-full max-w-[500px] px-4 ${fade(160).className}`}
         style={fade(160).style}
       >
         {res && (
@@ -339,27 +329,27 @@ function AtmosphericBg() {
         className="fixed inset-0 -z-20"
         style={{
           background: [
-            'radial-gradient(ellipse 150% 60% at 50% -15%, rgba(34,197,94,0.10) 0%, transparent 52%)',
+            'radial-gradient(ellipse 160% 65% at 50% -20%, rgba(34,197,94,0.11) 0%, transparent 50%)',
             'radial-gradient(ellipse 80% 45% at 10% 105%, rgba(59,130,246,0.04) 0%, transparent 50%)',
-            'linear-gradient(170deg, #111827 0%, #0d1117 45%, #090c12 100%)',
+            'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
           ].join(', '),
         }}
       />
       <div
         className="fixed -z-10"
         style={{
-          top: '18%', left: '50%', transform: 'translateX(-50%)',
-          width: '540px', height: '540px',
+          top: '20%', left: '50%', transform: 'translateX(-50%)',
+          width: '600px', height: '600px',
           background: [
-            'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.030) 0%, transparent 55%)',
-            'radial-gradient(circle at 50% 60%, rgba(34,197,94,0.025) 0%, transparent 50%)',
+            'radial-gradient(circle at 50% 38%, rgba(255,255,255,0.028) 0%, transparent 52%)',
+            'radial-gradient(circle at 50% 62%, rgba(34,197,94,0.022) 0%, transparent 48%)',
           ].join(', '),
           pointerEvents: 'none',
         }}
       />
       <div
         className="fixed inset-0 -z-10 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0,0,0,0.45) 100%)' }}
+        style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 42%, rgba(0,0,0,0.50) 100%)' }}
       />
     </>
   );
@@ -372,83 +362,110 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
   const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
 
   return (
-    <div className="relative w-full" style={{ height: '300px' }}>
-      {/* Image — contained here only */}
+    <div className="relative w-full" style={{ height: '380px' }}>
+      {/* Image — overflow-hidden contained */}
       <div className="absolute inset-0 overflow-hidden">
         <img
           src={identity.coverUrl!}
           alt=""
           className="w-full h-full object-cover"
-          style={{ transform: 'scale(1.04)', transformOrigin: 'center 40%' }}
+          style={{ transform: 'scale(1.05)', transformOrigin: 'center 40%' }}
         />
       </div>
 
-      {/* Cinematic gradient overlay */}
+      {/* Cinematic gradient — more atmospheric */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(to bottom, rgba(9,12,18,0.10) 0%, rgba(9,12,18,0.36) 46%, rgba(9,12,18,0.84) 78%, rgba(9,12,18,0.98) 100%)',
+          background: [
+            'linear-gradient(to bottom,',
+            '  rgba(9,12,18,0.08) 0%,',
+            '  rgba(9,12,18,0.22) 30%,',
+            '  rgba(9,12,18,0.62) 62%,',
+            '  rgba(9,12,18,0.92) 84%,',
+            '  rgba(9,12,18,1.00) 100%)',
+          ].join(' '),
         }}
       />
 
-      {/* Bleed gradient — extends below the image to meet the card without a hard edge */}
+      {/* Bleed gradient — extends 100px below image to blend with card */}
       <div
         className="absolute left-0 right-0 pointer-events-none"
         style={{
-          bottom: '-80px',
-          height: '160px',
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(9,12,18,0.52) 48%, rgba(9,12,18,0.90) 100%)',
+          bottom: '-100px',
+          height: '200px',
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(9,12,18,0.60) 50%, rgba(9,12,18,0.95) 100%)',
         }}
       />
 
-      {/* Logo + name anchored at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-8 px-5">
-        <div className="relative flex items-center justify-center mb-3">
+      {/* Logo + name — positioned in lower third */}
+      <div
+        className="absolute left-0 right-0 flex flex-col items-center px-5"
+        style={{ bottom: '96px' }}
+      >
+        {/* Cinematic glow halo behind logo */}
+        <div className="relative flex items-center justify-center mb-4">
+          <div
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: '160px', height: '160px',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, transparent 68%)',
+            }}
+          />
+          <div
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: '120px', height: '120px',
+              background: 'radial-gradient(circle, rgba(34,197,94,0.10) 0%, transparent 65%)',
+            }}
+          />
           {identity.logoUrl ? (
-            /* Glass disc backing — logo floats prestigious against any image */
+            /* Premium glass disc */
             <div
-              className="relative flex items-center justify-center rounded-full backdrop-blur-md"
+              className="relative flex items-center justify-center rounded-full backdrop-blur-xl"
               style={{
-                width: '72px', height: '72px',
-                background: 'rgba(6,8,16,0.62)',
-                border: '1px solid rgba(255,255,255,0.10)',
+                width: '96px', height: '96px',
+                background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)',
+                border: '1px solid rgba(255,255,255,0.12)',
                 boxShadow: [
-                  '0 0 0 1px rgba(0,0,0,0.55)',
-                  '0 8px 36px rgba(0,0,0,0.72)',
-                  '0 0 0 7px rgba(255,255,255,0.016)',
-                  '0 0 52px rgba(255,255,255,0.04)',
+                  '0 0 0 1px rgba(0,0,0,0.60)',
+                  '0 12px 48px rgba(0,0,0,0.80)',
+                  '0 4px 16px rgba(0,0,0,0.50)',
+                  '0 0 0 8px rgba(255,255,255,0.018)',
+                  '0 0 60px rgba(255,255,255,0.05)',
                 ].join(', '),
               }}
             >
               <img
                 src={identity.logoUrl}
                 alt={displayName ?? 'Restaurant'}
-                className="h-10 max-w-[48px] object-contain"
-                style={{ filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.55))' }}
+                className="object-contain"
+                style={{ height: '52px', maxWidth: '76px', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.60))' }}
               />
             </div>
           ) : (
             <div
-              className="relative w-[4.5rem] h-[4.5rem] rounded-full flex items-center justify-center backdrop-blur-md select-none"
+              className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none"
               style={{
-                background: 'rgba(6,8,16,0.62)',
-                border: '1px solid rgba(255,255,255,0.12)',
+                width: '96px', height: '96px',
+                background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)',
+                border: '1px solid rgba(255,255,255,0.13)',
                 boxShadow: [
-                  '0 0 0 1px rgba(0,0,0,0.55)',
-                  '0 8px 36px rgba(0,0,0,0.72)',
-                  '0 0 0 7px rgba(255,255,255,0.016)',
+                  '0 0 0 1px rgba(0,0,0,0.60)',
+                  '0 12px 48px rgba(0,0,0,0.80)',
+                  '0 0 0 8px rgba(255,255,255,0.018)',
                 ].join(', '),
               }}
             >
-              <span className="text-white/75 text-2xl font-medium">{initial}</span>
+              <span className="text-white/75 text-3xl font-light">{initial}</span>
             </div>
           )}
         </div>
 
         {displayName && (
           <h2
-            className="text-[1.35rem] font-medium tracking-[-0.022em] text-center"
-            style={{ color: '#f0ebe0', textShadow: '0 2px 14px rgba(0,0,0,0.72)' }}
+            className="text-[1.45rem] font-medium tracking-[-0.020em] text-center"
+            style={{ color: '#f2ece0', textShadow: '0 2px 20px rgba(0,0,0,0.80)' }}
           >
             {displayName}
           </h2>
@@ -465,37 +482,48 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
   const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
 
   return (
-    <div className="text-center mb-5">
-      <div className="relative flex items-center justify-center mb-3.5">
+    <div className="text-center mb-6">
+      <div className="relative flex items-center justify-center mb-4">
+        {/* Cinematic glow halo */}
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: '96px', height: '96px',
-            background: 'radial-gradient(circle, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0.04) 55%, transparent 72%)',
+            width: '140px', height: '140px',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, rgba(34,197,94,0.04) 45%, transparent 70%)',
           }}
         />
         {identity?.logoUrl ? (
           <img
             src={identity.logoUrl}
             alt={displayName ?? 'Restaurant'}
-            className="relative h-[4.5rem] max-w-[220px] object-contain"
+            className="relative object-contain"
+            style={{ height: '80px', maxWidth: '240px' }}
           />
         ) : (
           <div
-            className="relative w-[4.5rem] h-[4.5rem] rounded-full flex items-center justify-center backdrop-blur-sm select-none"
+            className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none"
             style={{
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.13)',
-              boxShadow: '0 0 32px rgba(34,197,94,0.12), 0 0 70px rgba(34,197,94,0.05)',
+              width: '96px', height: '96px',
+              background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: [
+                '0 0 0 1px rgba(0,0,0,0.55)',
+                '0 12px 48px rgba(0,0,0,0.70)',
+                '0 0 0 8px rgba(255,255,255,0.016)',
+                '0 0 50px rgba(34,197,94,0.06)',
+              ].join(', '),
             }}
           >
-            <span className="text-white/80 text-2xl font-medium">{initial}</span>
+            <span className="text-white/75 text-3xl font-light">{initial}</span>
           </div>
         )}
       </div>
 
       {displayName && (
-        <h2 className="text-[1.4rem] font-medium tracking-[-0.025em]" style={{ color: '#f0ebe0' }}>
+        <h2
+          className="text-[1.5rem] font-medium tracking-[-0.022em]"
+          style={{ color: '#f2ece0' }}
+        >
           {displayName}
         </h2>
       )}
@@ -508,23 +536,31 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="w-full rounded-[30px] p-6 backdrop-blur-[80px]"
+      className="w-full rounded-[32px] p-8 backdrop-blur-[100px]"
       style={{
-        background: 'rgba(8,11,20,0.74)',
-        border: '1px solid rgba(255,255,255,0.052)',
+        background: 'linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%)',
+        border: '1px solid rgba(255,255,255,0.065)',
         boxShadow: [
-          '0 2px 0 rgba(255,255,255,0.062) inset',
-          '0 -1px 0 rgba(0,0,0,0.42) inset',
-          '0 52px 110px rgba(0,0,0,0.68)',
-          '0 22px 55px rgba(0,0,0,0.48)',
-          '0 5px 16px rgba(0,0,0,0.38)',
-          '0 0 0 0.5px rgba(255,255,255,0.028)',
+          '0 2px 0 rgba(255,255,255,0.095) inset',
+          '1px 0 0 rgba(255,255,255,0.032) inset',
+          '-1px 0 0 rgba(255,255,255,0.018) inset',
+          '0 -1px 0 rgba(0,0,0,0.45) inset',
+          '0 60px 120px rgba(0,0,0,0.70)',
+          '0 24px 60px rgba(0,0,0,0.50)',
+          '0 6px 18px rgba(0,0,0,0.40)',
+          '0 0 0 0.5px rgba(255,255,255,0.030)',
         ].join(', '),
       }}
     >
       {children}
     </div>
   );
+}
+
+// ─── Divider ──────────────────────────────────────────────────────────────────
+
+function Divider() {
+  return <div className="h-px my-7" style={{ background: 'rgba(255,255,255,0.055)' }} />;
 }
 
 // ─── Date hero ────────────────────────────────────────────────────────────────
@@ -534,16 +570,16 @@ function DateHero({ date, time, partySize, occasion }: {
 }) {
   return (
     <div className="text-center">
-      <p className="text-white/20 text-[10px] font-medium uppercase tracking-[0.18em] mb-1.5">
+      <p className="text-white/22 text-[10px] font-medium uppercase tracking-[0.22em] mb-2">
         {fmtWeekday(date)}
       </p>
       <p
-        className="font-semibold leading-none mb-2"
-        style={{ fontSize: '2.25rem', letterSpacing: '-0.03em', color: '#f8f5ef' }}
+        className="font-semibold leading-none mb-2.5"
+        style={{ fontSize: '2.8rem', letterSpacing: '-0.035em', color: '#f8f5ef' }}
       >
         {fmtMonthDay(date)}
       </p>
-      <p className="text-white/38 text-[17px] font-light mb-5">{fmt12Time(time)}</p>
+      <p className="text-white/40 text-[19px] font-light tracking-wide mb-6">{fmt12Time(time)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
         <Chip>{partySize === 1 ? '1 guest' : `${partySize} guests`}</Chip>
@@ -558,8 +594,8 @@ function DateHero({ date, time, partySize, occasion }: {
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-4 py-1.5 text-white/45 text-[13px]"
-      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+      className="inline-flex items-center rounded-full px-5 py-1.5 text-white/45 text-[13px] tracking-wide"
+      style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.085)' }}
     >
       {children}
     </span>
@@ -569,8 +605,8 @@ function Chip({ children }: { children: React.ReactNode }) {
 function OccasionChip({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-amber-300/80 text-[13px]"
-      style={{ background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.20)' }}
+      className="inline-flex items-center gap-1.5 rounded-full px-5 py-1.5 text-amber-300/80 text-[13px] tracking-wide"
+      style={{ background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.22)' }}
     >
       ✦ {children}
     </span>
@@ -586,7 +622,7 @@ function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'a
   }[color];
   return (
     <div
-      className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2"
+      className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5"
       style={{ background: styles.bg, border: `1px solid ${styles.border}` }}
     >
       <span className={`${styles.textCls} text-sm`}>{icon}</span>
@@ -599,19 +635,19 @@ function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'a
 
 function OutcomeIcon({ variant }: { variant: 'confirmed' | 'late' | 'error' | 'neutral' }) {
   const cfg = {
-    confirmed: { bg: 'rgba(34,197,94,0.12)',   ring: 'rgba(34,197,94,0.28)',   glow: 'rgba(34,197,94,0.10)',   icon: '✓',  color: '#4ade80' },
-    late:      { bg: 'rgba(251,191,36,0.12)',  ring: 'rgba(251,191,36,0.28)',  glow: 'rgba(251,191,36,0.08)',  icon: '⏱', color: '#fbbf24' },
-    error:     { bg: 'rgba(239,68,68,0.10)',   ring: 'rgba(239,68,68,0.25)',   glow: 'rgba(239,68,68,0.06)',   icon: '✕',  color: '#f87171' },
+    confirmed: { bg: 'rgba(34,197,94,0.12)',   ring: 'rgba(34,197,94,0.28)',   glow: 'rgba(34,197,94,0.12)',   icon: '✓',  color: '#4ade80' },
+    late:      { bg: 'rgba(251,191,36,0.12)',  ring: 'rgba(251,191,36,0.28)',  glow: 'rgba(251,191,36,0.10)',  icon: '⏱', color: '#fbbf24' },
+    error:     { bg: 'rgba(239,68,68,0.10)',   ring: 'rgba(239,68,68,0.25)',   glow: 'rgba(239,68,68,0.07)',   icon: '✕',  color: '#f87171' },
     neutral:   { bg: 'rgba(255,255,255,0.07)', ring: 'rgba(255,255,255,0.14)', glow: 'transparent',            icon: '○',  color: 'rgba(255,255,255,0.35)' },
   }[variant];
   return (
     <div className="flex items-center justify-center mb-6">
       <div
-        className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
+        className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl"
         style={{
           background: cfg.bg,
           border: `1.5px solid ${cfg.ring}`,
-          boxShadow: `0 0 40px ${cfg.glow}`,
+          boxShadow: `0 0 48px ${cfg.glow}`,
           color: cfg.color,
         }}
       >
@@ -624,43 +660,41 @@ function OutcomeIcon({ variant }: { variant: 'confirmed' | 'late' | 'error' | 'n
 // ─── Action buttons ───────────────────────────────────────────────────────────
 
 function ConfirmBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  const base = [
+    '0 1px 0 rgba(255,255,255,0.70) inset',
+    '0 -1px 0 rgba(110,80,30,0.16) inset',
+    '0 14px 38px rgba(0,0,0,0.35)',
+    '0 3px 10px rgba(0,0,0,0.25)',
+  ].join(', ');
+  const hover = [
+    '0 1px 0 rgba(255,255,255,0.75) inset',
+    '0 -1px 0 rgba(110,80,30,0.16) inset',
+    '0 14px 42px rgba(0,0,0,0.38)',
+    '0 3px 10px rgba(0,0,0,0.25)',
+    '0 0 60px rgba(245,240,228,0.16)',
+  ].join(', ');
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full active:scale-[0.98] py-4 rounded-3xl text-[15px] transition-all"
+      className="w-full active:scale-[0.98] rounded-[20px] text-[16px] transition-all"
       style={{
-        background: 'linear-gradient(180deg, #f5f0e6 0%, #ece4d0 100%)',
-        color: '#0d0f14',
-        letterSpacing: '0.020em',
+        padding: '18px 24px',
+        background: 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)',
+        color: '#0c0e14',
+        letterSpacing: '0.018em',
         fontWeight: 600,
-        boxShadow: [
-          '0 1px 0 rgba(255,255,255,0.68) inset',
-          '0 -1px 0 rgba(120,90,40,0.14) inset',
-          '0 11px 32px rgba(0,0,0,0.32)',
-          '0 2px 8px rgba(0,0,0,0.22)',
-        ].join(', '),
+        boxShadow: base,
       }}
       onMouseEnter={e => {
         const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'linear-gradient(180deg, #faf4e8 0%, #f2e8d2 100%)';
-        b.style.boxShadow = [
-          '0 1px 0 rgba(255,255,255,0.72) inset',
-          '0 -1px 0 rgba(120,90,40,0.14) inset',
-          '0 11px 36px rgba(0,0,0,0.34)',
-          '0 2px 8px rgba(0,0,0,0.22)',
-          '0 0 52px rgba(245,240,230,0.14)',
-        ].join(', ');
+        b.style.background = 'linear-gradient(180deg, #faf5e8 0%, #f2e8d4 100%)';
+        b.style.boxShadow = hover;
       }}
       onMouseLeave={e => {
         const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'linear-gradient(180deg, #f5f0e6 0%, #ece4d0 100%)';
-        b.style.boxShadow = [
-          '0 1px 0 rgba(255,255,255,0.68) inset',
-          '0 -1px 0 rgba(120,90,40,0.14) inset',
-          '0 11px 32px rgba(0,0,0,0.32)',
-          '0 2px 8px rgba(0,0,0,0.22)',
-        ].join(', ');
+        b.style.background = 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)';
+        b.style.boxShadow = base;
       }}
     >
       {children}
@@ -673,20 +707,23 @@ function LateBtn({ onClick, children }: { onClick: () => void; children: React.R
     <button
       type="button"
       onClick={onClick}
-      className="w-full active:scale-[0.98] font-light py-3.5 rounded-3xl text-[14px] transition-all"
+      className="w-full active:scale-[0.98] font-light rounded-[20px] text-[15px] transition-all"
       style={{
-        background: 'rgba(155,120,52,0.07)',
-        border: '0.5px solid rgba(190,152,76,0.22)',
-        color: 'rgba(210,175,108,0.68)',
-        letterSpacing: '0.01em',
+        padding: '15px 24px',
+        background: 'rgba(148,115,50,0.08)',
+        border: '1px solid rgba(185,148,72,0.20)',
+        color: 'rgba(208,172,104,0.72)',
+        letterSpacing: '0.012em',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(155,120,52,0.12)';
-        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(210,175,108,0.88)';
+        const b = e.currentTarget as HTMLButtonElement;
+        b.style.background = 'rgba(148,115,50,0.14)';
+        b.style.color = 'rgba(208,172,104,0.90)';
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(155,120,52,0.07)';
-        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(210,175,108,0.68)';
+        const b = e.currentTarget as HTMLButtonElement;
+        b.style.background = 'rgba(148,115,50,0.08)';
+        b.style.color = 'rgba(208,172,104,0.72)';
       }}
     >
       {children}
@@ -699,54 +736,62 @@ function CancelLink({ onClick, children }: { onClick: () => void; children: Reac
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-center text-[11px] py-2 mt-0.5 transition-colors"
-      style={{ color: 'rgba(255,255,255,0.13)', letterSpacing: '0.01em' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.26)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.13)'; }}
+      className="w-full text-center text-[12px] py-2.5 transition-colors"
+      style={{ color: 'rgba(255,255,255,0.18)', letterSpacing: '0.015em' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.18)'; }}
     >
       {children}
     </button>
   );
 }
 
-// ─── Navigation chips (below card) ───────────────────────────────────────────
+// ─── Navigation chips ─────────────────────────────────────────────────────────
 
 function NavChips({ address, googleMapsUrl, wazeUrl }: {
   address: string | null; googleMapsUrl: string | null; wazeUrl: string | null;
 }) {
   if (!address && !googleMapsUrl && !wazeUrl) return null;
+
+  const pillBase = {
+    background: 'rgba(255,255,255,0.034)',
+    border: '1px solid rgba(255,255,255,0.090)',
+    color: 'rgba(255,255,255,0.42)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+  };
+
   return (
-    <div className="mt-4 text-center">
+    <div className="mt-5 text-center">
       {address && (
-        <p className="text-white/28 text-[12px] leading-snug mb-3">{address}</p>
+        <p
+          className="text-[13px] leading-relaxed mb-4 mx-auto"
+          style={{ color: 'rgba(255,255,255,0.42)', maxWidth: '300px' }}
+        >
+          {address}
+        </p>
       )}
       {(googleMapsUrl || wazeUrl) && (
-        <div className="flex gap-2.5 justify-center">
+        <div className="flex gap-3 justify-center">
           {googleMapsUrl && (
             <a
               href={googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 py-2 px-4 rounded-full text-[12px] transition-all no-underline"
-              style={{
-                background: 'rgba(255,255,255,0.030)',
-                border: '0.5px solid rgba(255,255,255,0.082)',
-                color: 'rgba(255,255,255,0.36)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
-              }}
+              className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
+              style={{ ...pillBase, padding: '9px 20px' }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.062)';
-                el.style.color = 'rgba(255,255,255,0.60)';
+                el.style.background = 'rgba(255,255,255,0.075)';
+                el.style.color = 'rgba(255,255,255,0.68)';
                 el.style.transform = 'translateY(-2px)';
-                el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.24)';
+                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.24)';
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.030)';
-                el.style.color = 'rgba(255,255,255,0.36)';
+                el.style.background = pillBase.background;
+                el.style.color = pillBase.color;
                 el.style.transform = '';
-                el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.14)';
+                el.style.boxShadow = pillBase.boxShadow;
               }}
             >
               <PinIcon /> Maps
@@ -757,26 +802,21 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               href={wazeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 py-2 px-4 rounded-full text-[12px] transition-all no-underline"
-              style={{
-                background: 'rgba(255,255,255,0.030)',
-                border: '0.5px solid rgba(255,255,255,0.082)',
-                color: 'rgba(255,255,255,0.36)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
-              }}
+              className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
+              style={{ ...pillBase, padding: '9px 20px' }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.062)';
-                el.style.color = 'rgba(255,255,255,0.60)';
+                el.style.background = 'rgba(255,255,255,0.075)';
+                el.style.color = 'rgba(255,255,255,0.68)';
                 el.style.transform = 'translateY(-2px)';
-                el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.24)';
+                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.24)';
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.030)';
-                el.style.color = 'rgba(255,255,255,0.36)';
+                el.style.background = pillBase.background;
+                el.style.color = pillBase.color;
                 el.style.transform = '';
-                el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.14)';
+                el.style.boxShadow = pillBase.boxShadow;
               }}
             >
               <CarIcon /> Waze
@@ -793,14 +833,14 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
 function InfoBlock({ label, icon, children }: { label: string; icon: React.ReactNode; children: string }) {
   return (
     <div
-      className="mt-3 rounded-2xl p-4"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+      className="mt-3 rounded-2xl p-5"
+      style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.058)' }}
     >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="text-white/20">{icon}</span>
-        <p className="text-white/30 text-[11px] font-medium uppercase tracking-wider">{label}</p>
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-white/22">{icon}</span>
+        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.16em]">{label}</p>
       </div>
-      <p className="text-white/45 text-[13px] leading-relaxed">{children}</p>
+      <p className="text-white/50 text-[13px] leading-relaxed">{children}</p>
     </div>
   );
 }
@@ -813,56 +853,62 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
   const displayName = sanitizeName(restaurantName);
   const hasLinks = websiteUrl || instagramUrl;
   return (
-    <div className="mt-4 pb-2 text-center">
+    <div className="mt-6 pb-2 text-center">
       {hasLinks && (
-        <div className="flex items-center justify-center gap-7 mb-4">
-          {websiteUrl && (
-            <a
-              href={websiteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 no-underline transition-all"
-              style={{ color: 'rgba(255,255,255,0.55)' }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.color = 'rgba(255,255,255,0.82)';
-                el.style.textShadow = '0 0 18px rgba(255,255,255,0.16)';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.color = 'rgba(255,255,255,0.55)';
-                el.style.textShadow = '';
-              }}
-            >
-              <GlobeIcon />
-              <span className="text-[12px] font-light tracking-wide">Website</span>
-            </a>
-          )}
-          {instagramUrl && (
-            <a
-              href={instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 no-underline transition-all"
-              style={{ color: 'rgba(255,255,255,0.55)' }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.color = 'rgba(255,255,255,0.82)';
-                el.style.textShadow = '0 0 18px rgba(255,255,255,0.16)';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.color = 'rgba(255,255,255,0.55)';
-                el.style.textShadow = '';
-              }}
-            >
-              <InstagramIcon />
-              <span className="text-[12px] font-light tracking-wide">Instagram</span>
-            </a>
-          )}
-        </div>
+        <>
+          <div className="flex items-center gap-4 mb-5 mx-auto" style={{ maxWidth: '240px' }}>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.065)' }} />
+            <div className="flex items-center gap-6">
+              {websiteUrl && (
+                <a
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 no-underline transition-all"
+                  style={{ color: 'rgba(255,255,255,0.52)' }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLAnchorElement;
+                    el.style.color = 'rgba(255,255,255,0.80)';
+                    el.style.textShadow = '0 0 20px rgba(255,255,255,0.18)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLAnchorElement;
+                    el.style.color = 'rgba(255,255,255,0.52)';
+                    el.style.textShadow = '';
+                  }}
+                >
+                  <GlobeIcon />
+                  <span className="text-[12px] font-light tracking-wide">Website</span>
+                </a>
+              )}
+              {instagramUrl && (
+                <a
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 no-underline transition-all"
+                  style={{ color: 'rgba(255,255,255,0.52)' }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLAnchorElement;
+                    el.style.color = 'rgba(255,255,255,0.80)';
+                    el.style.textShadow = '0 0 20px rgba(255,255,255,0.18)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLAnchorElement;
+                    el.style.color = 'rgba(255,255,255,0.52)';
+                    el.style.textShadow = '';
+                  }}
+                >
+                  <InstagramIcon />
+                  <span className="text-[12px] font-light tracking-wide">Instagram</span>
+                </a>
+              )}
+            </div>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.065)' }} />
+          </div>
+        </>
       )}
-      <p className="text-white/[0.14] text-[10px] tracking-widest uppercase">
+      <p className="text-white/[0.15] text-[10px] tracking-widest uppercase">
         {displayName ? `${displayName} · ` : ''}Powered by Iron Booking
       </p>
     </div>
