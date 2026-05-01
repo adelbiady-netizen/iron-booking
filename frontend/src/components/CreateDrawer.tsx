@@ -164,7 +164,7 @@ export default function CreateDrawer({
     setError(null);
     setBusy(true);
     try {
-      let r = await api.reservations.create({
+      const r = await api.reservations.create({
         guestName:  resName.trim(),
         guestPhone: resPhone.trim() || undefined,
         partySize:  resParty,
@@ -176,10 +176,6 @@ export default function CreateDrawer({
         tableId:    resTable || undefined,
         source:     resSource,
       });
-      // Auto-confirm so the host doesn't need an extra click
-      if (r.status === 'PENDING') {
-        r = await api.reservations.confirm(r.id);
-      }
       onCreated(r);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create reservation');
