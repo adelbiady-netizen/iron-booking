@@ -113,7 +113,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       )}
 
       {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
-        const mr = minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now());
+        const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         return (
           <div>
             <p className="text-iron-text text-xs font-medium truncate">{currentRes.guestName}</p>

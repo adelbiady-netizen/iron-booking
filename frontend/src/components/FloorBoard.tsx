@@ -496,7 +496,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow }: {
+function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime }: {
   table: FloorTable;
   selected: boolean;
   dimmed: boolean;
@@ -581,7 +581,7 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
 
       {/* OCCUPIED */}
       {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
-        const mr = minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now());
+        const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <p style={{ fontSize: 10, color: 'var(--canvas-status-occupied)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
