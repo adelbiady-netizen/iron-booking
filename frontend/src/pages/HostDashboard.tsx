@@ -104,6 +104,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [highlightId,       setHighlightId]       = useState<string | null>(null);
   const [resLoading,        setResLoading]        = useState(false);
   const [loadError,         setLoadError]         = useState(false);
+  const [errorPhase,        setErrorPhase]        = useState<'none' | 'reconnecting' | 'failed'>('none');
   const [toasts,            setToasts]            = useState<ToastMessage[]>([]);
   const toastIdRef = useRef(0);
 
@@ -200,6 +201,20 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     }, 30_000);
     return () => { clearInterval(floorId); clearInterval(waitlistId); };
   }, []);
+
+  // Reconnect strategy: when both critical API calls fail, retry every 2.5s
+  // and restore the dashboard automatically when the backend responds.
+  // After 35s of continuous failure, escalate to a harder failure message.
+  useEffect(() => {
+    if (!loadError) {
+      setErrorPhase('none');
+      return;
+    }
+    setErrorPhase('reconnecting');
+    const retryId    = setInterval(() => setRefreshKey(k => k + 1), 2500);
+    const escalateId = setTimeout(() => setErrorPhase('failed'), 35_000);
+    return () => { clearInterval(retryId); clearTimeout(escalateId); };
+  }, [loadError]);
 
   const handleSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
@@ -657,6 +672,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           insights={allInsights}
           onInsightAction={handleInsightAction}
           loadError={loadError}
+          errorPhase={errorPhase}
           onLockTable={handleLockTable}
           onUnlockTable={handleUnlockTable}
           waitlistMatches={waitlistMatches}

@@ -42,6 +42,7 @@ interface Props {
   insights?: FloorInsight[];
   onInsightAction?: (tableId: string, reservationId: string) => void;
   loadError?: boolean;
+  errorPhase?: 'none' | 'reconnecting' | 'failed';
   onLockTable?: (table: FloorTable) => void;
   onUnlockTable?: (tableId: string) => void;
   waitlist?: WaitlistEntry[];
@@ -76,7 +77,7 @@ type View = 'floor' | 'timeline';
 
 export default function FloorBoard({
   tables, floorObjs = [], selectedId, onSelect, onAvailableClick,
-  insights = [], onInsightAction, loadError,
+  insights = [], onInsightAction, loadError, errorPhase,
   onLockTable, onUnlockTable,
   waitlist = [], waitlistMatches = {}, onWaitlistSuggestion, bestSuggestionTableId,
   softHoldMap = {}, pressureInfo,
@@ -91,6 +92,15 @@ export default function FloorBoard({
   const [view,             setView]             = useState<View>('floor');
 
   if (loadError) {
+    if (errorPhase !== 'failed') {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-iron-muted">
+          <div className="w-5 h-5 border-2 border-iron-muted/40 border-t-iron-muted/80 rounded-full animate-spin mb-1" />
+          <p className="text-sm">{T.floorBoard.reconnecting}</p>
+          <p className="text-xs opacity-50">{T.floorBoard.reconnectingHint}</p>
+        </div>
+      );
+    }
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-2 text-iron-muted">
         <div className="w-10 h-10 rounded-lg border-2 border-dashed border-red-900/40 flex items-center justify-center mb-1">
@@ -98,7 +108,6 @@ export default function FloorBoard({
         </div>
         <p className="text-sm text-red-400">{T.floorBoard.errorTitle}</p>
         <p className="text-xs opacity-60">{T.floorBoard.errorHint}</p>
-        <p className="text-xs opacity-40">{T.floorBoard.errorRetry}</p>
       </div>
     );
   }
