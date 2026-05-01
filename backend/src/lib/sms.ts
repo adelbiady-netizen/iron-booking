@@ -81,7 +81,7 @@ export async function sendConfirmationSms(
     `Date: ${date}\n` +
     `Time: ${time}\n` +
     `Guests: ${partySize}\n\n` +
-    `Confirm here:\n${confirmUrl}`;
+    `Confirm or cancel here:\n${confirmUrl}`;
 
   return sendWhatsApp(phone, body);
 }

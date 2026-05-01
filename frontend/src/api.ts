@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -63,6 +63,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (res.status === 204) return undefined as unknown as T;
+  return res.json() as Promise<T>;
+}
+
+// Public request — no auth header, no 401 reload. Used for guest-facing endpoints.
+async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null) as {
+      error?: { message?: string; code?: string };
+    } | null;
+    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`);
+  }
+
   return res.json() as Promise<T>;
 }
 
@@ -260,5 +277,22 @@ export const api = {
         firstName?: string; lastName?: string; role?: string; isActive?: boolean; password?: string;
       }) => request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     },
+  },
+
+  public: {
+    getReservation: (token: string) =>
+      publicRequest<PublicReservation>(`/public/reservation?token=${encodeURIComponent(token)}`),
+    confirm: (token: string) =>
+      publicRequest<{ status: string; isConfirmedByGuest: boolean; alreadyConfirmed?: boolean }>(
+        '/public/confirm', { method: 'POST', body: JSON.stringify({ token }) }
+      ),
+    cancel: (token: string) =>
+      publicRequest<{ status: string; alreadyCancelled?: boolean }>(
+        '/public/cancel', { method: 'POST', body: JSON.stringify({ token }) }
+      ),
+    late: (token: string) =>
+      publicRequest<{ isRunningLate: boolean; alreadyNotified?: boolean }>(
+        '/public/late', { method: 'POST', body: JSON.stringify({ token }) }
+      ),
   },
 };

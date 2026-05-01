@@ -273,6 +273,9 @@ export default function ReservationPanel({
                     {r.isConfirmedByGuest && (
                       <span className="text-emerald-400"> · ✓ confirmed</span>
                     )}
+                    {r.isRunningLate && (
+                      <span className="text-orange-400"> · running late</span>
+                    )}
                     {!r.isConfirmedByGuest && r.remindedAt && (
                       <span className="text-iron-muted"> · reminded</span>
                     )}

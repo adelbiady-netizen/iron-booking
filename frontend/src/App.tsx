@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import HostDashboard from './pages/HostDashboard';
 import SetupPage from './pages/SetupPage';
 import AdminPortal from './pages/admin/AdminPortal';
+import ConfirmationPage from './pages/ConfirmationPage';
 import type { AuthState } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -79,6 +80,13 @@ export default function App() {
   const scale = zoom / 100;
 
   function renderPage() {
+    // Guest confirmation flow — checked before any auth logic.
+    // The token param comes from the WhatsApp confirmation link.
+    if (window.location.pathname === '/confirm') {
+      const token = new URLSearchParams(window.location.search).get('token');
+      if (token) return <ConfirmationPage token={token} />;
+    }
+
     if (!ready) {
       return (
         <div className="h-full bg-iron-bg flex items-center justify-center">

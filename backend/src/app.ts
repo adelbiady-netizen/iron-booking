@@ -24,6 +24,11 @@ const allowedOrigins = [
   'https://www.ironbooking.com',
 ];
 
+// Dynamically add FRONTEND_BASE_URL so the guest confirmation page can reach the API
+if (config.frontendBaseUrl && !allowedOrigins.includes(config.frontendBaseUrl)) {
+  allowedOrigins.push(config.frontendBaseUrl);
+}
+
 app.use(
   cors({
     origin: function (origin, callback) {

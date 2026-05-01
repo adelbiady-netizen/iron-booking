@@ -57,7 +57,7 @@ export async function sendReservationReminders(
 
     // Reuse existing token; create one only if missing
     const token      = r.confirmationToken ?? crypto.randomUUID();
-    const confirmUrl = `${config.publicBaseUrl}/api/public/confirm?token=${token}`;
+    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
 
     try {
       await sendReminderSms(r.guestPhone!, r.guestName, restaurantName, r.time, confirmUrl);

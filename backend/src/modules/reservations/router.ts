@@ -153,9 +153,14 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
     }
 
     const token      = crypto.randomUUID();
-    const confirmUrl = `${config.publicBaseUrl}/api/public/confirm?token=${token}`;
+    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
 
-    // Send first — only persist sentAt if delivery succeeds
+    // Save token to DB FIRST so the link is valid before the SMS arrives
+    await prisma.reservation.update({
+      where: { id: reservation.id },
+      data:  { confirmationToken: token },
+    });
+
     await sendConfirmationSms(
       reservation.guestPhone,
       reservation.guestName,
@@ -168,7 +173,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
 
     const updated = await prisma.reservation.update({
       where: { id: reservation.id },
-      data:  { confirmationToken: token, confirmationSentAt: new Date() },
+      data:  { confirmationSentAt: new Date() },
     });
 
     res.json(updated);
@@ -236,14 +241,19 @@ router.post('/send-confirmations', validate(BulkConfirmSchema), async (req: Requ
     for (const r of reservations) {
       try {
         const token      = crypto.randomUUID();
-        const confirmUrl = `${config.publicBaseUrl}/api/public/confirm?token=${token}`;
+        const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
 
-        // Send first — only mark sentAt on success
+        // Save token first — link is valid before SMS arrives
+        await prisma.reservation.update({
+          where: { id: r.id },
+          data:  { confirmationToken: token },
+        });
+
         await sendConfirmationSms(r.guestPhone!, r.guestName, restaurantName, date, r.time, r.partySize, confirmUrl);
 
         await prisma.reservation.update({
           where: { id: r.id },
-          data:  { confirmationToken: token, confirmationSentAt: new Date() },
+          data:  { confirmationSentAt: new Date() },
         });
         sent++;
       } catch (err) {
@@ -280,7 +290,7 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
     }
 
     const token      = reservation.confirmationToken ?? crypto.randomUUID();
-    const confirmUrl = `${config.publicBaseUrl}/api/public/confirm?token=${token}`;
+    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
 
     await sendReminderSms(
       reservation.guestPhone,

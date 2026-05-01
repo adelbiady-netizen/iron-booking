@@ -66,6 +66,8 @@ export interface Reservation {
   hostNotes: string | null;
   tags: string[];
   isConfirmedByGuest: boolean;
+  isRunningLate: boolean;
+  lateNotifiedAt: string | null;
   confirmationToken: string | null;
   confirmationSentAt: string | null;
   confirmedAt: string | null;
@@ -255,6 +257,18 @@ export interface GuestLookupResult {
   visitCount: number;
   noShowCount: number;
   lastVisitAt: string | null;
+}
+
+export interface PublicReservation {
+  guestName: string;
+  restaurantName: string;
+  date: string;
+  time: string;
+  partySize: number;
+  status: ReservationStatus;
+  isConfirmedByGuest: boolean;
+  isRunningLate: boolean;
+  occasion: string | null;
 }
 
 export interface CreateReservationBody {

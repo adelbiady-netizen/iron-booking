@@ -272,6 +272,10 @@ model Reservation {
   confirmationToken  String?   @unique
   confirmationSentAt DateTime?
 
+  // Guest self-reported running late (set via confirmation link)
+  isRunningLate  Boolean   @default(false)
+  lateNotifiedAt DateTime?
+
   // Lifecycle timestamps
   confirmedAt  DateTime?
   remindedAt   DateTime?

@@ -276,6 +276,12 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
         </p>
 
         {/* Confirmation status */}
+        {res.isRunningLate && (
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+            <span className="text-orange-400 text-xs font-medium">Guest running late</span>
+          </div>
+        )}
         {res.isConfirmedByGuest ? (
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
@@ -432,6 +438,11 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                 {res.isConfirmedByGuest && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
                     Guest confirmed
+                  </span>
+                )}
+                {res.isRunningLate && (
+                  <span className="text-xs px-1.5 py-0.5 rounded border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
+                    Running late
                   </span>
                 )}
                 {!res.isConfirmedByGuest && res.confirmationSentAt && (
