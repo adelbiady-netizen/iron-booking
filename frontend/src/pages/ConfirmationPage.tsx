@@ -372,51 +372,75 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
   const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: '300px' }}>
-      {/* Cover image with subtle zoom */}
-      <img
-        src={identity.coverUrl!}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: 'scale(1.04)', transformOrigin: 'center 40%' }}
-      />
+    <div className="relative w-full" style={{ height: '300px' }}>
+      {/* Image — contained here only */}
+      <div className="absolute inset-0 overflow-hidden">
+        <img
+          src={identity.coverUrl!}
+          alt=""
+          className="w-full h-full object-cover"
+          style={{ transform: 'scale(1.04)', transformOrigin: 'center 40%' }}
+        />
+      </div>
 
-      {/* Gradient — light veil at top, deep dark at bottom for logo legibility */}
+      {/* Cinematic gradient overlay */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(to bottom, rgba(9,12,18,0.18) 0%, rgba(9,12,18,0.44) 54%, rgba(9,12,18,0.90) 84%, rgba(9,12,18,0.99) 100%)',
+          background: 'linear-gradient(to bottom, rgba(9,12,18,0.10) 0%, rgba(9,12,18,0.36) 46%, rgba(9,12,18,0.84) 78%, rgba(9,12,18,0.98) 100%)',
+        }}
+      />
+
+      {/* Bleed gradient — extends below the image to meet the card without a hard edge */}
+      <div
+        className="absolute left-0 right-0 pointer-events-none"
+        style={{
+          bottom: '-80px',
+          height: '160px',
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(9,12,18,0.52) 48%, rgba(9,12,18,0.90) 100%)',
         }}
       />
 
       {/* Logo + name anchored at bottom */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-8 px-5">
         <div className="relative flex items-center justify-center mb-3">
-          {/* Ambient glow halo */}
-          <div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: '88px', height: '88px',
-              background: 'radial-gradient(circle, rgba(34,197,94,0.14) 0%, rgba(34,197,94,0.03) 55%, transparent 72%)',
-            }}
-          />
           {identity.logoUrl ? (
-            <img
-              src={identity.logoUrl}
-              alt={displayName ?? 'Restaurant'}
-              className="relative h-[4rem] max-w-[200px] object-contain"
-              style={{ filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.70)) drop-shadow(0 0 32px rgba(0,0,0,0.50))' }}
-            />
-          ) : (
+            /* Glass disc backing — logo floats prestigious against any image */
             <div
-              className="relative w-16 h-16 rounded-full flex items-center justify-center backdrop-blur-sm select-none"
+              className="relative flex items-center justify-center rounded-full backdrop-blur-md"
               style={{
-                background: 'rgba(255,255,255,0.09)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                boxShadow: '0 0 28px rgba(34,197,94,0.10), 0 0 60px rgba(34,197,94,0.04)',
+                width: '72px', height: '72px',
+                background: 'rgba(6,8,16,0.62)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                boxShadow: [
+                  '0 0 0 1px rgba(0,0,0,0.55)',
+                  '0 8px 36px rgba(0,0,0,0.72)',
+                  '0 0 0 7px rgba(255,255,255,0.016)',
+                  '0 0 52px rgba(255,255,255,0.04)',
+                ].join(', '),
               }}
             >
-              <span className="text-white/80 text-2xl font-medium">{initial}</span>
+              <img
+                src={identity.logoUrl}
+                alt={displayName ?? 'Restaurant'}
+                className="h-10 max-w-[48px] object-contain"
+                style={{ filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.55))' }}
+              />
+            </div>
+          ) : (
+            <div
+              className="relative w-[4.5rem] h-[4.5rem] rounded-full flex items-center justify-center backdrop-blur-md select-none"
+              style={{
+                background: 'rgba(6,8,16,0.62)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                boxShadow: [
+                  '0 0 0 1px rgba(0,0,0,0.55)',
+                  '0 8px 36px rgba(0,0,0,0.72)',
+                  '0 0 0 7px rgba(255,255,255,0.016)',
+                ].join(', '),
+              }}
+            >
+              <span className="text-white/75 text-2xl font-medium">{initial}</span>
             </div>
           )}
         </div>
@@ -424,7 +448,7 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
         {displayName && (
           <h2
             className="text-[1.35rem] font-medium tracking-[-0.022em] text-center"
-            style={{ color: '#f0ebe0', textShadow: '0 1px 10px rgba(0,0,0,0.55)' }}
+            style={{ color: '#f0ebe0', textShadow: '0 2px 14px rgba(0,0,0,0.72)' }}
           >
             {displayName}
           </h2>
@@ -484,17 +508,17 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="w-full rounded-[30px] p-6 backdrop-blur-[64px]"
+      className="w-full rounded-[30px] p-6 backdrop-blur-[80px]"
       style={{
-        background: 'rgba(8,11,20,0.70)',
-        border: '1px solid rgba(255,255,255,0.060)',
+        background: 'rgba(8,11,20,0.74)',
+        border: '1px solid rgba(255,255,255,0.052)',
         boxShadow: [
-          '0 2px 0 rgba(255,255,255,0.075) inset',
-          '0 -1px 0 rgba(0,0,0,0.35) inset',
-          '0 40px 90px rgba(0,0,0,0.60)',
-          '0 16px 40px rgba(0,0,0,0.40)',
-          '0 4px 12px rgba(0,0,0,0.30)',
-          '0 0 0 0.5px rgba(255,255,255,0.038)',
+          '0 2px 0 rgba(255,255,255,0.062) inset',
+          '0 -1px 0 rgba(0,0,0,0.42) inset',
+          '0 52px 110px rgba(0,0,0,0.68)',
+          '0 22px 55px rgba(0,0,0,0.48)',
+          '0 5px 16px rgba(0,0,0,0.38)',
+          '0 0 0 0.5px rgba(255,255,255,0.028)',
         ].join(', '),
       }}
     >
@@ -606,19 +630,37 @@ function ConfirmBtn({ onClick, children }: { onClick: () => void; children: Reac
       onClick={onClick}
       className="w-full active:scale-[0.98] py-4 rounded-3xl text-[15px] transition-all"
       style={{
-        background: '#f0ece4', color: '#0a0c10',
-        letterSpacing: '0.022em', fontWeight: 600,
-        boxShadow: '0 1px 0 rgba(255,255,255,0.52) inset, 0 -1px 0 rgba(0,0,0,0.06) inset, 0 8px 24px rgba(0,0,0,0.25)',
+        background: 'linear-gradient(180deg, #f5f0e6 0%, #ece4d0 100%)',
+        color: '#0d0f14',
+        letterSpacing: '0.020em',
+        fontWeight: 600,
+        boxShadow: [
+          '0 1px 0 rgba(255,255,255,0.68) inset',
+          '0 -1px 0 rgba(120,90,40,0.14) inset',
+          '0 11px 32px rgba(0,0,0,0.32)',
+          '0 2px 8px rgba(0,0,0,0.22)',
+        ].join(', '),
       }}
       onMouseEnter={e => {
         const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = '#f7f2e8';
-        b.style.boxShadow = '0 1px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.07) inset, 0 8px 28px rgba(0,0,0,0.28), 0 0 42px rgba(240,236,228,0.18)';
+        b.style.background = 'linear-gradient(180deg, #faf4e8 0%, #f2e8d2 100%)';
+        b.style.boxShadow = [
+          '0 1px 0 rgba(255,255,255,0.72) inset',
+          '0 -1px 0 rgba(120,90,40,0.14) inset',
+          '0 11px 36px rgba(0,0,0,0.34)',
+          '0 2px 8px rgba(0,0,0,0.22)',
+          '0 0 52px rgba(245,240,230,0.14)',
+        ].join(', ');
       }}
       onMouseLeave={e => {
         const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = '#f0ece4';
-        b.style.boxShadow = '0 1px 0 rgba(255,255,255,0.52) inset, 0 -1px 0 rgba(0,0,0,0.06) inset, 0 8px 24px rgba(0,0,0,0.25)';
+        b.style.background = 'linear-gradient(180deg, #f5f0e6 0%, #ece4d0 100%)';
+        b.style.boxShadow = [
+          '0 1px 0 rgba(255,255,255,0.68) inset',
+          '0 -1px 0 rgba(120,90,40,0.14) inset',
+          '0 11px 32px rgba(0,0,0,0.32)',
+          '0 2px 8px rgba(0,0,0,0.22)',
+        ].join(', ');
       }}
     >
       {children}
@@ -633,18 +675,18 @@ function LateBtn({ onClick, children }: { onClick: () => void; children: React.R
       onClick={onClick}
       className="w-full active:scale-[0.98] font-light py-3.5 rounded-3xl text-[14px] transition-all"
       style={{
-        background: 'rgba(251,191,36,0.04)',
-        border: '0.5px solid rgba(251,191,36,0.18)',
-        color: 'rgba(255,210,100,0.62)',
+        background: 'rgba(155,120,52,0.07)',
+        border: '0.5px solid rgba(190,152,76,0.22)',
+        color: 'rgba(210,175,108,0.68)',
         letterSpacing: '0.01em',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(251,191,36,0.07)';
-        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,210,100,0.78)';
+        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(155,120,52,0.12)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(210,175,108,0.88)';
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(251,191,36,0.04)';
-        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,210,100,0.62)';
+        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(155,120,52,0.07)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(210,175,108,0.68)';
       }}
     >
       {children}
@@ -676,35 +718,35 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
   return (
     <div className="mt-4 text-center">
       {address && (
-        <p className="text-white/30 text-[13px] leading-snug mb-3">{address}</p>
+        <p className="text-white/28 text-[12px] leading-snug mb-3">{address}</p>
       )}
       {(googleMapsUrl || wazeUrl) && (
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-2.5 justify-center">
           {googleMapsUrl && (
             <a
               href={googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 max-w-[160px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-full text-[13px] transition-all no-underline"
+              className="flex items-center justify-center gap-1 py-2 px-4 rounded-full text-[12px] transition-all no-underline"
               style={{
-                background: 'rgba(255,255,255,0.042)',
-                border: '0.5px solid rgba(255,255,255,0.11)',
-                color: 'rgba(255,255,255,0.48)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.20)',
+                background: 'rgba(255,255,255,0.030)',
+                border: '0.5px solid rgba(255,255,255,0.082)',
+                color: 'rgba(255,255,255,0.36)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.08)';
-                el.style.color = 'rgba(255,255,255,0.72)';
-                el.style.transform = 'translateY(-1px)';
-                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.30)';
+                el.style.background = 'rgba(255,255,255,0.062)';
+                el.style.color = 'rgba(255,255,255,0.60)';
+                el.style.transform = 'translateY(-2px)';
+                el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.24)';
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.042)';
-                el.style.color = 'rgba(255,255,255,0.48)';
+                el.style.background = 'rgba(255,255,255,0.030)';
+                el.style.color = 'rgba(255,255,255,0.36)';
                 el.style.transform = '';
-                el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.20)';
+                el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.14)';
               }}
             >
               <PinIcon /> Maps
@@ -715,26 +757,26 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               href={wazeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 max-w-[160px] flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-full text-[13px] transition-all no-underline"
+              className="flex items-center justify-center gap-1 py-2 px-4 rounded-full text-[12px] transition-all no-underline"
               style={{
-                background: 'rgba(255,255,255,0.042)',
-                border: '0.5px solid rgba(255,255,255,0.11)',
-                color: 'rgba(255,255,255,0.48)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.20)',
+                background: 'rgba(255,255,255,0.030)',
+                border: '0.5px solid rgba(255,255,255,0.082)',
+                color: 'rgba(255,255,255,0.36)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.08)';
-                el.style.color = 'rgba(255,255,255,0.72)';
-                el.style.transform = 'translateY(-1px)';
-                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.30)';
+                el.style.background = 'rgba(255,255,255,0.062)';
+                el.style.color = 'rgba(255,255,255,0.60)';
+                el.style.transform = 'translateY(-2px)';
+                el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.24)';
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.042)';
-                el.style.color = 'rgba(255,255,255,0.48)';
+                el.style.background = 'rgba(255,255,255,0.030)';
+                el.style.color = 'rgba(255,255,255,0.36)';
                 el.style.transform = '';
-                el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.20)';
+                el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.14)';
               }}
             >
               <CarIcon /> Waze
