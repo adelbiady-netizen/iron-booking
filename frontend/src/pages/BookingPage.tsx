@@ -572,15 +572,35 @@ function DateCarousel({
   profile: PublicRestaurantProfile; selected: string; onSelect: (d: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft,  setCanScrollLeft]  = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
   const today = new Date();
   const days: Array<{ dateStr: string; d: Date; isOpen: boolean }> = [];
-
   for (let i = 0; i < profile.maxAdvanceBookingDays; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
     const hours = profile.operatingHours.find(h => h.dayOfWeek === d.getDay());
     days.push({ dateStr: toLocalDateString(d), d, isOpen: !!(hours?.isOpen) });
   }
+
+  function syncScrollState() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }
+
+  // Track scroll edges so arrows show/hide correctly
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    syncScrollState();
+    el.addEventListener('scroll', syncScrollState, { passive: true });
+    const ro = new ResizeObserver(syncScrollState);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', syncScrollState); ro.disconnect(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll selected into view on mount
   useEffect(() => {
@@ -591,9 +611,49 @@ function DateCarousel({
     chip?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function nudge(dir: 'left' | 'right') {
+    scrollRef.current?.scrollBy({ left: dir === 'right' ? 240 : -240, behavior: 'smooth' });
+  }
+
+  const arrowBase: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '26px',
+    height: '26px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255,255,255,0.14)',
+    background: 'rgba(20,24,36,0.72)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    color: 'rgba(255,255,255,0.80)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '16px',
+    lineHeight: 1,
+    zIndex: 3,
+    paddingBottom: '1px',
+    transition: 'background 0.15s',
+  } as React.CSSProperties;
+
   return (
     <div className="relative">
       <style>{`[data-date-carousel]::-webkit-scrollbar{display:none}`}</style>
+
+      {/* Left arrow + fade */}
+      {canScrollLeft && (
+        <>
+          <div aria-hidden="true" style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0, width: '52px',
+            pointerEvents: 'none', zIndex: 2,
+            background: 'linear-gradient(to left, transparent 0%, rgba(9,12,20,0.95) 100%)',
+          }} />
+          <button aria-label="Earlier dates" onClick={() => nudge('left')} style={{ ...arrowBase, left: '6px' }}>‹</button>
+        </>
+      )}
+
       <div
         ref={scrollRef}
         data-date-carousel=""
@@ -649,19 +709,18 @@ function DateCarousel({
           );
         })}
       </div>
-      {/* Right-edge fade — signals more dates are available */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: '48px',
-          pointerEvents: 'none',
-          background: 'linear-gradient(to right, transparent 0%, rgba(9,12,20,0.96) 100%)',
-        }}
-      />
+
+      {/* Right arrow + fade */}
+      {canScrollRight && (
+        <>
+          <div aria-hidden="true" style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: '52px',
+            pointerEvents: 'none', zIndex: 2,
+            background: 'linear-gradient(to right, transparent 0%, rgba(9,12,20,0.96) 100%)',
+          }} />
+          <button aria-label="Later dates" onClick={() => nudge('right')} style={{ ...arrowBase, right: '6px' }}>›</button>
+        </>
+      )}
     </div>
   );
 }
