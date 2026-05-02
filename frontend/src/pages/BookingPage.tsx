@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { PublicRestaurantProfile, PublicSlot, AvailabilityResponse, BookingAlternative, BookingResult } from '../types';
+import type { PublicRestaurantProfile, PublicSlot, AvailabilityResponse, BookingAlternative, BookingResult, PublicWaitlistResult } from '../types';
 import { api, ApiError } from '../api';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -16,7 +16,17 @@ type BookingPhase =
   | { phase: 'submitting' }
   | { phase: 'confirmed';  result: BookingResult }
   | { phase: 'slot-taken'; alternatives: BookingAlternative[] }
-  | { phase: 'error';      message: string };
+  | { phase: 'error';      message: string }
+  | { phase: 'waitlist';         date: string; partySize: number; slotsData: AvailabilityResponse }
+  | { phase: 'waitlist-success'; result: PublicWaitlistResult };
+
+interface WaitlistFormState {
+  guestName:     string;
+  guestPhone:    string;
+  preferredTime: string;
+  flexibleTime:  boolean;
+  notes:         string;
+}
 
 interface FormState {
   guestName:  string;
@@ -145,6 +155,21 @@ export default function BookingPage({ slug }: Props) {
     }
   }
 
+  async function handleJoinWaitlist(wf: WaitlistFormState): Promise<void> {
+    const s = state;
+    if (s.phase !== 'waitlist') return;
+    const result = await api.public.book.joinWaitlist(slug, {
+      guestName:     wf.guestName.trim(),
+      guestPhone:    wf.guestPhone.trim(),
+      partySize:     s.partySize,
+      date:          s.date,
+      preferredTime: wf.preferredTime,
+      flexibleTime:  wf.flexibleTime,
+      notes:         wf.notes.trim() || undefined,
+    });
+    setState({ phase: 'waitlist-success', result });
+  }
+
   const fade = (delay: number) => ({
     className: `transition-all duration-500 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`,
     style: { transitionDelay: `${delay}ms` } as React.CSSProperties,
@@ -239,18 +264,41 @@ export default function BookingPage({ slug }: Props) {
               <StatusBanner icon="⏎" color="amber" text="That date has passed" />
             )}
 
-            {!state.data.isClosed && !state.data.isPast && state.data.slots.length === 0 && (
-              <StatusBanner icon="○" color="neutral" text="No times available for this date" />
+            {/* Fully booked with no alternatives → premium dead-end avoidance */}
+            {!state.data.isClosed && !state.data.isPast && state.data.isFullyBooked && state.data.alternatives.length === 0 && (
+              <div className="py-2 text-center">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', fontSize: '22px', color: 'rgba(255,255,255,0.30)' }}
+                >
+                  ◌
+                </div>
+                <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '16px' }}>
+                  No tables available
+                </h3>
+                <p className="text-[13px] leading-relaxed mb-6 px-4" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {fmtDateShort(state.date)} is fully booked for {state.partySize} {state.partySize === 1 ? 'guest' : 'guests'}.
+                  Join the waitlist and we'll reach out if something opens up.
+                </p>
+                <PrimaryBtn onClick={() => setState({ phase: 'waitlist', date: state.date, partySize: state.partySize, slotsData: state.data })}>
+                  Join the waitlist
+                </PrimaryBtn>
+              </div>
             )}
 
-            {state.data.slots.length > 0 && (
+            {/* Available slots */}
+            {!state.data.isFullyBooked && state.data.slots.length === 0 && !state.data.isClosed && !state.data.isPast && (
+              <StatusBanner icon="○" color="neutral" text="No times available for this date" />
+            )}
+            {!state.data.isFullyBooked && state.data.slots.length > 0 && (
               <SlotGrid slots={state.data.slots} onSelect={handleSlotSelect} />
             )}
 
+            {/* Alternatives */}
             {state.data.alternatives.length > 0 && (
               <div className="mt-6">
                 <SectionLabel>
-                  {state.data.isFullyBooked ? 'Fully booked — nearby availability' : 'Other options'}
+                  {state.data.isFullyBooked ? 'Nearby availability' : 'Other options'}
                 </SectionLabel>
                 <div className="flex flex-col gap-2 mt-3">
                   {state.data.alternatives.map(alt => (
@@ -263,7 +311,50 @@ export default function BookingPage({ slug }: Props) {
                 </div>
               </div>
             )}
+
+            {/* Waitlist CTA — secondary, shown when fully booked with alternatives */}
+            {!state.data.isClosed && !state.data.isPast && state.data.isFullyBooked && state.data.alternatives.length > 0 && (
+              <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.055)' }}>
+                <p className="text-[13px] mb-1" style={{ color: 'rgba(255,255,255,0.52)' }}>None of these work?</p>
+                <p className="text-[12px] mb-4 leading-relaxed" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                  Join the waitlist — we'll contact you if a table opens up for {fmtDateShort(state.date)}.
+                </p>
+                <button
+                  onClick={() => setState({ phase: 'waitlist', date: state.date, partySize: state.partySize, slotsData: state.data })}
+                  className="w-full rounded-[18px] text-[14px] font-medium transition-all active:scale-[0.98]"
+                  style={{ padding: '13px 24px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.72)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; }}
+                >
+                  Join the waitlist
+                </button>
+              </div>
+            )}
           </GlassCard>
+        )}
+
+        {/* Waitlist form */}
+        {state.phase === 'waitlist' && (
+          <GlassCard>
+            <BookingSummaryBar
+              date={state.date}
+              partySize={state.partySize}
+              onBack={() => setState({ phase: 'slots', date: state.date, partySize: state.partySize, data: state.slotsData })}
+            />
+            <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
+            <div className="mb-5">
+              <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.88)', fontSize: '17px' }}>Join the waitlist</h3>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
+                We'll reach out if a table becomes available on {fmtDateShort(state.date)} for {state.partySize} {state.partySize === 1 ? 'guest' : 'guests'}.
+              </p>
+            </div>
+            <WaitlistForm onSubmit={handleJoinWaitlist} />
+          </GlassCard>
+        )}
+
+        {/* Waitlist success */}
+        {state.phase === 'waitlist-success' && (
+          <WaitlistSuccessCard result={state.result} />
         )}
 
         {state.phase === 'details' && (
@@ -981,6 +1072,171 @@ function GuestForm({ form, onChange, onSubmit }: {
         </PrimaryBtn>
       </div>
     </form>
+  );
+}
+
+// ─── Waitlist form ─────────────────────────────────────────────────────────────
+
+function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Promise<void> }) {
+  const [form, setForm] = useState<WaitlistFormState>({
+    guestName: '', guestPhone: '', preferredTime: '', flexibleTime: false, notes: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+
+  function field<K extends keyof WaitlistFormState>(key: K, value: WaitlistFormState[K]) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.guestName.trim() || !form.guestPhone.trim() || !form.preferredTime) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await onSubmit(form);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  }
+
+  const isValid = form.guestName.trim().length > 0 && form.guestPhone.trim().length >= 3 && form.preferredTime.length > 0;
+
+  const inputStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.040)', border: '1px solid rgba(255,255,255,0.095)',
+    borderRadius: '14px', padding: '14px 16px', color: 'rgba(255,255,255,0.88)',
+    fontSize: '15px', width: '100%', outline: 'none', transition: 'border-color 0.2s',
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <FieldLabel required>Name</FieldLabel>
+        <input
+          type="text" required autoFocus placeholder="Your full name"
+          value={form.guestName} onChange={e => field('guestName', e.target.value)}
+          style={inputStyle}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+        />
+      </div>
+
+      <div>
+        <FieldLabel required>Phone</FieldLabel>
+        <input
+          type="tel" required placeholder="+1 (555) 000-0000"
+          value={form.guestPhone} onChange={e => field('guestPhone', e.target.value)}
+          style={inputStyle}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+        />
+        <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
+          We'll reach out here if a table becomes available
+        </p>
+      </div>
+
+      <div>
+        <FieldLabel required>Preferred time</FieldLabel>
+        <input
+          type="time" required
+          value={form.preferredTime} onChange={e => field('preferredTime', e.target.value)}
+          style={{ ...inputStyle, colorScheme: 'dark' } as React.CSSProperties}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+        />
+        {/* Flexibility toggle */}
+        <button
+          type="button"
+          onClick={() => field('flexibleTime', !form.flexibleTime)}
+          className="flex items-center gap-2 mt-2.5 transition-all"
+        >
+          <div
+            className="w-8 h-4 rounded-full relative shrink-0 transition-all"
+            style={{
+              background: form.flexibleTime ? 'rgba(34,197,94,0.28)' : 'rgba(255,255,255,0.08)',
+              border: form.flexibleTime ? '1px solid rgba(34,197,94,0.45)' : '1px solid rgba(255,255,255,0.10)',
+            }}
+          >
+            <div
+              className="absolute top-[2px] w-3 h-3 rounded-full transition-all"
+              style={{
+                background: form.flexibleTime ? '#4ade80' : 'rgba(255,255,255,0.35)',
+                left: form.flexibleTime ? '18px' : '2px',
+              }}
+            />
+          </div>
+          <span className="text-[12px]" style={{ color: form.flexibleTime ? 'rgba(74,222,128,0.85)' : 'rgba(255,255,255,0.38)' }}>
+            Flexible ±1 hour
+          </span>
+        </button>
+      </div>
+
+      <div>
+        <FieldLabel>Notes <span style={{ color: 'rgba(255,255,255,0.28)' }}>(optional)</span></FieldLabel>
+        <textarea
+          placeholder="Any preferences or requests…"
+          value={form.notes} onChange={e => field('notes', e.target.value)}
+          rows={3}
+          style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
+          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onBlur={e =>  { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+        />
+      </div>
+
+      {error && <p className="text-red-400/80 text-[13px] text-center">{error}</p>}
+
+      <div className="pt-2">
+        <PrimaryBtn type="submit" disabled={!isValid} loading={loading}>
+          {loading ? 'Joining waitlist…' : 'Join the waitlist'}
+        </PrimaryBtn>
+      </div>
+    </form>
+  );
+}
+
+// ─── Waitlist success card ─────────────────────────────────────────────────────
+
+function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
+  return (
+    <GlassCard>
+      <div className="text-center mb-7">
+        <div
+          className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl mx-auto mb-5"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.55)' }}
+        >
+          ◎
+        </div>
+        <h2 className="text-white text-2xl font-semibold tracking-tight mb-2">
+          You're on the waitlist
+        </h2>
+        <p className="text-white/40 text-sm leading-relaxed px-3">
+          We'll reach out if a table becomes available. Thank you for your patience.
+        </p>
+      </div>
+
+      <div
+        className="rounded-2xl px-5 py-4 mb-6"
+        style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.075)' }}
+      >
+        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.35)' }}>Date</span>
+          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmtDateLong(result.date)}</span>
+        </div>
+        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.35)' }}>Party</span>
+          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{result.partySize} {result.partySize === 1 ? 'guest' : 'guests'}</span>
+        </div>
+        <div className="flex justify-between items-center py-1.5">
+          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.35)' }}>Preferred time</span>
+          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmt12(result.preferredTime)}</span>
+        </div>
+      </div>
+
+      <p className="text-center text-[12px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+        A confirmation has been sent to your phone.
+      </p>
+    </GlassCard>
   );
 }
 

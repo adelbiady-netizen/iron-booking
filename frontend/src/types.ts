@@ -189,6 +189,8 @@ export interface WaitlistEntry {
   leftAt: string | null;
   notes: string | null;
   reservationId: string | null;
+  preferredTime: string | null;
+  flexibleTime: boolean;
 }
 
 export type FloorObjKind = 'WALL' | 'DIVIDER' | 'BAR' | 'ENTRANCE' | 'ZONE';
@@ -347,6 +349,15 @@ export interface BookingResult {
   partySize: number;
   restaurantName: string;
   restaurantLogoUrl: string | null;
+}
+
+export interface PublicWaitlistResult {
+  publicToken: string;
+  restaurantName: string;
+  restaurantLogoUrl: string | null;
+  date: string;
+  partySize: number;
+  preferredTime: string;
 }
 
 export interface CreateReservationBody {

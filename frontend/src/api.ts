@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -334,6 +334,14 @@ export const api = {
         }
         return json as BookingResult;
       },
+
+      joinWaitlist: (slug: string, body: {
+        guestName: string; guestPhone: string; partySize: number; date: string;
+        preferredTime: string; flexibleTime?: boolean; notes?: string;
+      }) => publicRequest<PublicWaitlistResult>(`/public/book/${encodeURIComponent(slug)}/waitlist`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     },
   },
 };

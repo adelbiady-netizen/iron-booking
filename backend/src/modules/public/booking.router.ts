@@ -1,10 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
-import { sendConfirmationSms } from '../../lib/sms';
+import { sendConfirmationSms, sendWhatsApp } from '../../lib/sms';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { config } from '../../config';
 
@@ -32,26 +33,30 @@ class SlotTakenError extends Error {
 }
 
 // ─── Simple in-memory rate limiter ───────────────────────────────────────────
-// Max 10 booking attempts per IP per minute on POST /reserve.
 
-const _rateMap = new Map<string, { count: number; resetAt: number }>();
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of _rateMap) {
-    if (entry.resetAt < now - 60_000) _rateMap.delete(ip);
-  }
-}, 120_000).unref();
-
-function isRateLimited(ip: string): boolean {
-  const now   = Date.now();
-  const entry = _rateMap.get(ip);
-  if (!entry || entry.resetAt < now) {
-    _rateMap.set(ip, { count: 1, resetAt: now + 60_000 });
+function makeRateLimiter(max: number) {
+  const map = new Map<string, { count: number; resetAt: number }>();
+  return function isLimited(ip: string): boolean {
+    const now   = Date.now();
+    const entry = map.get(ip);
+    if (!entry || entry.resetAt < now) {
+      map.set(ip, { count: 1, resetAt: now + 60_000 });
+      return false;
+    }
+    if (entry.count >= max) return true;
+    entry.count++;
     return false;
-  }
-  if (entry.count >= 10) return true;
-  entry.count++;
-  return false;
+  };
+}
+
+const isRateLimited         = makeRateLimiter(10); // reserve: 10/min
+const isWaitlistRateLimited = makeRateLimiter(5);  // waitlist: 5/min
+
+function fmt12h(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return t;
+  const period = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
 // ─── Settings reader ──────────────────────────────────────────────────────────
@@ -682,6 +687,105 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       partySize:         body.partySize,
       restaurantName:    restaurant.name,
       restaurantLogoUrl: restaurant.logoUrl,
+    });
+  } catch (err) { next(err); }
+});
+
+// ─── POST /api/public/book/:slug/waitlist ─────────────────────────────────────
+// Public self-service waitlist entry. No auth required.
+// Rate-limited to 5 submissions per IP per minute.
+
+const WaitlistSchema = z.object({
+  guestName:     z.string().min(1).max(200),
+  guestPhone:    z.string().min(3).max(30),
+  partySize:     z.number().int().min(1).max(100),
+  date:          z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  preferredTime: z.string().regex(/^\d{2}:\d{2}$/),
+  flexibleTime:  z.boolean().optional(),
+  notes:         z.string().max(1000).optional(),
+});
+
+router.post('/:slug/waitlist', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+      ?? req.socket.remoteAddress ?? 'unknown';
+    if (isWaitlistRateLimited(ip)) {
+      return res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again in a minute.' } });
+    }
+
+    const parsed = WaitlistSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid waitlist data.' } });
+    }
+    const body = parsed.data;
+
+    const restaurant = await findRestaurantBySlug(req.params['slug'] as string);
+    if (!restaurant || restaurant.isSystem) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Restaurant not found.' } });
+    }
+
+    // Date validation — no past dates
+    const dateObj   = new Date(body.date + 'T00:00:00.000Z');
+    const todayUTC  = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+    if (dateObj < todayUTC) {
+      return res.status(400).json({ error: { code: 'PAST_DATE', message: 'Cannot join waitlist for a past date.' } });
+    }
+
+    // Auto-link Guest CRM (non-fatal)
+    let guestId: string | null = null;
+    try {
+      const { firstName, lastName } = splitName(body.guestName.trim());
+      const { guest } = await findOrCreateGuest(restaurant.id, { firstName, lastName, phone: body.guestPhone.trim() });
+      guestId = guest.id;
+    } catch { /* non-fatal */ }
+
+    const publicToken = randomUUID();
+
+    const entry = await prisma.waitlistEntry.create({
+      data: {
+        restaurantId:  restaurant.id,
+        guestId,
+        date:          dateObj,
+        guestName:     body.guestName.trim(),
+        guestPhone:    body.guestPhone.trim(),
+        partySize:     body.partySize,
+        source:        'PUBLIC_ONLINE',
+        publicToken,
+        preferredTime: body.preferredTime,
+        flexibleTime:  body.flexibleTime ?? false,
+        notes:         body.notes?.trim() || null,
+        quotedWaitMinutes: null,
+      },
+    });
+
+    // WhatsApp acknowledgment — fire and forget
+    void (async () => {
+      try {
+        const dateLabel = new Date(body.date + 'T12:00:00').toLocaleDateString('en-US', {
+          weekday: 'long', month: 'long', day: 'numeric',
+        });
+        const flexLine = body.flexibleTime ? '\nFlexible: ±1 hour' : '';
+        const message =
+          `Hi ${body.guestName.trim()},\n\n` +
+          `You're on the waitlist at ${restaurant.name}.\n\n` +
+          `Date: ${dateLabel}\n` +
+          `Party: ${body.partySize} ${body.partySize === 1 ? 'guest' : 'guests'}\n` +
+          `Preferred time: ${fmt12h(body.preferredTime)}${flexLine}\n\n` +
+          `We'll reach out if a table becomes available. Thank you for your patience.\n\n` +
+          `— ${restaurant.name}`;
+        await sendWhatsApp(body.guestPhone.trim(), message);
+      } catch (e) {
+        console.error('[waitlist] WhatsApp send failed:', e instanceof Error ? e.message : e);
+      }
+    })();
+
+    return res.status(201).json({
+      publicToken:       entry.publicToken,
+      restaurantName:    restaurant.name,
+      restaurantLogoUrl: restaurant.logoUrl,
+      date:              body.date,
+      partySize:         body.partySize,
+      preferredTime:     body.preferredTime,
     });
   } catch (err) { next(err); }
 });

@@ -374,6 +374,11 @@ model WaitlistEntry {
 
   notes        String?
 
+  // Public self-service waitlist fields
+  publicToken   String?  @unique          // opaque guest tracking token
+  preferredTime String?                   // "HH:MM" requested time
+  flexibleTime  Boolean  @default(false)  // guest accepts ±1 hour
+
   // If converted to reservation
   reservationId String?
 
@@ -397,6 +402,7 @@ enum WaitlistSource {
   WALK_IN
   PHONE
   ONLINE
+  PUBLIC_ONLINE
 }
 
 // ─── Blocked Periods ─────────────────────────────────────────────────────────

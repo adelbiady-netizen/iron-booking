@@ -298,6 +298,11 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0 mb-0.5">
                     <p className="text-iron-text text-xs font-medium truncate">{entry.guestName}</p>
+                    {entry.source === 'PUBLIC_ONLINE' && (
+                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-400 shrink-0">
+                        Online
+                      </span>
+                    )}
                     {urgency === 'critical' && (
                       <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-red-900/30 border border-red-500/30 text-red-400 shrink-0">
                         {T.flowControl.urgencyCritical}
@@ -311,6 +316,11 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                   </div>
                   <p className="text-iron-muted text-[10px]">
                     {T.waitlistPanel.guests(entry.partySize)}
+                    {entry.preferredTime && (
+                      <span className="text-iron-muted/70">
+                        {' · '}pref {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}
+                      </span>
+                    )}
                     {' · '}{mins < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(mins)}
                     {eta !== null && (
                       <span className={etaColor}>
