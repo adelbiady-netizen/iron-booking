@@ -1,14 +1,18 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
-// Carries field-level validation errors from the backend (Zod VALIDATION_ERROR responses).
+// Carries structured error info from the backend.
 export class ApiError extends Error {
   readonly fieldErrors: Record<string, string[]>;
-  constructor(message: string, fieldErrors: Record<string, string[]> = {}) {
+  readonly code: string;
+  readonly details: unknown;
+  constructor(message: string, fieldErrors: Record<string, string[]> = {}, code = '', details?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.fieldErrors = fieldErrors;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -56,10 +60,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => null) as {
-      error?: { message?: string; details?: { fieldErrors?: Record<string, string[]> } };
+      error?: { message?: string; code?: string; details?: { fieldErrors?: Record<string, string[]> } };
     } | null;
     const fieldErrors = body?.error?.details?.fieldErrors ?? {};
-    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`, fieldErrors);
+    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`, fieldErrors, body?.error?.code ?? '');
   }
 
   if (res.status === 204) return undefined as unknown as T;
@@ -75,9 +79,14 @@ async function publicRequest<T>(path: string, options: RequestInit = {}): Promis
 
   if (!res.ok) {
     const body = await res.json().catch(() => null) as {
-      error?: { message?: string; code?: string };
+      error?: { message?: string; code?: string; [key: string]: unknown };
     } | null;
-    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`);
+    throw new ApiError(
+      body?.error?.message ?? `HTTP ${res.status}`,
+      {},
+      body?.error?.code ?? '',
+      body?.error
+    );
   }
 
   return res.json() as Promise<T>;
@@ -294,5 +303,37 @@ export const api = {
       publicRequest<{ isRunningLate: boolean; alreadyNotified?: boolean }>(
         '/public/late', { method: 'POST', body: JSON.stringify({ token }) }
       ),
+
+    book: {
+      getProfile: (slug: string) =>
+        publicRequest<PublicRestaurantProfile>(`/public/book/${encodeURIComponent(slug)}`),
+
+      getAvailability: (slug: string, date: string, partySize: number) =>
+        publicRequest<AvailabilityResponse>(
+          `/public/book/${encodeURIComponent(slug)}/availability?date=${encodeURIComponent(date)}&partySize=${partySize}`
+        ),
+
+      // Returns BookingResult on success; throws ApiError with code='SLOT_TAKEN'
+      // and details.alternatives on 409.
+      reserve: async (slug: string, body: {
+        date: string; time: string; partySize: number;
+        guestName: string; guestPhone: string;
+        guestEmail?: string; occasion?: string; guestNotes?: string;
+      }): Promise<BookingResult> => {
+        const res = await fetch(`${BASE}/public/book/${encodeURIComponent(slug)}/reserve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json().catch(() => null) as (BookingResult & {
+          error?: { message?: string; code?: string; alternatives?: BookingAlternative[] }
+        }) | null;
+        if (!res.ok) {
+          const err = json?.error ?? {};
+          throw new ApiError(err.message ?? `HTTP ${res.status}`, {}, err.code ?? '', err);
+        }
+        return json as BookingResult;
+      },
+    },
   },
 };

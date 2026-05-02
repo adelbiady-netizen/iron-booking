@@ -5,6 +5,7 @@ import HostDashboard from './pages/HostDashboard';
 import SetupPage from './pages/SetupPage';
 import AdminPortal from './pages/admin/AdminPortal';
 import ConfirmationPage from './pages/ConfirmationPage';
+import BookingPage from './pages/BookingPage';
 import type { AuthState } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -85,6 +86,11 @@ export default function App() {
     if (window.location.pathname === '/confirm') {
       const token = new URLSearchParams(window.location.search).get('token');
       if (token) return <ConfirmationPage token={token} />;
+    }
+
+    if (window.location.pathname.startsWith('/book/')) {
+      const slug = window.location.pathname.split('/')[2];
+      if (slug) return <BookingPage slug={slug} />;
     }
 
     if (!ready) {

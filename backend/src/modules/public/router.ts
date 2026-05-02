@@ -1,7 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
+import bookingRouter from './booking.router';
 
 const router = Router();
+
+router.use('/book', bookingRouter);
 
 // ─── DB lookup ───────────────────────────────────────────────────────────────
 async function findReservation(token: string) {

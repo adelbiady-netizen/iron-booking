@@ -281,6 +281,73 @@ export interface PublicReservation {
   occasion: string | null;
 }
 
+// ─── Online booking (public guest flow) ─────────────────────────────────────
+
+export interface PublicRestaurantProfile {
+  id: string;
+  name: string;
+  slug: string;
+  timezone: string;
+  description: string | null;
+  cuisine: string | null;
+  address: string | null;
+  logoUrl: string | null;
+  coverImageUrl: string | null;
+  websiteUrl: string | null;
+  instagramUrl: string | null;
+  googleMapsUrl: string | null;
+  wazeUrl: string | null;
+  parkingNotes: string | null;
+  specialInstructions: string | null;
+  cancellationPolicy: string | null;
+  maxPartySize: number;
+  slotIntervalMinutes: number;
+  maxAdvanceBookingDays: number;
+  operatingHours: Array<{
+    dayOfWeek: number;
+    isOpen: boolean;
+    openTime: string;
+    closeTime: string;
+    lastSeating: string;
+  }>;
+}
+
+export interface PublicSlot {
+  time: string;
+  available: boolean;
+  tier: 'IDEAL' | 'GOOD' | 'LIMITED';
+  tablesLeft: number;
+}
+
+export interface BookingAlternative {
+  date: string;
+  time: string;
+  tablesLeft: number;
+}
+
+export interface AvailabilityResponse {
+  date: string;
+  partySize: number;
+  timezone: string;
+  slots: PublicSlot[];
+  isFullyBooked: boolean;
+  isClosed: boolean;
+  isPast: boolean;
+  isTooFar?: boolean;
+  alternatives: BookingAlternative[];
+}
+
+export interface BookingResult {
+  reservationId: string;
+  confirmationToken: string;
+  status: string;
+  date: string;
+  time: string;
+  partySize: number;
+  restaurantName: string;
+  restaurantLogoUrl: string | null;
+}
+
 export interface CreateReservationBody {
   guestName: string;
   guestPhone?: string;
