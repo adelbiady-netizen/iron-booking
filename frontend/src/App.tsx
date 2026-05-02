@@ -80,19 +80,20 @@ export default function App() {
 
   const scale = zoom / 100;
 
+  // ── Guest-facing routes ────────────────────────────────────────────────────
+  // Returned BEFORE the scale/overflow container so mobile browsers can scroll
+  // naturally. The overflow:hidden on the app shell clips guest page content.
+  const path = window.location.pathname;
+  if (path === '/confirm') {
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (token) return <ConfirmationPage token={token} />;
+  }
+  if (path.startsWith('/book/')) {
+    const slug = path.split('/')[2];
+    if (slug) return <BookingPage slug={slug} />;
+  }
+
   function renderPage() {
-    // Guest confirmation flow — checked before any auth logic.
-    // The token param comes from the WhatsApp confirmation link.
-    if (window.location.pathname === '/confirm') {
-      const token = new URLSearchParams(window.location.search).get('token');
-      if (token) return <ConfirmationPage token={token} />;
-    }
-
-    if (window.location.pathname.startsWith('/book/')) {
-      const slug = window.location.pathname.split('/')[2];
-      if (slug) return <BookingPage slug={slug} />;
-    }
-
     if (!ready) {
       return (
         <div className="h-full bg-iron-bg flex items-center justify-center">

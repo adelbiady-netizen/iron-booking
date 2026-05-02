@@ -152,7 +152,7 @@ export default function ConfirmationPage({ token }: Props) {
   });
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center pb-12 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 4vh, 48px)' }}>
 
       <AtmosphericBg />
 
@@ -234,7 +234,7 @@ export default function ConfirmationPage({ token }: Props) {
               <h1 className="text-white text-2xl font-semibold text-center tracking-tight mb-1">
                 See you {fmtWeekday(r.date)}
               </h1>
-              <p className="text-white/35 text-sm text-center mb-8">
+              <p className="text-white/35 text-sm text-center" style={{ marginBottom: 'clamp(16px, 3vh, 32px)' }}>
                 Your table is confirmed for {fmt12Time(r.time)}.
               </p>
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
@@ -361,8 +361,14 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
   const displayName = sanitizeName(identity.name);
   const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
 
+  // Hero shrinks on short viewports; tall screens keep full cinematic height
+  const heroH = 'min(380px, 50vh)';
+  const discS  = 'min(96px, 13.5vh)';
+  const logoH  = 'min(52px, 7.5vh)';
+  const bottomPos = 'min(96px, 13vh)';
+
   return (
-    <div className="relative w-full" style={{ height: '380px' }}>
+    <div className="relative w-full" style={{ height: heroH }}>
       {/* Image — overflow-hidden contained */}
       <div className="absolute inset-0 overflow-hidden">
         <img
@@ -388,12 +394,12 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
         }}
       />
 
-      {/* Bleed gradient — extends 100px below image to blend with card */}
+      {/* Bleed gradient — extends below image to blend with card */}
       <div
         className="absolute left-0 right-0 pointer-events-none"
         style={{
-          bottom: '-100px',
-          height: '200px',
+          bottom: '-80px',
+          height: '160px',
           background: 'linear-gradient(to bottom, transparent 0%, rgba(9,12,18,0.60) 50%, rgba(9,12,18,0.95) 100%)',
         }}
       />
@@ -401,10 +407,10 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
       {/* Logo + name — positioned in lower third */}
       <div
         className="absolute left-0 right-0 flex flex-col items-center px-5"
-        style={{ bottom: '96px' }}
+        style={{ bottom: bottomPos }}
       >
         {/* Cinematic glow halo behind logo */}
-        <div className="relative flex items-center justify-center mb-4">
+        <div className="relative flex items-center justify-center mb-3">
           <div
             className="absolute rounded-full pointer-events-none"
             style={{
@@ -424,7 +430,7 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
             <div
               className="relative flex items-center justify-center rounded-full backdrop-blur-xl"
               style={{
-                width: '96px', height: '96px',
+                width: discS, height: discS,
                 background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)',
                 border: '1px solid rgba(255,255,255,0.12)',
                 boxShadow: [
@@ -440,14 +446,14 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
                 src={identity.logoUrl}
                 alt={displayName ?? 'Restaurant'}
                 className="object-contain"
-                style={{ height: '52px', maxWidth: '76px', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.60))' }}
+                style={{ height: logoH, maxWidth: '76px', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.60))' }}
               />
             </div>
           ) : (
             <div
               className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none"
               style={{
-                width: '96px', height: '96px',
+                width: discS, height: discS,
                 background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)',
                 border: '1px solid rgba(255,255,255,0.13)',
                 boxShadow: [
@@ -536,8 +542,9 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="w-full rounded-[32px] p-8 backdrop-blur-[100px]"
+      className="w-full rounded-[32px] backdrop-blur-[100px]"
       style={{
+        padding: 'clamp(20px, 3.8vh, 32px)',
         background: 'linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%)',
         border: '1px solid rgba(255,255,255,0.065)',
         boxShadow: [
@@ -560,7 +567,7 @@ function GlassCard({ children }: { children: React.ReactNode }) {
 // ─── Divider ──────────────────────────────────────────────────────────────────
 
 function Divider() {
-  return <div className="h-px my-7" style={{ background: 'rgba(255,255,255,0.055)' }} />;
+  return <div className="h-px" style={{ margin: 'clamp(16px, 2.8vh, 28px) 0', background: 'rgba(255,255,255,0.055)' }} />;
 }
 
 // ─── Date hero ────────────────────────────────────────────────────────────────
@@ -574,12 +581,12 @@ function DateHero({ date, time, partySize, occasion }: {
         {fmtWeekday(date)}
       </p>
       <p
-        className="font-semibold leading-none mb-2.5"
-        style={{ fontSize: '2.8rem', letterSpacing: '-0.035em', color: '#f8f5ef' }}
+        className="font-semibold leading-none"
+        style={{ fontSize: 'clamp(2rem, 4.5vh, 2.8rem)', letterSpacing: '-0.035em', color: '#f8f5ef', marginBottom: 'clamp(6px, 1.2vh, 10px)' }}
       >
         {fmtMonthDay(date)}
       </p>
-      <p className="text-white/40 text-[19px] font-light tracking-wide mb-6">{fmt12Time(time)}</p>
+      <p className="text-white/40 text-[19px] font-light tracking-wide" style={{ marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmt12Time(time)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
         <Chip>{partySize === 1 ? '1 guest' : `${partySize} guests`}</Chip>
@@ -641,7 +648,7 @@ function OutcomeIcon({ variant }: { variant: 'confirmed' | 'late' | 'error' | 'n
     neutral:   { bg: 'rgba(255,255,255,0.07)', ring: 'rgba(255,255,255,0.14)', glow: 'transparent',            icon: '○',  color: 'rgba(255,255,255,0.35)' },
   }[variant];
   return (
-    <div className="flex items-center justify-center mb-6">
+    <div className="flex items-center justify-center" style={{ marginBottom: 'clamp(12px, 2.2vh, 24px)' }}>
       <div
         className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl"
         style={{
@@ -679,7 +686,7 @@ function ConfirmBtn({ onClick, children }: { onClick: () => void; children: Reac
       onClick={onClick}
       className="w-full active:scale-[0.98] rounded-[20px] text-[16px] transition-all"
       style={{
-        padding: '18px 24px',
+        padding: 'clamp(14px, 2.2vh, 18px) 24px',
         background: 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)',
         color: '#0c0e14',
         letterSpacing: '0.018em',
@@ -709,7 +716,7 @@ function LateBtn({ onClick, children }: { onClick: () => void; children: React.R
       onClick={onClick}
       className="w-full active:scale-[0.98] font-light rounded-[20px] text-[15px] transition-all"
       style={{
-        padding: '15px 24px',
+        padding: 'clamp(11px, 1.9vh, 15px) 24px',
         background: 'rgba(148,115,50,0.12)',
         border: '1px solid rgba(185,148,72,0.34)',
         color: 'rgba(220,185,118,0.90)',

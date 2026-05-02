@@ -153,7 +153,7 @@ export default function BookingPage({ slug }: Props) {
   const hasCover = !!profile?.coverImageUrl;
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center pb-16 overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 5vh, 64px)' }}>
       <AtmosphericBg />
 
       {/* Restaurant hero */}
@@ -200,7 +200,7 @@ export default function BookingPage({ slug }: Props) {
               onChange={setPartySize}
             />
 
-            <div className="h-px my-6" style={{ background: 'rgba(255,255,255,0.055)' }} />
+            <div className="h-px" style={{ margin: 'clamp(14px, 2.5vh, 24px) 0', background: 'rgba(255,255,255,0.055)' }} />
 
             <SectionLabel>Select a date</SectionLabel>
             <DateCarousel
@@ -209,7 +209,7 @@ export default function BookingPage({ slug }: Props) {
               onSelect={setSelectedDate}
             />
 
-            <div className="mt-7">
+            <div style={{ marginTop: 'clamp(16px, 2.5vh, 28px)' }}>
               <PrimaryBtn
                 onClick={handleFindTable}
                 disabled={!selectedDate || state.phase === 'slots-loading'}
@@ -229,7 +229,7 @@ export default function BookingPage({ slug }: Props) {
               onBack={() => setState({ phase: 'select' })}
             />
 
-            <div className="h-px my-5" style={{ background: 'rgba(255,255,255,0.055)' }} />
+            <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
 
             {state.data.isClosed && (
               <StatusBanner icon="✕" color="red" text={`${fmtDateShort(state.date)} — closed`} />
@@ -276,7 +276,7 @@ export default function BookingPage({ slug }: Props) {
                 data: { date: state.date, partySize: state.partySize, timezone: '', slots: [],
                   isFullyBooked: false, isClosed: false, isPast: false, alternatives: [] } })}
             />
-            <div className="h-px my-5" style={{ background: 'rgba(255,255,255,0.055)' }} />
+            <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
             <GuestForm
               form={form}
               onChange={setForm}
@@ -404,8 +404,14 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
   const displayName = profile.name;
   const initial = displayName.charAt(0).toUpperCase();
 
+  // Hero and logo scale down on short viewports; tall screens keep full cinematic height
+  const heroH     = 'min(320px, 44vh)';
+  const discS     = 'min(80px, 11.5vh)';
+  const logoH     = 'min(42px, 6.2vh)';
+  const bottomPos = 'min(72px, 10.5vh)';
+
   return (
-    <div className="relative w-full" style={{ height: '320px' }}>
+    <div className="relative w-full" style={{ height: heroH }}>
       <div className="absolute inset-0 overflow-hidden">
         <img
           src={profile.coverImageUrl!}
@@ -430,24 +436,24 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
       <div
         className="absolute left-0 right-0 pointer-events-none"
         style={{
-          bottom: '-80px', height: '160px',
+          bottom: '-64px', height: '128px',
           background: 'linear-gradient(to bottom, transparent 0%, rgba(9,12,18,0.55) 50%, rgba(9,12,18,0.92) 100%)',
         }}
       />
-      <div className="absolute left-0 right-0 flex flex-col items-center px-5" style={{ bottom: '72px' }}>
+      <div className="absolute left-0 right-0 flex flex-col items-center px-5" style={{ bottom: bottomPos }}>
         <div className="relative flex items-center justify-center mb-3">
           <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, transparent 65%)' }} />
           {profile.logoUrl ? (
             <div
               className="relative flex items-center justify-center rounded-full backdrop-blur-xl"
-              style={{ width: '80px', height: '80px', background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
+              style={{ width: discS, height: discS, background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
             >
-              <img src={profile.logoUrl} alt={displayName} className="object-contain" style={{ height: '42px', maxWidth: '62px' }} />
+              <img src={profile.logoUrl} alt={displayName} className="object-contain" style={{ height: logoH, maxWidth: '62px' }} />
             </div>
           ) : (
             <div
               className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none"
-              style={{ width: '80px', height: '80px', background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
+              style={{ width: discS, height: discS, background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
             >
               <span className="text-white/75 text-2xl font-light">{initial}</span>
             </div>
@@ -497,8 +503,9 @@ function BookingHeroFallback({ profile }: { profile: PublicRestaurantProfile | n
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="w-full rounded-[28px] p-7 backdrop-blur-[100px]"
+      className="w-full rounded-[28px] backdrop-blur-[100px]"
       style={{
+        padding: 'clamp(20px, 3.5vh, 28px)',
         background: 'linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%)',
         border: '1px solid rgba(255,255,255,0.065)',
         boxShadow: [
@@ -1003,7 +1010,7 @@ function PrimaryBtn({ onClick, children, disabled, loading, type = 'button' }: {
       disabled={disabled}
       className="w-full active:scale-[0.98] rounded-[18px] text-[15px] font-semibold transition-all"
       style={{
-        padding: '16px 24px',
+        padding: 'clamp(13px, 2vh, 16px) 24px',
         background: disabled ? 'rgba(255,255,255,0.10)' : 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)',
         color: disabled ? 'rgba(255,255,255,0.30)' : '#0c0e14',
         letterSpacing: '0.015em',
