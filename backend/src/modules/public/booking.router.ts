@@ -17,6 +17,8 @@ interface PublicSlot {
   available: boolean;
   tier: 'IDEAL' | 'GOOD' | 'LIMITED';
   tablesLeft: number;
+  softState: 'HIGH_DEMAND' | 'SHORT_WINDOW' | null;
+  _score: number;  // stripped before API response; used for alternative ranking
 }
 
 interface BookingAlternative {
@@ -66,6 +68,11 @@ function parseSettings(settings: unknown) {
   };
 }
 
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
 // ─── Restaurant lookup ────────────────────────────────────────────────────────
 
 async function findRestaurantBySlug(slug: string) {
@@ -109,7 +116,8 @@ async function computePublicSlots(
         minCovers: { lte: partySize },
         maxCovers: { gte: partySize },
       },
-      select: { id: true, maxCovers: true },
+      select:  { id: true, maxCovers: true },
+      orderBy: { maxCovers: 'asc' },
     }),
     prisma.reservation.findMany({
       where: {
@@ -132,7 +140,8 @@ async function computePublicSlots(
 
   if (tables.length === 0) return [];
 
-  const restaurantBlocks = blocks.filter(b => b.tableId === null);
+  const restaurantBlocks   = blocks.filter(b => b.tableId === null);
+  const lastSeatingMinutes = timeToMinutes(lastSeating);
   const slots: PublicSlot[] = [];
   let cursor = firstSlot;
 
@@ -158,8 +167,9 @@ async function computePublicSlots(
       continue;
     }
 
-    // Count available tables
-    let availableCount = 0;
+    // Count available tables, tracking best-fit for scoring
+    let availableCount   = 0;
+    let bestFitMaxCovers = Infinity;
     for (const table of tables) {
       const tableBlocked = blocks.some(b =>
         b.tableId === table.id &&
@@ -173,15 +183,32 @@ async function computePublicSlots(
         const rEnd   = addMinutes(rStart, r.duration + bufferMinutes);
         return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
       });
-      if (!hasConflict) availableCount++;
+      if (!hasConflict) {
+        availableCount++;
+        if (table.maxCovers < bestFitMaxCovers) bestFitMaxCovers = table.maxCovers;
+      }
     }
 
     if (availableCount > 0) {
       const tier: 'IDEAL' | 'GOOD' | 'LIMITED' =
         availableCount >= 3 ? 'IDEAL' : availableCount === 2 ? 'GOOD' : 'LIMITED';
-      slots.push({ time: timeStr, available: true, tier, tablesLeft: availableCount });
+
+      // ── Soft state detection (pre-fetched data, zero extra queries) ──────────
+      const slotMinutes = timeToMinutes(timeStr);
+      const windowCount = reservations.filter(r => Math.abs(timeToMinutes(r.time) - slotMinutes) <= 60).length;
+      const softState: PublicSlot['softState'] =
+        windowCount >= Math.ceil(tables.length * 0.5)             ? 'HIGH_DEMAND' :
+        (lastSeatingMinutes - slotMinutes) <= 60 && availableCount <= 2 ? 'SHORT_WINDOW' :
+        null;
+
+      // ── Slot score (fit + pacing; proximity added in findAlternatives) ───────
+      const fitScore    = 1 - (bestFitMaxCovers - partySize) / bestFitMaxCovers;
+      const pacingScore = Math.max(0, 1 - windowCount / Math.max(1, tables.length));
+      const _score      = fitScore * 0.40 + pacingScore * 0.35;
+
+      slots.push({ time: timeStr, available: true, tier, tablesLeft: availableCount, softState, _score });
     } else {
-      slots.push({ time: timeStr, available: false, tier: 'IDEAL', tablesLeft: 0 });
+      slots.push({ time: timeStr, available: false, tier: 'IDEAL', tablesLeft: 0, softState: null, _score: 0 });
     }
 
     cursor = addMinutes(cursor, intervalMinutes);
@@ -191,14 +218,17 @@ async function computePublicSlots(
 }
 
 // ─── Alternative slot finder ──────────────────────────────────────────────────
-// When a date is fully booked, look forward up to 14 days for the first
-// available slot on each open day, returning up to 3 alternatives.
+// Scans up to 14 days ahead for the best-scored available slot per day.
+// When requestedTime is provided (SLOT_TAKEN case), also checks same-day slots
+// within ±2 hours of the taken time before moving to future dates.
+// Scoring: table fit (0.40) + pacing (0.35) + time proximity (0.25, when known).
 
 async function findAlternatives(
-  restaurant:     RestaurantWithHours,
-  s:              ReturnType<typeof parseSettings>,
-  requestedDate:  string,
-  partySize:      number,
+  restaurant:    RestaurantWithHours,
+  s:             ReturnType<typeof parseSettings>,
+  requestedDate: string,
+  requestedTime: string | null,
+  partySize:     number,
   minBookingTime: Date,
   maxDate:        Date
 ): Promise<BookingAlternative[]> {
@@ -206,7 +236,11 @@ async function findAlternatives(
   const base = new Date(requestedDate + 'T00:00:00.000Z');
   let found = 0;
 
-  for (let offset = 1; offset <= 14 && found < 3; offset++) {
+  // offset=0 = same day, only when requestedTime is known (SLOT_TAKEN path)
+  const startOffset = requestedTime ? 0 : 1;
+  const reqMin      = requestedTime ? timeToMinutes(requestedTime) : null;
+
+  for (let offset = startOffset; offset <= 14 && found < 3; offset++) {
     const d = new Date(base);
     d.setUTCDate(d.getUTCDate() + offset);
     if (d > maxDate) break;
@@ -221,11 +255,32 @@ async function findAlternatives(
       minBookingTime
     );
 
-    const first = slots.find(sl => sl.available);
-    if (first) {
-      alternatives.push({ date: d.toISOString().split('T')[0], time: first.time, tablesLeft: first.tablesLeft });
-      found++;
+    let available = slots.filter(sl => sl.available);
+    if (available.length === 0) continue;
+
+    // Same-day: only show slots within ±2 hours of the taken time, excluding that exact time
+    if (offset === 0 && requestedTime && reqMin !== null) {
+      available = available.filter(sl =>
+        sl.time !== requestedTime && Math.abs(timeToMinutes(sl.time) - reqMin) <= 120
+      );
+      if (available.length === 0) continue;
     }
+
+    // Pick highest-scored slot. _score = fit*0.40 + pacing*0.35 (from computePublicSlots).
+    // Add proximity bonus of 0.25 when requestedTime is known.
+    let bestSlot: PublicSlot = available[0]!;
+    let bestScore = -Infinity;
+    for (const sl of available) {
+      let score = sl._score;
+      if (reqMin !== null) {
+        const delta = Math.abs(timeToMinutes(sl.time) - reqMin);
+        score += Math.max(0, 1 - delta / 120) * 0.25;
+      }
+      if (score > bestScore) { bestScore = score; bestSlot = sl; }
+    }
+
+    alternatives.push({ date: d.toISOString().split('T')[0], time: bestSlot.time, tablesLeft: bestSlot.tablesLeft });
+    found++;
   }
 
   return alternatives;
@@ -478,13 +533,15 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
 
     let alternatives: BookingAlternative[] = [];
     if (isFullyBooked || isNearlyFull) {
-      alternatives = await findAlternatives(restaurant, s, date, partySize, minBookingTime, maxDate);
+      alternatives = await findAlternatives(restaurant, s, date, null, partySize, minBookingTime, maxDate);
     }
 
+    // Strip internal _score before sending to client
+    const publicSlots = slots.map(({ _score, ...rest }) => rest);
     return res.json({
       date, partySize,
       timezone:    restaurant.timezone,
-      slots,
+      slots:       publicSlots,
       isFullyBooked,
       isClosed:    false,
       isPast:      false,
@@ -568,7 +625,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     } catch (err) {
       if (err instanceof SlotTakenError ||
           (err instanceof Error && (err.message.includes('40001') || err.message.includes('serialize')))) {
-        const alternatives = await findAlternatives(restaurant, s, body.date, body.partySize, minBookingTime, maxDate);
+        const alternatives = await findAlternatives(restaurant, s, body.date, body.time, body.partySize, minBookingTime, maxDate);
         return res.status(409).json({ error: { code: 'SLOT_TAKEN', message: 'That time is no longer available.', alternatives } });
       }
       throw err;

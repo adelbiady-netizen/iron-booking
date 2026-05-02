@@ -317,6 +317,7 @@ export interface PublicSlot {
   available: boolean;
   tier: 'IDEAL' | 'GOOD' | 'LIMITED';
   tablesLeft: number;
+  softState?: 'HIGH_DEMAND' | 'SHORT_WINDOW' | null;
 }
 
 export interface BookingAlternative {

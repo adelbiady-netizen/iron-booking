@@ -689,6 +689,19 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
     );
   }
 
+  // Sub-label: LIMITED takes visual priority; soft states are ambient-only
+  const subLabel: string | null =
+    slot.tier === 'LIMITED' && slot.softState === 'HIGH_DEMAND' ? 'Last table · Popular' :
+    slot.tier === 'LIMITED'                                      ? 'Last table' :
+    slot.softState === 'HIGH_DEMAND'                             ? 'Popular' :
+    slot.softState === 'SHORT_WINDOW'                            ? 'Near closing' :
+    null;
+
+  const subLabelOpacity =
+    slot.tier === 'LIMITED'          ? 0.70 :
+    slot.softState === 'HIGH_DEMAND' ? 0.55 :
+    0.45;  // SHORT_WINDOW
+
   return (
     <button
       onClick={() => onSelect(slot.time)}
@@ -698,8 +711,13 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = tierStyle.bg; (e.currentTarget as HTMLButtonElement).style.borderColor = tierStyle.border; }}
     >
       <span className="block">{fmt12(slot.time)}</span>
-      {slot.tier === 'LIMITED' && (
-        <span className="block text-[9px] opacity-70 mt-0.5 uppercase tracking-wide">Last table</span>
+      {subLabel && (
+        <span
+          className="block text-[9px] mt-0.5 uppercase tracking-wide"
+          style={{ opacity: subLabelOpacity }}
+        >
+          {subLabel}
+        </span>
       )}
     </button>
   );
