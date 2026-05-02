@@ -588,56 +588,80 @@ function DateCarousel({
     const idx = days.findIndex(d => d.dateStr === selected);
     if (idx < 0) return;
     const chip = scrollRef.current.children[idx] as HTMLElement | undefined;
-    chip?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    chip?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div
-      ref={scrollRef}
-      className="flex gap-2 overflow-x-auto pb-1"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-    >
-      {days.map(({ dateStr, d, isOpen }) => {
-        const isSelected = dateStr === selected;
-        return (
-          <button
-            key={dateStr}
-            onClick={() => isOpen && onSelect(dateStr)}
-            disabled={!isOpen}
-            className="flex flex-col items-center shrink-0 rounded-2xl px-4 py-3 transition-all active:scale-95"
-            style={{
-              minWidth: '58px',
-              background: isSelected
-                ? 'rgba(34,197,94,0.18)'
-                : 'rgba(255,255,255,0.048)',
-              border: isSelected
-                ? '1px solid rgba(34,197,94,0.45)'
-                : '1px solid rgba(255,255,255,0.09)',
-              opacity: isOpen ? 1 : 0.35,
-              cursor: isOpen ? 'pointer' : 'not-allowed',
-            }}
-          >
-            <span
-              className="text-[10px] font-medium uppercase tracking-wide mb-1"
-              style={{ color: isSelected ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.40)' }}
+    <div className="relative">
+      <style>{`[data-date-carousel]::-webkit-scrollbar{display:none}`}</style>
+      <div
+        ref={scrollRef}
+        data-date-carousel=""
+        className="flex gap-2 overflow-x-auto pb-1"
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+          paddingRight: '48px',
+        } as React.CSSProperties}
+      >
+        {days.map(({ dateStr, d, isOpen }) => {
+          const isSelected = dateStr === selected;
+          return (
+            <button
+              key={dateStr}
+              onClick={() => isOpen && onSelect(dateStr)}
+              disabled={!isOpen}
+              className="flex flex-col items-center shrink-0 rounded-2xl px-3 py-3 transition-all active:scale-95"
+              style={{
+                minWidth: '52px',
+                scrollSnapAlign: 'start',
+                background: isSelected
+                  ? 'rgba(34,197,94,0.18)'
+                  : 'rgba(255,255,255,0.048)',
+                border: isSelected
+                  ? '1px solid rgba(34,197,94,0.45)'
+                  : '1px solid rgba(255,255,255,0.09)',
+                opacity: isOpen ? 1 : 0.35,
+                cursor: isOpen ? 'pointer' : 'not-allowed',
+              }}
             >
-              {DAY_NAMES[d.getDay()]}
-            </span>
-            <span
-              className="text-[18px] font-semibold leading-none"
-              style={{ color: isSelected ? '#f8f5ef' : 'rgba(255,255,255,0.70)' }}
-            >
-              {d.getDate()}
-            </span>
-            <span
-              className="text-[10px] mt-1"
-              style={{ color: isSelected ? 'rgba(74,222,128,0.70)' : 'rgba(255,255,255,0.30)' }}
-            >
-              {MONTH_NAMES[d.getMonth()]}
-            </span>
-          </button>
-        );
-      })}
+              <span
+                className="text-[10px] font-medium uppercase tracking-wide mb-1"
+                style={{ color: isSelected ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.40)' }}
+              >
+                {DAY_NAMES[d.getDay()]}
+              </span>
+              <span
+                className="text-[18px] font-semibold leading-none"
+                style={{ color: isSelected ? '#f8f5ef' : 'rgba(255,255,255,0.70)' }}
+              >
+                {d.getDate()}
+              </span>
+              <span
+                className="text-[10px] mt-1"
+                style={{ color: isSelected ? 'rgba(74,222,128,0.70)' : 'rgba(255,255,255,0.30)' }}
+              >
+                {MONTH_NAMES[d.getMonth()]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Right-edge fade — signals more dates are available */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: '48px',
+          pointerEvents: 'none',
+          background: 'linear-gradient(to right, transparent 0%, rgba(9,12,20,0.96) 100%)',
+        }}
+      />
     </div>
   );
 }
