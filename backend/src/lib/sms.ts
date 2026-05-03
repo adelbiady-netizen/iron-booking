@@ -65,11 +65,44 @@ export async function sendWhatsApp(phone: string, body: string): Promise<SmsResu
   return { success: true, to, body };
 }
 
-// ── Confirmation message ──────────────────────────────────────────────────────
+// ── Confirmation message templates ───────────────────────────────────────────
+
+export interface ConfirmationMessagePayload {
+  guestName:       string;
+  restaurantName:  string;
+  date:            string;   // ISO YYYY-MM-DD
+  time:            string;   // HH:MM (24 h)
+  partySize:       number;
+  confirmationUrl: string;
+}
 
 function fmtDateHe(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+export function buildReservationConfirmationMessage(
+  lang: 'en' | 'he',
+  p: ConfirmationMessagePayload
+): string {
+  if (lang === 'he') {
+    return (
+      `היי ${p.guestName},\n\n` +
+      `נשמח לאשר את ההזמנה שלך ב־${p.restaurantName}\n\n` +
+      `תאריך: ${fmtDateHe(p.date)}\n` +
+      `שעה: ${p.time}\n` +
+      `מספר אורחים: ${p.partySize}\n\n` +
+      `לאישור הגעה או ביטול:\n${p.confirmationUrl}`
+    );
+  }
+  return (
+    `Hi ${p.guestName},\n\n` +
+    `Please confirm your reservation at ${p.restaurantName}\n\n` +
+    `Date: ${p.date}\n` +
+    `Time: ${p.time}\n` +
+    `Guests: ${p.partySize}\n\n` +
+    `Confirm or cancel here:\n${p.confirmationUrl}`
+  );
 }
 
 export async function sendConfirmationSms(
@@ -82,20 +115,15 @@ export async function sendConfirmationSms(
   confirmUrl: string,
   lang: 'en' | 'he' = 'en'
 ): Promise<SmsResult> {
-  const body = lang === 'he'
-    ? `היי ${guestName},\n` +
-      `נשמח לאשר את ההזמנה שלך ב־${restaurantName}\n\n` +
-      `תאריך: ${fmtDateHe(date)}\n` +
-      `שעה: ${time}\n` +
-      `מספר אורחים: ${partySize}\n\n` +
-      `לאישור הגעה או ביטול:\n${confirmUrl}`
-    : `Hi ${guestName},\n` +
-      `Please confirm your reservation at ${restaurantName}\n` +
-      `Date: ${date}\n` +
-      `Time: ${time}\n` +
-      `Guests: ${partySize}\n\n` +
-      `Confirm or cancel here:\n${confirmUrl}`;
-
+  console.log(`[WhatsApp] confirmation lang="${lang}" → ${phone}`);
+  const body = buildReservationConfirmationMessage(lang, {
+    guestName,
+    restaurantName,
+    date,
+    time,
+    partySize,
+    confirmationUrl: confirmUrl,
+  });
   return sendWhatsApp(phone, body);
 }
 
