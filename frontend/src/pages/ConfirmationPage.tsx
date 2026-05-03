@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicReservation } from '../types';
 import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { usePublicTheme } from '../utils/publicTheme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,9 @@ interface RestaurantIdentity {
   name: string;
   logoUrl: string | null;
   coverUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  publicThemePreset: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -77,6 +81,7 @@ export default function ConfirmationPage({ token }: Props) {
   const [state,    setState]    = useState<PageState>({ phase: 'loading' });
   const [identity, setIdentity] = useState<RestaurantIdentity | null>(null);
   const [mounted,  setMounted]  = useState(false);
+  usePublicTheme(identity);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -88,7 +93,7 @@ export default function ConfirmationPage({ token }: Props) {
     api.public.getReservation(token)
       .then(r => {
         if (aborted) return;
-        setIdentity({ name: r.restaurantName, logoUrl: r.restaurantLogoUrl, coverUrl: r.restaurantCoverImageUrl });
+        setIdentity({ name: r.restaurantName, logoUrl: r.restaurantLogoUrl, coverUrl: r.restaurantCoverImageUrl, primaryColor: r.restaurantPrimaryColor, accentColor: r.restaurantAccentColor, publicThemePreset: r.restaurantPublicThemePreset });
         if (r.status === 'CANCELLED') {
           setState({ phase: 'cancelled' });
         } else if (r.isConfirmedByGuest && !r.isRunningLate) {
@@ -340,7 +345,7 @@ function AtmosphericBg() {
         className="fixed inset-0 -z-20"
         style={{
           background: [
-            'radial-gradient(ellipse 160% 65% at 50% -20%, rgba(34,197,94,0.11) 0%, transparent 50%)',
+            'radial-gradient(ellipse 160% 65% at 50% -20%, rgb(var(--pub-rgb) / 0.11) 0%, transparent 50%)',
             'radial-gradient(ellipse 80% 45% at 10% 105%, rgba(59,130,246,0.04) 0%, transparent 50%)',
             'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
           ].join(', '),
@@ -353,7 +358,7 @@ function AtmosphericBg() {
           width: '600px', height: '600px',
           background: [
             'radial-gradient(circle at 50% 38%, rgba(255,255,255,0.028) 0%, transparent 52%)',
-            'radial-gradient(circle at 50% 62%, rgba(34,197,94,0.022) 0%, transparent 48%)',
+            'radial-gradient(circle at 50% 62%, rgb(var(--pub-rgb) / 0.022) 0%, transparent 48%)',
           ].join(', '),
           pointerEvents: 'none',
         }}
@@ -427,7 +432,7 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
             className="absolute rounded-full pointer-events-none"
             style={{
               width: '120px', height: '120px',
-              background: 'radial-gradient(circle, rgba(34,197,94,0.10) 0%, transparent 65%)',
+              background: 'radial-gradient(circle, rgb(var(--pub-rgb) / 0.10) 0%, transparent 65%)',
             }}
           />
           {identity.logoUrl ? (
@@ -498,7 +503,7 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
           className="absolute rounded-full pointer-events-none"
           style={{
             width: '140px', height: '140px',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, rgba(34,197,94,0.04) 45%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, rgb(var(--pub-rgb) / 0.04) 45%, transparent 70%)',
           }}
         />
         {identity?.logoUrl ? (
@@ -519,7 +524,7 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
                 '0 0 0 1px rgba(0,0,0,0.55)',
                 '0 12px 48px rgba(0,0,0,0.70)',
                 '0 0 0 8px rgba(255,255,255,0.016)',
-                '0 0 50px rgba(34,197,94,0.06)',
+                '0 0 50px rgb(var(--pub-rgb) / 0.06)',
               ].join(', '),
             }}
           >
@@ -629,7 +634,7 @@ function OccasionChip({ children }: { children: React.ReactNode }) {
 
 function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'amber'; text: string }) {
   const styles = {
-    green: { bg: 'rgba(34,197,94,0.08)',  border: 'rgba(34,197,94,0.20)',  textCls: 'text-[#4ade80]/80' },
+    green: { bg: 'rgb(var(--pub-rgb) / 0.08)',  border: 'rgb(var(--pub-rgb) / 0.20)',  textCls: 'text-[#4ade80]/80' },
     amber: { bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.20)', textCls: 'text-amber-300/80' },
   }[color];
   return (
@@ -647,7 +652,7 @@ function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'a
 
 function OutcomeIcon({ variant }: { variant: 'confirmed' | 'late' | 'error' | 'neutral' }) {
   const cfg = {
-    confirmed: { bg: 'rgba(34,197,94,0.12)',   ring: 'rgba(34,197,94,0.28)',   glow: 'rgba(34,197,94,0.12)',   icon: '✓',  color: '#4ade80' },
+    confirmed: { bg: 'rgb(var(--pub-rgb) / 0.12)',   ring: 'rgb(var(--pub-rgb) / 0.28)',   glow: 'rgb(var(--pub-rgb) / 0.12)',   icon: '✓',  color: '#4ade80' },
     late:      { bg: 'rgba(251,191,36,0.12)',  ring: 'rgba(251,191,36,0.28)',  glow: 'rgba(251,191,36,0.10)',  icon: '⏱', color: '#fbbf24' },
     error:     { bg: 'rgba(239,68,68,0.10)',   ring: 'rgba(239,68,68,0.25)',   glow: 'rgba(239,68,68,0.07)',   icon: '✕',  color: '#f87171' },
     neutral:   { bg: 'rgba(255,255,255,0.07)', ring: 'rgba(255,255,255,0.14)', glow: 'transparent',            icon: '○',  color: 'rgba(255,255,255,0.35)' },

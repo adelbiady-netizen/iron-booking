@@ -132,6 +132,9 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   ultramsgInstanceId: string | null;
   whatsappPhone:      string | null;
   tokenSet:           boolean;
+  primaryColor:       string | null;
+  accentColor:        string | null;
+  publicThemePreset:  string | null;
 }
 
 export interface AdminUser {
@@ -277,6 +280,9 @@ export interface PublicReservation {
   restaurantParkingNotes: string | null;
   restaurantCancellationPolicy: string | null;
   restaurantSpecialInstructions: string | null;
+  restaurantPrimaryColor: string | null;
+  restaurantAccentColor: string | null;
+  restaurantPublicThemePreset: string | null;
   date: string;
   time: string;
   partySize: number;
@@ -305,6 +311,9 @@ export interface PublicRestaurantProfile {
   parkingNotes: string | null;
   specialInstructions: string | null;
   cancellationPolicy: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  publicThemePreset: string | null;
   maxPartySize: number;
   slotIntervalMinutes: number;
   maxAdvanceBookingDays: number;

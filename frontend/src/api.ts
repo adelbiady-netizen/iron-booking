@@ -279,6 +279,8 @@ export const api = {
         request<{ id: string; ultramsgInstanceId: string | null; whatsappPhone: string | null; tokenSet: boolean }>(`/admin/restaurants/${id}/whatsapp`, { method: 'PATCH', body: JSON.stringify(body) }),
       testWhatsapp: (id: string) =>
         request<{ ok: boolean; to: string }>(`/admin/restaurants/${id}/whatsapp/test`, { method: 'POST', body: JSON.stringify({}) }),
+      updateBranding: (id: string, body: { primaryColor?: string | null; accentColor?: string | null; publicThemePreset?: string | null }) =>
+        request<{ id: string; primaryColor: string | null; accentColor: string | null; publicThemePreset: string | null }>(`/admin/restaurants/${id}/branding`, { method: 'PATCH', body: JSON.stringify(body) }),
     },
     users: {
       list: (restaurantId: string) =>

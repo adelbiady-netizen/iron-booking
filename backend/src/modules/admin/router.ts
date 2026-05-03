@@ -245,6 +245,29 @@ router.post('/restaurants/:id/whatsapp/test', async (req: Request, res: Response
   } catch (err) { next(err); }
 });
 
+const UpdateBrandingSchema = z.object({
+  primaryColor:      z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  accentColor:       z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  publicThemePreset: z.enum(['luxury','casual','family','nightlife','minimal','fineDining']).nullable().optional(),
+});
+
+// PATCH /admin/restaurants/:id/branding
+router.patch('/restaurants/:id/branding', validate(UpdateBrandingSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    const updated = await prisma.restaurant.update({
+      where: { id: p(req, 'id') },
+      data: {
+        primaryColor:      req.body.primaryColor      ?? null,
+        accentColor:       req.body.accentColor       ?? null,
+        publicThemePreset: req.body.publicThemePreset ?? null,
+      },
+    });
+    res.json({ id: updated.id, primaryColor: updated.primaryColor, accentColor: updated.accentColor, publicThemePreset: updated.publicThemePreset });
+  } catch (err) { next(err); }
+});
+
 // POST /admin/restaurants/:id/sample-layout — seeds default sections + tables
 router.post('/restaurants/:id/sample-layout', async (req: Request, res: Response, next: NextFunction) => {
   try {

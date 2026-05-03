@@ -118,6 +118,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [whatsappTestBusy,  setWhatsappTestBusy]  = useState(false);
   const [whatsappError,     setWhatsappError]     = useState<string | null>(null);
 
+  // Branding edit state
+  const [editBranding,   setEditBranding]   = useState(false);
+  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '' });
+  const [brandingBusy,   setBrandingBusy]   = useState(false);
+  const [brandingError,  setBrandingError]  = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -155,6 +161,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
+      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '' });
     } catch { /* ignore */ }
     finally { setDetailBusy(false); }
   }, []);
@@ -173,6 +180,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setEditInfo(false);
     setEditSettings(false);
     setEditWhatsapp(false);
+    setEditBranding(false);
     setShowAddUser(false);
     loadDetail(id);
   }
@@ -332,6 +340,28 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setWhatsappError(err instanceof Error ? err.message : 'Test failed');
     } finally {
       setWhatsappTestBusy(false);
+    }
+  }
+
+  // ── Branding ──────────────────────────────────────────────────────────────────
+
+  async function handleSaveBranding() {
+    if (!selectedId) return;
+    setBrandingBusy(true);
+    setBrandingError(null);
+    try {
+      const result = await api.admin.restaurants.updateBranding(selectedId, {
+        primaryColor:      brandingForm.primaryColor      || null,
+        accentColor:       brandingForm.accentColor       || null,
+        publicThemePreset: brandingForm.publicThemePreset || null,
+      });
+      setDetail(d => d ? { ...d, primaryColor: result.primaryColor, accentColor: result.accentColor, publicThemePreset: result.publicThemePreset } : d);
+      setEditBranding(false);
+      showToast('Branding saved');
+    } catch (err) {
+      setBrandingError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setBrandingBusy(false);
     }
   }
 
@@ -795,6 +825,97 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 >{whatsappTestBusy ? 'Sending…' : 'Send test message'}</button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Public Branding */}
+        {editBranding ? (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
+            <h3 className="font-medium">Public Page Branding</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Primary color (hex)">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandingForm.primaryColor || '#22C55E'}
+                    onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))}
+                    className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer"
+                  />
+                  <Input
+                    value={brandingForm.primaryColor}
+                    onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))}
+                    placeholder="#22C55E"
+                  />
+                </div>
+              </Field>
+              <Field label="Accent color (hex)">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandingForm.accentColor || '#22C55E'}
+                    onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))}
+                    className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer"
+                  />
+                  <Input
+                    value={brandingForm.accentColor}
+                    onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))}
+                    placeholder="#45D4BE"
+                  />
+                </div>
+              </Field>
+            </div>
+            <Field label="Theme preset (overridden by custom color if set)">
+              <select
+                value={brandingForm.publicThemePreset}
+                onChange={e => setBrandingForm(f => ({ ...f, publicThemePreset: e.target.value }))}
+                className="w-full bg-iron-bg border border-iron-border rounded-md px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+              >
+                <option value="">— No preset (Iron default) —</option>
+                <option value="luxury">Luxury (gold)</option>
+                <option value="casual">Casual (amber)</option>
+                <option value="family">Family (green)</option>
+                <option value="nightlife">Nightlife (purple)</option>
+                <option value="minimal">Minimal (grey)</option>
+                <option value="fineDining">Fine Dining (crimson)</option>
+              </select>
+            </Field>
+            {brandingError && <p className="text-xs text-red-400">{brandingError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+              <button onClick={() => { setEditBranding(false); setBrandingError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Public Page Branding</h3>
+              <button
+                onClick={() => { setEditBranding(true); setBrandingError(null); }}
+                className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
+              >{T.admin.editBtn}</button>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Primary color</dt>
+                <dd className="flex items-center gap-2">
+                  {detail?.primaryColor
+                    ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.primaryColor }} /><span className="text-iron-text font-mono text-xs">{detail.primaryColor}</span></>
+                    : <span className="text-iron-muted italic">Iron default</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Accent color</dt>
+                <dd className="flex items-center gap-2">
+                  {detail?.accentColor
+                    ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.accentColor }} /><span className="text-iron-text font-mono text-xs">{detail.accentColor}</span></>
+                    : <span className="text-iron-muted italic">Not set</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Theme preset</dt>
+                <dd className="text-iron-text">{detail?.publicThemePreset ?? <span className="text-iron-muted italic">None</span>}</dd>
+              </div>
+            </dl>
           </div>
         )}
       </div>

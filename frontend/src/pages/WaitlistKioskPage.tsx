@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicRestaurantProfile } from '../types';
 import { api } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { usePublicTheme } from '../utils/publicTheme';
 
 interface Props { slug: string }
 
@@ -36,7 +37,7 @@ function AtmosphericBg() {
         className="fixed inset-0 -z-20"
         style={{
           background: [
-            'radial-gradient(ellipse 140% 55% at 50% -15%, rgba(34,197,94,0.09) 0%, transparent 50%)',
+            'radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%)',
             'radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.04) 0%, transparent 50%)',
             'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
           ].join(', '),
@@ -107,7 +108,7 @@ function GlassInput({
         fontSize: '17px',
         lineHeight: 1.4,
       }}
-      onFocus={e => { e.currentTarget.style.border = '1px solid rgba(34,197,94,0.55)'; }}
+      onFocus={e => { e.currentTarget.style.border = '1px solid rgb(var(--pub-rgb) / 0.55)'; }}
       onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.12)'; }}
     />
   );
@@ -133,7 +134,7 @@ function GlassTextarea({
         fontSize: '16px',
         lineHeight: 1.5,
       }}
-      onFocus={e => { e.currentTarget.style.border = '1px solid rgba(34,197,94,0.55)'; }}
+      onFocus={e => { e.currentTarget.style.border = '1px solid rgb(var(--pub-rgb) / 0.55)'; }}
       onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.12)'; }}
     />
   );
@@ -255,12 +256,12 @@ function SuccessScreen({ restaurantName, onReset }: { restaurantName: string; on
       <div
         style={{
           width: 80, height: 80, borderRadius: '50%',
-          background: 'rgba(34,197,94,0.15)',
-          border: '1.5px solid rgba(34,197,94,0.40)',
+          background: 'rgb(var(--pub-rgb) / 0.15)',
+          border: '1.5px solid rgb(var(--pub-rgb) / 0.40)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(34,197,94,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pub-rgb) / 0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
@@ -311,6 +312,7 @@ export default function WaitlistKioskPage({ slug }: Props) {
   const { dir, locale }          = useLocale();
   const [profile, setProfile]    = useState<PublicRestaurantProfile | null>(null);
   const [phase,   setPhase]      = useState<Phase>({ phase: 'loading' });
+  usePublicTheme(profile);
 
   // Form state
   const [name,      setName]      = useState('');
@@ -503,13 +505,13 @@ export default function WaitlistKioskPage({ slug }: Props) {
                   padding: '20px',
                   fontSize: 18,
                   background: (isSubmitting || !name.trim() || !phone.trim())
-                    ? 'rgba(34,197,94,0.30)'
-                    : 'rgba(34,197,94,0.82)',
+                    ? 'rgb(var(--pub-rgb) / 0.30)'
+                    : 'rgb(var(--pub-rgb) / 0.82)',
                   color: 'white',
                   cursor: (isSubmitting || !name.trim() || !phone.trim()) ? 'not-allowed' : 'pointer',
                   boxShadow: (isSubmitting || !name.trim() || !phone.trim())
                     ? 'none'
-                    : '0 4px 24px rgba(34,197,94,0.28)',
+                    : '0 4px 24px rgb(var(--pub-rgb) / 0.28)',
                 }}
               >
                 {isSubmitting ? t('kiosk.submitting') : t('kiosk.submit')}

@@ -53,6 +53,11 @@ model Restaurant {
   cancellationPolicy   String?
   specialInstructions  String?
 
+  // Public guest-page branding
+  primaryColor      String?  // hex, e.g. "#C9A84C"
+  accentColor       String?  // hex, secondary accent
+  publicThemePreset String?  // "luxury" | "casual" | "family" | "nightlife" | "minimal" | "fineDining"
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

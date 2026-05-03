@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicRestaurantProfile, PublicSlot, AvailabilityResponse, BookingAlternative, BookingResult, PublicWaitlistResult } from '../types';
 import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { usePublicTheme } from '../utils/publicTheme';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ export default function BookingPage({ slug }: Props) {
   const { dir, locale, intlLocale }   = useLocale();
   const [profile,  setProfile]        = useState<PublicRestaurantProfile | null>(null);
   const [state,    setState]          = useState<BookingPhase>({ phase: 'loading' });
+  usePublicTheme(profile);
   const [mounted,  setMounted]        = useState(false);
   const [partySize, setPartySize]     = useState(2);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -496,7 +498,7 @@ function AtmosphericBg() {
         className="fixed inset-0 -z-20"
         style={{
           background: [
-            'radial-gradient(ellipse 140% 55% at 50% -15%, rgba(34,197,94,0.09) 0%, transparent 50%)',
+            'radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%)',
             'radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.04) 0%, transparent 50%)',
             'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
           ].join(', '),
@@ -587,7 +589,7 @@ function BookingHeroFallback({ profile }: { profile: PublicRestaurantProfile | n
   return (
     <div className="text-center mb-5">
       <div className="relative flex items-center justify-center mb-3">
-        <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.045) 0%, rgba(34,197,94,0.03) 50%, transparent 70%)' }} />
+        <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.045) 0%, rgb(var(--pub-rgb) / 0.03) 50%, transparent 70%)' }} />
         {profile?.logoUrl ? (
           <img src={profile.logoUrl} alt={displayName} className="relative object-contain" style={{ height: '64px', maxWidth: '200px' }} />
         ) : (
@@ -787,8 +789,8 @@ function DateCarousel({
               style={{
                 minWidth: '52px',
                 scrollSnapAlign: 'start',
-                background: isSelected ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.048)',
-                border: isSelected ? '1px solid rgba(34,197,94,0.45)' : '1px solid rgba(255,255,255,0.09)',
+                background: isSelected ? 'rgb(var(--pub-rgb) / 0.18)' : 'rgba(255,255,255,0.048)',
+                border: isSelected ? '1px solid rgb(var(--pub-rgb) / 0.45)' : '1px solid rgba(255,255,255,0.09)',
                 opacity: isOpen ? 1 : 0.35,
                 cursor: isOpen ? 'pointer' : 'not-allowed',
               }}
@@ -905,7 +907,7 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
       onClick={() => onSelect(slot.time)}
       className="rounded-xl py-3 text-[13px] font-medium transition-all active:scale-95"
       style={{ background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, color: tierStyle.color }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,0.14)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,197,94,0.38)'; }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--pub-rgb) / 0.14)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.38)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = tierStyle.bg; (e.currentTarget as HTMLButtonElement).style.borderColor = tierStyle.border; }}
     >
       <span className="block">{fmtTime(slot.time, isRTL)}</span>
@@ -932,7 +934,7 @@ function AlternativeRow({
       onClick={() => onSelect(alt)}
       className="w-full flex items-center justify-between rounded-2xl px-5 py-3.5 transition-all active:scale-[0.98]"
       style={{ background: 'rgba(255,255,255,0.052)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.72)' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,0.10)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,197,94,0.30)'; }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--pub-rgb) / 0.10)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.30)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.052)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.10)'; }}
     >
       <div className="text-start">
@@ -1018,7 +1020,7 @@ function GuestForm({ form, onChange, onSubmit }: {
           value={form.guestName}
           onChange={e => field('guestName', e.target.value)}
           style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
       </div>
@@ -1032,7 +1034,7 @@ function GuestForm({ form, onChange, onSubmit }: {
           value={form.guestPhone}
           onChange={e => field('guestPhone', e.target.value)}
           style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
         <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
@@ -1048,7 +1050,7 @@ function GuestForm({ form, onChange, onSubmit }: {
           value={form.guestEmail}
           onChange={e => field('guestEmail', e.target.value)}
           style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
       </div>
@@ -1063,8 +1065,8 @@ function GuestForm({ form, onChange, onSubmit }: {
               onClick={() => field('occasion', form.occasion === value ? '' : value)}
               className="text-[12px] px-3.5 py-1.5 rounded-full transition-all"
               style={{
-                background: form.occasion === value ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.048)',
-                border: form.occasion === value ? '1px solid rgba(34,197,94,0.40)' : '1px solid rgba(255,255,255,0.095)',
+                background: form.occasion === value ? 'rgb(var(--pub-rgb) / 0.16)' : 'rgba(255,255,255,0.048)',
+                border: form.occasion === value ? '1px solid rgb(var(--pub-rgb) / 0.40)' : '1px solid rgba(255,255,255,0.095)',
                 color: form.occasion === value ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.52)',
               }}
             >
@@ -1082,7 +1084,7 @@ function GuestForm({ form, onChange, onSubmit }: {
           onChange={e => field('guestNotes', e.target.value)}
           rows={3}
           style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
-          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
       </div>
@@ -1139,7 +1141,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           type="text" required autoFocus placeholder={t('booking.form.namePlaceholder')}
           value={form.guestName} onChange={e => field('guestName', e.target.value)}
           style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
       </div>
@@ -1150,7 +1152,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           type="tel" required placeholder={t('booking.form.phonePlaceholder')}
           value={form.guestPhone} onChange={e => field('guestPhone', e.target.value)}
           style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
         <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
@@ -1164,7 +1166,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           type="time" required
           value={form.preferredTime} onChange={e => field('preferredTime', e.target.value)}
           style={{ ...inputStyle, colorScheme: 'dark' } as React.CSSProperties}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
         <button
@@ -1175,8 +1177,8 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           <div
             className="w-8 h-4 rounded-full relative shrink-0 transition-all"
             style={{
-              background: form.flexibleTime ? 'rgba(34,197,94,0.28)' : 'rgba(255,255,255,0.08)',
-              border: form.flexibleTime ? '1px solid rgba(34,197,94,0.45)' : '1px solid rgba(255,255,255,0.10)',
+              background: form.flexibleTime ? 'rgb(var(--pub-rgb) / 0.28)' : 'rgba(255,255,255,0.08)',
+              border: form.flexibleTime ? '1px solid rgb(var(--pub-rgb) / 0.45)' : '1px solid rgba(255,255,255,0.10)',
             }}
           >
             <div
@@ -1200,7 +1202,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           value={form.notes} onChange={e => field('notes', e.target.value)}
           rows={3}
           style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
-          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
+          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
           onBlur={e =>  { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
       </div>
@@ -1281,7 +1283,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
       <div className="text-center mb-7">
         <div
           className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl mx-auto mb-5"
-          style={{ background: 'rgba(34,197,94,0.12)', border: '1.5px solid rgba(34,197,94,0.30)', boxShadow: '0 0 48px rgba(34,197,94,0.12)', color: '#4ade80' }}
+          style={{ background: 'rgb(var(--pub-rgb) / 0.12)', border: '1.5px solid rgb(var(--pub-rgb) / 0.30)', boxShadow: '0 0 48px rgb(var(--pub-rgb) / 0.12)', color: '#4ade80' }}
         >
           ✓
         </div>
