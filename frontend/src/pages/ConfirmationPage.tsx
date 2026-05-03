@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PublicReservation } from '../types';
 import { api, ApiError } from '../api';
+import { useLocale } from '../i18n/useLocale';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,14 +25,14 @@ interface RestaurantIdentity {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtWeekday(iso: string): string {
+function fmtWeekday(iso: string, intlLocale: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'long' });
+  return new Date(y, m - 1, d).toLocaleDateString(intlLocale, { weekday: 'long' });
 }
 
-function fmtMonthDay(iso: string): string {
+function fmtMonthDay(iso: string, intlLocale: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString([], { month: 'long', day: 'numeric' });
+  return new Date(y, m - 1, d).toLocaleDateString(intlLocale, { month: 'long', day: 'numeric' });
 }
 
 function fmt12Time(t: string): string {
@@ -68,6 +70,8 @@ function sanitizeName(name: string | null | undefined): string | null {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ConfirmationPage({ token }: Props) {
+  const { t }              = useTranslation();
+  const { dir, intlLocale } = useLocale();
   const [state,    setState]    = useState<PageState>({ phase: 'loading' });
   const [identity, setIdentity] = useState<RestaurantIdentity | null>(null);
   const [mounted,  setMounted]  = useState(false);
@@ -152,7 +156,7 @@ export default function ConfirmationPage({ token }: Props) {
   });
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 4vh, 48px)' }}>
+    <div dir={dir} className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 4vh, 48px)' }}>
 
       <AtmosphericBg />
 
@@ -188,9 +192,9 @@ export default function ConfirmationPage({ token }: Props) {
             <div className="py-12 flex flex-col items-center gap-3">
               <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
               <p className="text-white/35 text-sm">
-                {state.action === 'confirm' ? 'Confirming your table…'
-                  : state.action === 'cancel' ? 'Cancelling your reservation…'
-                  : 'Notifying the restaurant…'}
+                {state.action === 'confirm' ? t('confirmation.actionConfirming')
+                  : state.action === 'cancel' ? t('confirmation.actionCancelling')
+                  : t('confirmation.actionNotifying')}
               </p>
             </div>
           </GlassCard>
@@ -200,7 +204,7 @@ export default function ConfirmationPage({ token }: Props) {
           <GlassCard>
             <OutcomeIcon variant="error" />
             <h1 className="text-white text-xl font-semibold text-center mb-2">
-              {state.code === 'EXPIRED' ? 'Link Expired' : 'Link Not Found'}
+              {t(state.code === 'EXPIRED' ? 'confirmation.errorExpired' : 'confirmation.errorNotFound')}
             </h1>
             <p className="text-white/40 text-sm text-center leading-relaxed">{state.message}</p>
           </GlassCard>
@@ -209,9 +213,9 @@ export default function ConfirmationPage({ token }: Props) {
         {state.phase === 'cancelled' && (
           <GlassCard>
             <OutcomeIcon variant="neutral" />
-            <h1 className="text-white text-xl font-semibold text-center mb-2">Until next time</h1>
+            <h1 className="text-white text-xl font-semibold text-center mb-2">{t('confirmation.cancelledTitle')}</h1>
             <p className="text-white/40 text-sm text-center leading-relaxed">
-              Your reservation has been cancelled. We hope to welcome you soon.
+              {t('confirmation.cancelledDetail')}
             </p>
           </GlassCard>
         )}
@@ -219,9 +223,9 @@ export default function ConfirmationPage({ token }: Props) {
         {state.phase === 'late' && (
           <GlassCard>
             <OutcomeIcon variant="late" />
-            <h1 className="text-white text-xl font-semibold text-center mb-2">Your table is being held</h1>
+            <h1 className="text-white text-xl font-semibold text-center mb-2">{t('confirmation.lateTitle')}</h1>
             <p className="text-white/40 text-sm text-center leading-relaxed">
-              The restaurant knows you're on the way. Your table will be ready for you.
+              {t('confirmation.lateDetail')}
             </p>
           </GlassCard>
         )}
@@ -232,16 +236,16 @@ export default function ConfirmationPage({ token }: Props) {
             <GlassCard>
               <OutcomeIcon variant="confirmed" />
               <h1 className="text-white text-2xl font-semibold text-center tracking-tight mb-1">
-                See you {fmtWeekday(r.date)}
+                {t('confirmation.confirmedTitle', { weekday: fmtWeekday(r.date, intlLocale) })}
               </h1>
               <p className="text-white/35 text-sm text-center" style={{ marginBottom: 'clamp(16px, 3vh, 32px)' }}>
-                Your table is confirmed for {fmt12Time(r.time)}.
+                {t('confirmation.confirmedSub', { time: fmt12Time(r.time) })}
               </p>
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
               <Divider />
               <div className="flex flex-col gap-3">
-                <LateBtn onClick={handleLate}>I'm running a bit late</LateBtn>
-                <CancelLink onClick={handleCancel}>I can't make it</CancelLink>
+                <LateBtn onClick={handleLate}>{t('confirmation.lateBtn')}</LateBtn>
+                <CancelLink onClick={handleCancel}>{t('confirmation.cancelLink')}</CancelLink>
               </div>
             </GlassCard>
           );
@@ -256,10 +260,10 @@ export default function ConfirmationPage({ token }: Props) {
               {(r.isConfirmedByGuest || r.isRunningLate) && (
                 <div className="mt-2 mb-5 space-y-2">
                   {r.isConfirmedByGuest && (
-                    <StatusNotice icon="✓" color="green" text="Table confirmed" />
+                    <StatusNotice icon="✓" color="green" text={t('confirmation.tableConfirmed')} />
                   )}
                   {r.isRunningLate && (
-                    <StatusNotice icon="⏱" color="amber" text="Restaurant notified you're on the way" />
+                    <StatusNotice icon="⏱" color="amber" text={t('confirmation.restaurantNotified')} />
                   )}
                 </div>
               )}
@@ -268,12 +272,12 @@ export default function ConfirmationPage({ token }: Props) {
 
               <div className="flex flex-col gap-3">
                 {!r.isConfirmedByGuest && (
-                  <ConfirmBtn onClick={handleConfirm}>Confirm my table</ConfirmBtn>
+                  <ConfirmBtn onClick={handleConfirm}>{t('confirmation.confirmBtn')}</ConfirmBtn>
                 )}
                 {!r.isRunningLate && (
-                  <LateBtn onClick={handleLate}>I'm running a bit late</LateBtn>
+                  <LateBtn onClick={handleLate}>{t('confirmation.lateBtn')}</LateBtn>
                 )}
-                <CancelLink onClick={handleCancel}>I can't make it</CancelLink>
+                <CancelLink onClick={handleCancel}>{t('confirmation.cancelLink')}</CancelLink>
               </div>
             </GlassCard>
           );
@@ -294,17 +298,17 @@ export default function ConfirmationPage({ token }: Props) {
         )}
 
         {res?.restaurantSpecialInstructions && (
-          <InfoBlock label="Please note" icon={<NoteIcon />}>
+          <InfoBlock label={t('confirmation.infoNote')} icon={<NoteIcon />}>
             {res.restaurantSpecialInstructions}
           </InfoBlock>
         )}
         {res?.restaurantParkingNotes && (
-          <InfoBlock label="Parking" icon={<ParkIcon />}>
+          <InfoBlock label={t('confirmation.infoParking')} icon={<ParkIcon />}>
             {res.restaurantParkingNotes}
           </InfoBlock>
         )}
         {res?.restaurantCancellationPolicy && (
-          <InfoBlock label="Cancellation" icon={<PolicyIcon />}>
+          <InfoBlock label={t('confirmation.infoCancellation')} icon={<PolicyIcon />}>
             {res.restaurantCancellationPolicy}
           </InfoBlock>
         )}
@@ -361,7 +365,6 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
   const displayName = sanitizeName(identity.name);
   const initial = displayName ? displayName.charAt(0).toUpperCase() : '◆';
 
-  // Hero shrinks on short viewports; tall screens keep full cinematic height
   const heroH = 'min(380px, 50vh)';
   const discS  = 'min(96px, 13.5vh)';
   const logoH  = 'min(52px, 7.5vh)';
@@ -369,7 +372,6 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
 
   return (
     <div className="relative w-full" style={{ height: heroH }}>
-      {/* Image — overflow-hidden contained */}
       <div className="absolute inset-0 overflow-hidden">
         <img
           src={identity.coverUrl!}
@@ -379,7 +381,6 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
         />
       </div>
 
-      {/* Cinematic gradient — more atmospheric */}
       <div
         className="absolute inset-0"
         style={{
@@ -394,7 +395,6 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
         }}
       />
 
-      {/* Bleed gradient — extends below image to blend with card */}
       <div
         className="absolute left-0 right-0 pointer-events-none"
         style={{
@@ -404,12 +404,10 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
         }}
       />
 
-      {/* Logo + name — positioned in lower third */}
       <div
         className="absolute left-0 right-0 flex flex-col items-center px-5"
         style={{ bottom: bottomPos }}
       >
-        {/* Cinematic glow halo behind logo */}
         <div className="relative flex items-center justify-center mb-3">
           <div
             className="absolute rounded-full pointer-events-none"
@@ -426,7 +424,6 @@ function CoverImageHero({ identity }: { identity: RestaurantIdentity }) {
             }}
           />
           {identity.logoUrl ? (
-            /* Premium glass disc */
             <div
               className="relative flex items-center justify-center rounded-full backdrop-blur-xl"
               style={{
@@ -490,7 +487,6 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
   return (
     <div className="text-center mb-6">
       <div className="relative flex items-center justify-center mb-4">
-        {/* Cinematic glow halo */}
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
@@ -575,21 +571,23 @@ function Divider() {
 function DateHero({ date, time, partySize, occasion }: {
   date: string; time: string; partySize: number; occasion: string | null;
 }) {
+  const { t }          = useTranslation();
+  const { intlLocale } = useLocale();
   return (
     <div className="text-center">
-      <p className="text-white/22 text-[10px] font-medium uppercase tracking-[0.22em] mb-2">
-        {fmtWeekday(date)}
+      <p className="text-white/22 text-[10px] font-medium uppercase tracking-[0.22em] mb-2 rtl:tracking-normal">
+        {fmtWeekday(date, intlLocale)}
       </p>
       <p
         className="font-semibold leading-none"
         style={{ fontSize: 'clamp(2rem, 4.5vh, 2.8rem)', letterSpacing: '-0.035em', color: '#f8f5ef', marginBottom: 'clamp(6px, 1.2vh, 10px)' }}
       >
-        {fmtMonthDay(date)}
+        {fmtMonthDay(date, intlLocale)}
       </p>
       <p className="text-white/40 text-[19px] font-light tracking-wide" style={{ marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmt12Time(time)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
-        <Chip>{partySize === 1 ? '1 guest' : `${partySize} guests`}</Chip>
+        <Chip>{t('common.guestCount', { count: partySize })}</Chip>
         {occasion && <OccasionChip>{occasion}</OccasionChip>}
       </div>
     </div>
@@ -758,6 +756,7 @@ function CancelLink({ onClick, children }: { onClick: () => void; children: Reac
 function NavChips({ address, googleMapsUrl, wazeUrl }: {
   address: string | null; googleMapsUrl: string | null; wazeUrl: string | null;
 }) {
+  const { t } = useTranslation();
   if (!address && !googleMapsUrl && !wazeUrl) return null;
 
   const pillBase = {
@@ -801,7 +800,7 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
                 el.style.boxShadow = pillBase.boxShadow;
               }}
             >
-              <PinIcon /> Maps
+              <PinIcon /> {t('common.maps')}
             </a>
           )}
           {wazeUrl && (
@@ -826,7 +825,7 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
                 el.style.boxShadow = pillBase.boxShadow;
               }}
             >
-              <CarIcon /> Waze
+              <CarIcon /> {t('common.waze')}
             </a>
           )}
         </div>
@@ -845,7 +844,7 @@ function InfoBlock({ label, icon, children }: { label: string; icon: React.React
     >
       <div className="flex items-center gap-1.5 mb-2">
         <span className="text-white/22">{icon}</span>
-        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.16em]">{label}</p>
+        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.16em] rtl:tracking-normal">{label}</p>
       </div>
       <p className="text-white/50 text-[13px] leading-relaxed">{children}</p>
     </div>
@@ -857,6 +856,7 @@ function InfoBlock({ label, icon, children }: { label: string; icon: React.React
 function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
   websiteUrl: string | null; instagramUrl: string | null; restaurantName: string | null;
 }) {
+  const { t } = useTranslation();
   const displayName = sanitizeName(restaurantName);
   const hasLinks = websiteUrl || instagramUrl;
   return (
@@ -885,7 +885,7 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
                   }}
                 >
                   <GlobeIcon />
-                  <span className="text-[13px] font-light tracking-wide">Website</span>
+                  <span className="text-[13px] font-light tracking-wide">{t('common.website')}</span>
                 </a>
               )}
               {instagramUrl && (
@@ -907,7 +907,7 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
                   }}
                 >
                   <InstagramIcon />
-                  <span className="text-[13px] font-light tracking-wide">Instagram</span>
+                  <span className="text-[13px] font-light tracking-wide">{t('common.instagram')}</span>
                 </a>
               )}
             </div>
@@ -915,8 +915,8 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
           </div>
         </>
       )}
-      <p className="text-white/[0.15] text-[10px] tracking-widest uppercase">
-        {displayName ? `${displayName} · ` : ''}Powered by Iron Booking
+      <p className="text-white/[0.15] text-[10px] tracking-widest uppercase rtl:tracking-normal">
+        {displayName ? `${displayName} · ` : ''}{t('common.poweredBy')}
       </p>
     </div>
   );

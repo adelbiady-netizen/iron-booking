@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PublicRestaurantProfile, PublicSlot, AvailabilityResponse, BookingAlternative, BookingResult, PublicWaitlistResult } from '../types';
 import { api, ApiError } from '../api';
+import { useLocale } from '../i18n/useLocale';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,12 +38,16 @@ interface FormState {
   guestNotes: string;
 }
 
-const OCCASIONS = ['Birthday', 'Anniversary', 'Business', 'Date Night', 'Other'];
+// API value stays English (sent to backend); tKey is the i18n translation key
+const OCCASIONS = [
+  { value: 'Birthday',    tKey: 'booking.occasions.birthday'    },
+  { value: 'Anniversary', tKey: 'booking.occasions.anniversary' },
+  { value: 'Business',    tKey: 'booking.occasions.business'    },
+  { value: 'Date Night',  tKey: 'booking.occasions.dateNight'   },
+  { value: 'Other',       tKey: 'booking.occasions.other'       },
+];
 
 // ─── Formatting helpers ────────────────────────────────────────────────────────
-
-const DAY_NAMES   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function toLocalDateString(d: Date): string {
   const yyyy = d.getFullYear();
@@ -56,27 +62,35 @@ function fmt12(t: string): string {
   return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${period}`;
 }
 
-function fmtDateLong(iso: string): string {
+function fmtDateLong(iso: string, intlLocale: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  return new Date(y, m - 1, d).toLocaleDateString(intlLocale, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-function fmtDateShort(iso: string): string {
+function fmtDateShort(iso: string, intlLocale: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return `${DAY_NAMES[dt.getDay()]}, ${MONTH_NAMES[dt.getMonth()]} ${d}`;
+  return new Date(y, m - 1, d).toLocaleDateString(intlLocale, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function fmtChipDay(d: Date, intlLocale: string): string {
+  return d.toLocaleDateString(intlLocale, { weekday: 'short' });
+}
+
+function fmtChipMonth(d: Date, intlLocale: string): string {
+  return d.toLocaleDateString(intlLocale, { month: 'short' });
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function BookingPage({ slug }: Props) {
-  const [profile,  setProfile]  = useState<PublicRestaurantProfile | null>(null);
-  const [state,    setState]    = useState<BookingPhase>({ phase: 'loading' });
-  const [mounted,  setMounted]  = useState(false);
-  const [partySize, setPartySize] = useState(2);
+  const { t }                         = useTranslation();
+  const { dir, intlLocale }           = useLocale();
+  const [profile,  setProfile]        = useState<PublicRestaurantProfile | null>(null);
+  const [state,    setState]          = useState<BookingPhase>({ phase: 'loading' });
+  const [mounted,  setMounted]        = useState(false);
+  const [partySize, setPartySize]     = useState(2);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [form,     setForm]     = useState<FormState>({
+  const [form,     setForm]           = useState<FormState>({
     guestName: '', guestPhone: '', guestEmail: '', occasion: '', guestNotes: '',
   });
 
@@ -89,7 +103,6 @@ export default function BookingPage({ slug }: Props) {
     api.public.book.getProfile(slug)
       .then(p => {
         setProfile(p);
-        // Pre-select today or first open day
         const today = new Date();
         for (let i = 0; i < p.maxAdvanceBookingDays; i++) {
           const d = new Date(today);
@@ -178,7 +191,7 @@ export default function BookingPage({ slug }: Props) {
   const hasCover = !!profile?.coverImageUrl;
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 5vh, 64px)' }}>
+    <div dir={dir} className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 5vh, 64px)' }}>
       <AtmosphericBg />
 
       {/* Restaurant hero */}
@@ -210,15 +223,15 @@ export default function BookingPage({ slug }: Props) {
         {state.phase === 'not-found' && (
           <GlassCard>
             <div className="py-6 text-center">
-              <p className="text-white/80 text-lg font-medium mb-2">Restaurant not found</p>
-              <p className="text-white/40 text-sm">This booking link may be invalid or the restaurant is no longer active.</p>
+              <p className="text-white/80 text-lg font-medium mb-2">{t('booking.notFound')}</p>
+              <p className="text-white/40 text-sm">{t('booking.notFoundDetail')}</p>
             </div>
           </GlassCard>
         )}
 
         {(state.phase === 'select' || state.phase === 'slots-loading') && profile && (
           <GlassCard>
-            <SectionLabel>Party size</SectionLabel>
+            <SectionLabel>{t('booking.partySize')}</SectionLabel>
             <PartySelector
               value={partySize}
               max={profile.maxPartySize}
@@ -227,7 +240,7 @@ export default function BookingPage({ slug }: Props) {
 
             <div className="h-px" style={{ margin: 'clamp(14px, 2.5vh, 24px) 0', background: 'rgba(255,255,255,0.055)' }} />
 
-            <SectionLabel>Select a date</SectionLabel>
+            <SectionLabel>{t('booking.selectDate')}</SectionLabel>
             <DateCarousel
               profile={profile}
               selected={selectedDate}
@@ -240,7 +253,7 @@ export default function BookingPage({ slug }: Props) {
                 disabled={!selectedDate || state.phase === 'slots-loading'}
                 loading={state.phase === 'slots-loading'}
               >
-                {state.phase === 'slots-loading' ? 'Checking availability…' : 'Find a table'}
+                {state.phase === 'slots-loading' ? t('booking.checkingAvailability') : t('booking.findTable')}
               </PrimaryBtn>
             </div>
           </GlassCard>
@@ -257,11 +270,11 @@ export default function BookingPage({ slug }: Props) {
             <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
 
             {state.data.isClosed && (
-              <StatusBanner icon="✕" color="red" text={`${fmtDateShort(state.date)} — closed`} />
+              <StatusBanner icon="✕" color="red" text={t('booking.closed', { date: fmtDateShort(state.date, intlLocale) })} />
             )}
 
             {state.data.isPast && (
-              <StatusBanner icon="⏎" color="amber" text="That date has passed" />
+              <StatusBanner icon="⏎" color="amber" text={t('booking.datePassed')} />
             )}
 
             {/* Fully booked with no alternatives → premium dead-end avoidance */}
@@ -274,21 +287,20 @@ export default function BookingPage({ slug }: Props) {
                   ◌
                 </div>
                 <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '16px' }}>
-                  No tables available
+                  {t('booking.noTablesAvailable')}
                 </h3>
                 <p className="text-[13px] leading-relaxed mb-6 px-4" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  {fmtDateShort(state.date)} is fully booked for {state.partySize} {state.partySize === 1 ? 'guest' : 'guests'}.
-                  Join the waitlist and we'll reach out if something opens up.
+                  {t('booking.fullyBookedMessage', { date: fmtDateShort(state.date, intlLocale), count: state.partySize })}
                 </p>
                 <PrimaryBtn onClick={() => setState({ phase: 'waitlist', date: state.date, partySize: state.partySize, slotsData: state.data })}>
-                  Join the waitlist
+                  {t('booking.joinWaitlist')}
                 </PrimaryBtn>
               </div>
             )}
 
             {/* Available slots */}
             {!state.data.isFullyBooked && state.data.slots.length === 0 && !state.data.isClosed && !state.data.isPast && (
-              <StatusBanner icon="○" color="neutral" text="No times available for this date" />
+              <StatusBanner icon="○" color="neutral" text={t('booking.noTimesAvailable')} />
             )}
             {!state.data.isFullyBooked && state.data.slots.length > 0 && (
               <SlotGrid slots={state.data.slots} onSelect={handleSlotSelect} />
@@ -298,7 +310,7 @@ export default function BookingPage({ slug }: Props) {
             {state.data.alternatives.length > 0 && (
               <div className="mt-6">
                 <SectionLabel>
-                  {state.data.isFullyBooked ? 'Nearby availability' : 'Other options'}
+                  {t(state.data.isFullyBooked ? 'booking.nearbyAvailability' : 'booking.otherOptions')}
                 </SectionLabel>
                 <div className="flex flex-col gap-2 mt-3">
                   {state.data.alternatives.map(alt => (
@@ -315,9 +327,9 @@ export default function BookingPage({ slug }: Props) {
             {/* Waitlist CTA — secondary, shown when fully booked with alternatives */}
             {!state.data.isClosed && !state.data.isPast && state.data.isFullyBooked && state.data.alternatives.length > 0 && (
               <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.055)' }}>
-                <p className="text-[13px] mb-1" style={{ color: 'rgba(255,255,255,0.52)' }}>None of these work?</p>
+                <p className="text-[13px] mb-1" style={{ color: 'rgba(255,255,255,0.52)' }}>{t('booking.noneWork')}</p>
                 <p className="text-[12px] mb-4 leading-relaxed" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                  Join the waitlist — we'll contact you if a table opens up for {fmtDateShort(state.date)}.
+                  {t('booking.waitlistCta', { date: fmtDateShort(state.date, intlLocale) })}
                 </p>
                 <button
                   onClick={() => setState({ phase: 'waitlist', date: state.date, partySize: state.partySize, slotsData: state.data })}
@@ -326,7 +338,7 @@ export default function BookingPage({ slug }: Props) {
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; }}
                 >
-                  Join the waitlist
+                  {t('booking.joinWaitlist')}
                 </button>
               </div>
             )}
@@ -343,9 +355,9 @@ export default function BookingPage({ slug }: Props) {
             />
             <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
             <div className="mb-5">
-              <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.88)', fontSize: '17px' }}>Join the waitlist</h3>
+              <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.88)', fontSize: '17px' }}>{t('booking.waitlistForm.title')}</h3>
               <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
-                We'll reach out if a table becomes available on {fmtDateShort(state.date)} for {state.partySize} {state.partySize === 1 ? 'guest' : 'guests'}.
+                {t('booking.waitlistForm.description', { date: fmtDateShort(state.date, intlLocale), count: state.partySize })}
               </p>
             </div>
             <WaitlistForm onSubmit={handleJoinWaitlist} />
@@ -380,7 +392,7 @@ export default function BookingPage({ slug }: Props) {
           <GlassCard>
             <div className="py-14 flex flex-col items-center gap-3">
               <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
-              <p className="text-white/40 text-sm">Securing your table…</p>
+              <p className="text-white/40 text-sm">{t('booking.securingTable')}</p>
             </div>
           </GlassCard>
         )}
@@ -398,9 +410,9 @@ export default function BookingPage({ slug }: Props) {
               >
                 ⏱
               </div>
-              <h2 className="text-white text-xl font-semibold mb-2">That time just filled up</h2>
+              <h2 className="text-white text-xl font-semibold mb-2">{t('booking.slotTakenTitle')}</h2>
               <p className="text-white/40 text-sm leading-relaxed">
-                Another guest booked that slot a moment ago. Here are the next available times:
+                {t('booking.slotTakenDetail')}
               </p>
             </div>
 
@@ -416,7 +428,7 @@ export default function BookingPage({ slug }: Props) {
                 ))}
               </div>
             ) : (
-              <p className="text-white/40 text-sm text-center">No alternatives found. Please try a different date.</p>
+              <p className="text-white/40 text-sm text-center">{t('booking.noAlternatives')}</p>
             )}
 
             <button
@@ -426,7 +438,7 @@ export default function BookingPage({ slug }: Props) {
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.50)'; }}
             >
-              Choose a different date
+              {t('booking.chooseDifferentDate')}
             </button>
           </GlassCard>
         )}
@@ -440,14 +452,14 @@ export default function BookingPage({ slug }: Props) {
               >
                 ✕
               </div>
-              <h2 className="text-white text-xl font-semibold mb-2">Something went wrong</h2>
+              <h2 className="text-white text-xl font-semibold mb-2">{t('booking.errorTitle')}</h2>
               <p className="text-white/40 text-sm leading-relaxed mb-5">{state.message}</p>
               <button
                 onClick={() => setState({ phase: 'select' })}
                 className="text-[13px] py-2.5 px-5 rounded-full transition-colors"
                 style={{ color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.12)' }}
               >
-                Try again
+                {t('booking.tryAgain')}
               </button>
             </div>
           </GlassCard>
@@ -457,8 +469,8 @@ export default function BookingPage({ slug }: Props) {
       {/* Footer */}
       {state.phase !== 'loading' && state.phase !== 'not-found' && (
         <div className={`mt-6 ${fade(200).className}`} style={fade(200).style}>
-          <p className="text-white/[0.14] text-[10px] tracking-widest uppercase text-center">
-            Powered by Iron Booking
+          <p className="text-white/[0.14] text-[10px] tracking-widest uppercase text-center rtl:tracking-normal">
+            {t('common.poweredBy')}
           </p>
         </div>
       )}
@@ -495,7 +507,6 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
   const displayName = profile.name;
   const initial = displayName.charAt(0).toUpperCase();
 
-  // Hero and logo scale down on short viewports; tall screens keep full cinematic height
   const heroH     = 'min(320px, 44vh)';
   const discS     = 'min(80px, 11.5vh)';
   const logoH     = 'min(42px, 6.2vh)';
@@ -523,7 +534,6 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
           ].join(' '),
         }}
       />
-      {/* Bleed */}
       <div
         className="absolute left-0 right-0 pointer-events-none"
         style={{
@@ -618,7 +628,7 @@ function GlassCard({ children }: { children: React.ReactNode }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-medium uppercase tracking-[0.20em] mb-3" style={{ color: 'rgba(255,255,255,0.28)' }}>
+    <p className="text-[10px] font-medium uppercase tracking-[0.20em] mb-3 rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.28)' }}>
       {children}
     </p>
   );
@@ -627,6 +637,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ─── Party size selector ───────────────────────────────────────────────────────
 
 function PartySelector({ value, max, onChange }: { value: number; max: number; onChange: (n: number) => void }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-5">
       <button
@@ -640,7 +651,7 @@ function PartySelector({ value, max, onChange }: { value: number; max: number; o
       </button>
       <div className="flex-1 text-center">
         <span className="text-3xl font-light" style={{ color: '#f8f5ef', letterSpacing: '-0.03em' }}>{value}</span>
-        <span className="text-[13px] ml-2" style={{ color: 'rgba(255,255,255,0.40)' }}>{value === 1 ? 'guest' : 'guests'}</span>
+        <span className="text-[13px] ms-2" style={{ color: 'rgba(255,255,255,0.40)' }}>{t('common.guestWord', { count: value })}</span>
       </div>
       <button
         onClick={() => onChange(Math.min(max, value + 1))}
@@ -662,6 +673,7 @@ function DateCarousel({
 }: {
   profile: PublicRestaurantProfile; selected: string; onSelect: (d: string) => void;
 }) {
+  const { intlLocale } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft,  setCanScrollLeft]  = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -682,7 +694,6 @@ function DateCarousel({
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
   }
 
-  // Track scroll edges so arrows show/hide correctly
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -693,7 +704,6 @@ function DateCarousel({
     return () => { el.removeEventListener('scroll', syncScrollState); ro.disconnect(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll selected into view on mount
   useEffect(() => {
     if (!scrollRef.current || !selected) return;
     const idx = days.findIndex(d => d.dateStr === selected);
@@ -733,7 +743,7 @@ function DateCarousel({
     <div className="relative">
       <style>{`[data-date-carousel]::-webkit-scrollbar{display:none}`}</style>
 
-      {/* Left arrow + fade */}
+      {/* Left arrow + fade — always LTR temporal direction */}
       {canScrollLeft && (
         <>
           <div aria-hidden="true" style={{
@@ -745,8 +755,10 @@ function DateCarousel({
         </>
       )}
 
+      {/* dir="ltr" keeps chips in left-to-right temporal order even inside RTL page */}
       <div
         ref={scrollRef}
+        dir="ltr"
         data-date-carousel=""
         className="flex gap-2 overflow-x-auto pb-1"
         style={{
@@ -768,12 +780,8 @@ function DateCarousel({
               style={{
                 minWidth: '52px',
                 scrollSnapAlign: 'start',
-                background: isSelected
-                  ? 'rgba(34,197,94,0.18)'
-                  : 'rgba(255,255,255,0.048)',
-                border: isSelected
-                  ? '1px solid rgba(34,197,94,0.45)'
-                  : '1px solid rgba(255,255,255,0.09)',
+                background: isSelected ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.048)',
+                border: isSelected ? '1px solid rgba(34,197,94,0.45)' : '1px solid rgba(255,255,255,0.09)',
                 opacity: isOpen ? 1 : 0.35,
                 cursor: isOpen ? 'pointer' : 'not-allowed',
               }}
@@ -782,7 +790,7 @@ function DateCarousel({
                 className="text-[10px] font-medium uppercase tracking-wide mb-1"
                 style={{ color: isSelected ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.40)' }}
               >
-                {DAY_NAMES[d.getDay()]}
+                {fmtChipDay(d, intlLocale)}
               </span>
               <span
                 className="text-[18px] font-semibold leading-none"
@@ -794,7 +802,7 @@ function DateCarousel({
                 className="text-[10px] mt-1"
                 style={{ color: isSelected ? 'rgba(74,222,128,0.70)' : 'rgba(255,255,255,0.30)' }}
               >
-                {MONTH_NAMES[d.getMonth()]}
+                {fmtChipMonth(d, intlLocale)}
               </span>
             </button>
           );
@@ -819,6 +827,7 @@ function DateCarousel({
 // ─── Slot grid ─────────────────────────────────────────────────────────────────
 
 function SlotGrid({ slots, onSelect }: { slots: PublicSlot[]; onSelect: (time: string) => void }) {
+  const { t } = useTranslation();
   const lunch  = slots.filter(s => s.time < '17:00');
   const dinner = slots.filter(s => s.time >= '17:00');
 
@@ -828,13 +837,13 @@ function SlotGrid({ slots, onSelect }: { slots: PublicSlot[]; onSelect: (time: s
     <div className="space-y-5">
       {lunch.length > 0 && (
         <div>
-          <SectionLabel>Lunch</SectionLabel>
+          <SectionLabel>{t('booking.lunch')}</SectionLabel>
           <SlotRow slots={lunch} onSelect={onSelect} />
         </div>
       )}
       {dinner.length > 0 && (
         <div>
-          <SectionLabel>Dinner</SectionLabel>
+          <SectionLabel>{t('booking.dinner')}</SectionLabel>
           <SlotRow slots={dinner} onSelect={onSelect} />
         </div>
       )}
@@ -853,6 +862,7 @@ function SlotRow({ slots, onSelect }: { slots: PublicSlot[]; onSelect: (time: st
 }
 
 function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: string) => void }) {
+  const { t } = useTranslation();
   const tierStyle = {
     IDEAL:   { bg: 'rgba(255,255,255,0.072)', border: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.82)' },
     GOOD:    { bg: 'rgba(255,255,255,0.056)', border: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.65)' },
@@ -870,18 +880,17 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
     );
   }
 
-  // Sub-label: LIMITED takes visual priority; soft states are ambient-only
   const subLabel: string | null =
-    slot.tier === 'LIMITED' && slot.softState === 'HIGH_DEMAND' ? 'Last table · Popular' :
-    slot.tier === 'LIMITED'                                      ? 'Last table' :
-    slot.softState === 'HIGH_DEMAND'                             ? 'Popular' :
-    slot.softState === 'SHORT_WINDOW'                            ? 'Near closing' :
+    slot.tier === 'LIMITED' && slot.softState === 'HIGH_DEMAND' ? t('booking.slots.lastTablePopular') :
+    slot.tier === 'LIMITED'                                      ? t('booking.slots.lastTable') :
+    slot.softState === 'HIGH_DEMAND'                             ? t('booking.slots.popular') :
+    slot.softState === 'SHORT_WINDOW'                            ? t('booking.slots.nearClosing') :
     null;
 
   const subLabelOpacity =
     slot.tier === 'LIMITED'          ? 0.70 :
     slot.softState === 'HIGH_DEMAND' ? 0.55 :
-    0.45;  // SHORT_WINDOW
+    0.45;
 
   return (
     <button
@@ -894,7 +903,7 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
       <span className="block">{fmt12(slot.time)}</span>
       {subLabel && (
         <span
-          className="block text-[9px] mt-0.5 uppercase tracking-wide"
+          className="block text-[9px] mt-0.5 uppercase tracking-wide rtl:tracking-normal"
           style={{ opacity: subLabelOpacity }}
         >
           {subLabel}
@@ -909,6 +918,7 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
 function AlternativeRow({
   alt, onSelect, showDate = false,
 }: { alt: BookingAlternative; onSelect: (alt: BookingAlternative) => void; showDate?: boolean }) {
+  const { isRTL, intlLocale } = useLocale();
   return (
     <button
       onClick={() => onSelect(alt)}
@@ -917,16 +927,16 @@ function AlternativeRow({
       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,0.10)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,197,94,0.30)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.052)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.10)'; }}
     >
-      <div className="text-left">
+      <div className="text-start">
         {showDate && (
-          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(alt.date)}</p>
+          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(alt.date, intlLocale)}</p>
         )}
         <p className="text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.82)' }}>{fmt12(alt.time)}</p>
         {!showDate && (
-          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>{fmtDateShort(alt.date)}</p>
+          <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>{fmtDateShort(alt.date, intlLocale)}</p>
         )}
       </div>
-      <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '18px' }}>›</span>
+      <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '18px' }}>{isRTL ? '‹' : '›'}</span>
     </button>
   );
 }
@@ -936,6 +946,8 @@ function AlternativeRow({
 function BookingSummaryBar({
   date, partySize, slot, onBack,
 }: { date: string; partySize: number; slot?: string; onBack: () => void }) {
+  const { t }              = useTranslation();
+  const { isRTL, intlLocale } = useLocale();
   return (
     <div className="flex items-center gap-3">
       <button
@@ -945,15 +957,15 @@ function BookingSummaryBar({
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.90)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.55)'; }}
       >
-        ‹
+        {isRTL ? '›' : '‹'}
       </button>
       <div className="flex-1">
         <p className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>
-          {slot ? `${fmt12(slot)}` : fmtDateShort(date)}
-          {slot && <span className="font-light ml-2" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(date)}</span>}
+          {slot ? `${fmt12(slot)}` : fmtDateShort(date, intlLocale)}
+          {slot && <span className="font-light ms-2" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(date, intlLocale)}</span>}
         </p>
         <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-          {partySize} {partySize === 1 ? 'guest' : 'guests'}
+          {t('common.guestCount', { count: partySize })}
         </p>
       </div>
     </div>
@@ -967,6 +979,7 @@ function GuestForm({ form, onChange, onSubmit }: {
   onChange: (f: FormState) => void;
   onSubmit: (e: React.FormEvent) => void;
 }) {
+  const { t } = useTranslation();
   const inputStyle: React.CSSProperties = {
     background: 'rgba(255,255,255,0.040)',
     border: '1px solid rgba(255,255,255,0.095)',
@@ -988,12 +1001,12 @@ function GuestForm({ form, onChange, onSubmit }: {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <FieldLabel required>Name</FieldLabel>
+        <FieldLabel required>{t('booking.form.name')}</FieldLabel>
         <input
           type="text"
           required
           autoFocus
-          placeholder="Your full name"
+          placeholder={t('booking.form.namePlaceholder')}
           value={form.guestName}
           onChange={e => field('guestName', e.target.value)}
           style={inputStyle}
@@ -1003,11 +1016,11 @@ function GuestForm({ form, onChange, onSubmit }: {
       </div>
 
       <div>
-        <FieldLabel required>Phone</FieldLabel>
+        <FieldLabel required>{t('booking.form.phone')}</FieldLabel>
         <input
           type="tel"
           required
-          placeholder="+1 (555) 000-0000"
+          placeholder={t('booking.form.phonePlaceholder')}
           value={form.guestPhone}
           onChange={e => field('guestPhone', e.target.value)}
           style={inputStyle}
@@ -1015,15 +1028,15 @@ function GuestForm({ form, onChange, onSubmit }: {
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
         <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
-          Your confirmation will be sent here
+          {t('booking.form.phoneHint')}
         </p>
       </div>
 
       <div>
-        <FieldLabel>Email <span style={{ color: 'rgba(255,255,255,0.28)' }}>(optional)</span></FieldLabel>
+        <FieldLabel>{t('booking.form.email')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <input
           type="email"
-          placeholder="you@example.com"
+          placeholder={t('booking.form.emailPlaceholder')}
           value={form.guestEmail}
           onChange={e => field('guestEmail', e.target.value)}
           style={inputStyle}
@@ -1033,30 +1046,30 @@ function GuestForm({ form, onChange, onSubmit }: {
       </div>
 
       <div>
-        <FieldLabel>Occasion <span style={{ color: 'rgba(255,255,255,0.28)' }}>(optional)</span></FieldLabel>
+        <FieldLabel>{t('booking.form.occasion')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <div className="flex gap-2 flex-wrap">
-          {OCCASIONS.map(o => (
+          {OCCASIONS.map(({ value, tKey }) => (
             <button
-              key={o}
+              key={value}
               type="button"
-              onClick={() => field('occasion', form.occasion === o ? '' : o)}
+              onClick={() => field('occasion', form.occasion === value ? '' : value)}
               className="text-[12px] px-3.5 py-1.5 rounded-full transition-all"
               style={{
-                background: form.occasion === o ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.048)',
-                border: form.occasion === o ? '1px solid rgba(34,197,94,0.40)' : '1px solid rgba(255,255,255,0.095)',
-                color: form.occasion === o ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.52)',
+                background: form.occasion === value ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.048)',
+                border: form.occasion === value ? '1px solid rgba(34,197,94,0.40)' : '1px solid rgba(255,255,255,0.095)',
+                color: form.occasion === value ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.52)',
               }}
             >
-              {o}
+              {t(tKey)}
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <FieldLabel>Special requests <span style={{ color: 'rgba(255,255,255,0.28)' }}>(optional)</span></FieldLabel>
+        <FieldLabel>{t('booking.form.specialRequests')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <textarea
-          placeholder="Allergies, accessibility needs, seating preferences…"
+          placeholder={t('booking.form.specialRequestsPlaceholder')}
           value={form.guestNotes}
           onChange={e => field('guestNotes', e.target.value)}
           rows={3}
@@ -1068,7 +1081,7 @@ function GuestForm({ form, onChange, onSubmit }: {
 
       <div className="pt-2">
         <PrimaryBtn type="submit" disabled={!isValid}>
-          Complete reservation
+          {t('booking.form.completeReservation')}
         </PrimaryBtn>
       </div>
     </form>
@@ -1078,6 +1091,7 @@ function GuestForm({ form, onChange, onSubmit }: {
 // ─── Waitlist form ─────────────────────────────────────────────────────────────
 
 function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Promise<void> }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<WaitlistFormState>({
     guestName: '', guestPhone: '', preferredTime: '', flexibleTime: false, notes: '',
   });
@@ -1112,9 +1126,9 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <FieldLabel required>Name</FieldLabel>
+        <FieldLabel required>{t('booking.form.name')}</FieldLabel>
         <input
-          type="text" required autoFocus placeholder="Your full name"
+          type="text" required autoFocus placeholder={t('booking.form.namePlaceholder')}
           value={form.guestName} onChange={e => field('guestName', e.target.value)}
           style={inputStyle}
           onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
@@ -1123,21 +1137,21 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
       </div>
 
       <div>
-        <FieldLabel required>Phone</FieldLabel>
+        <FieldLabel required>{t('booking.form.phone')}</FieldLabel>
         <input
-          type="tel" required placeholder="+1 (555) 000-0000"
+          type="tel" required placeholder={t('booking.form.phonePlaceholder')}
           value={form.guestPhone} onChange={e => field('guestPhone', e.target.value)}
           style={inputStyle}
           onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
         <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
-          We'll reach out here if a table becomes available
+          {t('booking.waitlistForm.phoneHint')}
         </p>
       </div>
 
       <div>
-        <FieldLabel required>Preferred time</FieldLabel>
+        <FieldLabel required>{t('booking.waitlistForm.preferredTime')}</FieldLabel>
         <input
           type="time" required
           value={form.preferredTime} onChange={e => field('preferredTime', e.target.value)}
@@ -1145,7 +1159,6 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(34,197,94,0.50)'; }}
           onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
         />
-        {/* Flexibility toggle */}
         <button
           type="button"
           onClick={() => field('flexibleTime', !form.flexibleTime)}
@@ -1167,15 +1180,15 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
             />
           </div>
           <span className="text-[12px]" style={{ color: form.flexibleTime ? 'rgba(74,222,128,0.85)' : 'rgba(255,255,255,0.38)' }}>
-            Flexible ±1 hour
+            {t('booking.waitlistForm.flexibleLabel')}
           </span>
         </button>
       </div>
 
       <div>
-        <FieldLabel>Notes <span style={{ color: 'rgba(255,255,255,0.28)' }}>(optional)</span></FieldLabel>
+        <FieldLabel>{t('booking.waitlistForm.notes')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <textarea
-          placeholder="Any preferences or requests…"
+          placeholder={t('booking.waitlistForm.notesPlaceholder')}
           value={form.notes} onChange={e => field('notes', e.target.value)}
           rows={3}
           style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
@@ -1188,7 +1201,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
 
       <div className="pt-2">
         <PrimaryBtn type="submit" disabled={!isValid} loading={loading}>
-          {loading ? 'Joining waitlist…' : 'Join the waitlist'}
+          {loading ? t('booking.waitlistForm.submitLoading') : t('booking.waitlistForm.submit')}
         </PrimaryBtn>
       </div>
     </form>
@@ -1198,6 +1211,8 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
 // ─── Waitlist success card ─────────────────────────────────────────────────────
 
 function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
+  const { t }           = useTranslation();
+  const { intlLocale }  = useLocale();
   return (
     <GlassCard>
       <div className="text-center mb-7">
@@ -1208,10 +1223,10 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
           ◎
         </div>
         <h2 className="text-white text-2xl font-semibold tracking-tight mb-2">
-          You're on the waitlist
+          {t('booking.waitlistSuccess.title')}
         </h2>
         <p className="text-white/40 text-sm leading-relaxed px-3">
-          We'll reach out if a table becomes available. Thank you for your patience.
+          {t('booking.waitlistSuccess.detail')}
         </p>
       </div>
 
@@ -1220,21 +1235,21 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
         style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.075)' }}
       >
         <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.35)' }}>Date</span>
-          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmtDateLong(result.date)}</span>
+          <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.dateLabel')}</span>
+          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmtDateLong(result.date, intlLocale)}</span>
         </div>
         <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.35)' }}>Party</span>
-          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{result.partySize} {result.partySize === 1 ? 'guest' : 'guests'}</span>
+          <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.partyLabel')}</span>
+          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{t('common.guestCount', { count: result.partySize })}</span>
         </div>
         <div className="flex justify-between items-center py-1.5">
-          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.35)' }}>Preferred time</span>
+          <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.preferredTimeLabel')}</span>
           <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmt12(result.preferredTime)}</span>
         </div>
       </div>
 
       <p className="text-center text-[12px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
-        A confirmation has been sent to your phone.
+        {t('booking.waitlistSuccess.phoneSent')}
       </p>
     </GlassCard>
   );
@@ -1242,7 +1257,7 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-[11px] font-medium uppercase tracking-[0.14em] mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
+    <label className="block text-[11px] font-medium uppercase tracking-[0.14em] mb-2 rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>
       {children}{required && <span style={{ color: 'rgba(74,222,128,0.60)' }}> *</span>}
     </label>
   );
@@ -1251,6 +1266,8 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 // ─── Confirmed card ────────────────────────────────────────────────────────────
 
 function ConfirmedCard({ result, profile }: { result: BookingResult; profile: PublicRestaurantProfile | null }) {
+  const { t }           = useTranslation();
+  const { intlLocale }  = useLocale();
   return (
     <GlassCard>
       <div className="text-center mb-7">
@@ -1261,35 +1278,31 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
           ✓
         </div>
         <h2 className="text-white text-2xl font-semibold tracking-tight mb-1">
-          You're on the list
+          {t('booking.confirmed.title')}
         </h2>
         <p className="text-white/40 text-sm">
-          {result.status === 'CONFIRMED'
-            ? 'Your table is confirmed.'
-            : 'We\'ll confirm your reservation shortly.'}
+          {t(result.status === 'CONFIRMED' ? 'booking.confirmed.confirmedSub' : 'booking.confirmed.pendingSub')}
         </p>
       </div>
 
-      {/* Booking summary */}
       <div
         className="rounded-2xl px-5 py-4 mb-6 text-center"
         style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.075)' }}
       >
-        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.18em] mb-1">
-          {fmtDateLong(result.date)}
+        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.18em] mb-1 rtl:tracking-normal">
+          {fmtDateLong(result.date, intlLocale)}
         </p>
         <p className="text-white text-[2rem] font-light leading-none mb-2" style={{ letterSpacing: '-0.03em' }}>
           {fmt12(result.time)}
         </p>
         <p className="text-white/45 text-[14px]">
-          {result.partySize} {result.partySize === 1 ? 'guest' : 'guests'}
+          {t('common.guestCount', { count: result.partySize })}
           {result.status === 'PENDING' && (
-            <span className="ml-2 text-amber-400/80">· Pending confirmation</span>
+            <span className="ms-2 text-amber-400/80">· {t('booking.confirmed.pendingBadge')}</span>
           )}
         </p>
       </div>
 
-      {/* Navigation chips if address available */}
       {profile?.address && (
         <div className="text-center mb-2">
           <p className="text-[13px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
@@ -1297,17 +1310,17 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
           </p>
           <div className="flex gap-3 justify-center">
             {profile.googleMapsUrl && (
-              <NavPill href={profile.googleMapsUrl} icon={<PinIcon />} label="Maps" />
+              <NavPill href={profile.googleMapsUrl} icon={<PinIcon />} label={t('common.maps')} />
             )}
             {profile.wazeUrl && (
-              <NavPill href={profile.wazeUrl} icon={<CarIcon />} label="Waze" />
+              <NavPill href={profile.wazeUrl} icon={<CarIcon />} label={t('common.waze')} />
             )}
           </div>
         </div>
       )}
 
       <p className="text-center text-[12px] mt-5" style={{ color: 'rgba(255,255,255,0.32)' }}>
-        A confirmation has been sent to your phone.
+        {t('booking.confirmed.phoneSent')}
       </p>
     </GlassCard>
   );
