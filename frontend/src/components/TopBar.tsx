@@ -107,7 +107,7 @@ export default function TopBar({
           type="time"
           value={time}
           onChange={e => onTimeChange(e.target.value)}
-          className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer w-[6.5rem]"
+          className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer min-w-[7.5rem]"
         />
         <NavBtn onClick={onNext15} title={T.topBar.next15}>{T.topBar.next15}</NavBtn>
       </div>
