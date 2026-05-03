@@ -261,6 +261,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         const y = Math.min(d.startCY, cy);
         const w = Math.abs(cx - d.startCX);
         const h = Math.abs(cy - d.startCY);
+        console.log('[MARQUEE MOVE] canvas:', cx.toFixed(0), cy.toFixed(0), 'rect:', x.toFixed(0), y.toFixed(0), w.toFixed(0)+'×'+h.toFixed(0), 'elRef:', !!marqueeElRef.current);
         marqueeCoords.current = { x, y, w, h };
         // Direct DOM update — no React re-render needed per frame
         const el = marqueeElRef.current;
@@ -299,6 +300,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         setIsDraggingMarquee(false);
         const mc = marqueeCoords.current;
         marqueeCoords.current = null;
+        console.log('[MARQUEE UP] mc:', mc ? `${mc.w.toFixed(0)}×${mc.h.toFixed(0)} @${mc.x.toFixed(0)},${mc.y.toFixed(0)}` : 'null', 'tables:', tablesRef.current.filter(t=>!t.deleted).length);
 
         if (!mc || (mc.w < 6 && mc.h < 6)) {
           // Treat as a click — selection already cleared on mousedown (unless additive)
@@ -660,6 +662,10 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         >
           {snapLabel}
         </button>
+        {/* ── DEBUG: remove after marquee is confirmed working ── */}
+        <span style={{ fontSize: 10, color: '#4ade80', border: '1px solid #4ade80', borderRadius: 4, padding: '2px 6px', opacity: 0.7 }}>
+          MARQUEE READY
+        </span>
         {saveErr && <span className="text-red-400 text-xs max-w-48 truncate">{saveErr}</span>}
         <button
           onClick={save} disabled={saving || savedOk}
@@ -845,11 +851,13 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               cursor: isDraggingMarquee ? 'crosshair' : 'default',
             }}
             onMouseDown={e => {
+              console.log('[MARQUEE DOWN] target===current:', e.target === e.currentTarget, 'button:', e.button);
               if (e.target !== e.currentTarget || e.button !== 0) return;
               e.preventDefault();
               const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
               const startCX = e.clientX - rect.left;
               const startCY = e.clientY - rect.top;
+              console.log('[MARQUEE DOWN] start:', startCX, startCY, 'rect:', rect.left, rect.top);
               if (!e.shiftKey) { setSelectedIds(new Set()); setSelectedObjId(null); }
               setIsDraggingMarquee(true);
               dragRef.current = { kind: 'marquee', startCX, startCY, additive: e.shiftKey };
