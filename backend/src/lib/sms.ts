@@ -81,7 +81,7 @@ function fmtDateHe(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-export function buildReservationConfirmationMessage(
+export function buildReservationConfirmationWhatsAppMessage(
   lang: 'en' | 'he',
   p: ConfirmationMessagePayload
 ): string {
@@ -116,7 +116,7 @@ export async function sendConfirmationSms(
   lang: 'en' | 'he' = 'en'
 ): Promise<SmsResult> {
   console.log(`[WhatsApp] confirmation lang="${lang}" → ${phone}`);
-  const body = buildReservationConfirmationMessage(lang, {
+  const body = buildReservationConfirmationWhatsAppMessage(lang, {
     guestName,
     restaurantName,
     date,
@@ -125,6 +125,46 @@ export async function sendConfirmationSms(
     confirmationUrl: confirmUrl,
   });
   return sendWhatsApp(phone, body);
+}
+
+// ── Waitlist acknowledgment templates ────────────────────────────────────────
+
+export interface WaitlistMessagePayload {
+  guestName:     string;
+  restaurantName: string;
+  date:          string;   // ISO YYYY-MM-DD
+  partySize:     number;
+  preferredTime: string;   // HH:MM (24 h)
+  flexibleTime?: boolean;
+}
+
+export function buildWaitlistWhatsAppMessage(
+  lang: 'en' | 'he',
+  p: WaitlistMessagePayload
+): string {
+  const flexibleHe = p.flexibleTime ? '\nגמישות: ±שעה' : '';
+  const flexibleEn = p.flexibleTime ? '\nFlexible: ±1 hour' : '';
+
+  if (lang === 'he') {
+    return (
+      `היי ${p.guestName},\n\n` +
+      `נרשמת לרשימת ההמתנה ב־${p.restaurantName}.\n\n` +
+      `תאריך: ${fmtDateHe(p.date)}\n` +
+      `מספר אורחים: ${p.partySize}\n` +
+      `שעה מבוקשת: ${p.preferredTime}${flexibleHe}\n\n` +
+      `ניצור איתך קשר אם יתפנה שולחן. תודה על הסבלנות.\n\n` +
+      `— ${p.restaurantName}`
+    );
+  }
+  return (
+    `Hi ${p.guestName},\n\n` +
+    `You're on the waitlist at ${p.restaurantName}.\n\n` +
+    `Date: ${p.date}\n` +
+    `Party: ${p.partySize} ${p.partySize === 1 ? 'guest' : 'guests'}\n` +
+    `Preferred time: ${p.preferredTime}${flexibleEn}\n\n` +
+    `We'll reach out if a table becomes available. Thank you for your patience.\n\n` +
+    `— ${p.restaurantName}`
+  );
 }
 
 // ── Reminder message ──────────────────────────────────────────────────────────

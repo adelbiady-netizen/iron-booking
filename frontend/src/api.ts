@@ -338,7 +338,7 @@ export const api = {
 
       joinWaitlist: (slug: string, body: {
         guestName: string; guestPhone: string; partySize: number; date: string;
-        preferredTime: string; flexibleTime?: boolean; notes?: string;
+        preferredTime: string; flexibleTime?: boolean; notes?: string; lang?: 'en' | 'he';
       }) => publicRequest<PublicWaitlistResult>(`/public/book/${encodeURIComponent(slug)}/waitlist`, {
         method: 'POST',
         body: JSON.stringify(body),

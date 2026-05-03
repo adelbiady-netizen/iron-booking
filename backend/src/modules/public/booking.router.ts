@@ -5,7 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
-import { sendConfirmationSms, sendWhatsApp } from '../../lib/sms';
+import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { config } from '../../config';
 
@@ -51,13 +51,6 @@ function makeRateLimiter(max: number) {
 
 const isRateLimited         = makeRateLimiter(10); // reserve: 10/min
 const isWaitlistRateLimited = makeRateLimiter(5);  // waitlist: 5/min
-
-function fmt12h(t: string): string {
-  const [h, m] = t.split(':').map(Number);
-  if (isNaN(h) || isNaN(m)) return t;
-  const period = h >= 12 ? 'PM' : 'AM';
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`;
-}
 
 // ─── Settings reader ──────────────────────────────────────────────────────────
 
@@ -706,6 +699,7 @@ const WaitlistSchema = z.object({
   preferredTime: z.string().regex(/^\d{2}:\d{2}$/),
   flexibleTime:  z.boolean().optional(),
   notes:         z.string().max(1000).optional(),
+  lang:          z.enum(['en', 'he']).optional(),
 });
 
 router.post('/:slug/waitlist', async (req: Request, res: Response, next: NextFunction) => {
@@ -764,18 +758,16 @@ router.post('/:slug/waitlist', async (req: Request, res: Response, next: NextFun
     // WhatsApp acknowledgment — fire and forget
     void (async () => {
       try {
-        const dateLabel = new Date(body.date + 'T12:00:00').toLocaleDateString('en-US', {
-          weekday: 'long', month: 'long', day: 'numeric',
+        const lang = body.lang ?? 'en';
+        const message = buildWaitlistWhatsAppMessage(lang, {
+          guestName:     body.guestName.trim(),
+          restaurantName: restaurant.name,
+          date:          body.date,
+          partySize:     body.partySize,
+          preferredTime: body.preferredTime,
+          flexibleTime:  body.flexibleTime,
         });
-        const flexLine = body.flexibleTime ? '\nFlexible: ±1 hour' : '';
-        const message =
-          `Hi ${body.guestName.trim()},\n\n` +
-          `You're on the waitlist at ${restaurant.name}.\n\n` +
-          `Date: ${dateLabel}\n` +
-          `Party: ${body.partySize} ${body.partySize === 1 ? 'guest' : 'guests'}\n` +
-          `Preferred time: ${fmt12h(body.preferredTime)}${flexLine}\n\n` +
-          `We'll reach out if a table becomes available. Thank you for your patience.\n\n` +
-          `— ${restaurant.name}`;
+        console.log(`[WhatsApp] waitlist lang="${lang}" → ${body.guestPhone.trim()}`);
         await sendWhatsApp(body.guestPhone.trim(), message);
       } catch (e) {
         console.error('[waitlist] WhatsApp send failed:', e instanceof Error ? e.message : e);

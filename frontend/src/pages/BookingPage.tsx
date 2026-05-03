@@ -181,6 +181,7 @@ export default function BookingPage({ slug }: Props) {
       preferredTime: wf.preferredTime,
       flexibleTime:  wf.flexibleTime,
       notes:         wf.notes.trim() || undefined,
+      lang:          locale,
     });
     setState({ phase: 'waitlist-success', result });
   }
