@@ -56,8 +56,9 @@ function toLocalDateString(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function fmt12(t: string): string {
+function fmtTime(t: string, isRTL: boolean): string {
   const [h, min] = t.split(':').map(Number);
+  if (isRTL) return `${h}:${String(min).padStart(2, '0')}`;
   const period = h >= 12 ? 'PM' : 'AM';
   return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${period}`;
 }
@@ -508,8 +509,6 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
   const initial = displayName.charAt(0).toUpperCase();
 
   const heroH     = 'min(320px, 44vh)';
-  const discS     = 'min(80px, 11.5vh)';
-  const logoH     = 'min(42px, 6.2vh)';
   const bottomPos = 'min(72px, 10.5vh)';
 
   return (
@@ -546,15 +545,15 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
           <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, transparent 65%)' }} />
           {profile.logoUrl ? (
             <div
-              className="relative flex items-center justify-center rounded-full backdrop-blur-xl"
-              style={{ width: discS, height: discS, background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
+              className="relative flex items-center justify-center rounded-full backdrop-blur-xl w-[88px] h-[88px] sm:w-20 sm:h-20"
+              style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
             >
-              <img src={profile.logoUrl} alt={displayName} className="object-contain" style={{ height: logoH, maxWidth: '62px' }} />
+              <img src={profile.logoUrl} alt={displayName} className="object-contain h-[46px] sm:h-[42px]" style={{ maxWidth: '62px' }} />
             </div>
           ) : (
             <div
-              className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none"
-              style={{ width: discS, height: discS, background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
+              className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none w-[88px] h-[88px] sm:w-20 sm:h-20"
+              style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
             >
               <span className="text-white/75 text-2xl font-light">{initial}</span>
             </div>
@@ -584,7 +583,7 @@ function BookingHeroFallback({ profile }: { profile: PublicRestaurantProfile | n
         {profile?.logoUrl ? (
           <img src={profile.logoUrl} alt={displayName} className="relative object-contain" style={{ height: '64px', maxWidth: '200px' }} />
         ) : (
-          <div className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none" style={{ width: '80px', height: '80px', background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.65)' }}>
+          <div className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none w-[88px] h-[88px] sm:w-20 sm:h-20" style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.65)' }}>
             <span className="text-white/75 text-2xl font-light">{initial}</span>
           </div>
         )}
@@ -649,7 +648,7 @@ function PartySelector({ value, max, onChange }: { value: number; max: number; o
       >
         −
       </button>
-      <div className="flex-1 text-center">
+      <div className="flex-1 text-center" dir="ltr">
         <span className="text-3xl font-light" style={{ color: '#f8f5ef', letterSpacing: '-0.03em' }}>{value}</span>
         <span className="text-[13px] ms-2" style={{ color: 'rgba(255,255,255,0.40)' }}>{t('common.guestWord', { count: value })}</span>
       </div>
@@ -862,7 +861,8 @@ function SlotRow({ slots, onSelect }: { slots: PublicSlot[]; onSelect: (time: st
 }
 
 function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: string) => void }) {
-  const { t } = useTranslation();
+  const { t }      = useTranslation();
+  const { isRTL }  = useLocale();
   const tierStyle = {
     IDEAL:   { bg: 'rgba(255,255,255,0.072)', border: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.82)' },
     GOOD:    { bg: 'rgba(255,255,255,0.056)', border: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.65)' },
@@ -875,7 +875,7 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
         className="text-center rounded-xl py-3 text-[12px]"
         style={{ background: 'rgba(255,255,255,0.018)', border: '1px solid rgba(255,255,255,0.048)', color: 'rgba(255,255,255,0.22)', textDecoration: 'line-through' }}
       >
-        {fmt12(slot.time)}
+        {fmtTime(slot.time, isRTL)}
       </div>
     );
   }
@@ -900,7 +900,7 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,0.14)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,197,94,0.38)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = tierStyle.bg; (e.currentTarget as HTMLButtonElement).style.borderColor = tierStyle.border; }}
     >
-      <span className="block">{fmt12(slot.time)}</span>
+      <span className="block">{fmtTime(slot.time, isRTL)}</span>
       {subLabel && (
         <span
           className="block text-[9px] mt-0.5 uppercase tracking-wide rtl:tracking-normal"
@@ -931,7 +931,7 @@ function AlternativeRow({
         {showDate && (
           <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(alt.date, intlLocale)}</p>
         )}
-        <p className="text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.82)' }}>{fmt12(alt.time)}</p>
+        <p className="text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.82)' }}>{fmtTime(alt.time, isRTL)}</p>
         {!showDate && (
           <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>{fmtDateShort(alt.date, intlLocale)}</p>
         )}
@@ -961,7 +961,7 @@ function BookingSummaryBar({
       </button>
       <div className="flex-1">
         <p className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>
-          {slot ? `${fmt12(slot)}` : fmtDateShort(date, intlLocale)}
+          {slot ? `${fmtTime(slot, isRTL)}` : fmtDateShort(date, intlLocale)}
           {slot && <span className="font-light ms-2" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(date, intlLocale)}</span>}
         </p>
         <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
@@ -1211,8 +1211,8 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
 // ─── Waitlist success card ─────────────────────────────────────────────────────
 
 function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
-  const { t }           = useTranslation();
-  const { intlLocale }  = useLocale();
+  const { t }                  = useTranslation();
+  const { isRTL, intlLocale }  = useLocale();
   return (
     <GlassCard>
       <div className="text-center mb-7">
@@ -1244,7 +1244,7 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
         </div>
         <div className="flex justify-between items-center py-1.5">
           <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.preferredTimeLabel')}</span>
-          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmt12(result.preferredTime)}</span>
+          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmtTime(result.preferredTime, isRTL)}</span>
         </div>
       </div>
 
@@ -1266,8 +1266,8 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 // ─── Confirmed card ────────────────────────────────────────────────────────────
 
 function ConfirmedCard({ result, profile }: { result: BookingResult; profile: PublicRestaurantProfile | null }) {
-  const { t }           = useTranslation();
-  const { intlLocale }  = useLocale();
+  const { t }                  = useTranslation();
+  const { isRTL, intlLocale }  = useLocale();
   return (
     <GlassCard>
       <div className="text-center mb-7">
@@ -1293,7 +1293,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
           {fmtDateLong(result.date, intlLocale)}
         </p>
         <p className="text-white text-[2rem] font-light leading-none mb-2" style={{ letterSpacing: '-0.03em' }}>
-          {fmt12(result.time)}
+          {fmtTime(result.time, isRTL)}
         </p>
         <p className="text-white/45 text-[14px]">
           {t('common.guestCount', { count: result.partySize })}
@@ -1305,7 +1305,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
 
       {profile?.address && (
         <div className="text-center mb-2">
-          <p className="text-[13px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <p className="text-[13px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.72)' }}>
             {profile.address}
           </p>
           <div className="flex gap-3 justify-center">
@@ -1335,6 +1335,7 @@ function NavPill({ href, icon, label }: { href: string; icon: React.ReactNode; l
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      dir="ltr"
       className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
       style={{ ...base, padding: '9px 20px' }}
       onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = 'rgba(255,255,255,0.110)'; el.style.color = 'rgba(255,255,255,0.85)'; }}

@@ -35,8 +35,9 @@ function fmtMonthDay(iso: string, intlLocale: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(intlLocale, { month: 'long', day: 'numeric' });
 }
 
-function fmt12Time(t: string): string {
+function fmtTime(t: string, isRTL: boolean): string {
   const [h, min] = t.split(':').map(Number);
+  if (isRTL) return `${h}:${min.toString().padStart(2, '0')}`;
   const period = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${min.toString().padStart(2, '0')} ${period}`;
@@ -71,7 +72,7 @@ function sanitizeName(name: string | null | undefined): string | null {
 
 export default function ConfirmationPage({ token }: Props) {
   const { t }              = useTranslation();
-  const { dir, intlLocale } = useLocale();
+  const { dir, isRTL, intlLocale } = useLocale();
   const [state,    setState]    = useState<PageState>({ phase: 'loading' });
   const [identity, setIdentity] = useState<RestaurantIdentity | null>(null);
   const [mounted,  setMounted]  = useState(false);
@@ -239,7 +240,7 @@ export default function ConfirmationPage({ token }: Props) {
                 {t('confirmation.confirmedTitle', { weekday: fmtWeekday(r.date, intlLocale) })}
               </h1>
               <p className="text-white/35 text-sm text-center" style={{ marginBottom: 'clamp(16px, 3vh, 32px)' }}>
-                {t('confirmation.confirmedSub', { time: fmt12Time(r.time) })}
+                {t('confirmation.confirmedSub', { time: fmtTime(r.time, isRTL) })}
               </p>
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
               <Divider />
@@ -572,7 +573,7 @@ function DateHero({ date, time, partySize, occasion }: {
   date: string; time: string; partySize: number; occasion: string | null;
 }) {
   const { t }          = useTranslation();
-  const { intlLocale } = useLocale();
+  const { isRTL, intlLocale } = useLocale();
   return (
     <div className="text-center">
       <p className="text-white/22 text-[10px] font-medium uppercase tracking-[0.22em] mb-2 rtl:tracking-normal">
@@ -584,7 +585,7 @@ function DateHero({ date, time, partySize, occasion }: {
       >
         {fmtMonthDay(date, intlLocale)}
       </p>
-      <p className="text-white/40 text-[19px] font-light tracking-wide" style={{ marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmt12Time(time)}</p>
+      <p className="text-white/40 text-[19px] font-light tracking-wide" style={{ marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmtTime(time, isRTL)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
         <Chip>{t('common.guestCount', { count: partySize })}</Chip>
@@ -771,7 +772,7 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
       {address && (
         <p
           className="text-[13px] leading-relaxed mb-4 mx-auto"
-          style={{ color: 'rgba(255,255,255,0.58)', maxWidth: '300px' }}
+          style={{ color: 'rgba(255,255,255,0.72)', maxWidth: '300px' }}
         >
           {address}
         </p>
@@ -783,6 +784,7 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               href={googleMapsUrl}
               target="_blank"
               rel="noopener noreferrer"
+              dir="ltr"
               className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
               style={{ ...pillBase, padding: '9px 20px' }}
               onMouseEnter={e => {
@@ -808,6 +810,7 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
               href={wazeUrl}
               target="_blank"
               rel="noopener noreferrer"
+              dir="ltr"
               className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
               style={{ ...pillBase, padding: '9px 20px' }}
               onMouseEnter={e => {
@@ -863,24 +866,24 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
     <div className="mt-6 pb-2 text-center">
       {hasLinks && (
         <>
-          <div className="flex items-center gap-4 mb-5 mx-auto" style={{ maxWidth: '240px' }}>
+          <div className="flex items-center gap-4 mb-5 mx-auto" dir="ltr" style={{ maxWidth: '260px' }}>
             <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.065)' }} />
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-7">
               {websiteUrl && (
                 <a
                   href={websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 no-underline transition-all"
-                  style={{ color: 'rgba(255,255,255,0.65)' }}
+                  style={{ color: 'rgba(255,255,255,0.78)' }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.90)';
+                    el.style.color = 'rgba(255,255,255,0.96)';
                     el.style.textShadow = '0 0 20px rgba(255,255,255,0.18)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.65)';
+                    el.style.color = 'rgba(255,255,255,0.78)';
                     el.style.textShadow = '';
                   }}
                 >
@@ -894,15 +897,15 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 no-underline transition-all"
-                  style={{ color: 'rgba(255,255,255,0.65)' }}
+                  style={{ color: 'rgba(255,255,255,0.78)' }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.90)';
+                    el.style.color = 'rgba(255,255,255,0.96)';
                     el.style.textShadow = '0 0 20px rgba(255,255,255,0.18)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLAnchorElement;
-                    el.style.color = 'rgba(255,255,255,0.65)';
+                    el.style.color = 'rgba(255,255,255,0.78)';
                     el.style.textShadow = '';
                   }}
                 >
