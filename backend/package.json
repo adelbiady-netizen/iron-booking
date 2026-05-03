@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
     "build": "tsc && tsc -p tsconfig.seed.json && prisma generate",
-    "start": "prisma db push --accept-data-loss && node dist/prisma/seed.js && node dist/server.js",
+    "start": "npm run build && prisma db push --accept-data-loss && node dist/prisma/seed.js && node dist/server.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",

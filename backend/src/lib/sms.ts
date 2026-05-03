@@ -123,11 +123,11 @@ export async function sendConfirmationSms(
     partySize,
     confirmationUrl: confirmUrl,
   });
-  console.log('[WhatsApp][reservation-confirmation]', {
+  console.log('[REAL WHATSAPP SEND PATH]', {
+    file: __filename,
     lang,
-    phone,
     confirmationUrl: confirmUrl,
-    messagePreview: message.slice(0, 120),
+    messagePreview: message.slice(0, 160),
   });
   return sendWhatsApp(phone, message);
 }
