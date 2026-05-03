@@ -11,6 +11,7 @@ export default function LoginPage({ onLogin }: Props) {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
+  const [mode,     setMode]     = useState<'host' | 'admin'>('host');
   const passwordRef = useRef<HTMLInputElement>(null);
 
   async function submit(e: React.FormEvent) {
@@ -45,7 +46,9 @@ export default function LoginPage({ onLogin }: Props) {
               Iron Booking
             </span>
           </div>
-          <p className="text-iron-muted text-sm">Host Dashboard</p>
+          <p className="text-iron-muted text-sm">
+            {mode === 'admin' ? 'Admin / HQ Access' : 'Host Dashboard'}
+          </p>
         </div>
 
         <div className="bg-iron-card border border-iron-border rounded-xl p-6">
@@ -99,7 +102,29 @@ export default function LoginPage({ onLogin }: Props) {
         </div>
 
         <p className="text-center text-iron-muted text-xs mt-4">
-          Iron Booking · Host Dashboard
+          {mode === 'host' ? (
+            <>
+              Iron Booking ·{' '}
+              <button
+                type="button"
+                onClick={() => setMode('admin')}
+                className="hover:text-iron-text transition-colors underline-offset-2 hover:underline"
+              >
+                Admin
+              </button>
+            </>
+          ) : (
+            <>
+              Admin / HQ ·{' '}
+              <button
+                type="button"
+                onClick={() => setMode('host')}
+                className="hover:text-iron-text transition-colors underline-offset-2 hover:underline"
+              >
+                Host login
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>
