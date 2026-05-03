@@ -82,6 +82,30 @@ export const T = {
     inNMin:           (n: number) => `in ${n}m`,
     viewFloor:        'Floor',
     viewTimeline:     'Timeline',
+    sectionOther:     'Other',
+  },
+
+  // ── TableTimeline ──────────────────────────────────────────────────────────
+  tableTimeline: {
+    headerTable:  'Table',
+    legendSoon:   'Soon',
+    legendConf:   'Conf',
+    legendSeat:   'Seat',
+    legendDone:   'Done',
+    gapPerfect:   'Perfect slot',
+    gapTight:     'Tight fit',
+    gapShort:     'Short window',
+    endingNow:    'Ending now',
+    endsMin:      (n: number) => `Ends ${n}m`,
+    nextMin:      (n: number) => `Next ${n}m`,
+    mWait:        (n: number) => `${n}m wait`,
+    seatAction:   '→ Seat',
+    addAction:    '+ Add',
+    seatGuest:    (name: string, size: number) => `Seat ${name} (${size})`,
+    fitsCovers:   (min: number, max: number) => `Fits ${min}–${max}`,
+    actionSeat:   'Seat',
+    actionMove:   'Move',
+    actionCancel: 'Cancel',
   },
 
   // ── TableCard ──────────────────────────────────────────────────────────────
@@ -398,6 +422,12 @@ export const T = {
     errorLoad:          'Failed to load layout',
     errorSection:       'Failed to save section',
     errorSave:          'Save failed',
+    // Floor object type labels
+    objWall:     'Wall',
+    objDivider:  'Divider',
+    objBar:      'Bar',
+    objEntrance: 'Entrance',
+    objZone:     'Zone',
   },
 
   // ── Flow Control ───────────────────────────────────────────────────────────

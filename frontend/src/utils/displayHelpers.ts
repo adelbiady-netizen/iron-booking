@@ -31,3 +31,16 @@ export function formatSectionName(name: string, locale: 'en' | 'he'): string {
   if (locale === 'he') return SECTION_LABELS_HE[name] ?? name;
   return name;
 }
+
+const FLOOR_OBJ_LABELS_HE: Record<string, string> = {
+  'Wall':     'קיר',
+  'Divider':  'מחיצה',
+  'Bar':      'בר',
+  'Entrance': 'כניסה',
+  'Zone':     'אזור',
+};
+
+export function formatFloorObjLabel(label: string, locale: 'en' | 'he'): string {
+  if (locale === 'he') return FLOOR_OBJ_LABELS_HE[label] ?? label;
+  return label;
+}

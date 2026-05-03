@@ -147,7 +147,7 @@ export default function FloorBoard({
   const groups: SectionGroup[] = [
     ...Array.from(sectionMap.values()),
     ...(noSection.length > 0
-      ? [{ id: '__none__', name: 'Other', color: '#6B7280', tables: noSection }]
+      ? [{ id: '__none__', name: T.floorBoard.sectionOther, color: '#6B7280', tables: noSection }]
       : []),
   ];
 
@@ -209,7 +209,7 @@ export default function FloorBoard({
                 onMouseLeave={() => setHoveredSectionId(null)}
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                <span className="text-iron-muted text-xs">{sec.name}</span>
+                <span className="text-iron-muted text-xs">{formatSectionName(sec.name, locale)}</span>
               </button>
             ))}
           </>

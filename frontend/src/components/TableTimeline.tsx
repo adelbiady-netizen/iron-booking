@@ -1,5 +1,8 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { FloorTable, Reservation, WaitlistEntry } from '../types';
+import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
+import { formatSectionName } from '../utils/displayHelpers';
 
 // ── Zoom levels ───────────────────────────────────────────────────────────────
 type ZoomLevel = 15 | 30 | 60;
@@ -109,11 +112,11 @@ function detectGaps(blocks: Block[], tableId: string): Gap[] {
     .filter(g => g.endMins - g.startMins >= 20);
 }
 
-function gapQuality(durationMins: number): { border: string; bg: string; text: string; label: string } {
+function gapQuality(durationMins: number): { border: string; bg: string; text: string; pct: number } {
   const pct = durationMins / DEFAULT_TURN_MINS;
-  if (pct >= 1.0)  return { border: 'rgba(34,197,94,0.42)',  bg: 'rgba(34,197,94,0.07)',  text: '#4ade80', label: 'Perfect slot'  };
-  if (pct >= 0.70) return { border: 'rgba(245,158,11,0.42)', bg: 'rgba(245,158,11,0.07)', text: '#fbbf24', label: 'Tight fit'     };
-  return                   { border: 'rgba(239,68,68,0.42)',  bg: 'rgba(239,68,68,0.07)',  text: '#f87171', label: 'Short window'  };
+  if (pct >= 1.0)  return { border: 'rgba(34,197,94,0.42)',  bg: 'rgba(34,197,94,0.07)',  text: '#4ade80', pct };
+  if (pct >= 0.70) return { border: 'rgba(245,158,11,0.42)', bg: 'rgba(245,158,11,0.07)', text: '#fbbf24', pct };
+  return                   { border: 'rgba(239,68,68,0.42)',  bg: 'rgba(239,68,68,0.07)',  text: '#f87171', pct };
 }
 
 function gapBestGuest(minCovers: number, maxCovers: number, waitlist: WaitlistEntry[]): WaitlistEntry | null {
@@ -125,22 +128,6 @@ function gapBestGuest(minCovers: number, maxCovers: number, waitlist: WaitlistEn
   return candidates.reduce((a, b) =>
     new Date(a.addedAt).getTime() <= new Date(b.addedAt).getTime() ? a : b,
   );
-}
-
-function computeDensity(laned: Array<Block & { lane: number }>, nowMins: number): DensityInfo | null {
-  const active = laned.find(b => b.startMins <= nowMins && b.endMins > nowMins);
-  if (active) {
-    const rem = active.endMins - nowMins;
-    if (rem <= 5)  return { label: 'Ending now', color: '#f59e0b' };
-    if (rem <= 20) return { label: `Ends ${rem}m`, color: '#f59e0b' };
-    return               { label: `Ends ${rem}m`, color: '#22c55e' };
-  }
-  const upcoming = laned.filter(b => b.startMins > nowMins).sort((a, b) => a.startMins - b.startMins)[0];
-  if (!upcoming || upcoming.startMins - nowMins > DENSITY_HORIZON) return null;
-  const free = upcoming.startMins - nowMins;
-  if (free <= 15) return { label: `Next ${free}m`, color: '#ef4444' };
-  if (free <= 45) return { label: `Next ${free}m`, color: '#f59e0b' };
-  return               { label: `Next ${free}m`, color: 'rgb(var(--iron-muted))' };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -162,6 +149,8 @@ export default function TableTimeline({
   tables, reservations, date, operationalNow, selectedId, onSelect,
   waitlist = [], onGapClick, onGapWaitlistSeat, onQuickAction,
 }: Props) {
+  const T = useT();
+  const { locale } = useLocale();
   const scrollRef    = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -206,14 +195,32 @@ export default function TableTimeline({
     return { table: t, laned, rowH, gaps };
   }), [tables, byTable]);
 
-  // Density insight — reruns every 60 s tick + API refresh
+  // Density insight — reruns every 60 s tick, API refresh, or language change
   const densityByTable = useMemo<Map<string, DensityInfo | null>>(() => {
     const map = new Map<string, DensityInfo | null>();
     for (const { table, laned } of tableLayouts) {
-      map.set(table.id, computeDensity(laned, nowMins));
+      const active = laned.find(b => b.startMins <= nowMins && b.endMins > nowMins);
+      if (active) {
+        const rem = active.endMins - nowMins;
+        map.set(table.id, {
+          label: rem <= 5 ? T.tableTimeline.endingNow : T.tableTimeline.endsMin(rem),
+          color: rem <= 20 ? '#f59e0b' : '#22c55e',
+        });
+      } else {
+        const upcoming = laned.filter(b => b.startMins > nowMins).sort((a, b) => a.startMins - b.startMins)[0];
+        if (!upcoming || upcoming.startMins - nowMins > DENSITY_HORIZON) {
+          map.set(table.id, null);
+        } else {
+          const free = upcoming.startMins - nowMins;
+          map.set(table.id, {
+            label: T.tableTimeline.nextMin(free),
+            color: free <= 15 ? '#ef4444' : free <= 45 ? '#f59e0b' : 'rgb(var(--iron-muted))',
+          });
+        }
+      }
     }
     return map;
-  }, [tableLayouts, nowMins]);
+  }, [tableLayouts, nowMins, T]);
 
   // Single highest-priority waitlist guest across all gap-bearing tables — only one glows
   const topGuestId = useMemo<string | null>(() => {
@@ -305,7 +312,7 @@ export default function TableTimeline({
                   fontSize: 9, fontWeight: 600, letterSpacing: '0.07em',
                   textTransform: 'uppercase', color: 'rgb(var(--iron-muted))', userSelect: 'none',
                 }}>
-                  Table
+                  {T.tableTimeline.headerTable}
                 </span>
                 <div style={{ display: 'flex', gap: 2 }}>
                   {([15, 30, 60] as ZoomLevel[]).map(z => (
@@ -328,11 +335,11 @@ export default function TableTimeline({
               {/* Status legend */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 {([
-                  { color: '#f59e0b', label: 'Soon' },
-                  { color: '#3b82f6', label: 'Conf' },
-                  { color: '#4ade80', label: 'Seat' },
-                  { color: '#71717a', label: 'Done' },
-                ] as const).map(({ color, label }) => (
+                  { color: '#f59e0b', label: T.tableTimeline.legendSoon },
+                  { color: '#3b82f6', label: T.tableTimeline.legendConf },
+                  { color: '#4ade80', label: T.tableTimeline.legendSeat },
+                  { color: '#71717a', label: T.tableTimeline.legendDone },
+                ]).map(({ color, label }) => (
                   <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
                     <span style={{ fontSize: 7.5, color: 'rgb(var(--iron-muted))', userSelect: 'none', opacity: 0.7 }}>{label}</span>
@@ -429,7 +436,7 @@ export default function TableTimeline({
                     }}>
                       <span>{table.minCovers}–{table.maxCovers}</span>
                       {table.section && (
-                        <span style={{ opacity: 0.6 }}>· {table.section.name}</span>
+                        <span style={{ opacity: 0.6 }}>· {formatSectionName(table.section.name, locale)}</span>
                       )}
                     </p>
                     {density && (
@@ -500,6 +507,7 @@ export default function TableTimeline({
 
                     // Colour: urgent red overrides quality colour when wait > 25m
                     const q = gapQuality(durMin);
+                    const qLabel = q.pct >= 1.0 ? T.tableTimeline.gapPerfect : q.pct >= 0.70 ? T.tableTimeline.gapTight : T.tableTimeline.gapShort;
                     const c = isUrgent
                       ? { border: 'rgba(239,68,68,0.50)', bg: 'rgba(239,68,68,0.09)', text: '#f87171' }
                       : q;
@@ -513,8 +521,8 @@ export default function TableTimeline({
                     const hasAction = tableBest ? !!onGapWaitlistSeat : !!onGapClick;
                     const mainLabel = visW >= 70
                       ? tableBest
-                        ? `Seat ${tableBest.guestName.split(' ')[0]} (${tableBest.partySize})`
-                        : `Fits ${table.minCovers}–${table.maxCovers}`
+                        ? T.tableTimeline.seatGuest(tableBest.guestName.split(' ')[0], tableBest.partySize)
+                        : T.tableTimeline.fitsCovers(table.minCovers, table.maxCovers)
                       : null;
 
                     return (
@@ -525,8 +533,8 @@ export default function TableTimeline({
                           : onGapClick?.(g.tableId, startStr, endStr)
                         }
                         title={tableBest
-                          ? `Seat ${tableBest.guestName} (${tableBest.partySize}) · ${waitMin}m wait · ${startStr}–${endStr}`
-                          : `${q.label}: ${startStr}–${endStr} (${durMin}m)`
+                          ? `${T.tableTimeline.seatGuest(tableBest.guestName, tableBest.partySize)} · ${T.tableTimeline.mWait(waitMin)} · ${startStr}–${endStr}`
+                          : `${qLabel}: ${startStr}–${endStr} (${durMin}m)`
                         }
                         style={{
                           position: 'absolute',
@@ -551,11 +559,11 @@ export default function TableTimeline({
                             )}
                             {tableBest && waitMin > 0 && visW >= 130 && (
                               <span style={{ fontSize: 8, color: c.text, opacity: 0.55, whiteSpace: 'nowrap', userSelect: 'none' }}>
-                                · {waitMin}m wait
+                                · {T.tableTimeline.mWait(waitMin)}
                               </span>
                             )}
                             <span style={{ fontSize: 8, color: c.text, opacity: 0.6, whiteSpace: 'nowrap', userSelect: 'none' }}>
-                              {tableBest ? '→ Seat' : '+ Add'}
+                              {tableBest ? T.tableTimeline.seatAction : T.tableTimeline.addAction}
                             </span>
                           </div>
                         )}
@@ -590,7 +598,7 @@ export default function TableTimeline({
 
                     const firstName  = res.guestName.split(' ')[0];
                     const endStr     = minsToHHMM(endMins);
-                    const tooltipTxt = `${res.guestName} · ${res.partySize} guests · ${res.time}–${endStr}`;
+                    const tooltipTxt = `${res.guestName} · ${T.common.guests(res.partySize)} · ${res.time}–${endStr}`;
 
                     return (
                       <button
@@ -657,17 +665,17 @@ export default function TableTimeline({
           }}
         >
           {canSeat(actionBar.res) && (
-            <QuickBtn label="Seat" color="#22c55e"
+            <QuickBtn label={T.tableTimeline.actionSeat} color="#22c55e"
               onClick={() => { onQuickAction?.('seat', actionBar.res); setActionBar(null); }}
             />
           )}
           {canMove(actionBar.res) && (
-            <QuickBtn label="Move" color="#3b82f6"
+            <QuickBtn label={T.tableTimeline.actionMove} color="#3b82f6"
               onClick={() => { onQuickAction?.('move', actionBar.res); setActionBar(null); }}
             />
           )}
           {canCancel(actionBar.res) && (
-            <QuickBtn label="Cancel" color="#ef4444"
+            <QuickBtn label={T.tableTimeline.actionCancel} color="#ef4444"
               onClick={() => { onQuickAction?.('cancel', actionBar.res); setActionBar(null); }}
             />
           )}

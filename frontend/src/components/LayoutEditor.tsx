@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import type { Section, FloorObjectData, FloorObjKind, FloorTable } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
+import { formatSectionName, formatFloorObjLabel } from '../utils/displayHelpers';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function nowTime() {
@@ -124,6 +126,14 @@ interface Props { onClose: () => void; onSaved: () => void; }
 
 export default function LayoutEditor({ onClose, onSaved }: Props) {
   const T = useT();
+  const { locale } = useLocale();
+  const OBJ_LABELS: Record<FloorObjKind, string> = {
+    WALL:     T.layoutEditor.objWall,
+    DIVIDER:  T.layoutEditor.objDivider,
+    BAR:      T.layoutEditor.objBar,
+    ENTRANCE: T.layoutEditor.objEntrance,
+    ZONE:     T.layoutEditor.objZone,
+  };
   const [tables,           setTables]           = useState<DraftTable[]>([]);
   const [sections,         setSections]         = useState<Section[]>([]);
   const [floorObjs,        setFloorObjs]        = useState<FloorObjectData[]>([]);
@@ -556,7 +566,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                 onMouseLeave={() => setHoveredSectionId(null)}
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                <span className="text-iron-text text-xs truncate">{sec.name}</span>
+                <span className="text-iron-text text-xs truncate">{formatSectionName(sec.name, locale)}</span>
               </div>
             ))}
             {showAddSec ? (
@@ -636,7 +646,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                   onClick={() => addFloorObj(kind)}
                   className="text-[10px] py-1 px-1.5 rounded border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-green-light transition-colors text-left truncate"
                 >
-                  + {OBJ_META[kind].label}
+                  + {OBJ_LABELS[kind]}
                 </button>
               ))}
             </div>
@@ -651,7 +661,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     }`}
                   >
                     <span className="w-2 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: OBJ_META[o.kind].color }} />
-                    <span className="truncate">{o.label}</span>
+                    <span className="truncate">{formatFloorObjLabel(o.label, locale)}</span>
                   </button>
                 ))}
               </div>
@@ -805,7 +815,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                 className={inputCls}
               >
                 <option value="">{T.layoutEditor.noSection}</option>
-                {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {sections.map(s => <option key={s.id} value={s.id}>{formatSectionName(s.name, locale)}</option>)}
               </select>
             </Field>
             <Field label={T.layoutEditor.fieldStatus}>

@@ -82,6 +82,30 @@ export const THe = {
     inNMin:           (n: number) => `בעוד ${n} דק׳`,
     viewFloor:        'מפה',
     viewTimeline:     'ציר זמן',
+    sectionOther:     'אחר',
+  },
+
+  // ── TableTimeline ──────────────────────────────────────────────────────────
+  tableTimeline: {
+    headerTable:  'שולחן',
+    legendSoon:   'בקרוב',
+    legendConf:   'מאושר',
+    legendSeat:   'יושב',
+    legendDone:   'הסתיים',
+    gapPerfect:   'מתאים מושלם',
+    gapTight:     'מתאים בדיוק',
+    gapShort:     'חלון קצר',
+    endingNow:    'מסתיים עכשיו',
+    endsMin:      (n: number) => `מסתיים בעוד ${n} דק׳`,
+    nextMin:      (n: number) => `הבא בעוד ${n} דק׳`,
+    mWait:        (n: number) => `${n} דק׳ המתנה`,
+    seatAction:   'הושב →',
+    addAction:    '+ הוסף',
+    seatGuest:    (name: string, size: number) => `הושב ${name} (${size})`,
+    fitsCovers:   (min: number, max: number) => `מתאים ל-${min}–${max}`,
+    actionSeat:   'הושבה',
+    actionMove:   'העבר',
+    actionCancel: 'ביטול',
   },
 
   // ── TableCard ──────────────────────────────────────────────────────────────
@@ -381,6 +405,11 @@ export const THe = {
     errorLoad:          'טעינת הפריסה נכשלה',
     errorSection:       'שמירת האזור נכשלה',
     errorSave:          'השמירה נכשלה',
+    objWall:     'קיר',
+    objDivider:  'מחיצה',
+    objBar:      'בר',
+    objEntrance: 'כניסה',
+    objZone:     'אזור',
   },
 
   // ── Flow Control ───────────────────────────────────────────────────────────
