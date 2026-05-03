@@ -438,6 +438,7 @@ const ReserveSchema = z.object({
   guestEmail: z.string().max(200).optional(),
   occasion:   z.string().max(100).optional(),
   guestNotes: z.string().max(1000).optional(),
+  lang:       z.enum(['en', 'he']).optional(),
 });
 
 // ─── GET /api/public/book/:slug ───────────────────────────────────────────────
@@ -659,7 +660,8 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     // 2. Send WhatsApp confirmation
     void (async () => {
       try {
-        const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
+        const lang       = body.lang ?? 'en';
+        const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
         await sendConfirmationSms(
           body.guestPhone.trim(),
           body.guestName.trim(),
@@ -667,7 +669,8 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           body.date,
           body.time,
           body.partySize,
-          confirmUrl
+          confirmUrl,
+          lang
         );
         await prisma.reservation.update({
           where: { id: reservation.id },

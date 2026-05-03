@@ -319,6 +319,7 @@ export const api = {
         date: string; time: string; partySize: number;
         guestName: string; guestPhone: string;
         guestEmail?: string; occasion?: string; guestNotes?: string;
+        lang?: 'en' | 'he';
       }): Promise<BookingResult> => {
         const res = await fetch(`${BASE}/public/book/${encodeURIComponent(slug)}/reserve`, {
           method: 'POST',

@@ -66,6 +66,12 @@ export async function sendWhatsApp(phone: string, body: string): Promise<SmsResu
 }
 
 // ── Confirmation message ──────────────────────────────────────────────────────
+
+function fmtDateHe(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 export async function sendConfirmationSms(
   phone: string,
   guestName: string,
@@ -73,15 +79,22 @@ export async function sendConfirmationSms(
   date: string,
   time: string,
   partySize: number,
-  confirmUrl: string
+  confirmUrl: string,
+  lang: 'en' | 'he' = 'en'
 ): Promise<SmsResult> {
-  const body =
-    `Hi ${guestName},\n` +
-    `Please confirm your reservation at ${restaurantName}\n` +
-    `Date: ${date}\n` +
-    `Time: ${time}\n` +
-    `Guests: ${partySize}\n\n` +
-    `Confirm or cancel here:\n${confirmUrl}`;
+  const body = lang === 'he'
+    ? `היי ${guestName},\n` +
+      `נשמח לאשר את ההזמנה שלך ב־${restaurantName}\n\n` +
+      `תאריך: ${fmtDateHe(date)}\n` +
+      `שעה: ${time}\n` +
+      `מספר אורחים: ${partySize}\n\n` +
+      `לאישור הגעה או ביטול:\n${confirmUrl}`
+    : `Hi ${guestName},\n` +
+      `Please confirm your reservation at ${restaurantName}\n` +
+      `Date: ${date}\n` +
+      `Time: ${time}\n` +
+      `Guests: ${partySize}\n\n` +
+      `Confirm or cancel here:\n${confirmUrl}`;
 
   return sendWhatsApp(phone, body);
 }

@@ -85,7 +85,7 @@ function fmtChipMonth(d: Date, intlLocale: string): string {
 
 export default function BookingPage({ slug }: Props) {
   const { t }                         = useTranslation();
-  const { dir, intlLocale }           = useLocale();
+  const { dir, locale, intlLocale }   = useLocale();
   const [profile,  setProfile]        = useState<PublicRestaurantProfile | null>(null);
   const [state,    setState]          = useState<BookingPhase>({ phase: 'loading' });
   const [mounted,  setMounted]        = useState(false);
@@ -157,6 +157,7 @@ export default function BookingPage({ slug }: Props) {
         guestEmail: form.guestEmail.trim() || undefined,
         occasion:   form.occasion || undefined,
         guestNotes: form.guestNotes.trim() || undefined,
+        lang:       locale,
       });
       setState({ phase: 'confirmed', result });
     } catch (err) {
