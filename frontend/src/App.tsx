@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, getStoredAuth, clearAuth, storeAuth } from './api';
 import LoginPage from './pages/LoginPage';
+import HQLoginPage from './pages/HQLoginPage';
 import HostDashboard from './pages/HostDashboard';
 import SetupPage from './pages/SetupPage';
 import AdminPortal from './pages/admin/AdminPortal';
@@ -96,6 +97,45 @@ export default function App() {
   if (path.startsWith('/waitlist/')) {
     const slug = path.split('/')[2];
     if (slug) return <WaitlistKioskPage slug={slug} />;
+  }
+
+  // ── /hq — dedicated HQ / Admin login ──────────────────────────────────────
+  if (path === '/hq') {
+    if (!ready) {
+      return (
+        <div className="h-screen bg-iron-bg flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
+    if (!auth) {
+      return <HQLoginPage onLogin={handleLogin} />;
+    }
+    if (auth.user.role !== 'SUPER_ADMIN') {
+      return (
+        <div className="h-screen bg-iron-bg flex items-center justify-center p-4">
+          <div className="w-full max-w-sm text-center">
+            <div className="inline-flex items-center gap-2.5 mb-6">
+              <div className="w-9 h-9 bg-iron-green rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm tracking-tight">IB</span>
+              </div>
+              <span className="text-iron-text font-semibold text-xl tracking-tight">Iron Booking</span>
+            </div>
+            <div className="bg-iron-card border border-iron-border rounded-xl p-6 mb-4">
+              <p className="text-iron-text font-medium mb-1">Not authorized for HQ access</p>
+              <p className="text-iron-muted text-sm">Your account does not have HQ privileges.</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-iron-muted text-xs hover:text-iron-text transition-colors underline-offset-2 hover:underline"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      );
+    }
+    // SUPER_ADMIN at /hq → fall through to scale container → renderPage() renders AdminPortal
   }
 
   function renderPage() {

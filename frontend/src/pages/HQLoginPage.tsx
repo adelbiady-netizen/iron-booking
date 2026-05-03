@@ -6,7 +6,7 @@ interface Props {
   onLogin: (token: string, user: AuthUser) => void;
 }
 
-export default function LoginPage({ onLogin }: Props) {
+export default function HQLoginPage({ onLogin }: Props) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState<string | null>(null);
@@ -18,7 +18,13 @@ export default function LoginPage({ onLogin }: Props) {
     setError(null);
     setLoading(true);
     try {
-      const r = await api.auth.login(email, password);
+      const r = await api.auth.login(email.trim(), password);
+      if (r.user.role !== 'SUPER_ADMIN') {
+        setError('Not authorized for HQ access. Contact your system administrator.');
+        setPassword('');
+        passwordRef.current?.focus();
+        return;
+      }
       onLogin(r.token, r.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
@@ -45,7 +51,7 @@ export default function LoginPage({ onLogin }: Props) {
               Iron Booking
             </span>
           </div>
-          <p className="text-iron-muted text-sm">Host Dashboard</p>
+          <p className="text-iron-muted text-sm">HQ Access</p>
         </div>
 
         <div className="bg-iron-card border border-iron-border rounded-xl p-6">
@@ -62,7 +68,7 @@ export default function LoginPage({ onLogin }: Props) {
                 autoFocus
                 autoComplete="email"
                 className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2.5 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
-                placeholder="you@restaurant.com"
+                placeholder="you@ironbooking.com"
               />
             </div>
 
@@ -98,7 +104,13 @@ export default function LoginPage({ onLogin }: Props) {
           </form>
         </div>
 
-        <p className="text-center text-iron-muted text-xs mt-4">Iron Booking</p>
+        <p className="text-center text-iron-muted text-xs mt-4">
+          Iron Booking HQ ·{' '}
+          <a href="/" className="hover:text-iron-text transition-colors hover:underline underline-offset-2">
+            Host login
+          </a>
+        </p>
+
       </div>
     </div>
   );
