@@ -655,6 +655,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       try {
         const lang       = body.lang ?? 'en';
         const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
+        console.log('[booking][reserve] WhatsApp pre-send', { bodyLang: body.lang, resolvedLang: lang, confirmUrl });
         await sendConfirmationSms(
           body.guestPhone.trim(),
           body.guestName.trim(),

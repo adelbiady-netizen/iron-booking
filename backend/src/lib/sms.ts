@@ -115,8 +115,7 @@ export async function sendConfirmationSms(
   confirmUrl: string,
   lang: 'en' | 'he' = 'en'
 ): Promise<SmsResult> {
-  console.log(`[WhatsApp] confirmation lang="${lang}" → ${phone}`);
-  const body = buildReservationConfirmationWhatsAppMessage(lang, {
+  const message = buildReservationConfirmationWhatsAppMessage(lang, {
     guestName,
     restaurantName,
     date,
@@ -124,7 +123,13 @@ export async function sendConfirmationSms(
     partySize,
     confirmationUrl: confirmUrl,
   });
-  return sendWhatsApp(phone, body);
+  console.log('[WhatsApp][reservation-confirmation]', {
+    lang,
+    phone,
+    confirmationUrl: confirmUrl,
+    messagePreview: message.slice(0, 120),
+  });
+  return sendWhatsApp(phone, message);
 }
 
 // ── Waitlist acknowledgment templates ────────────────────────────────────────
