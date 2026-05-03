@@ -466,14 +466,42 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         const bMins = bId ? Math.abs(minutesUntilRes(bId.time, time)) : 0;
         return bMins - aMins;
       });
-  }, [reservations, time]);
+  }, [reservations, time, T]);
 
-  // Backend insights + frontend arrival insights, deduped by reservationId
+  // Backend insights + frontend arrival insights, deduped by reservationId.
+  // Backend messages are English-hardcoded, so we re-derive them from raw data using T.
   const allInsights = useMemo((): FloorInsight[] => {
     const backendResIds = new Set(insights.map(i => i.reservationId).filter(Boolean));
     const extra = arrivalInsights.filter(i => i.reservationId && !backendResIds.has(i.reservationId));
-    return [...insights, ...extra];
-  }, [insights, arrivalInsights]);
+
+    const translated = insights.map((insight): FloorInsight => {
+      if (insight.type === 'LATE_GUEST' && insight.reservationId) {
+        const res = reservations.find(r => r.id === insight.reservationId);
+        if (res) {
+          const mins = Math.abs(minutesUntilRes(res.time, time));
+          return { ...insight, message: T.arrival.insightLate(res.guestName, mins) };
+        }
+      }
+      if (insight.type === 'ENDING_SOON') {
+        const table = floorTables.find(t => t.id === insight.tableId);
+        if (table?.currentReservation) {
+          const mr = Math.round((new Date(table.currentReservation.expectedEndTime).getTime() - Date.now()) / 60_000);
+          return { ...insight, message: mr > 0 ? `${table.name} · ${T.tableCard.endsIn(mr)}` : `${table.name} · ${T.tableCard.overBy(Math.abs(mr))}` };
+        }
+      }
+      if (insight.type === 'SEAT_NOW' && insight.reservation) {
+        const [rH, rM] = insight.reservation.time.split(':').map(Number);
+        const [nH, nM] = time.split(':').map(Number);
+        const diff = rH * 60 + rM - (nH * 60 + nM);
+        const table = floorTables.find(t => t.id === insight.tableId);
+        if (diff < 0) return { ...insight, message: `${insight.reservation.guestName} · ${T.arrival.lateMin(Math.abs(diff))}` };
+        if (table)    return { ...insight, message: `${insight.reservation.guestName} → ${table.name}` };
+      }
+      return insight;
+    });
+
+    return [...translated, ...extra];
+  }, [insights, arrivalInsights, reservations, floorTables, time, T]);
 
   const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string }) => {
     const entry = await api.waitlist.add({ ...data, date });
