@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, getStoredAuth, clearAuth, storeAuth } from './api';
+import { api, getStoredAuth, clearAuth, storeAuth, getStoredHQAuth, storeHQAuth, clearHQAuth, setSessionToken } from './api';
 import LoginPage from './pages/LoginPage';
 import HQLoginPage from './pages/HQLoginPage';
 import HostDashboard from './pages/HostDashboard';
@@ -42,7 +42,13 @@ export default function App() {
   });
 
   useEffect(() => {
-    setAuth(getStoredAuth());
+    // Load auth from the correct store based on entry route.
+    // /hq uses iron_hq_auth; everything else uses iron_auth.
+    const isHQ = window.location.pathname.startsWith('/hq');
+    const stored = isHQ ? getStoredHQAuth() : getStoredAuth();
+    setSessionToken(stored?.token ?? null);
+    setAuth(stored ?? null);
+
     api.admin.bootstrapStatus()
       .then(({ bootstrapped: b }) => setBootstrapped(b))
       .catch(() => {})
@@ -67,25 +73,46 @@ export default function App() {
   }
 
   function handleLogin(token: string, user: AuthState['user']) {
-    storeAuth(token, user);
-    const authState = { token, user };
-    setAuth(authState);
-    // SUPER_ADMIN defaults to Admin Portal
+    const isHQ = window.location.pathname.startsWith('/hq');
+    if (isHQ) {
+      storeHQAuth(token, user);
+    } else {
+      storeAuth(token, user);
+    }
+    setSessionToken(token);
+    setAuth({ token, user });
     setAdminView(user.role === 'SUPER_ADMIN');
   }
 
   function handleLogout() {
-    clearAuth();
+    const isHQ = window.location.pathname.startsWith('/hq');
+    if (isHQ) {
+      clearHQAuth();
+    } else {
+      clearAuth();
+    }
+    setSessionToken(null);
     setAuth(null);
     setAdminView(true);
   }
 
   const scale = zoom / 100;
 
+  const path = window.location.pathname;
+
+  // ── /hq/logout ────────────────────────────────────────────────────────────
+  // Clear HQ session and redirect to HQ login. Handled before all other
+  // routes so it always executes regardless of auth state.
+  if (path === '/hq/logout') {
+    clearHQAuth();
+    setSessionToken(null);
+    window.location.replace('/hq');
+    return <></>; // navigation in progress — nothing to render
+  }
+
   // ── Guest-facing routes ────────────────────────────────────────────────────
   // Returned BEFORE the scale/overflow container so mobile browsers can scroll
   // naturally. The overflow:hidden on the app shell clips guest page content.
-  const path = window.location.pathname;
   if (path === '/confirm') {
     const token = new URLSearchParams(window.location.search).get('token');
     if (token) return <ConfirmationPage token={token} />;

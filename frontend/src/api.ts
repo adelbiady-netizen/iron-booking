@@ -34,15 +34,45 @@ export function clearAuth(): void {
   localStorage.removeItem('iron_auth');
 }
 
+// ── HQ auth storage (completely separate from host auth) ─────────────────────
+const HQ_KEY = 'iron_hq_auth';
+
+export function getStoredHQAuth(): AuthState | null {
+  try {
+    const raw = localStorage.getItem(HQ_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as AuthState;
+  } catch {
+    return null;
+  }
+}
+
+export function storeHQAuth(token: string, user: AuthUser): void {
+  localStorage.setItem(HQ_KEY, JSON.stringify({ token, user }));
+}
+
+export function clearHQAuth(): void {
+  localStorage.removeItem(HQ_KEY);
+}
+
+// ── Active session token ──────────────────────────────────────────────────────
+// A module-level token that App.tsx sets on startup and on every login/logout.
+// authHeaders() uses this so API calls always carry the right token regardless
+// of which localStorage key (iron_auth vs iron_hq_auth) holds the session.
+let _sessionToken: string | null = null;
+
+export function setSessionToken(token: string | null): void {
+  _sessionToken = token;
+}
+
 interface AuthState {
   token: string;
   user: AuthUser;
 }
 
 function authHeaders(): Record<string, string> {
-  const auth = getStoredAuth();
   const base: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (auth?.token) base['Authorization'] = `Bearer ${auth.token}`;
+  if (_sessionToken) base['Authorization'] = `Bearer ${_sessionToken}`;
   return base;
 }
 
@@ -53,8 +83,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (res.status === 401) {
-    clearAuth();
-    window.location.reload();
+    // Clear only the auth key that matches the current route context, then
+    // redirect to the correct login page (not always /) so the user lands
+    // on the right screen after session expiry.
+    _sessionToken = null;
+    const isHQ = window.location.pathname.startsWith('/hq');
+    if (isHQ) {
+      clearHQAuth();
+      window.location.replace('/hq');
+    } else {
+      clearAuth();
+      window.location.reload();
+    }
     throw new Error('Session expired');
   }
 
