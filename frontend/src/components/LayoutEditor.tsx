@@ -261,7 +261,6 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         const y = Math.min(d.startCY, cy);
         const w = Math.abs(cx - d.startCX);
         const h = Math.abs(cy - d.startCY);
-        console.log('[MARQUEE MOVE] canvas:', cx.toFixed(0), cy.toFixed(0), 'rect:', x.toFixed(0), y.toFixed(0), w.toFixed(0)+'×'+h.toFixed(0), 'elRef:', !!marqueeElRef.current);
         marqueeCoords.current = { x, y, w, h };
         // Direct DOM update — no React re-render needed per frame
         const el = marqueeElRef.current;
@@ -300,8 +299,6 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         setIsDraggingMarquee(false);
         const mc = marqueeCoords.current;
         marqueeCoords.current = null;
-        console.log('[MARQUEE UP] mc:', mc ? `${mc.w.toFixed(0)}×${mc.h.toFixed(0)} @${mc.x.toFixed(0)},${mc.y.toFixed(0)}` : 'null', 'tables:', tablesRef.current.filter(t=>!t.deleted).length);
-
         if (!mc || (mc.w < 6 && mc.h < 6)) {
           // Treat as a click — selection already cleared on mousedown (unless additive)
           return;
@@ -662,11 +659,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         >
           {snapLabel}
         </button>
-        {/* ── DEBUG: remove after marquee is confirmed working ── */}
-        <span style={{ fontSize: 10, color: '#4ade80', border: '1px solid #4ade80', borderRadius: 4, padding: '2px 6px', opacity: 0.7 }}>
-          MARQUEE READY
-        </span>
-        {saveErr && <span className="text-red-400 text-xs max-w-48 truncate">{saveErr}</span>}
+        {saveErr &&<span className="text-red-400 text-xs max-w-48 truncate">{saveErr}</span>}
         <button
           onClick={save} disabled={saving || savedOk}
           className={`text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all disabled:opacity-90 flex items-center gap-1.5 ${
@@ -851,13 +844,11 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               cursor: isDraggingMarquee ? 'crosshair' : 'default',
             }}
             onMouseDown={e => {
-              console.log('[MARQUEE DOWN] target===current:', e.target === e.currentTarget, 'button:', e.button);
               if (e.target !== e.currentTarget || e.button !== 0) return;
               e.preventDefault();
               const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
               const startCX = e.clientX - rect.left;
               const startCY = e.clientY - rect.top;
-              console.log('[MARQUEE DOWN] start:', startCX, startCY, 'rect:', rect.left, rect.top);
               if (!e.shiftKey) { setSelectedIds(new Set()); setSelectedObjId(null); }
               setIsDraggingMarquee(true);
               dragRef.current = { kind: 'marquee', startCX, startCY, additive: e.shiftKey };
@@ -900,7 +891,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               const secColor    = t.section?.color ?? '#3f3f46';
               const isHovered   = hoveredSectionId !== null && t.sectionId === hoveredSectionId;
               const isDimmed    = hoveredSectionId !== null && t.sectionId !== hoveredSectionId;
-              const borderColor = isSel ? '#4ade80' : secColor;
+              const borderColor = isSel ? '#4ade80' : t.isActive ? secColor : '#f59e0b';
               const glowShadow  = isSel
                 ? '0 0 0 3px rgba(74,222,128,0.25)'
                 : isHovered
@@ -916,8 +907,8 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     width: t.width, height: t.height,
                     borderRadius: tableRadius(t.shape),
                     border: `2px solid ${borderColor}`,
-                    backgroundColor: 'rgb(var(--iron-card))',
-                    opacity: isDimmed ? 0.25 : (t.isActive ? 1 : 0.5),
+                    backgroundColor: t.isActive ? 'rgb(var(--iron-card))' : 'rgba(245,158,11,0.07)',
+                    opacity: isDimmed ? 0.25 : 1,
                     boxShadow: glowShadow,
                     cursor: 'grab',
                     display: 'flex', flexDirection: 'column',
@@ -949,6 +940,11 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     />
                   )}
                   {t.isNew && <span className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-iron-green" />}
+                  {!t.isActive && (
+                    <span style={{ position: 'absolute', top: 0, left: 0, right: 0, textAlign: 'center', fontSize: 8, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 0', letterSpacing: 1, textTransform: 'uppercase' }}>
+                      INACTIVE
+                    </span>
+                  )}
                   {occupiedIds.has(t.id) && (
                     <span className="absolute bottom-1 left-1 w-1.5 h-1.5 rounded-full bg-amber-400" title={T.layoutEditor.occupiedTitle} />
                   )}
@@ -980,6 +976,13 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       {/* Single table selected */}
       {singleSel && (
         <div className="shrink-0 border-t border-iron-border bg-iron-card">
+          {!singleSel.isActive && (
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20">
+              <span className="text-amber-400 text-xs font-semibold">INACTIVE TABLE</span>
+              <span className="text-iron-muted text-[10px] font-mono">{singleSel.isNew ? '(new — not yet saved)' : singleSel.id}</span>
+              <span className="text-iron-muted text-[10px]">· pos {singleSel.posX},{singleSel.posY} · size {singleSel.width}×{singleSel.height}</span>
+            </div>
+          )}
           <div className="flex items-center gap-4 px-4 pt-3 pb-1.5 flex-wrap">
             <Field label={T.layoutEditor.fieldName}>
               <input value={singleSel.name} onChange={e => patchSelected({ name: e.target.value })} className={inputCls + ' w-24'} />
