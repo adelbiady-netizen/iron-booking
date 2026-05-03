@@ -173,17 +173,35 @@ export function buildWaitlistWhatsAppMessage(
 }
 
 // ── Reminder message ──────────────────────────────────────────────────────────
+function buildReminderBody(
+  lang: 'en' | 'he',
+  guestName: string,
+  restaurantName: string,
+  time: string,
+  confirmUrl: string
+): string {
+  if (lang === 'he') {
+    return (
+      `היי ${guestName},\n\n` +
+      `תזכורת להזמנה שלך ב־${restaurantName} היום בשעה ${time}.\n\n` +
+      `לאישור הגעה או ביטול:\n${confirmUrl}`
+    );
+  }
+  return (
+    `Hi ${guestName},\n\n` +
+    `Just a quick reminder about your reservation at ${restaurantName} today at ${time}.\n\n` +
+    `Please confirm your arrival here:\n${confirmUrl}`
+  );
+}
+
 export async function sendReminderSms(
   phone: string,
   guestName: string,
   restaurantName: string,
   time: string,
-  confirmUrl: string
+  confirmUrl: string,
+  lang: 'en' | 'he' = 'en'
 ): Promise<SmsResult> {
-  const body =
-    `Hi ${guestName},\n` +
-    `Just a quick reminder about your reservation at ${restaurantName} today at ${time}.\n` +
-    `Please confirm your arrival here:\n${confirmUrl}`;
-
+  const body = buildReminderBody(lang, guestName, restaurantName, time, confirmUrl);
   return sendWhatsApp(phone, body);
 }

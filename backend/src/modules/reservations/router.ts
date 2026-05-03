@@ -292,15 +292,17 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
       throw new BusinessRuleError('Maximum of 2 reminders already sent for this reservation');
     }
 
+    const lang       = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token      = reservation.confirmationToken ?? crypto.randomUUID();
-    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
+    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
     await sendReminderSms(
       reservation.guestPhone,
       reservation.guestName,
       restaurant?.name ?? 'the restaurant',
       reservation.time,
-      confirmUrl
+      confirmUrl,
+      lang
     );
 
     const updated = await prisma.reservation.update({

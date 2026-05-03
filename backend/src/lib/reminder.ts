@@ -56,11 +56,12 @@ export async function sendReservationReminders(
     if (r.isConfirmedByGuest || r.reminderCount >= 2) { skipped++; continue; }
 
     // Reuse existing token; create one only if missing
+    const lang       = (r.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token      = r.confirmationToken ?? crypto.randomUUID();
-    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
+    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
     try {
-      await sendReminderSms(r.guestPhone!, r.guestName, restaurantName, r.time, confirmUrl);
+      await sendReminderSms(r.guestPhone!, r.guestName, restaurantName, r.time, confirmUrl, lang);
 
       await prisma.reservation.update({
         where: { id: r.id },
