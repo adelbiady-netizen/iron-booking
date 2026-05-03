@@ -99,8 +99,9 @@ export default function App() {
     if (slug) return <WaitlistKioskPage slug={slug} />;
   }
 
-  // ── /hq — dedicated HQ / Admin login ──────────────────────────────────────
+  // ── /hq — dedicated HQ portal (completely self-contained) ───────────────────
   if (path === '/hq') {
+    // Wait for auth to be read from storage before deciding what to render
     if (!ready) {
       return (
         <div className="h-screen bg-iron-bg flex items-center justify-center">
@@ -108,34 +109,69 @@ export default function App() {
         </div>
       );
     }
+
+    // Not logged in → HQ login screen
     if (!auth) {
       return <HQLoginPage onLogin={handleLogin} />;
     }
+
+    // Logged in but wrong role — show access-denied WITHOUT signing them out.
+    // "Back to Dashboard" preserves their existing host session at /.
     if (auth.user.role !== 'SUPER_ADMIN') {
       return (
         <div className="h-screen bg-iron-bg flex items-center justify-center p-4">
-          <div className="w-full max-w-sm text-center">
-            <div className="inline-flex items-center gap-2.5 mb-6">
-              <div className="w-9 h-9 bg-iron-green rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm tracking-tight">IB</span>
+          <div className="w-full max-w-sm">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-iron-green rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm tracking-tight">IB</span>
+                </div>
+                <span className="text-iron-text font-semibold text-xl tracking-tight">Iron Booking HQ</span>
               </div>
-              <span className="text-iron-text font-semibold text-xl tracking-tight">Iron Booking</span>
             </div>
-            <div className="bg-iron-card border border-iron-border rounded-xl p-6 mb-4">
+            <div className="bg-iron-card border border-iron-border rounded-xl p-6 mb-4 text-center">
               <p className="text-iron-text font-medium mb-1">Not authorized for HQ access</p>
-              <p className="text-iron-muted text-sm">Your account does not have HQ privileges.</p>
+              <p className="text-iron-muted text-sm">
+                Your account ({auth.user.email}) does not have HQ privileges.
+              </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-iron-muted text-xs hover:text-iron-text transition-colors underline-offset-2 hover:underline"
-            >
-              Sign out
-            </button>
+            <div className="flex flex-col gap-2">
+              <a
+                href="/"
+                className="w-full text-center bg-iron-green hover:bg-iron-green-light text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+              >
+                ← Back to Host Dashboard
+              </a>
+              <button
+                onClick={handleLogout}
+                className="w-full text-center text-iron-muted text-xs py-2 hover:text-iron-text transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       );
     }
-    // SUPER_ADMIN at /hq → fall through to scale container → renderPage() renders AdminPortal
+
+    // SUPER_ADMIN — render AdminPortal inside the scale container.
+    // onDashboard is intentionally omitted: HQ users should not switch to
+    // the restaurant-facing host dashboard from this route.
+    return (
+      <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <div style={{
+          transform: `scale(${scale})`,
+          transformOrigin: '0 0',
+          width:  `${100 / scale}%`,
+          height: `${100 / scale}%`,
+        }}>
+          <AdminPortal
+            auth={auth}
+            onLogout={handleLogout}
+          />
+        </div>
+      </div>
+    );
   }
 
   function renderPage() {

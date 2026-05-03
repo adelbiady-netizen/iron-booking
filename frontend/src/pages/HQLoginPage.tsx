@@ -20,7 +20,7 @@ export default function HQLoginPage({ onLogin }: Props) {
     try {
       const r = await api.auth.login(email.trim(), password);
       if (r.user.role !== 'SUPER_ADMIN') {
-        setError('Not authorized for HQ access. Contact your system administrator.');
+        setError('You are not authorized for HQ access. Contact your system administrator.');
         setPassword('');
         passwordRef.current?.focus();
         return;
@@ -28,7 +28,8 @@ export default function HQLoginPage({ onLogin }: Props) {
       onLogin(r.token, r.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
-      const isWrongPassword = msg.toLowerCase().includes('invalid') ||
+      const isWrongPassword =
+        msg.toLowerCase().includes('invalid') ||
         msg.toLowerCase().includes('unauthorized') ||
         msg.toLowerCase().includes('401');
       setError(isWrongPassword ? 'Incorrect email or password.' : msg);
@@ -42,18 +43,20 @@ export default function HQLoginPage({ onLogin }: Props) {
     <div className="h-full bg-iron-bg flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
 
+        {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2.5 mb-2">
-            <div className="w-9 h-9 bg-iron-green rounded-lg flex items-center justify-center">
+          <div className="inline-flex items-center gap-2.5 mb-3">
+            <div className="w-9 h-9 bg-iron-green rounded-lg flex items-center justify-center shrink-0">
               <span className="text-white font-bold text-sm tracking-tight">IB</span>
             </div>
             <span className="text-iron-text font-semibold text-xl tracking-tight">
-              Iron Booking
+              Iron Booking HQ
             </span>
           </div>
-          <p className="text-iron-muted text-sm">HQ Access</p>
+          <p className="text-iron-muted text-sm">Admin &amp; Multi-Branch Management</p>
         </div>
 
+        {/* Form */}
         <div className="bg-iron-card border border-iron-border rounded-xl p-6">
           <form onSubmit={submit} className="space-y-4">
             <div>
@@ -104,10 +107,13 @@ export default function HQLoginPage({ onLogin }: Props) {
           </form>
         </div>
 
-        <p className="text-center text-iron-muted text-xs mt-4">
+        <p className="text-center text-iron-muted text-xs mt-5">
           Iron Booking HQ ·{' '}
-          <a href="/" className="hover:text-iron-text transition-colors hover:underline underline-offset-2">
-            Host login
+          <a
+            href="/"
+            className="hover:text-iron-text transition-colors hover:underline underline-offset-2"
+          >
+            Host login →
           </a>
         </p>
 
