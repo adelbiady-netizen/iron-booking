@@ -661,6 +661,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
         const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
         console.log('[booking][reserve] WhatsApp pre-send', { bodyLang: body.lang, resolvedLang: lang, confirmUrl });
         await sendConfirmationSms(
+          restaurant.id,
           body.guestPhone.trim(),
           body.guestName.trim(),
           restaurant.name,
@@ -773,7 +774,7 @@ router.post('/:slug/waitlist', async (req: Request, res: Response, next: NextFun
           flexibleTime:  body.flexibleTime,
         });
         console.log(`[WhatsApp] waitlist lang="${lang}" → ${body.guestPhone.trim()}`);
-        await sendWhatsApp(body.guestPhone.trim(), message);
+        await sendWhatsApp(restaurant.id, body.guestPhone.trim(), message);
       } catch (e) {
         console.error('[waitlist] WhatsApp send failed:', e instanceof Error ? e.message : e);
       }

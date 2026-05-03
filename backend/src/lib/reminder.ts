@@ -61,7 +61,7 @@ export async function sendReservationReminders(
     const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
     try {
-      await sendReminderSms(r.guestPhone!, r.guestName, restaurantName, r.time, confirmUrl, lang);
+      await sendReminderSms(restaurantId, r.guestPhone!, r.guestName, restaurantName, r.time, confirmUrl, lang);
 
       await prisma.reservation.update({
         where: { id: r.id },

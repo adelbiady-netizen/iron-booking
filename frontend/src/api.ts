@@ -275,6 +275,10 @@ export const api = {
         request<AdminRestaurant>(`/admin/restaurants/${id}/settings`, { method: 'PATCH', body: JSON.stringify(body) }),
       sampleLayout: (id: string) =>
         request<{ ok: boolean }>(`/admin/restaurants/${id}/sample-layout`, { method: 'POST', body: JSON.stringify({}) }),
+      updateWhatsapp: (id: string, body: { ultramsgInstanceId: string | null; ultramsgToken: string | null; whatsappPhone?: string | null }) =>
+        request<{ id: string; ultramsgInstanceId: string | null; whatsappPhone: string | null; tokenSet: boolean }>(`/admin/restaurants/${id}/whatsapp`, { method: 'PATCH', body: JSON.stringify(body) }),
+      testWhatsapp: (id: string) =>
+        request<{ ok: boolean; to: string }>(`/admin/restaurants/${id}/whatsapp/test`, { method: 'POST', body: JSON.stringify({}) }),
     },
     users: {
       list: (restaurantId: string) =>

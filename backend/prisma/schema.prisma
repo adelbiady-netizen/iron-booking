@@ -32,6 +32,11 @@ model Restaurant {
   //   lastSeatingOffset: number         minutes before close (e.g. 60)
   // }
 
+  // Per-restaurant WhatsApp (UltraMsg) credentials — optional; if absent, no messages sent
+  ultramsgInstanceId  String?
+  ultramsgToken       String?
+  whatsappPhone       String?
+
   // Set true for the internal _system restaurant that SUPER_ADMIN users belong to
   isSystem    Boolean  @default(false)
 

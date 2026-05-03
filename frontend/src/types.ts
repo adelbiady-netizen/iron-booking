@@ -129,6 +129,9 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
     id: string; dayOfWeek: number; openTime: string; closeTime: string;
     lastSeating: string; isOpen: boolean;
   }>;
+  ultramsgInstanceId: string | null;
+  whatsappPhone:      string | null;
+  tokenSet:           boolean;
 }
 
 export interface AdminUser {

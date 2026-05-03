@@ -197,7 +197,7 @@ export async function notifyGuest(restaurantId: string, id: string) {
     `Hi ${entry.guestName}, your table is ready at ${restaurant.name}. Please come to the host stand.`;
 
   // Send first — only stamp NOTIFIED if the message actually went out
-  await sendWhatsApp(entry.guestPhone, message);
+  await sendWhatsApp(restaurantId, entry.guestPhone, message);
 
   return prisma.waitlistEntry.update({
     where: { id },

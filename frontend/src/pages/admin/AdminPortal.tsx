@@ -111,6 +111,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   // Layout seeding
   const [layoutBusy, setLayoutBusy] = useState(false);
 
+  // WhatsApp credentials edit state
+  const [editWhatsapp,      setEditWhatsapp]      = useState(false);
+  const [whatsappForm,      setWhatsappForm]      = useState({ instanceId: '', token: '', phone: '' });
+  const [whatsappBusy,      setWhatsappBusy]      = useState(false);
+  const [whatsappTestBusy,  setWhatsappTestBusy]  = useState(false);
+  const [whatsappError,     setWhatsappError]     = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -147,6 +154,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         lateThresholdMinutes:      Number(s.lateThresholdMinutes ?? 5),
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
+      setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
     } catch { /* ignore */ }
     finally { setDetailBusy(false); }
   }, []);
@@ -164,6 +172,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setActiveTab('info');
     setEditInfo(false);
     setEditSettings(false);
+    setEditWhatsapp(false);
     setShowAddUser(false);
     loadDetail(id);
   }
@@ -289,6 +298,41 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       showToast(T.admin.settingsSaved);
     } catch { /* ignore */ }
     finally { setSettingsBusy(false); }
+  }
+
+  // ── WhatsApp credentials ──────────────────────────────────────────────────────
+
+  async function handleSaveWhatsapp() {
+    if (!selectedId) return;
+    setWhatsappBusy(true);
+    setWhatsappError(null);
+    try {
+      const result = await api.admin.restaurants.updateWhatsapp(selectedId, {
+        ultramsgInstanceId: whatsappForm.instanceId || null,
+        ultramsgToken:      whatsappForm.token || null,
+        whatsappPhone:      whatsappForm.phone || null,
+      });
+      setDetail(d => d ? { ...d, ultramsgInstanceId: result.ultramsgInstanceId, whatsappPhone: result.whatsappPhone, tokenSet: result.tokenSet } : d);
+      setEditWhatsapp(false);
+      showToast('WhatsApp credentials saved');
+    } catch (err) {
+      setWhatsappError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setWhatsappBusy(false);
+    }
+  }
+
+  async function handleTestWhatsapp() {
+    if (!selectedId) return;
+    setWhatsappTestBusy(true);
+    try {
+      await api.admin.restaurants.testWhatsapp(selectedId);
+      showToast('Test message sent');
+    } catch (err) {
+      setWhatsappError(err instanceof Error ? err.message : 'Test failed');
+    } finally {
+      setWhatsappTestBusy(false);
+    }
   }
 
   // ── Add user ──────────────────────────────────────────────────────────────────
@@ -675,6 +719,82 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </div>
               ))}
             </dl>
+          </div>
+        )}
+
+        {/* WhatsApp Integration */}
+        {editWhatsapp ? (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
+            <h3 className="font-medium">WhatsApp Integration</h3>
+            <Field label="UltraMsg Instance ID">
+              <Input
+                value={whatsappForm.instanceId}
+                onChange={e => setWhatsappForm(f => ({ ...f, instanceId: e.target.value }))}
+                placeholder="instance123456"
+              />
+            </Field>
+            <Field label="UltraMsg Token (leave blank to keep existing)">
+              <Input
+                type="password"
+                value={whatsappForm.token}
+                onChange={e => setWhatsappForm(f => ({ ...f, token: e.target.value }))}
+                placeholder="••••••••"
+              />
+            </Field>
+            <Field label="Test Phone Number (international format, e.g. +972501234567)">
+              <Input
+                value={whatsappForm.phone}
+                onChange={e => setWhatsappForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+972501234567"
+              />
+            </Field>
+            {whatsappError && <p className="text-xs text-red-400">{whatsappError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveWhatsapp} disabled={whatsappBusy} className={btnPrimary}>{whatsappBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+              <button onClick={() => { setEditWhatsapp(false); setWhatsappError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">WhatsApp Integration</h3>
+              <button
+                onClick={() => { setEditWhatsapp(true); setWhatsappError(null); }}
+                className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
+              >{T.admin.editBtn}</button>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Instance ID</dt>
+                <dd className="text-iron-text">{detail?.ultramsgInstanceId ?? <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Token</dt>
+                <dd className="text-iron-text">{detail?.tokenSet ? '••••••••' : <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Test phone</dt>
+                <dd className="text-iron-text">{detail?.whatsappPhone ?? <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Status</dt>
+                <dd>
+                  {detail?.ultramsgInstanceId && detail?.tokenSet
+                    ? <span className="text-iron-green text-xs font-medium">Configured</span>
+                    : <span className="text-amber-400 text-xs font-medium">Not configured — messages will not send</span>}
+                </dd>
+              </div>
+            </dl>
+            {detail?.ultramsgInstanceId && detail?.tokenSet && detail?.whatsappPhone && (
+              <div>
+                {whatsappError && <p className="text-xs text-red-400 mb-2">{whatsappError}</p>}
+                <button
+                  onClick={handleTestWhatsapp}
+                  disabled={whatsappTestBusy}
+                  className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg disabled:opacity-50"
+                >{whatsappTestBusy ? 'Sending…' : 'Send test message'}</button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,3 +1,5 @@
+import { prisma } from './prisma';
+
 export interface SmsResult {
   success: boolean;
   to: string;
@@ -27,41 +29,48 @@ export function formatPhone(raw: string): string {
 }
 
 // ── Core WhatsApp dispatch ────────────────────────────────────────────────────
-// Uses UltraMsg when env vars are set; falls back to console mock.
-export async function sendWhatsApp(phone: string, body: string): Promise<SmsResult> {
-  const to         = formatPhone(phone);
-  const instanceId = process.env['ULTRAMSG_INSTANCE_ID'];
-  const token      = process.env['ULTRAMSG_TOKEN'];
+// Loads UltraMsg credentials from the restaurant record.
+// If the restaurant has no credentials configured, logs a warning and no-ops.
+export async function sendWhatsApp(restaurantId: string, phone: string, body: string): Promise<SmsResult> {
+  const to = formatPhone(phone);
 
-  if (instanceId && token) {
-    let res: Response;
-    try {
-      res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ token, to, body }),
-      });
-    } catch (err) {
-      throw new Error(`WhatsApp request failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
+  const restaurant = await prisma.restaurant.findUnique({
+    where:  { id: restaurantId },
+    select: { ultramsgInstanceId: true, ultramsgToken: true },
+  });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '(no body)');
-      console.error(`[UltraMsg] HTTP ${res.status} — ${text}`);
-      throw new Error(`WhatsApp delivery failed (HTTP ${res.status})`);
-    }
+  const instanceId = restaurant?.ultramsgInstanceId;
+  const token      = restaurant?.ultramsgToken;
 
-    const json = await res.json().catch(() => null) as Record<string, unknown> | null;
-    if (json?.sent !== 'true' && json?.sent !== true) {
-      console.error('[UltraMsg] Unexpected response:', JSON.stringify({ ...json, token: '[REDACTED]' }));
-      throw new Error(`WhatsApp delivery failed: ${String(json?.message ?? 'unexpected provider response')}`);
-    }
-
-    console.log(`[UltraMsg] WhatsApp sent → ${to}`);
-    return { success: true, to, body };
+  if (!instanceId || !token) {
+    console.warn(`[WhatsApp] Restaurant ${restaurantId} has no WhatsApp credentials — message not sent to ${to}`);
+    return { success: false, to, body };
   }
 
-  console.log(`[SMS mock] → ${to}\n${body}\n`);
+  let res: Response;
+  try {
+    res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token, to, body }),
+    });
+  } catch (err) {
+    throw new Error(`WhatsApp request failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '(no body)');
+    console.error(`[UltraMsg] HTTP ${res.status} — ${text}`);
+    throw new Error(`WhatsApp delivery failed (HTTP ${res.status})`);
+  }
+
+  const json = await res.json().catch(() => null) as Record<string, unknown> | null;
+  if (json?.sent !== 'true' && json?.sent !== true) {
+    console.error('[UltraMsg] Unexpected response:', JSON.stringify({ ...json, token: '[REDACTED]' }));
+    throw new Error(`WhatsApp delivery failed: ${String(json?.message ?? 'unexpected provider response')}`);
+  }
+
+  console.log(`[UltraMsg] WhatsApp sent → ${to}`);
   return { success: true, to, body };
 }
 
@@ -106,6 +115,7 @@ export function buildReservationConfirmationWhatsAppMessage(
 }
 
 export async function sendConfirmationSms(
+  restaurantId: string,
   phone: string,
   guestName: string,
   restaurantName: string,
@@ -123,13 +133,7 @@ export async function sendConfirmationSms(
     partySize,
     confirmationUrl: confirmUrl,
   });
-  console.log('[REAL WHATSAPP SEND PATH]', {
-    file: __filename,
-    lang,
-    confirmationUrl: confirmUrl,
-    messagePreview: message.slice(0, 160),
-  });
-  return sendWhatsApp(phone, message);
+  return sendWhatsApp(restaurantId, phone, message);
 }
 
 // ── Waitlist acknowledgment templates ────────────────────────────────────────
@@ -195,6 +199,7 @@ function buildReminderBody(
 }
 
 export async function sendReminderSms(
+  restaurantId: string,
   phone: string,
   guestName: string,
   restaurantName: string,
@@ -203,5 +208,5 @@ export async function sendReminderSms(
   lang: 'en' | 'he' = 'en'
 ): Promise<SmsResult> {
   const body = buildReminderBody(lang, guestName, restaurantName, time, confirmUrl);
-  return sendWhatsApp(phone, body);
+  return sendWhatsApp(restaurantId, phone, body);
 }

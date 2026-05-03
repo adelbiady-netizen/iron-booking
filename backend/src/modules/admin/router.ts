@@ -6,7 +6,7 @@ import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
+import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
 
 const router = Router();
 
@@ -198,6 +198,50 @@ router.patch('/restaurants/:id/settings', validate(UpdateSettingsSchema), async 
       data: { settings: merged },
     });
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+const UpdateWhatsappSchema = z.object({
+  ultramsgInstanceId: z.string().min(1).nullable(),
+  ultramsgToken:      z.string().min(1).nullable(),
+  whatsappPhone:      z.string().nullable().optional(),
+});
+
+// PATCH /admin/restaurants/:id/whatsapp — save per-restaurant UltraMsg credentials
+router.patch('/restaurants/:id/whatsapp', validate(UpdateWhatsappSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    const updated = await prisma.restaurant.update({
+      where: { id: p(req, 'id') },
+      data: {
+        ultramsgInstanceId: req.body.ultramsgInstanceId,
+        ultramsgToken:      req.body.ultramsgToken,
+        whatsappPhone:      req.body.whatsappPhone ?? null,
+      },
+      select: {
+        id: true, ultramsgInstanceId: true, whatsappPhone: true,
+        // never return the raw token — return a boolean instead
+      },
+    });
+    res.json({ id: updated.id, ultramsgInstanceId: updated.ultramsgInstanceId, whatsappPhone: updated.whatsappPhone, tokenSet: !!req.body.ultramsgToken });
+  } catch (err) { next(err); }
+});
+
+// POST /admin/restaurants/:id/whatsapp/test — send a test WhatsApp to the restaurant's whatsappPhone
+router.post('/restaurants/:id/whatsapp/test', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    if (!restaurant.ultramsgInstanceId || !restaurant.ultramsgToken) {
+      throw new BusinessRuleError('WhatsApp credentials are not configured for this restaurant');
+    }
+    if (!restaurant.whatsappPhone) {
+      throw new BusinessRuleError('No test phone number configured — set whatsappPhone first');
+    }
+    const { sendWhatsApp } = await import('../../lib/sms');
+    const result = await sendWhatsApp(restaurant.id, restaurant.whatsappPhone, `✅ Iron Booking WhatsApp test — ${restaurant.name}`);
+    res.json({ ok: result.success, to: result.to });
   } catch (err) { next(err); }
 });
 

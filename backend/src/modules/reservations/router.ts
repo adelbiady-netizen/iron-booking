@@ -163,6 +163,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
     });
 
     await sendConfirmationSms(
+      req.auth.restaurantId,
       reservation.guestPhone,
       reservation.guestName,
       restaurant?.name ?? 'the restaurant',
@@ -252,7 +253,7 @@ router.post('/send-confirmations', validate(BulkConfirmSchema), async (req: Requ
           data:  { confirmationToken: token },
         });
 
-        await sendConfirmationSms(r.guestPhone!, r.guestName, restaurantName, date, r.time, r.partySize, confirmUrl, lang);
+        await sendConfirmationSms(req.auth.restaurantId, r.guestPhone!, r.guestName, restaurantName, date, r.time, r.partySize, confirmUrl, lang);
 
         await prisma.reservation.update({
           where: { id: r.id },
@@ -297,6 +298,7 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
     const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
     await sendReminderSms(
+      req.auth.restaurantId,
       reservation.guestPhone,
       reservation.guestName,
       restaurant?.name ?? 'the restaurant',
