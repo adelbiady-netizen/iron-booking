@@ -6,6 +6,7 @@ import SetupPage from './pages/SetupPage';
 import AdminPortal from './pages/admin/AdminPortal';
 import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
+import WaitlistKioskPage from './pages/WaitlistKioskPage';
 import type { AuthState } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -91,6 +92,10 @@ export default function App() {
   if (path.startsWith('/book/')) {
     const slug = path.split('/')[2];
     if (slug) return <BookingPage slug={slug} />;
+  }
+  if (path.startsWith('/waitlist/')) {
+    const slug = path.split('/')[2];
+    if (slug) return <WaitlistKioskPage slug={slug} />;
   }
 
   function renderPage() {

@@ -92,6 +92,27 @@
       "phoneSent": "אישור נשלח לטלפון שלך."
     }
   },
+  "kiosk": {
+    "title": "הצטרף לרשימת המתנה",
+    "subtitle": "הזן את פרטיך ונעדכן אותך כשהשולחן מוכן.",
+    "name": "שם",
+    "namePlaceholder": "שם מלא",
+    "phone": "טלפון",
+    "phonePlaceholder": "050-000-0000",
+    "partySize": "גודל קבוצה",
+    "note": "הערה",
+    "notePlaceholder": "אלרגיות, צרכי נגישות, העדפות ישיבה…",
+    "optional": "אופציונלי",
+    "submit": "הצטרף לרשימה",
+    "submitting": "מצטרף…",
+    "successTitle": "!נרשמת",
+    "successSubtitle": ".נעדכן אותך כשהשולחן מוכן",
+    "successWhatsapp": ".תקבל הודעת וואטסאפ בקרוב",
+    "newGuest": "אורח חדש",
+    "resetIn": "…מאופס תוך {{n}} שניות",
+    "notFound": "מסעדה לא נמצאה",
+    "notFoundDetail": ".קישור הקיוסק עשוי להיות לא תקין"
+  },
   "confirmation": {
     "actionConfirming": "מאשר את השולחן שלך…",
     "actionCancelling": "מבטל את ההזמנה שלך…",

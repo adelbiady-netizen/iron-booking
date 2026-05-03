@@ -92,6 +92,27 @@
       "phoneSent": "A confirmation has been sent to your phone."
     }
   },
+  "kiosk": {
+    "title": "Join the Waitlist",
+    "subtitle": "Add your name and we'll let you know when your table is ready.",
+    "name": "Name",
+    "namePlaceholder": "Full name",
+    "phone": "Phone",
+    "phonePlaceholder": "+1 (555) 000-0000",
+    "partySize": "Party size",
+    "note": "Note",
+    "notePlaceholder": "Allergies, accessibility needs, seating preferences…",
+    "optional": "optional",
+    "submit": "Join the waitlist",
+    "submitting": "Joining…",
+    "successTitle": "You're on the list!",
+    "successSubtitle": "We'll notify you when your table is ready.",
+    "successWhatsapp": "You'll receive a WhatsApp message shortly.",
+    "newGuest": "New guest",
+    "resetIn": "Resetting in {{n}}s…",
+    "notFound": "Restaurant not found",
+    "notFoundDetail": "This kiosk link may be invalid."
+  },
   "confirmation": {
     "actionConfirming": "Confirming your table…",
     "actionCancelling": "Cancelling your reservation…",
