@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
-import { T } from '../../strings';
+import { useT } from '../../i18n/useT';
 import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
@@ -66,6 +66,7 @@ interface Props {
 }
 
 export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
+  const T = useT();
   // Restaurant list
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
   const [listLoading, setListLoading]  = useState(true);

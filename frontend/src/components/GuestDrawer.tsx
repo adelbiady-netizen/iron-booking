@@ -2,19 +2,10 @@ import { useState } from 'react';
 import type { Reservation, ReservationStatus, Table } from '../types';
 import { api } from '../api';
 import type React from 'react';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
-
-const STATUS_LABEL: Record<ReservationStatus, string> = {
-  PENDING:   T.reservationStatus.PENDING,
-  CONFIRMED: T.reservationStatus.CONFIRMED,
-  SEATED:    T.reservationStatus.SEATED,
-  COMPLETED: T.reservationStatus.COMPLETED,
-  CANCELLED: T.reservationStatus.CANCELLED,
-  NO_SHOW:   T.reservationStatus.NO_SHOW,
-};
 
 const STATUS_PILL: Record<ReservationStatus, string> = {
   PENDING:   'bg-amber-500/15 text-amber-400',
@@ -60,6 +51,7 @@ interface TablePickerProps {
 }
 
 function TablePicker({ tables, excludeId, label, busy, onPick, onBack }: TablePickerProps) {
+  const T = useT();
   const candidates = tables.filter(t => t.isActive && t.id !== excludeId);
 
   return (
@@ -135,8 +127,6 @@ const inputCls = 'w-full bg-iron-bg border border-iron-border rounded-lg px-2.5 
 
 type Mode = 'view' | 'edit' | 'seat' | 'move' | 'cancel' | 'lock';
 
-const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
-
 interface Props {
   reservation: Reservation;
   tables: Table[];
@@ -148,6 +138,16 @@ interface Props {
 }
 
 export default function GuestDrawer({ reservation: init, tables, onClose, onUpdated, onSuccess, onTableLockChange, nowTime }: Props) {
+  const T = useT();
+  const STATUS_LABEL: Record<ReservationStatus, string> = {
+    PENDING:   T.reservationStatus.PENDING,
+    CONFIRMED: T.reservationStatus.CONFIRMED,
+    SEATED:    T.reservationStatus.SEATED,
+    COMPLETED: T.reservationStatus.COMPLETED,
+    CANCELLED: T.reservationStatus.CANCELLED,
+    NO_SHOW:   T.reservationStatus.NO_SHOW,
+  };
+  const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
   const [res, setRes] = useState<Reservation>(init);
   const [mode, setMode] = useState<Mode>('view');
   const [cancelReason, setCancelReason] = useState('');

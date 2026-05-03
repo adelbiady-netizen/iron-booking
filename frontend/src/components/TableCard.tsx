@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { FloorInsight, FloorTable, Reservation, WaitlistEntry } from '../types';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 import { minutesUntilRes } from '../utils/arrival';
 import { minutesUntilEnd } from '../utils/time';
 
@@ -15,14 +15,6 @@ interface StatusStyle {
   label: string;
   labelColor: string;
 }
-
-const STATUS_STYLE: Record<string, StatusStyle> = {
-  AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
-  OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
-  RESERVED_SOON: { border: 'border-amber-500',                             bg: 'bg-amber-500/10',   dot: 'bg-amber-500',   label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
-  RESERVED:      { border: 'border-blue-500/50',                           bg: 'bg-blue-900/15',    dot: 'bg-blue-500',    label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400' },
-  BLOCKED:       { border: 'border-iron-border/50',                        bg: 'bg-iron-border/20', dot: 'bg-iron-muted',  label: T.tableStatus.BLOCKED,       labelColor: 'text-iron-muted' },
-};
 
 const LOCKED_STYLE = 'border-amber-500/40 bg-amber-500/5 opacity-60';
 
@@ -42,6 +34,14 @@ interface Props {
 }
 
 export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow }: Props) {
+  const T = useT();
+  const STATUS_STYLE: Record<string, StatusStyle> = {
+    AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
+    OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
+    RESERVED_SOON: { border: 'border-amber-500',                             bg: 'bg-amber-500/10',   dot: 'bg-amber-500',   label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
+    RESERVED:      { border: 'border-blue-500/50',                           bg: 'bg-blue-900/15',    dot: 'bg-blue-500',    label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400' },
+    BLOCKED:       { border: 'border-iron-border/50',                        bg: 'bg-iron-border/20', dot: 'bg-iron-muted',  label: T.tableStatus.BLOCKED,       labelColor: 'text-iron-muted' },
+  };
   const currentRes = table.currentReservation;
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
   const displayRes = currentRes ?? nextRes ?? null;

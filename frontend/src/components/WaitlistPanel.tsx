@@ -3,7 +3,7 @@ import type { GuestLookupResult, GuestSearchResult, WaitlistEntry } from '../typ
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { api } from '../api';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 
 function waitMins(addedAt: string, opNow: number): number {
   return Math.floor((opNow - new Date(addedAt).getTime()) / 60_000);
@@ -31,6 +31,7 @@ interface Props {
 }
 
 export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow }: Props) {
+  const T = useT();
   const [showForm, setShowForm] = useState(false);
   const [name,      setName]      = useState('');
   const [partySize, setPartySize] = useState('2');

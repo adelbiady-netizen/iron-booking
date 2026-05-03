@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { FloorInsight } from '../types';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 
 interface Props {
   insights: FloorInsight[];
@@ -10,6 +10,7 @@ interface Props {
 const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
 
 export default function ActionBar({ insights, onItemClick }: Props) {
+  const T = useT();
   // Deduplicate: one item per reservationId (keeps highest priority)
   const seen = new Set<string>();
   const deduped = [...insights]

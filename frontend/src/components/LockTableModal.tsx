@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import type { Table } from '../types';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 
 const QUICK_REASONS = ['VIP', 'Broken', 'Staff', 'Reserved', 'Other'] as const;
 
@@ -12,6 +12,7 @@ interface Props {
 }
 
 export default function LockTableModal({ table, onClose, onLocked }: Props) {
+  const T = useT();
   const [reason,      setReason]      = useState('');
   const [lockedUntil, setLockedUntil] = useState('');
   const [busy,        setBusy]        = useState(false);

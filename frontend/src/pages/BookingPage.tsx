@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicRestaurantProfile, PublicSlot, AvailabilityResponse, BookingAlternative, BookingResult, PublicWaitlistResult } from '../types';
 import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -196,6 +197,11 @@ export default function BookingPage({ slug }: Props) {
   return (
     <div dir={dir} className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 5vh, 64px)' }}>
       <AtmosphericBg />
+
+      {/* Language switcher */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher variant="public" />
+      </div>
 
       {/* Restaurant hero */}
       <div className={`w-full ${fade(0).className}`} style={fade(0).style}>

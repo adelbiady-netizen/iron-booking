@@ -3,17 +3,8 @@ import type { Reservation, ReservationStatus, WaitlistEntry } from '../types';
 import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
-
-const STATUS_LABEL: Record<ReservationStatus, string> = {
-  PENDING:   T.reservationStatus.PENDING,
-  CONFIRMED: T.reservationStatus.CONFIRMED,
-  SEATED:    T.reservationStatus.SEATED,
-  COMPLETED: T.reservationStatus.COMPLETED,
-  CANCELLED: T.reservationStatus.CANCELLED,
-  NO_SHOW:   T.reservationStatus.NO_SHOW,
-};
 
 const STATUS_BADGE: Record<ReservationStatus, string> = {
   PENDING:   'bg-amber-500/15 text-amber-400 border-amber-500/25',
@@ -24,15 +15,7 @@ const STATUS_BADGE: Record<ReservationStatus, string> = {
   NO_SHOW:   'bg-orange-900/15 text-orange-400 border-orange-900/20',
 };
 
-const FILTERS = [
-  { label: T.reservationPanel.filterAll,       value: 'ALL' },
-  { label: T.reservationPanel.filterPending,   value: 'PENDING' },
-  { label: T.reservationPanel.filterConfirmed, value: 'CONFIRMED' },
-  { label: T.reservationPanel.filterSeated,    value: 'SEATED' },
-  { label: T.reservationPanel.filterDone,      value: 'DONE' },
-] as const;
-
-type FilterValue = typeof FILTERS[number]['value'];
+type FilterValue = 'ALL' | 'PENDING' | 'CONFIRMED' | 'SEATED' | 'DONE';
 type Tab = 'reservations' | 'waitlist';
 
 interface Props {
@@ -65,6 +48,22 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
 }: Props) {
+  const T = useT();
+  const STATUS_LABEL: Record<string, string> = {
+    PENDING:   T.reservationStatus.PENDING,
+    CONFIRMED: T.reservationStatus.CONFIRMED,
+    SEATED:    T.reservationStatus.SEATED,
+    COMPLETED: T.reservationStatus.COMPLETED,
+    CANCELLED: T.reservationStatus.CANCELLED,
+    NO_SHOW:   T.reservationStatus.NO_SHOW,
+  };
+  const FILTERS = [
+    { label: T.reservationPanel.filterAll,       value: 'ALL' as FilterValue },
+    { label: T.reservationPanel.filterPending,   value: 'PENDING' as FilterValue },
+    { label: T.reservationPanel.filterConfirmed, value: 'CONFIRMED' as FilterValue },
+    { label: T.reservationPanel.filterSeated,    value: 'SEATED' as FilterValue },
+    { label: T.reservationPanel.filterDone,      value: 'DONE' as FilterValue },
+  ];
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ALL');
   const [search, setSearch] = useState('');

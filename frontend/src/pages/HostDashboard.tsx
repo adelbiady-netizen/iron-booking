@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { AuthState, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
 import type { Theme } from '../App';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 import { api } from '../api';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
@@ -89,6 +89,7 @@ interface Props {
 }
 
 export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomChange, theme, onThemeChange, onAdminPortal }: Props) {
+  const T = useT();
   const [date, setDate]             = useState(todayStr);
   const [time, setTime]             = useState(nowTime);
   const [refreshKey, setRefreshKey] = useState(0);

@@ -8,6 +8,10 @@ function detectInitialLocale(): 'en' | 'he' {
   const lang = params.get('lang');
   if (lang === 'he') return 'he';
   if (lang === 'en') return 'en';
+  try {
+    const stored = localStorage.getItem('iron_lang');
+    if (stored === 'he' || stored === 'en') return stored;
+  } catch { /* private browsing */ }
   if (navigator.language.startsWith('he')) return 'he';
   return 'en';
 }
@@ -37,6 +41,7 @@ i18n
 i18n.on('languageChanged', (lng) => {
   document.documentElement.dir  = lng === 'he' ? 'rtl' : 'ltr';
   document.documentElement.lang = lng;
+  try { localStorage.setItem('iron_lang', lng); } catch { /* private browsing */ }
 });
 
 export default i18n;

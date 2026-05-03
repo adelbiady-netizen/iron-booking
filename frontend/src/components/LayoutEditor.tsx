@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Section, FloorObjectData, FloorObjKind, FloorTable } from '../types';
 import { api } from '../api';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function nowTime() {
@@ -123,6 +123,7 @@ const inputCls = 'bg-iron-bg border border-iron-border rounded px-2 py-1 text-ir
 interface Props { onClose: () => void; onSaved: () => void; }
 
 export default function LayoutEditor({ onClose, onSaved }: Props) {
+  const T = useT();
   const [tables,           setTables]           = useState<DraftTable[]>([]);
   const [sections,         setSections]         = useState<Section[]>([]);
   const [floorObjs,        setFloorObjs]        = useState<FloorObjectData[]>([]);

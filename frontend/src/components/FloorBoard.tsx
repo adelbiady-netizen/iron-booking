@@ -5,7 +5,7 @@ import type { PressureInfo } from '../utils/flowControl';
 import { logOverride } from '../utils/flowControl';
 import TableCard from './TableCard';
 import TableTimeline from './TableTimeline';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 import { minutesUntilRes } from '../utils/arrival';
 import { minutesUntilEnd } from '../utils/time';
 
@@ -85,6 +85,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
 }: Props) {
+  const T = useT();
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
   const [softHoldWarning,  setSoftHoldWarning]  = useState<{ table: FloorTable; entry: WaitlistEntry } | null>(null);
@@ -520,6 +521,7 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
   nowTime?: string;
   operationalNow?: number;
 }) {
+  const T = useT();
   // Detect late arrival: RESERVED_SOON tables whose upcoming reservation is past due
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
   const arrMins = nowTime && nextRes

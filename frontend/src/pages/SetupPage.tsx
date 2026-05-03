@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 import type { AuthUser } from '../types';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
 }
 
 export default function SetupPage({ onSetup }: Props) {
+  const T = useT();
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

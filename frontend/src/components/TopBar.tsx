@@ -1,6 +1,7 @@
 import type React from 'react';
 import type { Theme } from '../App';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
+import LanguageSwitcher from './LanguageSwitcher';
 
 interface Props {
   date: string;
@@ -70,6 +71,7 @@ export default function TopBar({
   onAdminPortal,
   onGuestsPage,
 }: Props) {
+  const T = useT();
   const atMin  = zoom <= 75;
   const atMax  = zoom >= 150;
   const atNorm = zoom === 100;
@@ -156,6 +158,8 @@ export default function TopBar({
       </div>
 
       <div className="flex-1" />
+
+      <LanguageSwitcher />
 
       {/* Theme toggle */}
       <button

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicReservation } from '../types';
 import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,6 +161,11 @@ export default function ConfirmationPage({ token }: Props) {
     <div dir={dir} className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 4vh, 48px)' }}>
 
       <AtmosphericBg />
+
+      {/* Language switcher */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher variant="public" />
+      </div>
 
       {/* ── Hero zone ─────────────────────────────────────────────────────── */}
       <div className={`w-full ${fade(0).className}`} style={fade(0).style}>

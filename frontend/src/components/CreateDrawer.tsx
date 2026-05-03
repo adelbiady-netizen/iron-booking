@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
-import { T } from '../strings';
+import { useT } from '../i18n/useT';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -66,6 +66,7 @@ interface TablePickerProps {
 }
 
 function TableGrid({ tables, value, onChange, label }: TablePickerProps) {
+  const T = useT();
   const active = tables.filter(t => t.isActive);
   return (
     <div>
@@ -128,6 +129,7 @@ function snapToSlot(time: string): string {
 export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables, preselectedTableId, initialData, gapHint, onClose, onCreated,
 }: Props) {
+  const T = useT();
   const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : (preselectedTableId || initialData) ? 'walkin' : initialMode);
 
   // Reservation fields — pre-filled from gapHint when present
