@@ -272,35 +272,35 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
     return (
       <section className="border-t border-iron-border pt-4 space-y-2.5">
         <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">
-          Confirmation
+          {T.guestDrawer.confirmationSection}
         </p>
 
         {/* Confirmation status */}
         {res.isRunningLate && (
           <div className="flex items-center gap-1.5 mb-1">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
-            <span className="text-orange-400 text-xs font-medium">Guest running late</span>
+            <span className="text-orange-400 text-xs font-medium">{T.guestDrawer.guestRunningLate}</span>
           </div>
         )}
         {res.isConfirmedByGuest ? (
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-            <span className="text-emerald-400 text-xs font-medium">Guest confirmed</span>
+            <span className="text-emerald-400 text-xs font-medium">{T.guestDrawer.guestConfirmed}</span>
             {res.confirmationSentAt && (
-              <span className="text-iron-muted text-[11px]">· via SMS {fmtTime(res.confirmationSentAt)}</span>
+              <span className="text-iron-muted text-[11px]">· {T.guestDrawer.viaSms} {fmtTime(res.confirmationSentAt)}</span>
             )}
           </div>
         ) : res.confirmationSentAt ? (
           <div className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsReminder ? 'bg-amber-400' : 'bg-blue-400'}`} />
             <span className={`text-xs ${needsReminder ? 'text-amber-400 font-medium' : 'text-blue-400'}`}>
-              {needsReminder ? 'Needs reminder' : `SMS sent ${fmtTime(res.confirmationSentAt)} · awaiting reply`}
+              {needsReminder ? T.guestDrawer.needsReminder : T.guestDrawer.smsSentAwaiting(fmtTime(res.confirmationSentAt))}
             </span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-iron-muted/50 shrink-0" />
-            <span className="text-iron-muted text-xs">No confirmation sent yet</span>
+            <span className="text-iron-muted text-xs">{T.guestDrawer.noConfirmationSent}</span>
           </div>
         )}
 
@@ -309,9 +309,9 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-iron-muted/40 shrink-0" />
             <span className="text-iron-muted text-[11px]">
-              Reminder sent {fmtTime(res.remindedAt)}
+              {T.guestDrawer.reminderSentAt} {fmtTime(res.remindedAt)}
               {res.reminderCount > 1 && ` (×${res.reminderCount})`}
-              {res.reminderCount >= 2 && ' · max reached'}
+              {res.reminderCount >= 2 && ` · ${T.guestDrawer.maxRemindersReached}`}
             </span>
           </div>
         )}
@@ -324,20 +324,20 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                 {/* Confirmation SMS */}
                 {!res.isConfirmedByGuest && (
                   <ActionBtn
-                    label={res.confirmationSentAt ? 'Resend confirmation' : 'Send confirmation SMS'}
+                    label={res.confirmationSentAt ? T.guestDrawer.resendConfirmation : T.guestDrawer.sendConfirmation}
                     cls={res.confirmationSentAt ? btnNeutral : btnBlue}
                     onClick={() => run(
                       () => api.reservations.sendConfirmation(res.id),
-                      res.confirmationSentAt ? 'Confirmation SMS resent' : 'Confirmation SMS sent'
+                      res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent
                     )}
                     disabled={busy}
                   />
                 )}
                 {res.isConfirmedByGuest && (
                   <ActionBtn
-                    label="Resend confirmation"
+                    label={T.guestDrawer.resendConfirmation}
                     cls={btnNeutral}
-                    onClick={() => run(() => api.reservations.sendConfirmation(res.id), 'Confirmation SMS resent')}
+                    onClick={() => run(() => api.reservations.sendConfirmation(res.id), T.guestDrawer.confirmationResent)}
                     disabled={busy}
                   />
                 )}
@@ -345,16 +345,16 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                 {/* Reminder button — only when eligible */}
                 {!res.isConfirmedByGuest && res.confirmationSentAt && res.reminderCount < 2 && (
                   <ActionBtn
-                    label={needsReminder ? 'Send reminder now' : 'Send reminder'}
+                    label={needsReminder ? T.guestDrawer.sendReminderNow : T.guestDrawer.sendReminder}
                     cls={needsReminder ? btnAmber : btnNeutral}
-                    onClick={() => run(() => api.reservations.sendReminder(res.id), 'Reminder sent')}
+                    onClick={() => run(() => api.reservations.sendReminder(res.id), T.guestDrawer.reminderSentToast)}
                     disabled={busy}
                   />
                 )}
               </>
             ) : (
               <ActionBtn
-                label="No phone available"
+                label={T.guestDrawer.noPhone}
                 cls="bg-iron-border/10 border-iron-border/30 text-iron-muted cursor-not-allowed"
                 onClick={() => {}}
                 disabled={true}
@@ -363,9 +363,9 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
 
             {!res.isConfirmedByGuest && (
               <ActionBtn
-                label="Mark as confirmed"
+                label={T.guestDrawer.markAsConfirmed}
                 cls={btnNeutral}
-                onClick={() => run(() => api.reservations.markConfirmedByGuest(res.id), 'Marked as confirmed')}
+                onClick={() => run(() => api.reservations.markConfirmedByGuest(res.id), T.guestDrawer.markedAsConfirmed)}
                 disabled={busy}
               />
             )}
@@ -437,20 +437,20 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                 </span>
                 {res.isConfirmedByGuest && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
-                    Guest confirmed
+                    {T.guestDrawer.guestConfirmed}
                   </span>
                 )}
                 {res.isRunningLate && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
-                    Running late
+                    {T.guestDrawer.runningLate}
                   </span>
                 )}
                 {!res.isConfirmedByGuest && res.confirmationSentAt && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-medium">
-                    SMS sent
+                    {T.guestDrawer.smsSentBadge}
                   </span>
                 )}
-                <span className="text-iron-muted text-xs">{res.partySize} guests</span>
+                <span className="text-iron-muted text-xs">{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <span className="text-iron-muted text-xs">· {res.table.name}</span>
                 )}
@@ -505,7 +505,7 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
             <Row label={T.guestDrawer.rowTime}       value={res.time} />
             <Row label={T.guestDrawer.rowDuration}   value={T.guestDrawer.durationValue(res.duration)} />
             <Row label={T.guestDrawer.rowTable}      value={res.table?.name ?? (res.tableId ? '…' : T.guestDrawer.tableUnassigned)} />
-            <Row label={T.guestDrawer.rowSource}     value={res.source} />
+            <Row label={T.guestDrawer.rowSource}     value={T.guestDrawer.sourceLabels[res.source] ?? res.source} />
             {res.occasion  && <Row label={T.guestDrawer.rowOccasion}   value={res.occasion}   accent />}
             {res.guestNotes && <Row label={T.guestDrawer.rowGuestNotes} value={res.guestNotes} />}
             {res.hostNotes  && <Row label={T.guestDrawer.rowHostNotes}  value={res.hostNotes}  accent />}

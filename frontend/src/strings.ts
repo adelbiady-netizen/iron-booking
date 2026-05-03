@@ -15,8 +15,9 @@ export const T = {
     none:       'None',
     vip:        'VIP',
     processing: 'Processing…',
-    guests:     (n: number) => `${n} guests`,
+    guests:     (n: number) => n === 1 ? '1 guest' : `${n} guests`,
     nMin:       (n: number) => `${n} min`,
+    covers:     'covers',
   },
 
   // ── Reservation status labels ───────────────────────────────────────────────
@@ -53,6 +54,8 @@ export const T = {
     prev15:         '−15m',
     next15:         '+15m',
     nowBtn:         'Now',
+    guestsButton:   'Guests',
+    adminButton:    'Admin',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -83,6 +86,7 @@ export const T = {
 
   // ── TableCard ──────────────────────────────────────────────────────────────
   tableCard: {
+    covers:          'covers',
     clickToSeat:     'Click to seat a walk-in',
     openTapToSeat:   'Open · tap to seat walk-in',
     endsIn:          (n: number) => `Ends in ${n}m`,
@@ -127,6 +131,14 @@ export const T = {
     emptyHint:        'Use {new} for a phone booking or {walkIn} for guests at the door.',
     emptyFiltered:    'No reservations match this filter',
     showing:          (visible: number, total: number) => `Showing ${visible} of ${total}`,
+    emptyHintPrefix:  'Use ',
+    emptyHintMid:     ' for a phone booking or ',
+    emptyHintSuffix:  ' for guests at the door.',
+    needsReminder:    'Needs reminder',
+    confirmedTick:    '✓ confirmed',
+    runningLate:      'running late',
+    reminded:         'reminded',
+    smsSent:          'SMS sent',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
@@ -279,6 +291,29 @@ export const T = {
     toastUnlocked:        (name: string) => `${name} unlocked`,
     // Fallback error
     actionFailed:         'Action failed',
+    // Confirmation section
+    confirmationSection:  'Confirmation',
+    guestRunningLate:     'Guest running late',
+    guestConfirmed:       'Guest confirmed',
+    runningLate:          'Running late',
+    smsSentBadge:         'SMS sent',
+    viaSms:               'via SMS',
+    needsReminder:        'Needs reminder',
+    smsSentAwaiting:      (time: string) => `SMS sent ${time} · awaiting reply`,
+    noConfirmationSent:   'No confirmation sent yet',
+    reminderSentAt:       'Reminder sent',
+    maxRemindersReached:  'max reached',
+    sendConfirmation:     'Send confirmation SMS',
+    resendConfirmation:   'Resend confirmation',
+    confirmationSent:     'Confirmation SMS sent',
+    confirmationResent:   'Confirmation SMS resent',
+    sendReminderNow:      'Send reminder now',
+    sendReminder:         'Send reminder',
+    reminderSentToast:    'Reminder sent',
+    noPhone:              'No phone available',
+    markAsConfirmed:      'Mark as confirmed',
+    markedAsConfirmed:    'Marked as confirmed',
+    sourceLabels:         { Phone: 'Phone', Internal: 'Internal', 'Walk-in': 'Walk-in', Online: 'Online', System: 'System' } as Record<string, string>,
   },
 
   // ── LockTableModal ─────────────────────────────────────────────────────────

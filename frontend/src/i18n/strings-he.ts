@@ -15,8 +15,9 @@ export const THe = {
     none:       'ללא',
     vip:        'VIP',
     processing: 'מעבד…',
-    guests:     (n: number) => `${n} אורחים`,
+    guests:     (n: number) => n === 1 ? 'אורח 1' : `${n} אורחים`,
     nMin:       (n: number) => `${n} דק׳`,
+    covers:     'מקומות',
   },
 
   // ── Reservation status labels ───────────────────────────────────────────────
@@ -53,6 +54,8 @@ export const THe = {
     prev15:         '−15 דק׳',
     next15:         '+15 דק׳',
     nowBtn:         'עכשיו',
+    guestsButton:   'אורחים',
+    adminButton:    'ניהול',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -83,6 +86,7 @@ export const THe = {
 
   // ── TableCard ──────────────────────────────────────────────────────────────
   tableCard: {
+    covers:          'מקומות',
     clickToSeat:     'לחץ להושבת walk-in',
     openTapToSeat:   'פתוח · לחץ להושבת walk-in',
     endsIn:          (n: number) => `מסתיים בעוד ${n} דק׳`,
@@ -127,6 +131,14 @@ export const THe = {
     emptyHint:        'השתמש ב-{new} להזמנה טלפונית או ב-{walkIn} לאורחים שהגיעו.',
     emptyFiltered:    'אין הזמנות התואמות לסינון זה',
     showing:          (visible: number, total: number) => `מציג ${visible} מתוך ${total}`,
+    emptyHintPrefix:  'השתמש ב-',
+    emptyHintMid:     ' להזמנה טלפונית, או ב-',
+    emptyHintSuffix:  ' לאורחים שהגיעו.',
+    needsReminder:    'צריך תזכורת',
+    confirmedTick:    '✓ אושר',
+    runningLate:      'מאחר',
+    reminded:         'תוזכר',
+    smsSent:          'SMS נשלח',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
@@ -267,6 +279,29 @@ export const THe = {
     toastLocked:          (name: string) => `${name} נעול`,
     toastUnlocked:        (name: string) => `${name} שוחרר`,
     actionFailed:         'הפעולה נכשלה',
+    // Confirmation section
+    confirmationSection:  'אישור הגעה',
+    guestRunningLate:     'האורח מאחר',
+    guestConfirmed:       'האורח אישר',
+    runningLate:          'מאחר',
+    smsSentBadge:         'SMS נשלח',
+    viaSms:               'דרך SMS',
+    needsReminder:        'צריך תזכורת',
+    smsSentAwaiting:      (time: string) => `SMS נשלח ${time} · ממתין לתגובה`,
+    noConfirmationSent:   'אישור טרם נשלח',
+    reminderSentAt:       'תזכורת נשלחה',
+    maxRemindersReached:  'הגיע למקסימום',
+    sendConfirmation:     'שלח SMS אישור',
+    resendConfirmation:   'שלח אישור מחדש',
+    confirmationSent:     'SMS אישור נשלח',
+    confirmationResent:   'SMS אישור נשלח מחדש',
+    sendReminderNow:      'שלח תזכורת עכשיו',
+    sendReminder:         'שלח תזכורת',
+    reminderSentToast:    'תזכורת נשלחה',
+    noPhone:              'אין מספר טלפון',
+    markAsConfirmed:      'סמן כמאושר',
+    markedAsConfirmed:    'סומן כמאושר',
+    sourceLabels:         { Phone: 'טלפוני', Internal: 'פנימי', 'Walk-in': 'Walk-in', Online: 'אונליין', System: 'מערכת' } as Record<string, string>,
   },
 
   // ── LockTableModal ─────────────────────────────────────────────────────────

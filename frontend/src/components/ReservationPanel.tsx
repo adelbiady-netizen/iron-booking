@@ -194,8 +194,7 @@ export default function ReservationPanel({
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center gap-2">
                 <p className="text-iron-muted text-sm">{T.reservationPanel.emptyTitle}</p>
                 <p className="text-iron-muted text-xs opacity-60">
-                  Use <span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span> for a phone booking or{' '}
-                  <span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span> for guests at the door.
+                  {T.reservationPanel.emptyHintPrefix}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
                 </p>
               </div>
             )}
@@ -253,7 +252,7 @@ export default function ReservationPanel({
                       </span>
                     ) : needsReminder ? (
                       <span className="text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/25">
-                        Needs reminder
+                        {T.reservationPanel.needsReminder}
                       </span>
                     ) : (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${STATUS_BADGE[r.status]}`}>
@@ -264,22 +263,22 @@ export default function ReservationPanel({
                   <p className="text-iron-muted text-[11px]">
                     {r.time}
                     <span className="mx-1">·</span>
-                    {r.partySize} guests
+                    {T.common.guests(r.partySize)}
                     {r.table && <span> · {r.table.name}</span>}
                     {r.occasion && (
                       <span className="text-iron-green-light"> · {r.occasion}</span>
                     )}
                     {r.isConfirmedByGuest && (
-                      <span className="text-emerald-400"> · ✓ confirmed</span>
+                      <span className="text-emerald-400"> · {T.reservationPanel.confirmedTick}</span>
                     )}
                     {r.isRunningLate && (
-                      <span className="text-orange-400"> · running late</span>
+                      <span className="text-orange-400"> · {T.reservationPanel.runningLate}</span>
                     )}
                     {!r.isConfirmedByGuest && r.remindedAt && (
-                      <span className="text-iron-muted"> · reminded</span>
+                      <span className="text-iron-muted"> · {T.reservationPanel.reminded}</span>
                     )}
                     {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
-                      <span className="text-blue-400"> · SMS sent</span>
+                      <span className="text-blue-400"> · {T.reservationPanel.smsSent}</span>
                     )}
                   </p>
                 </button>

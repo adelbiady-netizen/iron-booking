@@ -101,7 +101,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
 
       {/* Capacity + section */}
       <p className="text-iron-muted text-[11px] mb-1.5 leading-tight">
-        {table.minCovers}–{table.maxCovers} covers
+        {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
         {table.section && (
           <span className="opacity-60"> · {table.section.name}</span>
         )}
@@ -118,7 +118,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <div>
             <p className="text-iron-text text-xs font-medium truncate">{currentRes.guestName}</p>
             <p className="text-iron-muted text-[11px]">
-              {currentRes.partySize} guests
+              {T.common.guests(currentRes.partySize)}
               {mr > 5 && (
                 <span> · {T.tableCard.endsIn(mr)}</span>
               )}
@@ -145,7 +145,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             )}
           </div>
           <p className="text-iron-muted text-[11px]">
-            {displayRes.partySize} guests · {displayRes.time}
+            {T.common.guests(displayRes.partySize)} · {displayRes.time}
             {insight?.type === 'LATE_GUEST' && nextRes && nextRes.minutesUntil < 0
               ? <span className="text-red-400"> · {T.tableCard.lateBy(Math.abs(nextRes.minutesUntil))}</span>
               : nextRes && nextRes.minutesUntil > 0
@@ -162,7 +162,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           className="mt-0.5 -mx-0.5 px-1.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 cursor-pointer hover:bg-iron-green/25 transition-colors"
         >
           <p className="text-iron-green-light text-[11px] font-medium truncate">
-            → {insight.reservation.guestName} · {insight.reservation.partySize} guests · {insight.reservation.time}
+            → {insight.reservation.guestName} · {T.common.guests(insight.reservation.partySize)} · {insight.reservation.time}
           </p>
           <p className="text-iron-muted text-[10px] truncate">{insight.reason}</p>
         </div>
@@ -171,7 +171,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       {isAvailable && softHold && !insight && (
         <div className="mt-0.5 -mx-0.5 px-1.5 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30">
           <p className="text-indigo-300 text-[11px] font-medium truncate">
-            ⏸ {softHold.guestName} · {softHold.partySize} guests
+            ⏸ {softHold.guestName} · {T.common.guests(softHold.partySize)}
           </p>
           <p className="text-iron-muted text-[10px]">{(() => { const m = waitMins(softHold.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.flowControl.softHoldWaiting(m); })()}</p>
         </div>
@@ -183,7 +183,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           className="mt-0.5 -mx-0.5 px-1.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 cursor-pointer hover:bg-iron-green/25 transition-colors"
         >
           <p className="text-iron-green-light text-[11px] font-medium truncate">
-            → {waitlistMatch.guestName} · {waitlistMatch.partySize} guests
+            → {waitlistMatch.guestName} · {T.common.guests(waitlistMatch.partySize)}
           </p>
           <p className="text-iron-muted text-[10px]">{(() => { const m = waitMins(waitlistMatch.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.tableCard.waitlistWaiting(m); })()}</p>
         </div>

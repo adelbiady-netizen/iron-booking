@@ -177,7 +177,7 @@ export default function TopBar({
             onClick={onGuestsPage}
             className="text-iron-muted text-xs border border-iron-border px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
           >
-            Guests
+            {T.topBar.guestsButton}
           </button>
         )}
         {onAdminPortal && (
@@ -185,7 +185,7 @@ export default function TopBar({
             onClick={onAdminPortal}
             className="text-iron-green text-xs border border-iron-green/40 px-3 py-1.5 rounded-md hover:bg-iron-green/10 transition-colors font-medium"
           >
-            Admin
+            {T.topBar.adminButton}
           </button>
         )}
         <div className="text-right hidden lg:block">

@@ -452,7 +452,7 @@ export default function FloorBoard({
                 {T.flowControl.softHoldTitle(softHoldWarning.entry.guestName)}
               </p>
               <p className="text-iron-muted text-xs mt-0.5">
-                {softHoldWarning.entry.partySize} guests
+                {T.common.guests(softHoldWarning.entry.partySize)}
                 {' · '}
                 {T.flowControl.softHoldWaiting(
                   Math.floor((Date.now() - new Date(softHoldWarning.entry.addedAt).getTime()) / 60_000)
@@ -587,7 +587,7 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
 
       {/* Capacity */}
       <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', lineHeight: 1.3, marginTop: 1 }}>
-        {table.minCovers}–{table.maxCovers} covers
+        {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
       </span>
 
       {/* OCCUPIED */}
