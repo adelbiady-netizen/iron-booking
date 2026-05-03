@@ -158,7 +158,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <div style={{
         transform: `scale(${scale})`,
         transformOrigin: '0 0',
