@@ -152,8 +152,9 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
       throw new BusinessRuleError('Reservation has no phone number for WhatsApp confirmation');
     }
 
+    const lang       = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token      = crypto.randomUUID();
-    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
+    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
     // Save token to DB FIRST so the link is valid before the SMS arrives
     await prisma.reservation.update({
@@ -168,7 +169,8 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
       reservation.date.toISOString().split('T')[0],
       reservation.time,
       reservation.partySize,
-      confirmUrl
+      confirmUrl,
+      lang
     );
 
     const updated = await prisma.reservation.update({
@@ -240,8 +242,9 @@ router.post('/send-confirmations', validate(BulkConfirmSchema), async (req: Requ
 
     for (const r of reservations) {
       try {
+        const lang       = (r.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
         const token      = crypto.randomUUID();
-        const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}`;
+        const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
         // Save token first — link is valid before SMS arrives
         await prisma.reservation.update({
@@ -249,7 +252,7 @@ router.post('/send-confirmations', validate(BulkConfirmSchema), async (req: Requ
           data:  { confirmationToken: token },
         });
 
-        await sendConfirmationSms(r.guestPhone!, r.guestName, restaurantName, date, r.time, r.partySize, confirmUrl);
+        await sendConfirmationSms(r.guestPhone!, r.guestName, restaurantName, date, r.time, r.partySize, confirmUrl, lang);
 
         await prisma.reservation.update({
           where: { id: r.id },

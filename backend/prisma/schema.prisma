@@ -270,6 +270,7 @@ model Reservation {
   occasion     String?           // "birthday", "anniversary", "business"
   guestNotes   String?           // what the guest told us
   hostNotes    String?           // internal host notes
+  guestLang    String?           // "en" | "he" — captured at booking; used for WhatsApp
 
   // Tags for filtering/reporting
   tags         String[]          @default([])

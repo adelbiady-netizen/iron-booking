@@ -302,6 +302,7 @@ async function executeBookingTransaction(
     guestEmail?: string;
     occasion?:  string;
     guestNotes?: string;
+    guestLang?: string;
   }
 ): Promise<{ id: string; tableId: string | null }> {
   const slotStart  = parseTimeOnDate(date, time);
@@ -386,6 +387,7 @@ async function executeBookingTransaction(
         guestEmail:        guest.guestEmail  || null,
         occasion:          guest.occasion    || null,
         guestNotes:        guest.guestNotes  || null,
+        guestLang:         guest.guestLang   ?? 'en',
         confirmationToken: token,
       },
       select: { id: true, tableId: true },
@@ -559,6 +561,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       return res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many booking attempts. Please try again in a minute.' } });
     }
 
+    console.log('[reserve] incoming lang:', req.body?.lang);
     const parsed = ReserveSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid booking data.' } });
@@ -619,6 +622,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           guestEmail: body.guestEmail,
           occasion:   body.occasion,
           guestNotes: body.guestNotes,
+          guestLang:  body.lang ?? 'en',
         }
       );
     } catch (err) {
