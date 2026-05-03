@@ -94,7 +94,11 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [time, setTime]             = useState(nowTime);
   const [refreshKey, setRefreshKey] = useState(0);
   const [liveMode, setLiveMode]     = useState(true);
-  const liveModeRef = useRef(true);
+  const liveModeRef    = useRef(true);
+  // Tracks the last date for which data successfully loaded.
+  // Empty string on mount so the very first load always shows the full spinner.
+  // Stays equal to `date` on background polls so the list stays visible.
+  const loadedDateRef  = useRef<string>('');
 
   const [floorTables,  setFloorTables]  = useState<FloorTable[]>([]);
   const [floorObjs,    setFloorObjs]    = useState<FloorObjectData[]>([]);
@@ -130,12 +134,16 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // Fetch floor + reservations together whenever date, time, or refreshKey change
+  // Fetch floor + reservations together whenever date, time, or refreshKey change.
+  // Stale-while-revalidate: only show the full loading spinner on initial page
+  // load or when the user navigates to a different date. Background polls
+  // (refreshKey / time ticks) update data silently so the list never flickers.
   useEffect(() => {
     let cancelled = false;
+    const isBackground = loadedDateRef.current === date;
 
     async function load() {
-      setResLoading(true);
+      if (!isBackground) setResLoading(true);
       const [floorResult, resResult, insightResult] = await Promise.allSettled([
         api.tables.floor(date, time),
         api.reservations.list({ date, limit: '500' }),
@@ -145,7 +153,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       const floorOk = floorResult.status === 'fulfilled';
       const resOk   = resResult.status   === 'fulfilled';
       if (floorOk) { setFloorTables(floorResult.value); setLoadError(false); }
-      if (resOk)   setReservations(resResult.value.data);
+      if (resOk)   { setReservations(resResult.value.data); loadedDateRef.current = date; }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
       // Both critical calls failed — backend is likely unreachable
       if (!floorOk && !resOk) setLoadError(true);
@@ -175,10 +183,12 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     return new Date(y, mo - 1, d, h, m).getTime();
   }, [date, time]);
 
-  // Waitlist — refresh on date, time, main refresh, or dedicated 30s waitlist key
+  // Waitlist — refresh on date, time, main refresh, or dedicated 30s waitlist key.
+  // Same stale-while-revalidate pattern: spinner only on date change or first load.
   useEffect(() => {
     let cancelled = false;
-    setWaitlistLoading(true);
+    const isBackground = loadedDateRef.current === date;
+    if (!isBackground) setWaitlistLoading(true);
     api.waitlist.list(date, time)
       .then(data => { if (!cancelled) setWaitlist(data); })
       .catch(() => {})
