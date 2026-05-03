@@ -355,13 +355,14 @@ export const T = {
 
   // ── LayoutEditor ───────────────────────────────────────────────────────────
   layoutEditor: {
-    title:              'Floor Plan Builder',
+    title:              'Map Editor',
     hint:               'Click · Shift+click to multi-select · Drag to move',
     snapOff:            'Snap: Off',
     snapN:              (n: number) => `Snap: ${n}px`,
     snapTitle:          'Cycle snap grid size',
-    saveButton:         'Save layout',
+    saveButton:         'Save map',
     saveBusy:           'Saving…',
+    saveSuccess:        'Saved',
     cancelButton:       'Cancel',
     backButton:         '← Back',
     backGo:             '← Go back',
@@ -376,7 +377,7 @@ export const T = {
     sectionSections:    'Sections',
     sectionTables:      'Tables',
     sectionFloorObjs:   'Floor Objects',
-    floorObjsHint:      'Saved to database with layout.',
+    floorObjsHint:      'Saved with the map.',
     noSectionsYet:      'No sections yet',
     addSection:         '+ Add section',
     addSectionBtn:      'Add',
@@ -404,6 +405,11 @@ export const T = {
     sizeLabel:          'Size',
     customLabel:        'Custom',
     pxUnit:             'px',
+    rotateCW:           'Rotate 90°',
+    // Multi-select batch edit
+    batchShape:         'Shape',
+    batchSection:       'Section',
+    batchSize:          'Scale',
     // Floor object panel
     fieldLabel:         'Label',
     fieldW:             'W',
@@ -419,7 +425,7 @@ export const T = {
     confirmContinue:       'Continue anyway',
     confirmOK:             'OK',
     // Errors
-    errorLoad:          'Failed to load layout',
+    errorLoad:          'Failed to load map',
     errorSection:       'Failed to save section',
     errorSave:          'Save failed',
     // Floor object type labels
@@ -462,9 +468,9 @@ export const T = {
     settingsSaved:         'Settings saved',
     userCreated:           'User created',
     userUpdated:           'User updated',
-    sampleLayoutApplied:   'Sample layout applied',
-    sampleLayoutConfirm:   'This will delete all existing tables and seed a default layout. Continue?',
-    sampleLayoutBtn:       'Seed sample layout',
+    sampleLayoutApplied:   'Sample map applied',
+    sampleLayoutConfirm:   'This will delete all existing tables and seed a default map. Continue?',
+    sampleLayoutBtn:       'Seed sample map',
     sampleLayoutBusy:      'Seeding…',
     // Wizard
     wizardStep:            (n: number, total: number) => `Step ${n} of ${total}`,
@@ -525,7 +531,7 @@ export const T = {
 
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
-    editLayout:       'Edit Layout',
+    editLayout:       'Edit Map',
     toastSeated:      'Guest seated',
     toastCreated:     'Reservation created',
     toastUnlocked:    'Table unlocked',

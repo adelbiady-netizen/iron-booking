@@ -150,6 +150,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   } | null>(null);
   const [loading,          setLoading]          = useState(true);
   const [saving,           setSaving]           = useState(false);
+  const [savedOk,          setSavedOk]          = useState(false);
   const [loadErr,          setLoadErr]          = useState<string | null>(null);
   const [saveErr,          setSaveErr]          = useState<string | null>(null);
   const [showAddSec,       setShowAddSec]       = useState(false);
@@ -167,9 +168,9 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     startPX: number; startPY: number;
   } | null>(null);
 
-  const snapRef     = useRef(snapGrid);
-  snapRef.current   = snapGrid;
-  const occupiedRef = useRef(occupiedIds);
+  const snapRef       = useRef(snapGrid);
+  snapRef.current     = snapGrid;
+  const occupiedRef   = useRef(occupiedIds);
   occupiedRef.current = occupiedIds;
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -259,6 +260,53 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, []);
 
+  // ── Keyboard navigation ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // Don't intercept when user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const step = e.shiftKey ? 40 : 10;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        if (selectedIds.size === 0 && !selectedObjId) return;
+        e.preventDefault();
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
+
+        if (selectedIds.size > 0) {
+          setTables(prev => prev.map(t => {
+            if (!selectedIds.has(t.id) || t.deleted || t.locked) return t;
+            return {
+              ...t,
+              posX: Math.max(0, Math.min(CANVAS_W - t.width,  t.posX + dx)),
+              posY: Math.max(0, Math.min(CANVAS_H - t.height, t.posY + dy)),
+              dirty: !t.isNew,
+            };
+          }));
+        }
+        if (selectedObjId) {
+          setFloorObjs(prev => prev.map(o =>
+            o.id === selectedObjId
+              ? { ...o, posX: Math.max(0, o.posX + dx), posY: Math.max(0, o.posY + dy) }
+              : o
+          ));
+        }
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedIds.size > 0) { e.preventDefault(); removeSelected(); }
+        if (selectedObjId)        { e.preventDefault(); removeFloorObj(selectedObjId); }
+      }
+    }
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, selectedObjId]);
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const visible   = tables.filter(t => !t.deleted);
@@ -327,6 +375,30 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       else setTables(prev => prev.map(x => x.id === t.id ? { ...x, deleted: true } : x));
     }
     setSelectedIds(new Set());
+  }
+
+  function patchMultiSelected(patch: Partial<DraftTable>) {
+    setTables(prev => prev.map(t => {
+      if (!selectedIds.has(t.id) || t.deleted) return t;
+      const next = { ...t, ...patch, dirty: !t.isNew };
+      if (patch.shape && patch.shape !== t.shape) {
+        const [w, h] = SHAPE_DIMS[patch.shape];
+        next.width = w; next.height = h;
+      }
+      return next;
+    }));
+  }
+
+  function rotate90() {
+    if (singleSel) {
+      patchSelected({ width: singleSel.height, height: singleSel.width });
+    } else if (selTables.length > 1) {
+      setTables(prev => prev.map(t =>
+        selectedIds.has(t.id) && !t.deleted
+          ? { ...t, width: t.height, height: t.width, dirty: !t.isNew }
+          : t
+      ));
+    }
   }
 
   // ── Alignment ─────────────────────────────────────────────────────────────
@@ -423,7 +495,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   async function save() {
-    setSaving(true); setSaveErr(null);
+    setSaving(true); setSaveErr(null); setSavedOk(false);
     try {
       for (const t of tables) {
         if (t.isNew && t.deleted) continue;
@@ -451,7 +523,8 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         }
       }
       await api.tables.batchSaveFloorObjects(floorObjs);
-      onSaved();
+      setSavedOk(true);
+      setTimeout(() => onSaved(), 1200);
     } catch (err) {
       setSaveErr(err instanceof Error ? err.message : T.layoutEditor.errorSave);
     } finally { setSaving(false); }
@@ -506,10 +579,18 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         </button>
         {saveErr && <span className="text-red-400 text-xs max-w-48 truncate">{saveErr}</span>}
         <button
-          onClick={save} disabled={saving}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-colors disabled:opacity-40"
+          onClick={save} disabled={saving || savedOk}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all disabled:opacity-90 flex items-center gap-1.5 ${
+            savedOk
+              ? 'bg-iron-green cursor-default'
+              : 'bg-iron-green hover:bg-iron-green-light disabled:opacity-40'
+          }`}
         >
-          {saving ? T.layoutEditor.saveBusy : T.layoutEditor.saveButton}
+          {saving && (
+            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+          )}
+          {savedOk && <span>✓</span>}
+          {saving ? T.layoutEditor.saveBusy : savedOk ? T.layoutEditor.saveSuccess : T.layoutEditor.saveButton}
         </button>
         <button
           onClick={onClose}
@@ -873,35 +954,95 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
             <div className="w-px h-4 bg-iron-border" />
             <span className="text-iron-muted text-[10px]">{T.layoutEditor.customLabel}</span>
             <div className="flex items-center gap-1">
+              <button onClick={() => patchSelected({ width: Math.max(40, singleSel.width - 8) })}  className={inputCls + ' px-1.5 py-1 text-iron-muted hover:text-iron-green-light'}>−</button>
               <input
                 type="number" min={40} max={400} value={singleSel.width}
                 onChange={e => patchSelected({ width: Math.max(40, Math.min(400, parseInt(e.target.value) || singleSel.width)) })}
-                className={inputCls + ' w-16 text-center'}
+                className={inputCls + ' w-14 text-center'}
               />
-              <span className="text-iron-muted text-xs">×</span>
+              <button onClick={() => patchSelected({ width: Math.min(400, singleSel.width + 8) })} className={inputCls + ' px-1.5 py-1 text-iron-muted hover:text-iron-green-light'}>+</button>
+              <span className="text-iron-muted text-xs mx-0.5">×</span>
+              <button onClick={() => patchSelected({ height: Math.max(32, singleSel.height - 8) })}  className={inputCls + ' px-1.5 py-1 text-iron-muted hover:text-iron-green-light'}>−</button>
               <input
                 type="number" min={32} max={400} value={singleSel.height}
                 onChange={e => patchSelected({ height: Math.max(32, Math.min(400, parseInt(e.target.value) || singleSel.height)) })}
-                className={inputCls + ' w-16 text-center'}
+                className={inputCls + ' w-14 text-center'}
               />
+              <button onClick={() => patchSelected({ height: Math.min(400, singleSel.height + 8) })} className={inputCls + ' px-1.5 py-1 text-iron-muted hover:text-iron-green-light'}>+</button>
               <span className="text-iron-muted text-[10px]">{T.layoutEditor.pxUnit}</span>
             </div>
+            <div className="w-px h-4 bg-iron-border" />
+            <button
+              onClick={rotate90}
+              title={T.layoutEditor.rotateCW}
+              className="text-[10px] px-2 py-0.5 rounded border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-green-light transition-colors"
+            >
+              ↻ {T.layoutEditor.rotateCW}
+            </button>
           </div>
         </div>
       )}
 
       {/* Multiple tables selected */}
       {selTables.length > 1 && (
-        <div className="shrink-0 border-t border-iron-border bg-iron-card h-10 flex items-center gap-3 px-4">
-          <span className="text-iron-text text-sm font-semibold">{T.layoutEditor.multiSelected(selTables.length)}</span>
-          <span className="text-iron-muted text-xs">{T.layoutEditor.multiHint}</span>
+        <div className="shrink-0 border-t border-iron-border bg-iron-card flex items-center gap-4 px-4 py-2 flex-wrap">
+          <span className="text-iron-text text-sm font-semibold shrink-0">{T.layoutEditor.multiSelected(selTables.length)}</span>
+          <div className="w-px h-4 bg-iron-border shrink-0" />
+          {/* Batch shape */}
+          <Field label={T.layoutEditor.batchShape}>
+            <select
+              className={inputCls}
+              defaultValue=""
+              onChange={e => { if (e.target.value) patchMultiSelected({ shape: e.target.value as ShapeType }); e.target.value = ''; }}
+            >
+              <option value="" disabled>—</option>
+              {ALL_SHAPES.map(s => <option key={s} value={s}>{SHAPE_LABELS[s]}</option>)}
+            </select>
+          </Field>
+          {/* Batch section */}
+          <Field label={T.layoutEditor.batchSection}>
+            <select
+              className={inputCls}
+              defaultValue=""
+              onChange={e => {
+                const id = e.target.value || null;
+                patchMultiSelected({ sectionId: id, section: sections.find(s => s.id === id) ?? null });
+                e.target.value = '';
+              }}
+            >
+              <option value="" disabled>—</option>
+              <option value="">{T.layoutEditor.noSection}</option>
+              {sections.map(s => <option key={s.id} value={s.id}>{formatSectionName(s.name, locale)}</option>)}
+            </select>
+          </Field>
+          {/* Batch scale */}
+          <Field label={T.layoutEditor.batchSize}>
+            <div className="flex gap-1">
+              {[{ label: '−8', dw: -8, dh: -8 }, { label: '+8', dw: 8, dh: 8 }].map(({ label, dw, dh }) => (
+                <button
+                  key={label}
+                  onClick={() => setTables(prev => prev.map(t =>
+                    selectedIds.has(t.id) && !t.deleted
+                      ? { ...t, width: Math.max(40, Math.min(400, t.width + dw)), height: Math.max(32, Math.min(400, t.height + dh)), dirty: !t.isNew }
+                      : t
+                  ))}
+                  className={inputCls + ' px-2 py-1 text-iron-muted hover:text-iron-green-light'}
+                >{label}</button>
+              ))}
+              <button
+                onClick={rotate90}
+                title={T.layoutEditor.rotateCW}
+                className={inputCls + ' px-2 py-1 text-iron-muted hover:text-iron-green-light'}
+              >↻</button>
+            </div>
+          </Field>
           <button
             onClick={removeSelected}
-            className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors"
+            className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors shrink-0"
           >
             {T.layoutEditor.deleteSelected}
           </button>
-          <button onClick={() => setSelectedIds(new Set())} className="text-iron-muted hover:text-iron-text text-lg leading-none">×</button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-iron-muted hover:text-iron-text text-lg leading-none shrink-0">×</button>
         </div>
       )}
 
