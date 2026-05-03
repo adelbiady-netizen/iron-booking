@@ -3,6 +3,8 @@ import type { Reservation, ReservationStatus, Table } from '../types';
 import { api } from '../api';
 import type React from 'react';
 import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
+import { formatReservationSource } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
@@ -139,6 +141,7 @@ interface Props {
 
 export default function GuestDrawer({ reservation: init, tables, onClose, onUpdated, onSuccess, onTableLockChange, nowTime }: Props) {
   const T = useT();
+  const { locale } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
     PENDING:   T.reservationStatus.PENDING,
     CONFIRMED: T.reservationStatus.CONFIRMED,
@@ -505,7 +508,7 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
             <Row label={T.guestDrawer.rowTime}       value={res.time} />
             <Row label={T.guestDrawer.rowDuration}   value={T.guestDrawer.durationValue(res.duration)} />
             <Row label={T.guestDrawer.rowTable}      value={res.table?.name ?? (res.tableId ? '…' : T.guestDrawer.tableUnassigned)} />
-            <Row label={T.guestDrawer.rowSource}     value={T.guestDrawer.sourceLabels[res.source] ?? res.source} />
+            <Row label={T.guestDrawer.rowSource}     value={formatReservationSource(res.source, locale)} />
             {res.occasion  && <Row label={T.guestDrawer.rowOccasion}   value={res.occasion}   accent />}
             {res.guestNotes && <Row label={T.guestDrawer.rowGuestNotes} value={res.guestNotes} />}
             {res.hostNotes  && <Row label={T.guestDrawer.rowHostNotes}  value={res.hostNotes}  accent />}

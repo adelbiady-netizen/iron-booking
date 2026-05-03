@@ -1,6 +1,8 @@
 import type React from 'react';
 import type { FloorInsight, FloorTable, Reservation, WaitlistEntry } from '../types';
 import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
+import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilRes } from '../utils/arrival';
 import { minutesUntilEnd } from '../utils/time';
 
@@ -35,6 +37,7 @@ interface Props {
 
 export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow }: Props) {
   const T = useT();
+  const { locale } = useLocale();
   const STATUS_STYLE: Record<string, StatusStyle> = {
     AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
     OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
@@ -103,7 +106,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       <p className="text-iron-muted text-[11px] mb-1.5 leading-tight">
         {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
         {table.section && (
-          <span className="opacity-60"> · {table.section.name}</span>
+          <span className="opacity-60"> · {formatSectionName(table.section.name, locale)}</span>
         )}
       </p>
 

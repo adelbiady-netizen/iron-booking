@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -130,6 +131,7 @@ export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables, preselectedTableId, initialData, gapHint, onClose, onCreated,
 }: Props) {
   const T = useT();
+  const { locale } = useLocale();
   const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : (preselectedTableId || initialData) ? 'walkin' : initialMode);
 
   // Reservation fields — pre-filled from gapHint when present
@@ -214,6 +216,7 @@ export default function CreateDrawer({
         hostNotes:  resHostNote.trim() || undefined,
         tableId:    resTable || undefined,
         source:     resSource,
+        lang:       locale,
       });
       onCreated(r);
     } catch (err: unknown) {

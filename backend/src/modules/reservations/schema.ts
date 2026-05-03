@@ -19,6 +19,7 @@ export const CreateReservationSchema = z.object({
   source: z
     .enum(['ONLINE', 'PHONE', 'WALK_IN', 'OPENTABLE', 'RESY', 'INTERNAL'])
     .default('PHONE'),
+  lang: z.enum(['en', 'he']).optional(),
   tags: z.array(z.string()).default([]),
   depositRequired: z.boolean().default(false),
   depositAmountCents: z.number().int().optional(),

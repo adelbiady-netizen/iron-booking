@@ -6,6 +6,8 @@ import { logOverride } from '../utils/flowControl';
 import TableCard from './TableCard';
 import TableTimeline from './TableTimeline';
 import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
+import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilRes } from '../utils/arrival';
 import { minutesUntilEnd } from '../utils/time';
 
@@ -86,6 +88,7 @@ export default function FloorBoard({
   onGapClick, onGapWaitlistSeat, onQuickAction,
 }: Props) {
   const T = useT();
+  const { locale } = useLocale();
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
   const [softHoldWarning,  setSoftHoldWarning]  = useState<{ table: FloorTable; entry: WaitlistEntry } | null>(null);
@@ -343,7 +346,7 @@ export default function FloorBoard({
                   style={{ backgroundColor: group.color }}
                 />
                 <h3 className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
-                  {group.name}
+                  {formatSectionName(group.name, locale)}
                 </h3>
                 <div className="flex-1 h-px bg-iron-border" />
               </div>

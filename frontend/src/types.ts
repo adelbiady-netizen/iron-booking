@@ -372,6 +372,7 @@ export interface CreateReservationBody {
   hostNotes?: string;
   tableId?: string;
   source: 'PHONE' | 'INTERNAL' | 'WALK_IN';
+  lang?: 'en' | 'he';
   tags?: string[];
   depositRequired?: boolean;
 }

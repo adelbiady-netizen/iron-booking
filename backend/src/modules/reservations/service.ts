@@ -216,6 +216,7 @@ export async function createReservation(
         occasion: input.occasion ?? null,
         guestNotes: input.guestNotes ?? null,
         hostNotes: input.hostNotes ?? null,
+        guestLang: input.lang ?? null,
         tags: input.tags,
         depositRequired: input.depositRequired,
         depositAmountCents: input.depositAmountCents ?? null,
