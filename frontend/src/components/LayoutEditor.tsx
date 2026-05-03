@@ -156,6 +156,8 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   const [showAddSec,       setShowAddSec]       = useState(false);
   const [newSecName,       setNewSecName]       = useState('');
   const [secBusy,          setSecBusy]          = useState(false);
+  // marquee: canvas-local rect being drawn (null = not dragging)
+  const [marquee,          setMarquee]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   const dragRef = useRef<{
     kind: 'tables';
@@ -166,12 +168,21 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     id: string;
     startMX: number; startMY: number;
     startPX: number; startPY: number;
+  } | {
+    kind: 'marquee';
+    startCX: number; startCY: number;
+    additive: boolean;
   } | null>(null);
+
+  // canvas div ref for coordinate conversion (marquee)
+  const canvasDivRef = useRef<HTMLDivElement>(null);
 
   const snapRef       = useRef(snapGrid);
   snapRef.current     = snapGrid;
   const occupiedRef   = useRef(occupiedIds);
   occupiedRef.current = occupiedIds;
+  const tablesRef     = useRef(tables);
+  tablesRef.current   = tables;
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -216,6 +227,13 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       return g ? Math.round(v / g) * g : Math.round(v);
     }
 
+    function canvasCoords(e: MouseEvent): { cx: number; cy: number } {
+      const rect = canvasDivRef.current?.getBoundingClientRect();
+      return rect
+        ? { cx: e.clientX - rect.left, cy: e.clientY - rect.top }
+        : { cx: 0, cy: 0 };
+    }
+
     function onMove(e: MouseEvent) {
       const d = dragRef.current;
       if (!d) return;
@@ -229,16 +247,23 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
           const ny = snapped(Math.max(0, Math.min(CANVAS_H - t.height, o.y + dy)));
           return { ...t, posX: nx, posY: ny, dirty: !t.isNew };
         }));
-      } else {
+      } else if (d.kind === 'obj') {
         const nx = snapped(Math.max(0, d.startPX + e.clientX - d.startMX));
         const ny = snapped(Math.max(0, d.startPY + e.clientY - d.startMY));
         setFloorObjs(prev => prev.map(o => o.id === d.id ? { ...o, posX: nx, posY: ny } : o));
+      } else if (d.kind === 'marquee') {
+        const { cx, cy } = canvasCoords(e);
+        const x = Math.min(d.startCX, cx);
+        const y = Math.min(d.startCY, cy);
+        setMarquee({ x, y, w: Math.abs(cx - d.startCX), h: Math.abs(cy - d.startCY) });
       }
     }
 
-    function onUp() {
+    function onUp(e: MouseEvent) {
       const d = dragRef.current;
       dragRef.current = null;
+      setMarquee(null);
+
       if (d?.kind === 'tables') {
         const movedOccupied = Object.keys(d.origins).filter(id => occupiedRef.current.has(id));
         if (movedOccupied.length > 0) {
@@ -253,6 +278,37 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
             })),
           });
         }
+      } else if (d?.kind === 'marquee') {
+        const { cx, cy } = canvasCoords(e);
+        const mx = Math.min(d.startCX, cx);
+        const my = Math.min(d.startCY, cy);
+        const mw = Math.abs(cx - d.startCX);
+        const mh = Math.abs(cy - d.startCY);
+
+        if (mw < 6 && mh < 6) {
+          // Treat as a click: clear selection (already cleared on mousedown unless additive)
+          return;
+        }
+
+        // Intersect all visible tables with the marquee rect
+        const hit = new Set<string>();
+        for (const t of tablesRef.current) {
+          if (t.deleted) continue;
+          if (t.posX < mx + mw && t.posX + t.width  > mx &&
+              t.posY < my + mh && t.posY + t.height > my) {
+            hit.add(t.id);
+          }
+        }
+
+        setSelectedIds(prev => {
+          if (d.additive) {
+            const merged = new Set(prev);
+            hit.forEach(id => merged.add(id));
+            return merged;
+          }
+          return hit;
+        });
+        setSelectedObjId(null);
       }
     }
     window.addEventListener('mousemove', onMove);
@@ -293,6 +349,16 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               : o
           ));
         }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (dragRef.current?.kind === 'marquee') {
+          dragRef.current = null;
+          setMarquee(null);
+        }
+        setSelectedIds(new Set());
+        setSelectedObjId(null);
         return;
       }
 
@@ -753,14 +819,22 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         {/* ── Canvas ──────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-auto bg-iron-bg">
           <div
+            ref={canvasDivRef}
             className="relative"
             style={{
               width: CANVAS_W, height: CANVAS_H,
               backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px)',
               backgroundSize: '24px 24px',
+              cursor: marquee ? 'crosshair' : 'default',
             }}
             onMouseDown={e => {
-              if (e.target === e.currentTarget) { setSelectedIds(new Set()); setSelectedObjId(null); }
+              if (e.target !== e.currentTarget) return;
+              e.preventDefault();
+              const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+              const startCX = e.clientX - rect.left;
+              const startCY = e.clientY - rect.top;
+              if (!e.shiftKey) { setSelectedIds(new Set()); setSelectedObjId(null); }
+              dragRef.current = { kind: 'marquee', startCX, startCY, additive: e.shiftKey };
             }}
           >
             {/* Floor objects — rendered beneath tables */}
@@ -858,6 +932,21 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                 </div>
               );
             })}
+
+            {/* Marquee selection rectangle */}
+            {marquee && marquee.w > 2 && marquee.h > 2 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left:   marquee.x, top:    marquee.y,
+                  width:  marquee.w, height: marquee.h,
+                  border: '1.5px dashed rgba(74,222,128,0.55)',
+                  backgroundColor: 'rgba(74,222,128,0.06)',
+                  borderRadius: 3,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
