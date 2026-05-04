@@ -271,7 +271,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
 
   const handleAvailableClick = useCallback((table: FloorTable) => {
     setPreselectedTableId(table.id);
-    setCreateMode('walkin');
+    setCreateMode('reservation');
   }, []);
 
   const handleLockTable = useCallback((table: FloorTable) => {

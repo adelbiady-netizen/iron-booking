@@ -132,7 +132,7 @@ export default function CreateDrawer({
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
-  const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : (preselectedTableId || initialData) ? 'walkin' : initialMode);
+  const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : initialMode);
 
   // Reservation fields — pre-filled from gapHint when present
   const [resName,      setResName]      = useState('');
@@ -144,7 +144,7 @@ export default function CreateDrawer({
   const [resGuestNote, setResGuestNote] = useState('');
   const [resHostNote,  setResHostNote]  = useState('');
   const [resSource,    setResSource]    = useState<'PHONE' | 'INTERNAL'>('PHONE');
-  const [resTable,     setResTable]     = useState(gapHint?.tableId ?? '');
+  const [resTable,     setResTable]     = useState(gapHint?.tableId ?? preselectedTableId ?? '');
 
   // Walk-in fields
   const [wiName,  setWiName]  = useState(initialData?.guestName  ?? '');
@@ -281,7 +281,7 @@ export default function CreateDrawer({
           <div className="flex gap-1 bg-iron-bg rounded-lg p-1">
             <button
               type="button"
-              onClick={() => { setMode('reservation'); setError(null); }}
+              onClick={() => { setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
                 mode === 'reservation'
                   ? 'bg-iron-green text-white'
@@ -292,7 +292,7 @@ export default function CreateDrawer({
             </button>
             <button
               type="button"
-              onClick={() => { setMode('walkin'); setError(null); }}
+              onClick={() => { setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
                 mode === 'walkin'
                   ? 'bg-iron-green text-white'
