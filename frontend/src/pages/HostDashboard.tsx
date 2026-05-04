@@ -298,7 +298,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, []);
 
   const handleTableSelect = useCallback((table: FloorTable) => {
-    setQuickSeatTableId(table.id);
+    setQuickSeatTableId(prev => prev === table.id ? null : table.id);
     setSelectedRes(null);
     setCreateMode(null);
   }, []);
