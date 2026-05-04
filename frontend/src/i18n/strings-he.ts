@@ -233,6 +233,30 @@ export const THe = {
     submitAddToListBusy:  'מוסיף…',
   },
 
+  // ── Table picker ───────────────────────────────────────────────────────────
+  tablePicker: {
+    statusBadge: {
+      recommended: 'מומלץ',
+      possible:    'אפשרי',
+      tight:       'צפוף',
+      blocked:     'חסום',
+    } as Record<string, string>,
+    reasonText: (r: import('../types').ScoredReason): string => {
+      switch (r.code) {
+        case 'CONFLICT':         return r.at ? `קונפליקט עם הזמנה ב${r.at}` : 'קונפליקט עם הזמנה קיימת';
+        case 'TOO_SMALL':        return 'שולחן קטן מדי לקבוצה';
+        case 'TABLE_BLOCKED':    return 'השולחן חסום';
+        case 'PERFECT_FIT':      return 'התאמה מושלמת';
+        case 'GOOD_FIT':         return 'התאמה טובה';
+        case 'LARGE_TABLE':      return `שולחן גדול מדי ל${r.partySize} אורחים`;
+        case 'GAP_BEFORE_TIGHT': return `צפוף — הזמנה קודמת ב${r.prevTime}`;
+        case 'GAP_AFTER_TIGHT':  return `צפוף — הזמנה הבאה ב${r.nextTime}`;
+        case 'GAP_BEFORE_WARN':  return `פרק זמן קצר לפני הזמנה ב${r.prevTime}`;
+        case 'GAP_AFTER_WARN':   return `פרק זמן קצר לפני הזמנה ב${r.nextTime}`;
+      }
+    },
+  },
+
   // ── GuestDrawer ────────────────────────────────────────────────────────────
   guestDrawer: {
     editButton:           'עריכה',

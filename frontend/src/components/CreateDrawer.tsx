@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import type { GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
+import type { BackendTableSuggestion, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
+import SmartTablePicker from './SmartTablePicker';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -157,6 +158,9 @@ export default function CreateDrawer({
   const [nameResults,    setNameResults]    = useState<GuestSearchResult[]>([]);
   const [showNameDrop,   setShowNameDrop]   = useState(false);
 
+  const [resSuggestions, setResSuggestions] = useState<BackendTableSuggestion[]>([]);
+  const [suggestBusy,    setSuggestBusy]    = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [busy,  setBusy]  = useState(false);
 
@@ -191,6 +195,22 @@ export default function CreateDrawer({
     }, 300);
     return () => clearTimeout(t);
   }, [resName, guestHint, hintDismissed]);
+
+  // Debounced table suggestion fetch for reservation mode
+  useEffect(() => {
+    if (mode !== 'reservation' || !resDate || !resTime || resParty < 1) return;
+    setSuggestBusy(true);
+    const t = setTimeout(async () => {
+      try {
+        const dur = resDuration ? parseInt(resDuration, 10) : undefined;
+        const s = await api.tables.suggest({ date: resDate, time: resTime, partySize: resParty, duration: dur });
+        setResSuggestions(s);
+      } catch { setResSuggestions([]); }
+      finally { setSuggestBusy(false); }
+    }, 450);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resDate, resTime, resParty, resDuration, mode]);
 
   function nowStr() {
     const d = new Date();
@@ -507,12 +527,18 @@ export default function CreateDrawer({
               />
             </div>
 
-            <TableGrid
-              tables={tables}
-              value={resTable}
-              onChange={setResTable}
-              label={T.createDrawer.fieldTable}
-            />
+            <div>
+              <Label>{T.createDrawer.fieldTable}</Label>
+              <SmartTablePicker
+                tables={tables}
+                suggestions={resSuggestions}
+                suggestBusy={suggestBusy}
+                selectedId={resTable}
+                onPick={id => setResTable(id)}
+                noTableLabel={T.createDrawer.tableNone}
+                showNoTable
+              />
+            </div>
 
             {error && (
               <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">

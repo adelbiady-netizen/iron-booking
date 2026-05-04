@@ -178,6 +178,20 @@ export interface FloorSuggestion {
   };
 }
 
+export type TablePickerStatus = 'recommended' | 'possible' | 'tight' | 'blocked';
+
+export type ScoredReason =
+  | { code: 'CONFLICT'; at?: string }
+  | { code: 'TOO_SMALL' }
+  | { code: 'TABLE_BLOCKED' }
+  | { code: 'PERFECT_FIT' }
+  | { code: 'GOOD_FIT' }
+  | { code: 'LARGE_TABLE'; excess: number; partySize: number }
+  | { code: 'GAP_BEFORE_TIGHT'; prevTime: string; gapMins: number }
+  | { code: 'GAP_AFTER_TIGHT'; nextTime: string; gapMins: number }
+  | { code: 'GAP_BEFORE_WARN'; prevTime: string }
+  | { code: 'GAP_AFTER_WARN'; nextTime: string };
+
 export interface BackendTableSuggestion {
   type: 'single' | 'combination';
   tableId?: string;
@@ -187,8 +201,10 @@ export interface BackendTableSuggestion {
   minCovers: number;
   maxCovers: number;
   score: number;
-  reasons: string[];
-  warnings: string[];
+  status: TablePickerStatus;
+  reasons: ScoredReason[];
+  prevRes?: { guestName: string; time: string; partySize: number };
+  nextRes?: { guestName: string; time: string; partySize: number };
 }
 
 export type WaitlistStatus = 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT' | 'REMOVED';

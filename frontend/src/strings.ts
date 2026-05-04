@@ -235,6 +235,30 @@ export const T = {
     submitAddToListBusy:  'Adding…',
   },
 
+  // ── Table picker ───────────────────────────────────────────────────────────
+  tablePicker: {
+    statusBadge: {
+      recommended: 'Recommended',
+      possible:    'Possible',
+      tight:       'Tight',
+      blocked:     'Blocked',
+    } as Record<string, string>,
+    reasonText: (r: import('./types').ScoredReason): string => {
+      switch (r.code) {
+        case 'CONFLICT':         return r.at ? `Conflicts with booking at ${r.at}` : 'Conflicts with existing booking';
+        case 'TOO_SMALL':        return 'Table too small for party';
+        case 'TABLE_BLOCKED':    return 'Table is blocked';
+        case 'PERFECT_FIT':      return 'Perfect capacity fit';
+        case 'GOOD_FIT':         return 'Good capacity fit';
+        case 'LARGE_TABLE':      return `Table too large for ${r.partySize} guests`;
+        case 'GAP_BEFORE_TIGHT': return `Tight gap — prev booking at ${r.prevTime}`;
+        case 'GAP_AFTER_TIGHT':  return `Tight gap — next booking at ${r.nextTime}`;
+        case 'GAP_BEFORE_WARN':  return `Short gap before booking at ${r.prevTime}`;
+        case 'GAP_AFTER_WARN':   return `Short gap before next booking at ${r.nextTime}`;
+      }
+    },
+  },
+
   // ── GuestDrawer ────────────────────────────────────────────────────────────
   guestDrawer: {
     editButton:           'Edit',

@@ -1,19 +1,36 @@
 import { prisma } from '../lib/prisma';
-import { getTableAvailability, parseTimeOnDate } from './availability';
-import { addMinutes } from 'date-fns';
-import { Table, TableCombination, Section } from '@prisma/client';
+import { parseTimeOnDate } from './availability';
+import { addMinutes, areIntervalsOverlapping } from 'date-fns';
+import { Table, Section } from '@prisma/client';
+
+// ─── Public types ─────────────────────────────────────────────────────────────
+
+export type ScoredReason =
+  | { code: 'CONFLICT'; at?: string }
+  | { code: 'TOO_SMALL' }
+  | { code: 'TABLE_BLOCKED' }
+  | { code: 'PERFECT_FIT' }
+  | { code: 'GOOD_FIT' }
+  | { code: 'LARGE_TABLE'; excess: number; partySize: number }
+  | { code: 'GAP_BEFORE_TIGHT'; prevTime: string; gapMins: number }
+  | { code: 'GAP_AFTER_TIGHT'; nextTime: string; gapMins: number }
+  | { code: 'GAP_BEFORE_WARN'; prevTime: string }
+  | { code: 'GAP_AFTER_WARN'; nextTime: string };
+
+export type TablePickerStatus = 'recommended' | 'possible' | 'tight' | 'blocked';
 
 export interface TableSuggestion {
-  type: 'single' | 'combination';
-  tableId?: string;
-  combinationId?: string;
+  type: 'single';
+  tableId: string;
   tableName: string;
   sectionName: string;
   minCovers: number;
   maxCovers: number;
   score: number;
-  reasons: string[];
-  warnings: string[];
+  status: TablePickerStatus;
+  reasons: ScoredReason[];
+  prevRes?: { guestName: string; time: string; partySize: number };
+  nextRes?: { guestName: string; time: string; partySize: number };
 }
 
 interface MatchContext {
@@ -23,185 +40,192 @@ interface MatchContext {
   partySize: number;
   durationMinutes: number;
   bufferMinutes: number;
-  occasion?: string;
-  preferenceNotes?: string;
-  guestIsVip?: boolean;
+  excludeReservationId?: string;
 }
 
 type TableWithSection = Table & { section: Section | null };
-type CombinationWithTables = TableCombination & {
-  tableA: TableWithSection;
-  tableB: TableWithSection;
+
+const STATUS_ORDER: Record<TablePickerStatus, number> = {
+  recommended: 0,
+  possible: 1,
+  tight: 2,
+  blocked: 3,
 };
 
 /**
- * Returns ranked table suggestions for a given reservation context.
+ * Returns scored table suggestions for a given reservation context.
+ *
+ * All active tables are returned (including blocked/tight) so the host
+ * can see every option with a clear explanation. The caller must sort/filter.
+ *
  * Scoring factors:
- *   - Capacity fit (prefer tables closest to party size without excess)
- *   - Availability (no conflicts)
- *   - VIP preference (better positioned tables score higher for VIPs)
- *   - Occasion bonuses (booths for birthdays, window seats for anniversaries)
- *   - Turn utilization (prefer tables that won't leave awkward gaps)
+ *   - Capacity fit (exact = best, excess ≥ 4 = penalty)
+ *   - Conflict detection with buffer
+ *   - Turn gap analysis: physical gap to prev/next reservation at this table
+ *     - < 15 min gap → "tight"
+ *     - < 30 min gap → "possible" (warn)
+ *     - ≥ 30 min gap → no penalty (healthy turn window)
  */
 export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[]> {
-  const [tables, combinations, restaurantSettings] = await Promise.all([
+  const slotStart = parseTimeOnDate(ctx.date, ctx.time);
+  const slotEnd = addMinutes(slotStart, ctx.durationMinutes);
+  const bufferedStart = addMinutes(slotStart, -ctx.bufferMinutes);
+  const bufferedEnd = addMinutes(slotEnd, ctx.bufferMinutes);
+
+  const [tables, dayReservations, blocks] = await Promise.all([
     prisma.table.findMany({
       where: { restaurantId: ctx.restaurantId, isActive: true },
       include: { section: true },
     }),
-    prisma.tableCombination.findMany({
-      where: { restaurantId: ctx.restaurantId, isActive: true },
-      include: {
-        tableA: { include: { section: true } },
-        tableB: { include: { section: true } },
+    prisma.reservation.findMany({
+      where: {
+        restaurantId: ctx.restaurantId,
+        date: ctx.date,
+        status: { in: ['PENDING', 'CONFIRMED', 'SEATED'] },
+        tableId: { not: null },
+        ...(ctx.excludeReservationId ? { id: { not: ctx.excludeReservationId } } : {}),
+      },
+      select: {
+        id: true,
+        tableId: true,
+        time: true,
+        duration: true,
+        guestName: true,
+        partySize: true,
+        status: true,
       },
     }),
-    prisma.restaurant.findUniqueOrThrow({
-      where: { id: ctx.restaurantId },
-      select: { settings: true },
+    prisma.blockedPeriod.findMany({
+      where: {
+        restaurantId: ctx.restaurantId,
+        startTime: { lt: bufferedEnd },
+        endTime: { gt: bufferedStart },
+      },
     }),
   ]);
 
-  const availability = await getTableAvailability(
-    ctx.restaurantId,
-    ctx.date,
-    ctx.time,
-    ctx.durationMinutes,
-    ctx.bufferMinutes
-  );
-
-  const availableIds = new Set(
-    availability.filter((a) => a.isAvailable).map((a) => a.tableId)
-  );
-
   const suggestions: TableSuggestion[] = [];
 
-  // Score single tables
   for (const table of tables as TableWithSection[]) {
-    if (table.minCovers > ctx.partySize || table.maxCovers < ctx.partySize) continue;
-    if (!availableIds.has(table.id)) continue;
-
-    const { score, reasons, warnings } = scoreTable(table, ctx);
-    suggestions.push({
-      type: 'single',
+    const base = {
+      type: 'single' as const,
       tableId: table.id,
       tableName: table.name,
-      sectionName: table.section?.name ?? 'Unknown',
+      sectionName: table.section?.name ?? '',
       minCovers: table.minCovers,
       maxCovers: table.maxCovers,
-      score,
-      reasons,
-      warnings,
+    };
+
+    // ── Capacity gate ──────────────────────────────────────────────────────────
+    if (table.maxCovers < ctx.partySize) {
+      suggestions.push({ ...base, score: 0, status: 'blocked', reasons: [{ code: 'TOO_SMALL' }] });
+      continue;
+    }
+
+    // ── Block gate ────────────────────────────────────────────────────────────
+    const block = blocks.find(b => b.tableId === table.id || b.tableId === null);
+    if (block) {
+      suggestions.push({ ...base, score: 0, status: 'blocked', reasons: [{ code: 'TABLE_BLOCKED' }] });
+      continue;
+    }
+
+    // ── Reservations for this table, sorted by start time ─────────────────────
+    const tableResv = dayReservations
+      .filter(r => r.tableId === table.id)
+      .map(r => {
+        const startDate = parseTimeOnDate(ctx.date, r.time);
+        const endDate = addMinutes(startDate, r.duration);
+        return { ...r, startMs: startDate.getTime(), endMs: endDate.getTime() };
+      })
+      .sort((a, b) => a.startMs - b.startMs);
+
+    // ── Conflict check (with buffer) ───────────────────────────────────────────
+    const conflict = tableResv.find(r => {
+      const rStart = parseTimeOnDate(ctx.date, r.time);
+      const rEnd = addMinutes(rStart, r.duration + ctx.bufferMinutes);
+      return areIntervalsOverlapping(
+        { start: bufferedStart, end: bufferedEnd },
+        { start: rStart, end: rEnd },
+      );
     });
-  }
 
-  // Score table combinations
-  for (const combo of combinations as CombinationWithTables[]) {
-    if (combo.minCovers > ctx.partySize || combo.maxCovers < ctx.partySize) continue;
-    if (!availableIds.has(combo.tableAId) || !availableIds.has(combo.tableBId)) continue;
-
-    const { score, reasons, warnings } = scoreCombo(combo, ctx);
-    suggestions.push({
-      type: 'combination',
-      combinationId: combo.id,
-      tableName: combo.name,
-      sectionName: combo.tableA.section?.name ?? 'Unknown',
-      minCovers: combo.minCovers,
-      maxCovers: combo.maxCovers,
-      score,
-      reasons,
-      warnings,
-    });
-  }
-
-  return suggestions.sort((a, b) => b.score - a.score);
-}
-
-function scoreTable(
-  table: TableWithSection,
-  ctx: MatchContext
-): { score: number; reasons: string[]; warnings: string[] } {
-  let score = 100;
-  const reasons: string[] = [];
-  const warnings: string[] = [];
-
-  // Capacity fit: perfect fit = bonus, over-seated = penalty
-  const excess = table.maxCovers - ctx.partySize;
-  if (excess === 0) {
-    score += 20;
-    reasons.push('Perfect capacity fit');
-  } else if (excess <= 1) {
-    score += 10;
-    reasons.push('Good capacity fit');
-  } else if (excess >= 3) {
-    score -= excess * 5;
-    warnings.push(`Table seats ${table.maxCovers} — ${excess} seats will be empty`);
-  }
-
-  // VIP gets best placement (scored tables in "good" sections)
-  if (ctx.guestIsVip) {
-    if (table.section?.name?.toLowerCase().includes('main')) {
-      score += 15;
-      reasons.push('Prime section for VIP');
+    if (conflict) {
+      suggestions.push({
+        ...base,
+        score: 0,
+        status: 'blocked',
+        reasons: [{ code: 'CONFLICT', at: conflict.time }],
+      });
+      continue;
     }
-    if (table.section?.name?.toLowerCase().includes('private')) {
-      score += 25;
-      reasons.push('Private section for VIP');
-    }
-  }
 
-  // Occasion-specific bonuses
-  if (ctx.occasion) {
-    if (ctx.occasion === 'birthday' && table.shape === 'BOOTH') {
-      score += 15;
-      reasons.push('Booth preferred for celebrations');
+    // ── Gap analysis ──────────────────────────────────────────────────────────
+    const slotStartMs = slotStart.getTime();
+    const slotEndMs = slotEnd.getTime();
+
+    // Previous: latest reservation ending at or before slot start
+    const prevR = tableResv.filter(r => r.endMs <= slotStartMs).at(-1);
+    // Next: earliest reservation starting at or after slot end
+    const nextR = tableResv.find(r => r.startMs >= slotEndMs);
+
+    const reasons: ScoredReason[] = [];
+    let status: TablePickerStatus = 'recommended';
+    let score = 100;
+
+    // Capacity scoring
+    const excess = table.maxCovers - ctx.partySize;
+    if (excess === 0) {
+      reasons.push({ code: 'PERFECT_FIT' });
+      score += 20;
+    } else if (excess <= 2) {
+      reasons.push({ code: 'GOOD_FIT' });
+      score += 10;
+    } else if (excess >= 4) {
+      reasons.push({ code: 'LARGE_TABLE', excess, partySize: ctx.partySize });
+      score -= excess * 5;
+      if (status === 'recommended') status = 'possible';
     }
-    if (ctx.occasion === 'anniversary') {
-      if (table.notes?.toLowerCase().includes('window')) {
-        score += 20;
-        reasons.push('Window table for anniversary');
+
+    // Gap before (physical gap, no buffer)
+    if (prevR) {
+      const gapMins = Math.round((slotStartMs - prevR.endMs) / 60_000);
+      if (gapMins < 15) {
+        reasons.push({ code: 'GAP_BEFORE_TIGHT', prevTime: prevR.time, gapMins });
+        status = 'tight';
+        score -= 40;
+      } else if (gapMins < 30) {
+        reasons.push({ code: 'GAP_BEFORE_WARN', prevTime: prevR.time });
+        score -= 10;
+        if (status === 'recommended') status = 'possible';
       }
     }
+
+    // Gap after (physical gap, no buffer)
+    if (nextR) {
+      const gapMins = Math.round((nextR.startMs - slotEndMs) / 60_000);
+      if (gapMins < 15) {
+        reasons.push({ code: 'GAP_AFTER_TIGHT', nextTime: nextR.time, gapMins });
+        status = 'tight';
+        score -= 40;
+      } else if (gapMins < 30) {
+        reasons.push({ code: 'GAP_AFTER_WARN', nextTime: nextR.time });
+        score -= 10;
+        if (status === 'recommended') status = 'possible';
+      }
+    }
+
+    suggestions.push({
+      ...base,
+      score,
+      status,
+      reasons,
+      prevRes: prevR ? { guestName: prevR.guestName, time: prevR.time, partySize: prevR.partySize } : undefined,
+      nextRes: nextR ? { guestName: nextR.guestName, time: nextR.time, partySize: nextR.partySize } : undefined,
+    });
   }
 
-  // Patio in summer (basic heuristic — can be enhanced with season config)
-  const month = ctx.date.getMonth();
-  const isSummerMonth = month >= 4 && month <= 9;
-  if (table.section?.name?.toLowerCase().includes('patio') && isSummerMonth) {
-    score += 5;
-    reasons.push('Patio available in season');
-  }
-
-  // Bar section slight penalty for large parties
-  if (table.section?.name?.toLowerCase().includes('bar') && ctx.partySize > 4) {
-    score -= 10;
-    warnings.push('Bar section may not be ideal for large groups');
-  }
-
-  return { score, reasons, warnings };
-}
-
-function scoreCombo(
-  combo: CombinationWithTables,
-  ctx: MatchContext
-): { score: number; reasons: string[]; warnings: string[] } {
-  let score = 80; // combinations are slightly penalized vs single tables
-  const reasons: string[] = ['Combined table setup'];
-  const warnings: string[] = ['Requires staff to combine tables before seating'];
-
-  const excess = combo.maxCovers - ctx.partySize;
-  if (excess === 0) {
-    score += 15;
-    reasons.push('Perfect capacity fit');
-  } else if (excess >= 3) {
-    score -= excess * 3;
-    warnings.push(`Combination seats ${combo.maxCovers} — ${excess} seats will be empty`);
-  }
-
-  if (ctx.guestIsVip && combo.tableA.section?.name?.toLowerCase().includes('private')) {
-    score += 20;
-    reasons.push('Private section for VIP');
-  }
-
-  return { score, reasons, warnings };
+  return suggestions.sort((a, b) => {
+    const od = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    return od !== 0 ? od : b.score - a.score;
+  });
 }

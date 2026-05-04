@@ -59,6 +59,7 @@ const SuggestQuerySchema = z.object({
   duration: z.coerce.number().int().optional(),
   occasion: z.string().optional(),
   guestIsVip: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  excludeReservationId: z.string().uuid().optional(),
 });
 
 type FloorStateQuery = z.infer<typeof FloorStateQuerySchema>;

@@ -159,8 +159,8 @@ export const api = {
     insights: (date: string, time: string) =>
       request<FloorInsight[]>(`/tables/insights?date=${date}&time=${encodeURIComponent(time)}`),
     list: () => request<Table[]>('/tables'),
-    suggest: (params: { date: string; time: string; partySize: number; duration?: number }) =>
-      request<BackendTableSuggestion[]>(`/tables/suggest?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}`),
+    suggest: (params: { date: string; time: string; partySize: number; duration?: number; excludeReservationId?: string }) =>
+      request<BackendTableSuggestion[]>(`/tables/suggest?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}${params.excludeReservationId ? `&excludeReservationId=${params.excludeReservationId}` : ''}`),
     create: (body: {
       name: string; sectionId?: string; minCovers: number; maxCovers: number;
       shape?: string; posX?: number; posY?: number; width?: number; height?: number;

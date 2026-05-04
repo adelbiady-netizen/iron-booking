@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api } from '../api';
+import SmartTablePicker from './SmartTablePicker';
 import type React from 'react';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
@@ -200,7 +201,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     if (!editDate || !editTime || isNaN(partySize) || partySize < 1) return;
     setSuggestBusy(true);
     try {
-      const suggestions = await api.tables.suggest({ date: editDate, time: editTime, partySize, duration: editDuration });
+      const suggestions = await api.tables.suggest({
+        date: editDate, time: editTime, partySize, duration: editDuration,
+        excludeReservationId: res.id,
+      });
       setTableSuggestions(suggestions);
     } catch {
       setTableSuggestions([]);
@@ -726,61 +730,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
                         {/* Inline picker */}
                         {showTablePicker && (
-                          <div className="space-y-2.5 pt-0.5">
-                            {suggestBusy ? (
-                              <div className="flex items-center gap-2 py-2">
-                                <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
-                                <span className="text-iron-muted text-xs">{T.common.processing}</span>
-                              </div>
-                            ) : (
-                              <>
-                                {tableSuggestions.filter(s => s.tableId).length > 0 && (
-                                  <>
-                                    <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">
-                                      {T.guestDrawer.suggestedTablesLabel}
-                                    </p>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      {tableSuggestions.filter(s => s.tableId).map(s => (
-                                        <button
-                                          key={s.tableId}
-                                          type="button"
-                                          onClick={() => { setEditTableId(s.tableId!); setShowTablePicker(false); }}
-                                          className={`text-xs py-2.5 rounded-lg border transition-all text-center ${
-                                            editTableId === s.tableId
-                                              ? 'bg-iron-green/25 border-iron-green/60 text-iron-green-light ring-1 ring-iron-green/25'
-                                              : 'border-iron-green/30 text-iron-text hover:border-iron-green/60 hover:bg-iron-green/[0.12]'
-                                          }`}
-                                        >
-                                          <div className="font-bold">{s.tableName}</div>
-                                          <div className="text-iron-muted text-[10px] mt-0.5">{s.minCovers}–{s.maxCovers}</div>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </>
-                                )}
-                                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">
-                                  {T.guestDrawer.allTablesLabel}
-                                </p>
-                                <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
-                                  {tables.filter(t => t.isActive).map(t => (
-                                    <button
-                                      key={t.id}
-                                      type="button"
-                                      onClick={() => { setEditTableId(t.id); setShowTablePicker(false); }}
-                                      className={`text-xs py-2.5 rounded-lg border transition-all text-center ${
-                                        editTableId === t.id
-                                          ? 'bg-iron-green/25 border-iron-green/60 text-iron-green-light ring-1 ring-iron-green/25'
-                                          : 'border-iron-border/60 text-iron-muted hover:border-iron-green/50 hover:bg-iron-green/[0.08] hover:text-iron-text'
-                                      }`}
-                                    >
-                                      <div className="font-bold">{t.name}</div>
-                                      <div className="text-[10px] mt-0.5 opacity-60">{t.minCovers}–{t.maxCovers}</div>
-                                    </button>
-                                  ))}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                          <SmartTablePicker
+                            tables={tables}
+                            suggestions={tableSuggestions}
+                            suggestBusy={suggestBusy}
+                            selectedId={editTableId}
+                            onPick={id => { setEditTableId(id); setShowTablePicker(false); }}
+                          />
                         )}
                       </div>
                     </Field>

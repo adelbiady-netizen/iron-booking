@@ -284,6 +284,7 @@ export async function getTableSuggestions(restaurantId: string, query: {
   duration?: number;
   occasion?: string;
   guestIsVip?: boolean;
+  excludeReservationId?: string;
 }) {
   const restaurant = await prisma.restaurant.findUniqueOrThrow({
     where: { id: restaurantId },
@@ -300,8 +301,7 @@ export async function getTableSuggestions(restaurantId: string, query: {
     partySize: query.partySize,
     durationMinutes: duration,
     bufferMinutes: buffer,
-    occasion: query.occasion,
-    guestIsVip: query.guestIsVip,
+    excludeReservationId: query.excludeReservationId,
   });
 }
 
