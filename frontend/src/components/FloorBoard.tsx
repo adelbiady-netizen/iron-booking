@@ -179,6 +179,16 @@ export default function FloorBoard({
     setCtxMenu({ x, y, table: t });
   }
 
+  // ── Turn data: per-table upcoming count from full reservations list ──────────
+  const turnData = new Map<string, Reservation[]>();
+  for (const r of reservations) {
+    if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
+    const arr = turnData.get(r.tableId) ?? [];
+    arr.push(r);
+    turnData.set(r.tableId, arr);
+  }
+  for (const arr of turnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
+
   // ── Stats ───────────────────────────────────────────────────────────────────
   const available    = tables.filter(t => t.liveStatus === 'AVAILABLE').length;
   const occupied     = tables.filter(t => t.liveStatus === 'OCCUPIED').length;
@@ -309,6 +319,11 @@ export default function FloorBoard({
               const insight = insights.find(i => i.tableId === t.id);
               const dimmed  = hoveredSectionId !== null && t.section?.id !== hoveredSectionId;
               const wMatch  = waitlistMatches[t.id];
+              const turns   = turnData.get(t.id) ?? [];
+              const extraTurns  = Math.max(0, turns.length - 1);
+              const turnTooltip = turns.length > 0
+                ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
+                : undefined;
               return (
                 <MapTable
                   key={t.id}
@@ -329,6 +344,8 @@ export default function FloorBoard({
                   onWaitlistAction={wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                   nowTime={nowTime}
                   operationalNow={operationalNow}
+                  extraTurns={extraTurns}
+                  turnTooltip={turnTooltip}
                 />
               );
             })}
@@ -353,7 +370,12 @@ export default function FloorBoard({
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
                 {group.tables.map(t => {
                   const insight = insights.find(i => i.tableId === t.id);
-                  const wMatch = waitlistMatches[t.id];
+                  const wMatch  = waitlistMatches[t.id];
+                  const turns   = turnData.get(t.id) ?? [];
+                  const extraTurns  = Math.max(0, turns.length - 1);
+                  const turnTooltip = turns.length > 0
+                    ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
+                    : undefined;
                   return (
                     <TableCard
                       key={t.id}
@@ -373,6 +395,8 @@ export default function FloorBoard({
                       onWaitlistAction={wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                       nowTime={nowTime}
                       operationalNow={operationalNow}
+                      extraTurns={extraTurns}
+                      turnTooltip={turnTooltip}
                     />
                   );
                 })}
@@ -509,7 +533,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime }: {
+function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, extraTurns = 0, turnTooltip }: {
   table: FloorTable;
   selected: boolean;
   dimmed: boolean;
@@ -523,6 +547,8 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
   onWaitlistAction?: () => void;
   nowTime?: string;
   operationalNow?: number;
+  extraTurns?: number;
+  turnTooltip?: string;
 }) {
   const T = useT();
   // Detect late arrival: RESERVED_SOON tables whose upcoming reservation is past due
@@ -547,11 +573,6 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
   const borderWidth  = selected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
   const currentRes   = table.currentReservation;
   const displayRes   = currentRes ?? nextRes ?? null;
-
-  const hiddenTurns = table.upcomingReservations.length > 1 ? table.upcomingReservations.length - 1 : 0;
-  const turnTooltip = table.upcomingReservations.length > 0
-    ? `${table.name} · upcoming:\n${table.upcomingReservations.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
-    : undefined;
 
   return (
     <button
@@ -722,7 +743,7 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
       )}
 
       {/* Turn count badge — top-right, only when multiple upcoming exist */}
-      {hiddenTurns > 0 && (
+      {extraTurns > 0 && (
         <span style={{
           position: 'absolute',
           top: 3,
@@ -737,7 +758,7 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
           userSelect: 'none',
           lineHeight: 1.4,
         }}>
-          +{hiddenTurns}
+          +{extraTurns}
         </span>
       )}
 

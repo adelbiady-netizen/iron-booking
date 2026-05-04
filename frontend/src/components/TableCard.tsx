@@ -33,9 +33,11 @@ interface Props {
   onWaitlistAction?: () => void;
   nowTime?: string;
   operationalNow?: number;
+  extraTurns?: number;
+  turnTooltip?: string;
 }
 
-export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow }: Props) {
+export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow, extraTurns = 0, turnTooltip }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_STYLE: Record<string, StatusStyle> = {
@@ -49,14 +51,6 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
-
-  // Badge: upcoming turns not shown inline (first upcoming is already shown in card body)
-  const hiddenTurns = table.upcomingReservations.length > 1 ? table.upcomingReservations.length - 1 : 0;
-
-  // Native tooltip listing all upcoming reservations
-  const turnTooltip = table.upcomingReservations.length > 0
-    ? `${table.name} · upcoming:\n${table.upcomingReservations.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
-    : undefined;
 
   // Detect late/no-show risk for RESERVED_SOON tables
   const arrMins = nowTime && nextRes
@@ -94,9 +88,9 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <span className="text-iron-text font-semibold text-sm leading-tight truncate">{table.name}</span>
           {insight?.priority === 'HIGH'   && <span className="w-2 h-2 rounded-full shrink-0 bg-red-500"   title={insight.message} />}
           {insight?.priority === 'MEDIUM' && <span className="w-2 h-2 rounded-full shrink-0 bg-amber-400" title={insight.message} />}
-          {hiddenTurns > 0 && (
+          {extraTurns > 0 && (
             <span className="shrink-0 text-[9px] font-bold px-1 py-px rounded bg-blue-500/15 border border-blue-500/25 text-blue-400 tabular-nums">
-              +{hiddenTurns}
+              +{extraTurns}
             </span>
           )}
         </div>
