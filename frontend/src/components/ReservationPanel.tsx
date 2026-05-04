@@ -180,16 +180,16 @@ export default function ReservationPanel({
         )}
       </div>
 
-      {/* Quick Seat Banner — shrink-0 outside scroll so it's always visible */}
+      {/* Quick Seat Banner */}
       {quickSeatTableId != null && (
-        <div className="shrink-0 flex items-center gap-2 px-3.5 py-3 bg-iron-green/25 border-b-2 border-iron-green/60">
-          <span className="text-sm text-iron-green-light font-bold flex-1 leading-snug">
+        <div className="shrink-0 flex items-center gap-2 px-3.5 py-3 bg-iron-green/25 border-b-2 border-iron-green/60" dir="rtl">
+          <span className="text-sm text-iron-green-light font-bold flex-1 leading-snug text-right">
             {T.reservationPanel.quickSeatTo(quickSeatTableName ?? quickSeatTableId!)}
           </span>
           <button
             type="button"
             onClick={onCancelQuickSeat}
-            className="text-iron-green-light/70 hover:text-iron-green-light text-base font-bold leading-none px-1.5"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-iron-green-light/70 hover:text-iron-green-light hover:bg-iron-green/20 active:bg-iron-green/40 text-base font-bold transition-colors"
             aria-label="ביטול הושבה מהירה"
           >
             ✕
@@ -355,10 +355,10 @@ export default function ReservationPanel({
                     <button
                       type="button"
                       onClick={() => onQuickSeat?.(r.id)}
-                      className="flex items-center justify-center px-4 shrink-0 border-s border-iron-green/30 bg-iron-green/10 hover:bg-iron-green/30 active:bg-iron-green/40 transition-colors"
+                      className="flex items-center justify-center w-14 shrink-0 border-s border-iron-green/30 bg-iron-green/10 hover:bg-iron-green/25 active:bg-iron-green/50 active:scale-95 transition-all"
                       title={T.reservationPanel.quickSeatTo(quickSeatTableName ?? '')}
                     >
-                      <span className="w-8 h-8 rounded-full bg-iron-green/20 border border-iron-green/50 flex items-center justify-center text-iron-green-light text-xl font-bold leading-none">
+                      <span className="w-10 h-10 rounded-full bg-iron-green/20 border-2 border-iron-green/60 flex items-center justify-center text-iron-green-light text-2xl font-bold leading-none select-none">
                         +
                       </span>
                     </button>
