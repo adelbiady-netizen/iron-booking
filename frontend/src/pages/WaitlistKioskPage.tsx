@@ -30,19 +30,30 @@ function nowTimeStr() {
 
 // ─── Shared visual primitives (self-contained, matching BookingPage) ───────────
 
-function AtmosphericBg() {
+function AtmosphericBg({ coverImageUrl }: { coverImageUrl?: string | null }) {
   return (
     <>
-      <div
-        className="fixed inset-0 -z-20"
-        style={{
-          background: [
-            'radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%)',
-            'radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.04) 0%, transparent 50%)',
-            'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
-          ].join(', '),
-        }}
-      />
+      {coverImageUrl ? (
+        <div className="fixed inset-0 -z-20 overflow-hidden">
+          <img
+            src={coverImageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ transform: 'scale(1.08)', filter: 'blur(28px) brightness(0.32) saturate(1.2)' }}
+          />
+        </div>
+      ) : (
+        <div
+          className="fixed inset-0 -z-20"
+          style={{
+            background: [
+              'radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%)',
+              'radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.04) 0%, transparent 50%)',
+              'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
+            ].join(', '),
+          }}
+        />
+      )}
       <div
         className="fixed inset-0 -z-10 pointer-events-none"
         style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.48) 100%)' }}
@@ -369,7 +380,7 @@ export default function WaitlistKioskPage({ slug }: Props) {
       className="relative min-h-screen flex flex-col items-center"
       style={{ paddingBottom: 'clamp(24px, 5vh, 64px)' }}
     >
-      <AtmosphericBg />
+      <AtmosphericBg coverImageUrl={profile?.coverImageUrl} />
 
       {/* Language switcher */}
       <div className="fixed top-4 right-4 z-50">

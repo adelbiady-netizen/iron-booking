@@ -45,6 +45,52 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+function BrandingPreviewCard({ primaryColor, logoUrl, restaurantName }: { primaryColor: string; logoUrl: string; restaurantName: string }) {
+  const hex = primaryColor || '#22C55E';
+  const initial = restaurantName.charAt(0).toUpperCase();
+  return (
+    <div
+      className="rounded-xl overflow-hidden border border-white/10"
+      style={{ background: 'linear-gradient(160deg, #0e1220 0%, #070912 100%)', padding: '20px' }}
+    >
+      <div className="flex flex-col items-center gap-3 mb-4">
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center border border-white/15"
+          style={{ background: 'rgba(16,20,34,0.72)' }}
+        >
+          {logoUrl
+            ? <img src={logoUrl} alt="logo" className="object-contain h-8 max-w-[44px]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            : <span className="text-white/70 text-xl font-light">{initial}</span>}
+        </div>
+        <p className="text-white/80 text-sm font-medium">{restaurantName}</p>
+      </div>
+      <div className="flex flex-col gap-2">
+        {['7:00 PM', '7:30 PM', '8:00 PM'].map((slot, i) => (
+          <div
+            key={slot}
+            className="rounded-lg px-4 py-2.5 text-center text-sm font-medium"
+            style={i === 1 ? {
+              background: hex,
+              color: '#fff',
+              boxShadow: `0 0 18px ${hex}44`,
+            } : {
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: 'rgba(255,255,255,0.55)',
+            }}
+          >{slot}</div>
+        ))}
+      </div>
+      <div className="mt-4">
+        <div
+          className="w-full rounded-lg py-3 text-center text-sm font-semibold"
+          style={{ background: hex, color: '#fff', opacity: 0.9 }}
+        >Reserve table</div>
+      </div>
+    </div>
+  );
+}
+
 function NumInput({ value, onChange, min, max }: { value: number; onChange: (v: number) => void; min?: number; max?: number }) {
   return (
     <Input
@@ -120,7 +166,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
-  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '' });
+  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '' });
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
 
@@ -161,7 +207,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
-      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '' });
+      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '' });
     } catch { /* ignore */ }
     finally { setDetailBusy(false); }
   }, []);
@@ -354,8 +400,17 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         primaryColor:      brandingForm.primaryColor      || null,
         accentColor:       brandingForm.accentColor       || null,
         publicThemePreset: brandingForm.publicThemePreset || null,
+        logoUrl:           brandingForm.logoUrl           || null,
+        coverImageUrl:     brandingForm.coverImageUrl     || null,
       });
-      setDetail(d => d ? { ...d, primaryColor: result.primaryColor, accentColor: result.accentColor, publicThemePreset: result.publicThemePreset } : d);
+      setDetail(d => d ? {
+        ...d,
+        primaryColor:      result.primaryColor,
+        accentColor:       result.accentColor,
+        publicThemePreset: result.publicThemePreset,
+        logoUrl:           result.logoUrl,
+        coverImageUrl:     result.coverImageUrl,
+      } : d);
       setEditBranding(false);
       showToast('Branding saved');
     } catch (err) {
@@ -830,8 +885,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
         {/* Public Branding */}
         {editBranding ? (
-          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-5">
             <h3 className="font-medium">Public Page Branding</h3>
+
+            {/* Colors + preset */}
             <div className="grid grid-cols-2 gap-4">
               <Field label="Primary color (hex)">
                 <div className="flex items-center gap-2">
@@ -864,6 +921,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </div>
               </Field>
             </div>
+
             <Field label="Theme preset (overridden by custom color if set)">
               <select
                 value={brandingForm.publicThemePreset}
@@ -879,20 +937,97 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <option value="fineDining">Fine Dining (crimson)</option>
               </select>
             </Field>
+
+            {/* Logo URL */}
+            <Field label="Logo URL (PNG/SVG, transparent background recommended)">
+              <Input
+                value={brandingForm.logoUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
+                placeholder="https://cdn.example.com/logo.svg"
+              />
+              {brandingForm.logoUrl && (
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-lg border border-iron-border bg-iron-bg flex items-center justify-center overflow-hidden">
+                    <img
+                      src={brandingForm.logoUrl}
+                      alt="logo preview"
+                      className="object-contain max-h-[52px] max-w-[56px]"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  <span className="text-iron-muted text-xs">Logo preview</span>
+                </div>
+              )}
+            </Field>
+
+            {/* Cover image URL */}
+            <Field label="Cover / hero image URL (wide landscape, ≥1200px wide recommended)">
+              <Input
+                value={brandingForm.coverImageUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
+                placeholder="https://cdn.example.com/cover.jpg"
+              />
+              {brandingForm.coverImageUrl && (
+                <div className="mt-2 rounded-lg overflow-hidden border border-iron-border" style={{ height: 96 }}>
+                  <img
+                    src={brandingForm.coverImageUrl}
+                    alt="cover preview"
+                    className="w-full h-full object-cover"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+            </Field>
+
+            {/* Live preview */}
+            <div>
+              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">Live preview</p>
+              <BrandingPreviewCard
+                primaryColor={brandingForm.primaryColor}
+                logoUrl={brandingForm.logoUrl}
+                restaurantName={detail?.name ?? 'Restaurant'}
+              />
+            </div>
+
             {brandingError && <p className="text-xs text-red-400">{brandingError}</p>}
-            <div className="flex gap-3 pt-1">
+            <div className="flex flex-wrap gap-3 pt-1">
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+              <button
+                onClick={() => {
+                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '' });
+                  setBrandingError(null);
+                }}
+                className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text"
+              >Reset branding</button>
               <button onClick={() => { setEditBranding(false); setBrandingError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
+              {detail?.slug && (
+                <a
+                  href={`/book/${detail.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text"
+                >Preview public page ↗</a>
+              )}
             </div>
           </div>
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Public Page Branding</h3>
-              <button
-                onClick={() => { setEditBranding(true); setBrandingError(null); }}
-                className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-              >{T.admin.editBtn}</button>
+              <div className="flex items-center gap-2">
+                {detail?.slug && (
+                  <a
+                    href={`/book/${detail.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
+                  >Preview ↗</a>
+                )}
+                <button
+                  onClick={() => { setEditBranding(true); setBrandingError(null); }}
+                  className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
+                >{T.admin.editBtn}</button>
+              </div>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               <div>
@@ -913,7 +1048,23 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Theme preset</dt>
-                <dd className="text-iron-text">{detail?.publicThemePreset ?? <span className="text-iron-muted italic">None</span>}</dd>
+                <dd className="text-iron-text capitalize">{detail?.publicThemePreset ?? <span className="text-iron-muted italic">None</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Logo</dt>
+                <dd>
+                  {detail?.logoUrl
+                    ? <img src={detail.logoUrl} alt="logo" className="h-6 object-contain" />
+                    : <span className="text-iron-muted italic">Not set</span>}
+                </dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-iron-muted text-xs mb-0.5">Cover image</dt>
+                <dd>
+                  {detail?.coverImageUrl
+                    ? <div className="mt-1 rounded-md overflow-hidden border border-iron-border" style={{ height: 64 }}><img src={detail.coverImageUrl} alt="cover" className="w-full h-full object-cover" /></div>
+                    : <span className="text-iron-muted italic">Not set</span>}
+                </dd>
               </div>
             </dl>
           </div>

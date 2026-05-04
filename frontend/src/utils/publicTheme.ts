@@ -13,6 +13,37 @@ const PRESET_RGB: Record<PresetKey | 'default', string> = {
   fineDining: '220 38 38',   // crimson
 };
 
+// Per-preset typography + feel tokens
+const PRESET_RADIUS: Record<PresetKey | 'default', string> = {
+  default:    '12px',
+  family:     '20px',
+  luxury:     '4px',
+  casual:     '14px',
+  nightlife:  '6px',
+  minimal:    '2px',
+  fineDining: '0px',
+};
+
+const PRESET_TRACKING: Record<PresetKey | 'default', string> = {
+  default:    '0.01em',
+  family:     '0.01em',
+  luxury:     '0.09em',
+  casual:     '0.02em',
+  nightlife:  '0.04em',
+  minimal:    '0.07em',
+  fineDining: '0.12em',
+};
+
+const PRESET_GLOW: Record<PresetKey | 'default', string> = {
+  default:    '0.28',
+  family:     '0.28',
+  luxury:     '0.22',
+  casual:     '0.30',
+  nightlife:  '0.50',
+  minimal:    '0.12',
+  fineDining: '0.18',
+};
+
 interface BrandingInput {
   primaryColor?: string | null;
   accentColor?: string | null;
@@ -30,20 +61,20 @@ export function usePublicTheme(branding: BrandingInput | null | undefined) {
   const preset  = branding?.publicThemePreset;
 
   useEffect(() => {
-    let rgb: string;
+    const key = (preset && preset in PRESET_RGB) ? (preset as PresetKey) : 'default';
 
-    if (primary) {
-      rgb = hexToRgbChannels(primary) ?? PRESET_RGB.default;
-    } else if (preset && preset in PRESET_RGB) {
-      rgb = PRESET_RGB[preset as PresetKey];
-    } else {
-      rgb = PRESET_RGB.default;
-    }
+    const rgb = primary ? (hexToRgbChannels(primary) ?? PRESET_RGB.default) : PRESET_RGB[key];
 
-    document.documentElement.style.setProperty('--pub-rgb', rgb);
+    document.documentElement.style.setProperty('--pub-rgb',      rgb);
+    document.documentElement.style.setProperty('--pub-radius',   PRESET_RADIUS[key]);
+    document.documentElement.style.setProperty('--pub-tracking', PRESET_TRACKING[key]);
+    document.documentElement.style.setProperty('--pub-glow',     PRESET_GLOW[key]);
 
     return () => {
       document.documentElement.style.removeProperty('--pub-rgb');
+      document.documentElement.style.removeProperty('--pub-radius');
+      document.documentElement.style.removeProperty('--pub-tracking');
+      document.documentElement.style.removeProperty('--pub-glow');
     };
   }, [primary, preset]);
 }

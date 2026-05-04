@@ -47,8 +47,7 @@ async function assertReservationBelongsToRestaurant(
   return r;
 }
 
-// Only concrete serializable values — no undefined allowed.
-type ActivityDetails = Record<string, string | number | boolean | null>;
+type ActivityDetails = Record<string, unknown>;
 
 // Two-step write: ORM create (without details) + raw UPDATE with ::jsonb cast.
 // The Prisma 7 pg adapter does not correctly serialize plain objects for Json? fields.
@@ -261,6 +260,11 @@ export async function updateReservation(
     throw new BusinessRuleError(`Cannot modify a ${existing.status} reservation`);
   }
 
+  // SEATED guests: only allow name, phone, and notes changes
+  if (existing.status === 'SEATED' && (input.date || input.time || input.partySize)) {
+    throw new BusinessRuleError('Cannot change date, time, or party size for a seated reservation');
+  }
+
   const settings = await getRestaurantSettings(restaurantId);
   const date = input.date ? parseDateArg(input.date) : existing.date;
   const time = input.time ?? existing.time;
@@ -279,6 +283,25 @@ export async function updateReservation(
       id
     );
   }
+
+  // Build a before/after diff for the audit trail
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  if (input.guestName && input.guestName !== existing.guestName)
+    changes.guestName = { from: existing.guestName, to: input.guestName };
+  if (input.guestPhone !== undefined && input.guestPhone !== existing.guestPhone)
+    changes.guestPhone = { from: existing.guestPhone, to: input.guestPhone };
+  if (input.partySize && input.partySize !== existing.partySize)
+    changes.partySize = { from: existing.partySize, to: input.partySize };
+  if (input.date && input.date !== existing.date.toISOString().split('T')[0])
+    changes.date = { from: existing.date.toISOString().split('T')[0], to: input.date };
+  if (input.time && input.time !== existing.time)
+    changes.time = { from: existing.time, to: input.time };
+  if (input.duration && input.duration !== existing.duration)
+    changes.duration = { from: existing.duration, to: input.duration };
+  if (input.guestNotes !== undefined && input.guestNotes !== existing.guestNotes)
+    changes.guestNotes = { from: existing.guestNotes, to: input.guestNotes };
+  if (input.hostNotes !== undefined && input.hostNotes !== existing.hostNotes)
+    changes.hostNotes = { from: existing.hostNotes, to: input.hostNotes };
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
@@ -302,8 +325,9 @@ export async function updateReservation(
 
     await logActivity(tx, id, 'UPDATED', actorName, {
       fromStatus: existing.status,
-      toStatus: existing.status,
-      tableId: existing.tableId ?? null,
+      toStatus:   existing.status,
+      tableId:    existing.tableId ?? null,
+      changes,
     });
 
     return updated;

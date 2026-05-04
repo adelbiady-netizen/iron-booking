@@ -83,15 +83,15 @@ export default function ReservationPanel({
     .sort((a, b) => a.time.localeCompare(b.time));
 
   return (
-    <aside className="w-80 shrink-0 flex flex-col border-l border-iron-border bg-iron-card">
+    <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-l border-iron-border bg-iron-card">
 
       {/* Tab bar + action buttons */}
       <div className="px-3 pt-3 pb-0 border-b border-iron-border">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2.5">
           <div className="flex gap-1 flex-1">
             <button
               onClick={() => setTab('reservations')}
-              className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
+              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
                 tab === 'reservations'
                   ? 'bg-iron-green text-white'
                   : 'text-iron-muted hover:text-iron-text'
@@ -101,7 +101,7 @@ export default function ReservationPanel({
             </button>
             <button
               onClick={() => setTab('waitlist')}
-              className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
+              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
                 tab === 'waitlist'
                   ? 'bg-iron-green text-white'
                   : 'text-iron-muted hover:text-iron-text'
@@ -109,7 +109,7 @@ export default function ReservationPanel({
             >
               {T.reservationPanel.tabWaitlist}
               {waitingCount > 0 && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                   tab === 'waitlist' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
                 }`}>
                   {waitingCount}
@@ -122,13 +122,13 @@ export default function ReservationPanel({
             <>
               <button
                 onClick={onWalkIn}
-                className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-md border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors"
               >
                 {T.reservationPanel.walkIn}
               </button>
               <button
                 onClick={onNewReservation}
-                className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-colors"
+                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-colors"
               >
                 {T.reservationPanel.newReservation}
               </button>
@@ -144,7 +144,7 @@ export default function ReservationPanel({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={T.reservationPanel.searchPlaceholder}
-              className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
+              className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
             />
             <div className="flex gap-1 flex-wrap">
               {FILTERS.map(f => (
@@ -153,7 +153,7 @@ export default function ReservationPanel({
                   onClick={() => setFilter(f.value)}
                   className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
                     filter === f.value
-                      ? 'bg-iron-green text-white font-medium'
+                      ? 'bg-iron-green text-white font-semibold'
                       : 'text-iron-muted hover:text-iron-text'
                   }`}
                 >
@@ -221,11 +221,16 @@ export default function ReservationPanel({
                 return minsUntil > 0 && minsUntil <= 60;
               })();
 
+              // Inline status badge — only shown when no arrival-state badge overrides it
+              const statusBadge = arrivalBadge ?? (needsReminder
+                ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25', label: T.reservationPanel.needsReminder }
+                : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
+
               return (
                 <button
                   key={r.id}
                   onClick={() => onSelect(r)}
-                  className={`w-full text-left px-3 py-2.5 border-b border-iron-border/40 transition-colors ${
+                  className={`w-full text-left px-3.5 py-4 border-b border-iron-border/70 transition-colors ${
                     selectedId === r.id
                       ? 'bg-iron-green/10'
                       : highlightId === r.id
@@ -236,57 +241,67 @@ export default function ReservationPanel({
                       ? 'bg-orange-900/5 hover:bg-orange-900/10'
                       : needsReminder
                       ? 'bg-amber-500/5 hover:bg-amber-500/10'
-                      : 'hover:bg-iron-bg/60'
+                      : 'hover:bg-white/[0.04]'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-iron-text text-xs font-medium truncate flex-1">
+                  {/* Row 1 — name + badge */}
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <span className="text-iron-text text-lg font-bold truncate flex-1 leading-snug">
                       {r.guestName}
                       {r.guest?.isVip && (
-                        <span className="ml-1 text-amber-400 text-[10px] font-semibold">{T.common.vip}</span>
+                        <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
                       )}
                     </span>
-                    {arrivalBadge ? (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${arrivalBadge.cls}`}>
-                        {arrivalBadge.label}
-                      </span>
-                    ) : needsReminder ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/25">
-                        {T.reservationPanel.needsReminder}
-                      </span>
-                    ) : (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${STATUS_BADGE[r.status]}`}>
-                        {STATUS_LABEL[r.status]}
-                      </span>
+                    <span className={`text-xs px-2.5 py-1 rounded-md border font-semibold shrink-0 ${statusBadge.cls}`}>
+                      {statusBadge.label}
+                    </span>
+                  </div>
+
+                  {/* Row 2 — time · guests · table */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-white font-semibold tabular-nums">{r.time}</span>
+                    <span className="text-iron-border">·</span>
+                    <span className="text-iron-muted">{T.common.guests(r.partySize)}</span>
+                    {r.table && (
+                      <>
+                        <span className="text-iron-border">·</span>
+                        <span className="text-iron-text font-medium">{r.table.name}</span>
+                      </>
+                    )}
+                    {!r.table && (
+                      <>
+                        <span className="text-iron-border">·</span>
+                        <span className="text-iron-border/60 italic text-xs">no table</span>
+                      </>
                     )}
                   </div>
-                  <p className="text-iron-muted text-[11px]">
-                    {r.time}
-                    <span className="mx-1">·</span>
-                    {T.common.guests(r.partySize)}
-                    {r.table && <span> · {r.table.name}</span>}
-                    {r.occasion && (
-                      <span className="text-iron-green-light"> · {r.occasion}</span>
-                    )}
-                    {r.isConfirmedByGuest && (
-                      <span className="text-emerald-400"> · {T.reservationPanel.confirmedTick}</span>
-                    )}
-                    {r.isRunningLate && (
-                      <span className="text-orange-400"> · {T.reservationPanel.runningLate}</span>
-                    )}
-                    {!r.isConfirmedByGuest && r.remindedAt && (
-                      <span className="text-iron-muted"> · {T.reservationPanel.reminded}</span>
-                    )}
-                    {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
-                      <span className="text-blue-400"> · {T.reservationPanel.smsSent}</span>
-                    )}
-                  </p>
+
+                  {/* Row 3 — optional signal chips */}
+                  {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt) && (
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      {r.occasion && (
+                        <span className="text-xs text-iron-green-light font-medium">{r.occasion}</span>
+                      )}
+                      {r.isConfirmedByGuest && (
+                        <span className="text-xs text-emerald-400 font-medium">{T.reservationPanel.confirmedTick}</span>
+                      )}
+                      {r.isRunningLate && (
+                        <span className="text-xs text-orange-400 font-medium">{T.reservationPanel.runningLate}</span>
+                      )}
+                      {!r.isConfirmedByGuest && r.remindedAt && (
+                        <span className="text-xs text-iron-muted">{T.reservationPanel.reminded}</span>
+                      )}
+                      {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
+                        <span className="text-xs text-blue-400">{T.reservationPanel.smsSent}</span>
+                      )}
+                    </div>
+                  )}
                 </button>
               );
             })}
           </div>
 
-          <div className="px-3 py-2 border-t border-iron-border text-iron-muted text-[11px] text-center">
+          <div className="px-3 py-2 border-t border-iron-border text-iron-muted text-xs text-center">
             {T.reservationPanel.showing(visible.length, reservations.length)}
           </div>
         </>

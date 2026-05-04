@@ -266,6 +266,8 @@ export const T = {
     // Edit mode fields
     fieldGuestName:       'Guest name',
     fieldPhone:           'Phone',
+    fieldDate:            'Date',
+    fieldTime:            'Time',
     fieldPartySize:       'Party size',
     fieldDuration:        'Duration',
     fieldGuestNotes:      'Guest notes',
@@ -277,6 +279,8 @@ export const T = {
     placeholderMinutes:   'Minutes',
     wasNMin:              (n: number) => `was ${n}m`,
     saveChanges:          'Save changes',
+    seatedEditNote:       'Reservation is seated — date, time, and party size cannot be changed.',
+    tableConflictNote:    'Changing time or party size will re-validate the current table assignment.',
     // Seat / move pickers
     seatPickerLabel:      'Select a table to seat:',
     movePickerLabel:      'Move to table:',

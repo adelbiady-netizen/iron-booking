@@ -135,6 +135,8 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   primaryColor:       string | null;
   accentColor:        string | null;
   publicThemePreset:  string | null;
+  logoUrl:            string | null;
+  coverImageUrl:      string | null;
 }
 
 export interface AdminUser {

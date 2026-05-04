@@ -161,6 +161,8 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
   // Edit form state — initialised when entering edit mode
   const [editName,       setEditName]       = useState('');
   const [editPhone,      setEditPhone]      = useState('');
+  const [editDate,       setEditDate]       = useState('');
+  const [editTime,       setEditTime]       = useState('');
   const [editParty,      setEditParty]      = useState('');
   const [editDuration,   setEditDuration]   = useState(0);
   const [originalDuration, setOriginalDuration] = useState(0);
@@ -170,6 +172,8 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
   function enterEdit() {
     setEditName(res.guestName);
     setEditPhone(res.guestPhone ?? '');
+    setEditDate(res.date);
+    setEditTime(res.time);
     setEditParty(String(res.partySize));
     setEditDuration(res.duration);
     setOriginalDuration(res.duration);
@@ -184,21 +188,28 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
   }
 
   async function saveEdit() {
+    const isSeated = res.status === 'SEATED';
     const partySize = parseInt(editParty, 10);
     if (!editName.trim()) { setError(T.guestDrawer.fieldGuestName + ' is required'); return; }
-    if (isNaN(partySize) || partySize < 1) { setError(T.guestDrawer.fieldPartySize + ' must be at least 1'); return; }
+    if (!isSeated && (isNaN(partySize) || partySize < 1)) { setError(T.guestDrawer.fieldPartySize + ' must be at least 1'); return; }
     if (editDuration < 30) { setError(T.guestDrawer.fieldDuration + ' must be at least 30 minutes'); return; }
+    if (!isSeated && !editDate) { setError(T.guestDrawer.fieldDate + ' is required'); return; }
+    if (!isSeated && !editTime) { setError(T.guestDrawer.fieldTime + ' is required'); return; }
 
     await run(
       () => api.reservations.update(res.id, {
         guestName:  editName.trim(),
         guestPhone: editPhone.trim() || undefined,
-        partySize,
+        ...(isSeated ? {} : {
+          partySize,
+          date:     editDate !== res.date     ? editDate     : undefined,
+          time:     editTime !== res.time     ? editTime     : undefined,
+        }),
         duration:   editDuration,
         guestNotes: editNotes.trim() || undefined,
         hostNotes:  editHostNotes.trim() || undefined,
       }),
-      'Reservation updated'
+      T.guestDrawer.toastUpdated
     );
   }
 
@@ -575,16 +586,49 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                     placeholder={T.guestDrawer.placeholderPhone}
                   />
                 </Field>
-                <Field label={T.guestDrawer.fieldPartySize}>
-                  <input
-                    className={inputCls}
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={editParty}
-                    onChange={e => setEditParty(e.target.value)}
-                  />
-                </Field>
+
+                {/* Date / time — hidden for SEATED (immutable once seated) */}
+                {res.status === 'SEATED' ? (
+                  <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    {T.guestDrawer.seatedEditNote}
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label={T.guestDrawer.fieldDate}>
+                        <input
+                          className={inputCls}
+                          type="date"
+                          value={editDate}
+                          onChange={e => setEditDate(e.target.value)}
+                        />
+                      </Field>
+                      <Field label={T.guestDrawer.fieldTime}>
+                        <input
+                          className={inputCls}
+                          type="time"
+                          value={editTime}
+                          onChange={e => setEditTime(e.target.value)}
+                        />
+                      </Field>
+                    </div>
+                    <Field label={T.guestDrawer.fieldPartySize}>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={editParty}
+                        onChange={e => setEditParty(e.target.value)}
+                      />
+                    </Field>
+                    {res.tableId && (editDate !== res.date || editTime !== res.time || editParty !== String(res.partySize)) && (
+                      <p className="text-xs text-iron-muted bg-iron-bg border border-iron-border rounded-lg px-3 py-2">
+                        {T.guestDrawer.tableConflictNote}
+                      </p>
+                    )}
+                  </>
+                )}
 
                 <Field label={T.guestDrawer.fieldDuration}>
                   {/* Quick adjust */}
