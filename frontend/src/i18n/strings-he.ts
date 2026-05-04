@@ -278,7 +278,7 @@ export const THe = {
     fieldTable:           'שולחן',
     changeTable:          'שנה',
     clearTable:           'נקה',
-    suggestedTablesLabel: 'מוצעים',
+    suggestedTablesLabel: 'מומלץ',
     allTablesLabel:       'כל השולחנות',
     seatPickerLabel:      'בחר שולחן להושבה:',
     movePickerLabel:      'העבר לשולחן:',

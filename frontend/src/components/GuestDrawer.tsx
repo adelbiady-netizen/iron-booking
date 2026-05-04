@@ -645,25 +645,26 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                       />
                     </Field>
 
-                    {/* TABLE DEBUG — remove after confirming visible */}
-                    <p style={{ background: 'red', color: 'white', padding: '4px 8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px' }}>
-                      TABLE EDIT SECTION ACTIVE
-                    </p>
-
                     {/* Table reassignment */}
                     <Field label={T.guestDrawer.fieldTable}>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
+
+                        {/* Current assignment row */}
                         <div className="flex items-center gap-2">
-                          <span className="text-iron-text text-xs flex-1 truncate">
-                            {editTableId
-                              ? (tables.find(t => t.id === editTableId)?.name ?? editTableId)
-                              : T.guestDrawer.tableUnassigned}
-                          </span>
-                          {editTableId && (
+                          {editTableId ? (
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/35 text-iron-green-light flex-1 truncate">
+                              {tables.find(t => t.id === editTableId)?.name ?? editTableId}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-iron-muted italic flex-1">
+                              {T.guestDrawer.tableUnassigned}
+                            </span>
+                          )}
+                          {editTableId && !showTablePicker && (
                             <button
                               type="button"
                               onClick={() => setEditTableId(null)}
-                              className="text-xs text-iron-muted hover:text-red-400 transition-colors shrink-0"
+                              className="text-xs text-iron-muted hover:text-red-400 border border-iron-border/50 hover:border-red-900/40 px-2 py-1 rounded-md transition-colors shrink-0"
                             >
                               {T.guestDrawer.clearTable}
                             </button>
@@ -675,14 +676,19 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                               setShowTablePicker(next);
                               if (next) fetchTableSuggestions();
                             }}
-                            className="text-xs text-iron-green-light hover:underline transition-colors shrink-0"
+                            className={`text-xs font-semibold px-3 py-1 rounded-md border transition-colors shrink-0 ${
+                              showTablePicker
+                                ? 'text-iron-muted border-iron-border/50 hover:text-iron-text'
+                                : 'bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30'
+                            }`}
                           >
                             {showTablePicker ? T.guestDrawer.backLink : T.guestDrawer.changeTable}
                           </button>
                         </div>
 
+                        {/* Inline picker */}
                         {showTablePicker && (
-                          <div className="space-y-2 pt-1">
+                          <div className="space-y-2.5 pt-0.5">
                             {suggestBusy ? (
                               <div className="flex items-center gap-2 py-2">
                                 <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
@@ -692,45 +698,45 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                               <>
                                 {tableSuggestions.filter(s => s.tableId).length > 0 && (
                                   <>
-                                    <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wide">
+                                    <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">
                                       {T.guestDrawer.suggestedTablesLabel}
                                     </p>
-                                    <div className="grid grid-cols-3 gap-1.5">
+                                    <div className="grid grid-cols-3 gap-2">
                                       {tableSuggestions.filter(s => s.tableId).map(s => (
                                         <button
                                           key={s.tableId}
                                           type="button"
                                           onClick={() => { setEditTableId(s.tableId!); setShowTablePicker(false); }}
-                                          className={`text-xs p-2 rounded-lg border transition-colors text-center ${
+                                          className={`text-xs py-2.5 rounded-lg border transition-all text-center ${
                                             editTableId === s.tableId
-                                              ? 'bg-iron-green/20 border-iron-green/40 text-iron-green-light'
-                                              : 'border-iron-green/30 text-iron-text hover:border-iron-green hover:bg-iron-green/10'
+                                              ? 'bg-iron-green/25 border-iron-green/60 text-iron-green-light ring-1 ring-iron-green/25'
+                                              : 'border-iron-green/30 text-iron-text hover:border-iron-green/60 hover:bg-iron-green/[0.12]'
                                           }`}
                                         >
-                                          <div className="font-semibold">{s.tableName}</div>
-                                          <div className="text-iron-muted text-[10px]">{s.minCovers}–{s.maxCovers}</div>
+                                          <div className="font-bold">{s.tableName}</div>
+                                          <div className="text-iron-muted text-[10px] mt-0.5">{s.minCovers}–{s.maxCovers}</div>
                                         </button>
                                       ))}
                                     </div>
                                   </>
                                 )}
-                                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wide">
+                                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">
                                   {T.guestDrawer.allTablesLabel}
                                 </p>
-                                <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                                <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
                                   {tables.filter(t => t.isActive).map(t => (
                                     <button
                                       key={t.id}
                                       type="button"
                                       onClick={() => { setEditTableId(t.id); setShowTablePicker(false); }}
-                                      className={`text-xs p-2 rounded-lg border transition-colors text-center ${
+                                      className={`text-xs py-2.5 rounded-lg border transition-all text-center ${
                                         editTableId === t.id
-                                          ? 'bg-iron-green/20 border-iron-green/40 text-iron-green-light'
-                                          : 'border-iron-border text-iron-text hover:border-iron-green hover:bg-iron-green/10'
+                                          ? 'bg-iron-green/25 border-iron-green/60 text-iron-green-light ring-1 ring-iron-green/25'
+                                          : 'border-iron-border/60 text-iron-muted hover:border-iron-green/50 hover:bg-iron-green/[0.08] hover:text-iron-text'
                                       }`}
                                     >
-                                      <div className="font-semibold">{t.name}</div>
-                                      <div className="text-iron-muted text-[10px]">{t.minCovers}–{t.maxCovers}</div>
+                                      <div className="font-bold">{t.name}</div>
+                                      <div className="text-[10px] mt-0.5 opacity-60">{t.minCovers}–{t.maxCovers}</div>
                                     </button>
                                   ))}
                                 </div>
