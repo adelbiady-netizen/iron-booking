@@ -75,6 +75,34 @@ router.post('/bootstrap', validate(BootstrapSchema), async (req: Request, res: R
 // ─── All routes below require SUPER_ADMIN ────────────────────────────────────
 router.use(authenticate, requireRole('SUPER_ADMIN'));
 
+// POST /admin/create-super-admin — create an additional SUPER_ADMIN account
+const CreateSuperAdminSchema = z.object({
+  email:     z.string().email(),
+  password:  z.string().min(8),
+  firstName: z.string().min(1).default('Admin'),
+  lastName:  z.string().min(1).default('User'),
+});
+
+router.post('/create-super-admin', validate(CreateSuperAdminSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, password, firstName, lastName } = req.body as z.infer<typeof CreateSuperAdminSchema>;
+
+    const existing = await prisma.user.findFirst({ where: { email } });
+    if (existing) throw new ConflictError(`User with email ${email} already exists`);
+
+    const restaurant = await prisma.restaurant.findFirst({ where: { isSystem: true } });
+    if (!restaurant) throw new Error('System restaurant not found — run bootstrap first');
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await prisma.user.create({
+      data: { restaurantId: restaurant.id, email, passwordHash, firstName, lastName, role: 'SUPER_ADMIN' },
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
+    });
+
+    res.status(201).json(user);
+  } catch (err) { next(err); }
+});
+
 // ─── Restaurants ─────────────────────────────────────────────────────────────
 
 // GET /admin/restaurants
