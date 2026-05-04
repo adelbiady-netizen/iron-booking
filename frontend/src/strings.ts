@@ -281,6 +281,11 @@ export const T = {
     saveChanges:          'Save changes',
     seatedEditNote:       'Reservation is seated — date, time, and party size cannot be changed.',
     tableConflictNote:    'Changing time or party size will re-validate the current table assignment.',
+    fieldTable:           'Table',
+    changeTable:          'Change',
+    clearTable:           'Clear',
+    suggestedTablesLabel: 'Suggested',
+    allTablesLabel:       'All tables',
     // Seat / move pickers
     seatPickerLabel:      'Select a table to seat:',
     movePickerLabel:      'Move to table:',

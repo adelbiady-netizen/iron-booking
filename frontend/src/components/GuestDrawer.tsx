@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Reservation, ReservationStatus, Table } from '../types';
+import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api } from '../api';
 import type React from 'react';
 import { useT } from '../i18n/useT';
@@ -168,6 +168,10 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
   const [originalDuration, setOriginalDuration] = useState(0);
   const [editNotes,      setEditNotes]      = useState('');
   const [editHostNotes,  setEditHostNotes]  = useState('');
+  const [editTableId,    setEditTableId]    = useState<string | null>(null);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [tableSuggestions, setTableSuggestions] = useState<BackendTableSuggestion[]>([]);
+  const [suggestBusy, setSuggestBusy] = useState(false);
 
   function enterEdit() {
     setEditName(res.guestName);
@@ -179,12 +183,29 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
     setOriginalDuration(res.duration);
     setEditNotes(res.guestNotes ?? '');
     setEditHostNotes(res.hostNotes ?? '');
+    setEditTableId(res.tableId ?? null);
+    setShowTablePicker(false);
+    setTableSuggestions([]);
     setError(null);
     setMode('edit');
   }
 
   function adjustDuration(delta: number) {
     setEditDuration(prev => Math.min(480, Math.max(30, prev + delta)));
+  }
+
+  async function fetchTableSuggestions() {
+    const partySize = parseInt(editParty, 10);
+    if (!editDate || !editTime || isNaN(partySize) || partySize < 1) return;
+    setSuggestBusy(true);
+    try {
+      const suggestions = await api.tables.suggest({ date: editDate, time: editTime, partySize, duration: editDuration });
+      setTableSuggestions(suggestions);
+    } catch {
+      setTableSuggestions([]);
+    } finally {
+      setSuggestBusy(false);
+    }
   }
 
   async function saveEdit() {
@@ -204,6 +225,7 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
           partySize,
           date:     editDate !== res.date     ? editDate     : undefined,
           time:     editTime !== res.time     ? editTime     : undefined,
+          ...(editTableId !== res.tableId ? { tableId: editTableId } : {}),
         }),
         duration:   editDuration,
         guestNotes: editNotes.trim() || undefined,
@@ -622,7 +644,104 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
                         onChange={e => setEditParty(e.target.value)}
                       />
                     </Field>
-                    {res.tableId && (editDate !== res.date || editTime !== res.time || editParty !== String(res.partySize)) && (
+
+                    {/* TABLE DEBUG — remove after confirming visible */}
+                    <p style={{ background: 'red', color: 'white', padding: '4px 8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px' }}>
+                      TABLE EDIT SECTION ACTIVE
+                    </p>
+
+                    {/* Table reassignment */}
+                    <Field label={T.guestDrawer.fieldTable}>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-iron-text text-xs flex-1 truncate">
+                            {editTableId
+                              ? (tables.find(t => t.id === editTableId)?.name ?? editTableId)
+                              : T.guestDrawer.tableUnassigned}
+                          </span>
+                          {editTableId && (
+                            <button
+                              type="button"
+                              onClick={() => setEditTableId(null)}
+                              className="text-xs text-iron-muted hover:text-red-400 transition-colors shrink-0"
+                            >
+                              {T.guestDrawer.clearTable}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = !showTablePicker;
+                              setShowTablePicker(next);
+                              if (next) fetchTableSuggestions();
+                            }}
+                            className="text-xs text-iron-green-light hover:underline transition-colors shrink-0"
+                          >
+                            {showTablePicker ? T.guestDrawer.backLink : T.guestDrawer.changeTable}
+                          </button>
+                        </div>
+
+                        {showTablePicker && (
+                          <div className="space-y-2 pt-1">
+                            {suggestBusy ? (
+                              <div className="flex items-center gap-2 py-2">
+                                <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+                                <span className="text-iron-muted text-xs">{T.common.processing}</span>
+                              </div>
+                            ) : (
+                              <>
+                                {tableSuggestions.filter(s => s.tableId).length > 0 && (
+                                  <>
+                                    <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wide">
+                                      {T.guestDrawer.suggestedTablesLabel}
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                      {tableSuggestions.filter(s => s.tableId).map(s => (
+                                        <button
+                                          key={s.tableId}
+                                          type="button"
+                                          onClick={() => { setEditTableId(s.tableId!); setShowTablePicker(false); }}
+                                          className={`text-xs p-2 rounded-lg border transition-colors text-center ${
+                                            editTableId === s.tableId
+                                              ? 'bg-iron-green/20 border-iron-green/40 text-iron-green-light'
+                                              : 'border-iron-green/30 text-iron-text hover:border-iron-green hover:bg-iron-green/10'
+                                          }`}
+                                        >
+                                          <div className="font-semibold">{s.tableName}</div>
+                                          <div className="text-iron-muted text-[10px]">{s.minCovers}–{s.maxCovers}</div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wide">
+                                  {T.guestDrawer.allTablesLabel}
+                                </p>
+                                <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                                  {tables.filter(t => t.isActive).map(t => (
+                                    <button
+                                      key={t.id}
+                                      type="button"
+                                      onClick={() => { setEditTableId(t.id); setShowTablePicker(false); }}
+                                      className={`text-xs p-2 rounded-lg border transition-colors text-center ${
+                                        editTableId === t.id
+                                          ? 'bg-iron-green/20 border-iron-green/40 text-iron-green-light'
+                                          : 'border-iron-border text-iron-text hover:border-iron-green hover:bg-iron-green/10'
+                                      }`}
+                                    >
+                                      <div className="font-semibold">{t.name}</div>
+                                      <div className="text-iron-muted text-[10px]">{t.minCovers}–{t.maxCovers}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Field>
+
+                    {editTableId && editTableId === res.tableId && (editDate !== res.date || editTime !== res.time || editParty !== String(res.partySize)) && (
                       <p className="text-xs text-iron-muted bg-iron-bg border border-iron-border rounded-lg px-3 py-2">
                         {T.guestDrawer.tableConflictNote}
                       </p>

@@ -178,6 +178,19 @@ export interface FloorSuggestion {
   };
 }
 
+export interface BackendTableSuggestion {
+  type: 'single' | 'combination';
+  tableId?: string;
+  combinationId?: string;
+  tableName: string;
+  sectionName: string;
+  minCovers: number;
+  maxCovers: number;
+  score: number;
+  reasons: string[];
+  warnings: string[];
+}
+
 export type WaitlistStatus = 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT' | 'REMOVED';
 
 export interface WaitlistEntry {

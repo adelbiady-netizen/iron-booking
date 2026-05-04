@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -159,6 +159,8 @@ export const api = {
     insights: (date: string, time: string) =>
       request<FloorInsight[]>(`/tables/insights?date=${date}&time=${encodeURIComponent(time)}`),
     list: () => request<Table[]>('/tables'),
+    suggest: (params: { date: string; time: string; partySize: number; duration?: number }) =>
+      request<BackendTableSuggestion[]>(`/tables/suggest?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}`),
     create: (body: {
       name: string; sectionId?: string; minCovers: number; maxCovers: number;
       shape?: string; posX?: number; posY?: number; width?: number; height?: number;
@@ -227,6 +229,7 @@ export const api = {
       guestNotes: string;
       hostNotes: string;
       duration: number;
+      tableId: string | null;
     }>) =>
       request<Reservation>(`/reservations/${id}`, {
         method: 'PATCH',

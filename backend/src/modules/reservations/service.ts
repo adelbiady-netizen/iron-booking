@@ -330,6 +330,15 @@ export async function updateReservation(
       changes,
     });
 
+    // Separate table-change audit so it appears as a distinct timeline event
+    if (input.tableId !== undefined && input.tableId !== existing.tableId) {
+      const tableAction = existing.tableId ? 'TABLE_MOVED' : 'TABLE_ASSIGNED';
+      await logActivity(tx, id, tableAction, actorName, {
+        fromTableId: existing.tableId ?? null,
+        toTableId:   input.tableId,
+      });
+    }
+
     return updated;
   });
 }
