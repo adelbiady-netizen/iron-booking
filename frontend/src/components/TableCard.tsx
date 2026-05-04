@@ -50,6 +50,14 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
+  // Badge: upcoming turns not shown inline (first upcoming is already shown in card body)
+  const hiddenTurns = table.upcomingReservations.length > 1 ? table.upcomingReservations.length - 1 : 0;
+
+  // Native tooltip listing all upcoming reservations
+  const turnTooltip = table.upcomingReservations.length > 0
+    ? `${table.name} · upcoming:\n${table.upcomingReservations.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
+    : undefined;
+
   // Detect late/no-show risk for RESERVED_SOON tables
   const arrMins = nowTime && nextRes
     ? minutesUntilRes(nextRes.time, nowTime)
@@ -67,7 +75,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
-      title={isAvailable ? T.tableCard.clickToSeat : undefined}
+      title={turnTooltip ?? (isAvailable ? T.tableCard.clickToSeat : undefined)}
       className={`
         group w-full text-left p-3 rounded-lg border transition-all duration-150
         ${table.locked ? 'bg-amber-500/5' : (style.bg || 'bg-iron-card')}
@@ -80,12 +88,17 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           : table.locked ? LOCKED_STYLE : style.border}
       `}
     >
-      {/* Name + priority dot + status label */}
+      {/* Name + priority dot + turn badge + status label */}
       <div className="flex items-start justify-between gap-1 mb-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-iron-text font-semibold text-sm leading-tight truncate">{table.name}</span>
           {insight?.priority === 'HIGH'   && <span className="w-2 h-2 rounded-full shrink-0 bg-red-500"   title={insight.message} />}
           {insight?.priority === 'MEDIUM' && <span className="w-2 h-2 rounded-full shrink-0 bg-amber-400" title={insight.message} />}
+          {hiddenTurns > 0 && (
+            <span className="shrink-0 text-[9px] font-bold px-1 py-px rounded bg-blue-500/15 border border-blue-500/25 text-blue-400 tabular-nums">
+              +{hiddenTurns}
+            </span>
+          )}
         </div>
         <span className={`flex items-center gap-1 text-[10px] font-medium shrink-0 ${style.labelColor}`}>
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />

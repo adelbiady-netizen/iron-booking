@@ -548,10 +548,16 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
   const currentRes   = table.currentReservation;
   const displayRes   = currentRes ?? nextRes ?? null;
 
+  const hiddenTurns = table.upcomingReservations.length > 1 ? table.upcomingReservations.length - 1 : 0;
+  const turnTooltip = table.upcomingReservations.length > 0
+    ? `${table.name} · upcoming:\n${table.upcomingReservations.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
+    : undefined;
+
   return (
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
+      title={turnTooltip}
       style={{
         position: 'absolute',
         left: table.posX,
@@ -713,6 +719,26 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
             LOCKED
           </span>
         </div>
+      )}
+
+      {/* Turn count badge — top-right, only when multiple upcoming exist */}
+      {hiddenTurns > 0 && (
+        <span style={{
+          position: 'absolute',
+          top: 3,
+          right: 3,
+          fontSize: 9,
+          fontWeight: 700,
+          color: '#60a5fa',
+          backgroundColor: 'rgba(59,130,246,0.15)',
+          border: '1px solid rgba(59,130,246,0.25)',
+          borderRadius: 3,
+          padding: '1px 4px',
+          userSelect: 'none',
+          lineHeight: 1.4,
+        }}>
+          +{hiddenTurns}
+        </span>
       )}
 
       {/* Section color dot (bottom-right) */}

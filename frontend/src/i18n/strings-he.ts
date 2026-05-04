@@ -280,6 +280,7 @@ export const THe = {
     clearTable:           'נקה',
     suggestedTablesLabel: 'מומלץ',
     allTablesLabel:       'כל השולחנות',
+    sectionTableUpcoming: (name: string) => `הזמנות נוספות ב${name}`,
     seatPickerLabel:      'בחר שולחן להושבה:',
     movePickerLabel:      'העבר לשולחן:',
     noTablesAvailable:    'אין שולחנות פנויים',

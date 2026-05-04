@@ -132,6 +132,7 @@ type Mode = 'view' | 'edit' | 'seat' | 'move' | 'cancel' | 'lock';
 interface Props {
   reservation: Reservation;
   tables: Table[];
+  allReservations?: Reservation[];
   onClose: () => void;
   onUpdated: (r: Reservation) => void;
   onSuccess?: (message: string) => void;
@@ -139,7 +140,7 @@ interface Props {
   nowTime?: string;
 }
 
-export default function GuestDrawer({ reservation: init, tables, onClose, onUpdated, onSuccess, onTableLockChange, nowTime }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -546,6 +547,43 @@ export default function GuestDrawer({ reservation: init, tables, onClose, onUpda
             {res.guestNotes && <Row label={T.guestDrawer.rowGuestNotes} value={res.guestNotes} />}
             {res.hostNotes  && <Row label={T.guestDrawer.rowHostNotes}  value={res.hostNotes}  accent />}
           </section>
+
+          {/* Other reservations at the same table */}
+          {(() => {
+            if (!res.tableId || !allReservations) return null;
+            const others = allReservations
+              .filter(r =>
+                r.tableId === res.tableId &&
+                r.id !== res.id &&
+                !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(r.status)
+              )
+              .sort((a, b) => a.time.localeCompare(b.time));
+            if (others.length === 0) return null;
+            return (
+              <section className="border-t border-iron-border pt-4 space-y-1.5">
+                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-2">
+                  {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
+                </p>
+                {others.map(r => (
+                  <div key={r.id} className="flex items-center gap-2 py-0.5">
+                    <span className="text-iron-text text-xs font-semibold tabular-nums w-10 shrink-0">{r.time}</span>
+                    <span className="text-iron-border text-xs">·</span>
+                    <span className="text-iron-text text-xs truncate flex-1">{r.guestName}</span>
+                    <span className="text-iron-muted text-[10px] shrink-0">{T.common.guests(r.partySize)}</span>
+                    <span className={`text-[9px] px-1.5 py-px rounded font-medium shrink-0 ${
+                      r.status === 'CONFIRMED' ? 'bg-blue-500/15 text-blue-400' :
+                      r.status === 'SEATED'    ? 'bg-iron-green/20 text-iron-green-light' :
+                                                 'bg-iron-border/20 text-iron-muted'
+                    }`}>
+                      {r.status === 'CONFIRMED' ? T.reservationStatus.CONFIRMED :
+                       r.status === 'SEATED'    ? T.reservationStatus.SEATED :
+                                                  T.reservationStatus.PENDING}
+                    </span>
+                  </div>
+                ))}
+              </section>
+            );
+          })()}
 
           {/* Guest CRM */}
           {res.guest && (

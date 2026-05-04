@@ -286,6 +286,7 @@ export const T = {
     clearTable:           'Clear',
     suggestedTablesLabel: 'Suggested',
     allTablesLabel:       'All tables',
+    sectionTableUpcoming: (name: string) => `Also booked at ${name}`,
     // Seat / move pickers
     seatPickerLabel:      'Select a table to seat:',
     movePickerLabel:      'Move to table:',

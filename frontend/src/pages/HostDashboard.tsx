@@ -757,6 +757,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         <GuestDrawer
           reservation={selectedRes}
           tables={allTables}
+          allReservations={reservations}
           onClose={() => setSelectedRes(null)}
           onUpdated={handleUpdated}
           onSuccess={showToast}
