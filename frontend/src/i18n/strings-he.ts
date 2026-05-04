@@ -163,6 +163,8 @@ export const THe = {
     runningLate:      'מאחר',
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
+    quickSeatTo:      (table: string) => `הושבה מהירה לשולחן ${table}`,
+    quickSeatCancel:  'ביטול',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
@@ -552,8 +554,12 @@ export const THe = {
     toastNoShow:      'סומן כלא הגיע',
     toastNoShowFail:  'הפעולה נכשלה',
     toastSeatFail:    'ההושבה נכשלה',
-    toastSeatAt:      (name: string, table: string) => `${name} הושב בשולחן ${table}`,
-    toastNotified:    (name: string) => `וואטסאפ נשלח ל-${name}`,
-    toastNotifyFail:  'שליחת וואטסאפ נכשלה',
+    toastSeatAt:        (name: string, table: string) => `${name} הושב בשולחן ${table}`,
+    toastNotified:      (name: string) => `וואטסאפ נשלח ל-${name}`,
+    toastNotifyFail:    'שליחת וואטסאפ נכשלה',
+    toastQuickSeated:   (table: string) => `האורח הושב בשולחן ${table}`,
+    toastQuickUndone:   'הפעולה בוטלה',
+    toastUndoFail:      'הביטול נכשל',
+    quickSeatUndo:      'בטל',
   },
 };

@@ -4,6 +4,8 @@ export interface ToastMessage {
   id: number;
   text: string;
   type: 'success' | 'error';
+  action?: { label: string; onClick: () => void };
+  duration?: number;
 }
 
 interface ItemProps {
@@ -15,7 +17,8 @@ function ToastItem({ toast, onRemove }: ItemProps) {
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    timerRef.current = window.setTimeout(() => onRemove(toast.id), 3200);
+    const ms = toast.duration ?? (toast.action ? 10000 : 3200);
+    timerRef.current = window.setTimeout(() => onRemove(toast.id), ms);
     return () => {
       if (timerRef.current !== null) clearTimeout(timerRef.current);
     };
@@ -24,7 +27,7 @@ function ToastItem({ toast, onRemove }: ItemProps) {
   return (
     <div
       className={`
-        flex items-center gap-3 px-4 py-2.5 rounded-lg border shadow-xl text-sm font-medium
+        pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-lg border shadow-xl text-sm font-medium
         animate-toast
         ${toast.type === 'success'
           ? 'bg-iron-card border-iron-green/60 text-iron-text'
@@ -35,7 +38,19 @@ function ToastItem({ toast, onRemove }: ItemProps) {
         ? <span className="text-iron-green-light text-base leading-none">✓</span>
         : <span className="text-red-400 text-base leading-none">✕</span>
       }
-      {toast.text}
+      <span className="flex-1">{toast.text}</span>
+      {toast.action && (
+        <button
+          type="button"
+          className="ms-1 text-iron-green-light text-xs font-bold underline underline-offset-2 hover:opacity-75 shrink-0"
+          onClick={() => {
+            onRemove(toast.id);
+            toast.action!.onClick();
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   );
 }

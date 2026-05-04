@@ -411,6 +411,7 @@ export async function seatReservation(
       fromStatus: r.status,
       toStatus: 'SEATED',
       tableId,
+      previousTableId: r.tableId ?? null,
     });
     return updated;
   });
@@ -622,7 +623,11 @@ export async function undoReservation(
 
       case 'SEATED':
         toStatus = detailsStr(details, 'fromStatus') ?? 'CONFIRMED';
-        updateData = { status: toStatus as ReservationStatus, seatedAt: null, tableId: null };
+        updateData = {
+          status: toStatus as ReservationStatus,
+          seatedAt: null,
+          tableId: detailsStr(details, 'previousTableId'),
+        };
         break;
 
       case 'COMPLETED':

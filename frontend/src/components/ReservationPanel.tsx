@@ -40,6 +40,10 @@ interface Props {
   priorityQueue?: PriorityEntry[];
   nowTime?: string;
   operationalNow?: number;
+  quickSeatTableId?: string | null;
+  quickSeatTableName?: string | null;
+  onQuickSeat?: (resId: string) => void;
+  onCancelQuickSeat?: () => void;
 }
 
 export default function ReservationPanel({
@@ -47,8 +51,13 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
+  quickSeatTableId, quickSeatTableName, onQuickSeat, onCancelQuickSeat,
 }: Props) {
   const T = useT();
+  const [tab,    setTab]    = useState<Tab>('reservations');
+  const [filter, setFilter] = useState<FilterValue>('ALL');
+  const [search, setSearch] = useState('');
+
   const STATUS_LABEL: Record<string, string> = {
     PENDING:   T.reservationStatus.PENDING,
     CONFIRMED: T.reservationStatus.CONFIRMED,
@@ -64,14 +73,13 @@ export default function ReservationPanel({
     { label: T.reservationPanel.filterSeated,    value: 'SEATED' as FilterValue },
     { label: T.reservationPanel.filterDone,      value: 'DONE' as FilterValue },
   ];
-  const [tab,    setTab]    = useState<Tab>('reservations');
-  const [filter, setFilter] = useState<FilterValue>('ALL');
-  const [search, setSearch] = useState('');
 
   const waitingCount = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED').length;
 
   const visible = reservations
     .filter(r => {
+      // Quick-seat mode: only show reservations that can be seated
+      if (quickSeatTableId != null) return r.status === 'PENDING' || r.status === 'CONFIRMED';
       if (filter === 'DONE') return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
       if (filter === 'ALL')  return ['PENDING', 'CONFIRMED', 'SEATED'].includes(r.status);
       return r.status === filter;
@@ -84,6 +92,11 @@ export default function ReservationPanel({
 
   return (
     <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-l border-iron-border bg-iron-card">
+
+      {/* DEBUG PROBE — remove after confirming state flows */}
+      <div style={{ background: 'red', color: 'white', fontWeight: 'bold', padding: '8px 12px', fontSize: 14 }}>
+        quickSeatTableId = {quickSeatTableId === null ? 'NULL' : quickSeatTableId === undefined ? 'UNDEFINED' : `"${quickSeatTableId}"`}
+      </div>
 
       {/* Tab bar + action buttons */}
       <div className="px-3 pt-3 pb-0 border-b border-iron-border">
@@ -165,6 +178,23 @@ export default function ReservationPanel({
         )}
       </div>
 
+      {/* Quick Seat Banner — shrink-0 outside scroll so it's always visible */}
+      {quickSeatTableId != null && (
+        <div className="shrink-0 flex items-center gap-2 px-3.5 py-3 bg-iron-green/25 border-b-2 border-iron-green/60">
+          <span className="text-sm text-iron-green-light font-bold flex-1 leading-snug">
+            {T.reservationPanel.quickSeatTo(quickSeatTableName ?? quickSeatTableId!)}
+          </span>
+          <button
+            type="button"
+            onClick={onCancelQuickSeat}
+            className="text-iron-green-light/70 hover:text-iron-green-light text-base font-bold leading-none px-1.5"
+            aria-label="ביטול הושבה מהירה"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       {tab === 'waitlist' ? (
         <WaitlistPanel
@@ -221,82 +251,101 @@ export default function ReservationPanel({
                 return minsUntil > 0 && minsUntil <= 60;
               })();
 
-              // Inline status badge — only shown when no arrival-state badge overrides it
               const statusBadge = arrivalBadge ?? (needsReminder
                 ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25', label: T.reservationPanel.needsReminder }
                 : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
 
+              const rowBg = selectedId === r.id
+                ? 'bg-iron-green/10'
+                : highlightId === r.id
+                ? 'animate-flash'
+                : aState === 'NO_SHOW_RISK'
+                ? 'bg-red-900/5 hover:bg-red-900/10'
+                : aState === 'LATE'
+                ? 'bg-orange-900/5 hover:bg-orange-900/10'
+                : needsReminder
+                ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                : 'hover:bg-white/[0.04]';
+
+              const canQuickSeat = quickSeatTableId != null && (r.status === 'PENDING' || r.status === 'CONFIRMED');
+
               return (
-                <button
+                <div
                   key={r.id}
-                  onClick={() => onSelect(r)}
-                  className={`w-full text-left px-3.5 py-4 border-b border-iron-border/70 transition-colors ${
-                    selectedId === r.id
-                      ? 'bg-iron-green/10'
-                      : highlightId === r.id
-                      ? 'animate-flash'
-                      : aState === 'NO_SHOW_RISK'
-                      ? 'bg-red-900/5 hover:bg-red-900/10'
-                      : aState === 'LATE'
-                      ? 'bg-orange-900/5 hover:bg-orange-900/10'
-                      : needsReminder
-                      ? 'bg-amber-500/5 hover:bg-amber-500/10'
-                      : 'hover:bg-white/[0.04]'
-                  }`}
+                  className={`w-full flex items-stretch border-b border-iron-border/70 transition-colors ${rowBg}`}
                 >
-                  {/* Row 1 — name + badge */}
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <span className="text-iron-text text-lg font-bold truncate flex-1 leading-snug">
-                      {r.guestName}
-                      {r.guest?.isVip && (
-                        <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
-                      )}
-                    </span>
-                    <span className={`text-xs px-2.5 py-1 rounded-md border font-semibold shrink-0 ${statusBadge.cls}`}>
-                      {statusBadge.label}
-                    </span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(r)}
+                    className="flex-1 text-left px-3.5 py-4 min-w-0"
+                  >
+                    {/* Row 1 — name + badge */}
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <span className="text-iron-text text-lg font-bold truncate flex-1 leading-snug">
+                        {r.guestName}
+                        {r.guest?.isVip && (
+                          <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
+                        )}
+                      </span>
+                      <span className={`text-xs px-2.5 py-1 rounded-md border font-semibold shrink-0 ${statusBadge.cls}`}>
+                        {statusBadge.label}
+                      </span>
+                    </div>
 
-                  {/* Row 2 — time · guests · table */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-white font-semibold tabular-nums">{r.time}</span>
-                    <span className="text-iron-border">·</span>
-                    <span className="text-iron-muted">{T.common.guests(r.partySize)}</span>
-                    {r.table && (
-                      <>
-                        <span className="text-iron-border">·</span>
-                        <span className="text-iron-text font-medium">{r.table.name}</span>
-                      </>
-                    )}
-                    {!r.table && (
-                      <>
-                        <span className="text-iron-border">·</span>
-                        <span className="text-iron-border/60 italic text-xs">no table</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Row 3 — optional signal chips */}
-                  {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt) && (
-                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                      {r.occasion && (
-                        <span className="text-xs text-iron-green-light font-medium">{r.occasion}</span>
+                    {/* Row 2 — time · guests · table */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-white font-semibold tabular-nums">{r.time}</span>
+                      <span className="text-iron-border">·</span>
+                      <span className="text-iron-muted">{T.common.guests(r.partySize)}</span>
+                      {r.table && (
+                        <>
+                          <span className="text-iron-border">·</span>
+                          <span className="text-iron-text font-medium">{r.table.name}</span>
+                        </>
                       )}
-                      {r.isConfirmedByGuest && (
-                        <span className="text-xs text-emerald-400 font-medium">{T.reservationPanel.confirmedTick}</span>
-                      )}
-                      {r.isRunningLate && (
-                        <span className="text-xs text-orange-400 font-medium">{T.reservationPanel.runningLate}</span>
-                      )}
-                      {!r.isConfirmedByGuest && r.remindedAt && (
-                        <span className="text-xs text-iron-muted">{T.reservationPanel.reminded}</span>
-                      )}
-                      {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
-                        <span className="text-xs text-blue-400">{T.reservationPanel.smsSent}</span>
+                      {!r.table && (
+                        <>
+                          <span className="text-iron-border">·</span>
+                          <span className="text-iron-border/60 italic text-xs">no table</span>
+                        </>
                       )}
                     </div>
+
+                    {/* Row 3 — optional signal chips */}
+                    {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt) && (
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {r.occasion && (
+                          <span className="text-xs text-iron-green-light font-medium">{r.occasion}</span>
+                        )}
+                        {r.isConfirmedByGuest && (
+                          <span className="text-xs text-emerald-400 font-medium">{T.reservationPanel.confirmedTick}</span>
+                        )}
+                        {r.isRunningLate && (
+                          <span className="text-xs text-orange-400 font-medium">{T.reservationPanel.runningLate}</span>
+                        )}
+                        {!r.isConfirmedByGuest && r.remindedAt && (
+                          <span className="text-xs text-iron-muted">{T.reservationPanel.reminded}</span>
+                        )}
+                        {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
+                          <span className="text-xs text-iron-muted">{T.reservationPanel.smsSent}</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+
+                  {canQuickSeat && (
+                    <button
+                      type="button"
+                      onClick={() => onQuickSeat?.(r.id)}
+                      className="flex items-center justify-center px-4 shrink-0 border-s border-iron-green/30 bg-iron-green/10 hover:bg-iron-green/30 active:bg-iron-green/40 transition-colors"
+                      title={T.reservationPanel.quickSeatTo(quickSeatTableName ?? '')}
+                    >
+                      <span className="w-8 h-8 rounded-full bg-iron-green/20 border border-iron-green/50 flex items-center justify-center text-iron-green-light text-xl font-bold leading-none">
+                        +
+                      </span>
+                    </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

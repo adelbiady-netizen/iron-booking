@@ -124,10 +124,18 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [preselectedTableId,   setPreselectedTableId]   = useState<string | null>(null);
   const [lockTarget,           setLockTarget]           = useState<FloorTable | null>(null);
   const [gapHint,              setGapHint]              = useState<GapHint | null>(null);
+  const [quickSeatTableId,     setQuickSeatTableId]     = useState<string | null>(null);
+  // Ref kept in sync each render so callbacks never read stale closure values
+  const quickSeatIdRef = useRef<string | null>(null);
+  quickSeatIdRef.current = quickSeatTableId;
 
-  const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success') => {
+  useEffect(() => {
+    console.log('STATE CHANGED: quickSeatTableId =', quickSeatTableId);
+  }, [quickSeatTableId]);
+
+  const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
     const id = ++toastIdRef.current;
-    setToasts(prev => [...prev, { id, text, type }]);
+    setToasts(prev => [...prev, { id, text, type, action }]);
   }, []);
 
   const removeToast = useCallback((id: number) => {
@@ -228,6 +236,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [loadError]);
 
   const handleSelect = useCallback((r: Reservation) => {
+    // Guard: floor table clicks must never open GuestDrawer while quick-seat mode is active
+    if (quickSeatIdRef.current !== null) return;
     const enriched = reservations.find(x => x.id === r.id) ?? r;
     setSelectedRes(enriched);
   }, [reservations]);
@@ -240,17 +250,34 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setWaitlistRefreshKey(k => k + 1);
   }, [date, time]);
 
-  const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
+  const handleQuickSeat = useCallback(async (tableId: string, reservationId: string) => {
     try {
       const updated = await api.reservations.seat(reservationId, tableId);
-      handleUpdated(updated);
-      setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
-      const tableName = floorTables.find(t => t.id === tableId)?.name ?? 'table';
-      showToast(T.guestDrawer.toastSeated(tableName));
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      setRefreshKey(k => k + 1);
+      setQuickSeatTableId(null);
+      const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
+      showToast(T.hostDashboard.toastQuickSeated(tableName), 'success', {
+        label: T.hostDashboard.quickSeatUndo,
+        onClick: () => {
+          api.reservations.undo(updated.id)
+            .then(reverted => {
+              setReservations(prev => prev.map(r => r.id === reverted.id ? { ...r, ...reverted } : r));
+              setRefreshKey(k => k + 1);
+              showToast(T.hostDashboard.toastQuickUndone);
+            })
+            .catch(() => showToast(T.hostDashboard.toastUndoFail, 'error'));
+        },
+      });
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     }
-  }, [handleUpdated, floorTables, showToast]);
+  }, [floorTables, showToast]);
+
+  const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
+    await handleQuickSeat(tableId, reservationId);
+    setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
+  }, [handleQuickSeat]);
 
   const handleActionBarClick = useCallback((insight: FloorInsight) => {
     if (insight.type === 'SEAT_NOW' && insight.reservationId) {
@@ -272,6 +299,17 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const handleAvailableClick = useCallback((table: FloorTable) => {
     setPreselectedTableId(table.id);
     setCreateMode('reservation');
+  }, []);
+
+  const handleTableSelect = useCallback((table: FloorTable) => {
+    console.log('handleTableSelect fired:', table.id);
+    setQuickSeatTableId(prev => {
+      const next = prev === table.id ? null : table.id;
+      console.log('new quickSeatTableId:', next);
+      return next;
+    });
+    setSelectedRes(null);
+    setCreateMode(null);
   }, []);
 
   const handleLockTable = useCallback((table: FloorTable) => {
@@ -356,7 +394,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const handleTimelineQuickAction = useCallback(async (action: 'seat' | 'move' | 'cancel', res: Reservation) => {
     if (action === 'seat') {
       if (!res.tableId) { setSelectedRes(res); return; }
-      try { await api.reservations.seat(res.id, res.tableId); setRefreshKey(k => k + 1); }
+      try { await handleQuickSeat(res.tableId, res.id); }
       catch { setSelectedRes(res); }
       return;
     }
@@ -365,7 +403,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       try { await api.reservations.cancel(res.id); setRefreshKey(k => k + 1); }
       catch { /* ignore */ }
     }
-  }, []);
+  }, [handleQuickSeat]);
 
   const handleTableLocked = useCallback((updated: Table) => {
     setFloorTables(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t));
@@ -727,6 +765,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onGapClick={handleGapClick}
           onGapWaitlistSeat={handleGapWaitlistSeat}
           onQuickAction={handleTimelineQuickAction}
+          onTableSelect={handleTableSelect}
         />
 
         <ReservationPanel
@@ -735,7 +774,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           highlightId={highlightId}
           onSelect={setSelectedRes}
           loading={resLoading}
-          onNewReservation={() => setCreateMode('reservation')}
+          onNewReservation={() => {
+            setPreselectedTableId(quickSeatTableId);
+            setCreateMode('reservation');
+          }}
           onWalkIn={() => setCreateMode('walkin')}
           waitlist={waitlist}
           waitlistLoading={waitlistLoading}
@@ -750,6 +792,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           priorityQueue={priorityQueue}
           nowTime={time}
           operationalNow={operationalNow}
+          quickSeatTableId={quickSeatTableId}
+          quickSeatTableName={floorTables.find(t => t.id === quickSeatTableId)?.name ?? null}
+          onQuickSeat={(resId) => { if (quickSeatTableId) handleQuickSeat(quickSeatTableId, resId); }}
+          onCancelQuickSeat={() => setQuickSeatTableId(null)}
         />
       </div>
 
