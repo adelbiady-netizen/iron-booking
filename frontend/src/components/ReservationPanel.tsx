@@ -93,11 +93,6 @@ export default function ReservationPanel({
   return (
     <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-l border-iron-border bg-iron-card">
 
-      {/* DEBUG PROBE — remove after confirming state flows */}
-      <div style={{ background: 'red', color: 'white', fontWeight: 'bold', padding: '8px 12px', fontSize: 14 }}>
-        quickSeatTableId = {quickSeatTableId === null ? 'NULL' : quickSeatTableId === undefined ? 'UNDEFINED' : `"${quickSeatTableId}"`}
-      </div>
-
       {/* Tab bar + action buttons */}
       <div className="px-3 pt-3 pb-0 border-b border-iron-border">
         <div className="flex items-center gap-2 mb-2.5">
@@ -195,8 +190,8 @@ export default function ReservationPanel({
         </div>
       )}
 
-      {/* Content */}
-      {tab === 'waitlist' ? (
+      {/* Content — quick-seat mode forces the reservations tab */}
+      {tab === 'waitlist' && quickSeatTableId == null ? (
         <WaitlistPanel
           entries={waitlist}
           loading={waitlistLoading}

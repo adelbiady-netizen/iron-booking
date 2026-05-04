@@ -162,7 +162,6 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
-    console.log('CLICK DETECTED table:', t.id, 'onTableSelect defined:', !!onTableSelect);
     if (onTableSelect) {
       onTableSelect(t);
       return;
@@ -205,11 +204,6 @@ export default function FloorBoard({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* DEPLOY TEST — remove after confirming build is fresh */}
-      <div style={{ background: 'red', color: 'white', fontWeight: 'bold', padding: '6px 12px', fontSize: 13, textAlign: 'center' }}>
-        DEPLOY TEST — build is fresh
-      </div>
-
       {/* Stats + section legend */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-iron-border bg-iron-card/50 shrink-0 flex-wrap">
         <Stat label={T.floorBoard.statAvailable} value={available}    color="text-iron-muted" />

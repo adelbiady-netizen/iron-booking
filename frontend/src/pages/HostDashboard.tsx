@@ -129,10 +129,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const quickSeatIdRef = useRef<string | null>(null);
   quickSeatIdRef.current = quickSeatTableId;
 
-  useEffect(() => {
-    console.log('STATE CHANGED: quickSeatTableId =', quickSeatTableId);
-  }, [quickSeatTableId]);
-
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
     const id = ++toastIdRef.current;
     setToasts(prev => [...prev, { id, text, type, action }]);
@@ -302,12 +298,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, []);
 
   const handleTableSelect = useCallback((table: FloorTable) => {
-    console.log('handleTableSelect fired:', table.id);
-    setQuickSeatTableId(prev => {
-      const next = prev === table.id ? null : table.id;
-      console.log('new quickSeatTableId:', next);
-      return next;
-    });
+    setQuickSeatTableId(table.id);
     setSelectedRes(null);
     setCreateMode(null);
   }, []);
