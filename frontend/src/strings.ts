@@ -290,6 +290,7 @@ export const T = {
     actionCancel:         'Cancel',
     actionComplete:       'Complete',
     actionMoveTable:      'Move table',
+    actionUnseat:         'Unseat',
     actionUndo:           'Undo',
     // Edit mode fields
     fieldGuestName:       'Guest name',
@@ -346,6 +347,7 @@ export const T = {
     toastConfirmed:       'Reservation confirmed',
     toastNoShow:          'Marked as no-show',
     toastCompleted:       'Reservation completed',
+    toastUnseated:        'Guest returned to confirmed',
     toastUndone:          'Action undone',
     toastSeated:          (table: string) => `Seated at ${table}`,
     toastMoved:           (table: string) => `Moved to ${table}`,

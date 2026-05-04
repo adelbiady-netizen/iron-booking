@@ -560,6 +560,31 @@ export async function cancelReservation(
   });
 }
 
+export async function unseatReservation(
+  restaurantId: string,
+  id: string,
+  actorName: string
+) {
+  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  if (r.status !== 'SEATED') {
+    throw new BusinessRuleError(`Cannot unseat a reservation with status ${r.status}`);
+  }
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.reservation.update({
+      where: { id },
+      data: { status: 'CONFIRMED', tableId: null, seatedAt: null },
+      include: { table: true },
+    });
+    await logActivity(tx, id, 'CONFIRMED', actorName, {
+      fromStatus: 'SEATED',
+      toStatus: 'CONFIRMED',
+      tableId: null,
+      previousTableId: r.tableId ?? null,
+    });
+    return updated;
+  });
+}
+
 // ─── Undo ─────────────────────────────────────────────────────────────────────
 
 const UNDOABLE_ACTIONS = ['CONFIRMED', 'NO_SHOW', 'CANCELLED', 'SEATED', 'COMPLETED', 'MOVED'] as const;

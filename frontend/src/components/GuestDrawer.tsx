@@ -155,7 +155,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
   const [res, setRes] = useState<Reservation>(init);
   const [mode, setMode] = useState<Mode>('view');
-  const [cancelReason, setCancelReason] = useState('');
+  const [cancelReason,  setCancelReason]  = useState('');
+  const [unseatConfirm, setUnseatConfirm] = useState(false);
   const [lockReason,   setLockReason]   = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -248,6 +249,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       setRes(updated);
       onUpdated(updated);
       setMode('view');
+      setUnseatConfirm(false);
       if (successMsg) onSuccess?.(successMsg);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
@@ -436,9 +438,30 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     if (res.status === 'SEATED') return (
       <>
-        <ActionBtn label={T.guestDrawer.actionComplete}   cls={btnGreen}   onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionMoveTable}  cls={btnNeutral} onClick={() => setMode('move')}   disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionCancel}     cls={btnRed}     onClick={() => setMode('cancel')}  disabled={busy} />
+        <ActionBtn label={T.guestDrawer.actionComplete}  cls={btnGreen}   onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} />
+        <ActionBtn label={T.guestDrawer.actionMoveTable} cls={btnNeutral} onClick={() => setMode('move')}   disabled={busy} />
+        {unseatConfirm ? (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-iron-muted">להחזיר לממתין?</span>
+            <button
+              onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
+              disabled={busy}
+              className="text-xs font-medium px-2.5 py-1 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40"
+            >
+              {T.guestDrawer.actionUnseat}
+            </button>
+            <button
+              onClick={() => setUnseatConfirm(false)}
+              disabled={busy}
+              className="text-xs text-iron-muted hover:text-iron-text transition-colors"
+            >
+              {T.guestDrawer.backLink}
+            </button>
+          </div>
+        ) : (
+          <ActionBtn label={T.guestDrawer.actionUnseat} cls={btnNeutral} onClick={() => setUnseatConfirm(true)} disabled={busy} />
+        )}
+        <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}     onClick={() => setMode('cancel')}  disabled={busy} />
       </>
     );
 

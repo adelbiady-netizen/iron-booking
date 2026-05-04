@@ -235,6 +235,8 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
+    unseat: (id: string) =>
+      request<Reservation>(`/reservations/${id}/unseat`, { method: 'POST' }),
     undo: (id: string) =>
       request<Reservation>(`/reservations/${id}/undo`, { method: 'POST' }),
     sendConfirmation: (id: string) =>
