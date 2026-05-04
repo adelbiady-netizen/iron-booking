@@ -163,8 +163,10 @@ export const THe = {
     runningLate:      'מאחר',
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
-    quickSeatTo:      (table: string) => `הושבה מהירה לשולחן ${table}`,
-    quickSeatCancel:  'ביטול',
+    quickSeatTo:         (table: string) => `הושבה מהירה לשולחן ${table}`,
+    quickSeatCancel:     'ביטול',
+    quickSeatNoEligible: 'אין הזמנות ממתינות או מאושרות להושבה.',
+    quickSeatExit:       'יציאה מהושבה מהירה',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────

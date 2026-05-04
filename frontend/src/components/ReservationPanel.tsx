@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Reservation, ReservationStatus, WaitlistEntry } from '../types';
 import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
@@ -57,6 +57,13 @@ export default function ReservationPanel({
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ALL');
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (quickSeatTableId == null) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancelQuickSeat?.(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [quickSeatTableId, onCancelQuickSeat]);
 
   const STATUS_LABEL: Record<string, string> = {
     PENDING:   T.reservationStatus.PENDING,
@@ -217,16 +224,32 @@ export default function ReservationPanel({
 
             {!loading && reservations.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center gap-2">
-                <p className="text-iron-muted text-sm">{T.reservationPanel.emptyTitle}</p>
-                <p className="text-iron-muted text-xs opacity-60">
-                  {T.reservationPanel.emptyHintPrefix}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
-                </p>
+                {quickSeatTableId != null ? (
+                  <>
+                    <p className="text-iron-muted text-sm">{T.reservationPanel.quickSeatNoEligible}</p>
+                    <button type="button" onClick={onCancelQuickSeat} className="mt-2 text-xs px-3 py-1.5 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors">
+                      {T.reservationPanel.quickSeatExit}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-iron-muted text-sm">{T.reservationPanel.emptyTitle}</p>
+                    <p className="text-iron-muted text-xs opacity-60">
+                      {T.reservationPanel.emptyHintPrefix}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
             {!loading && reservations.length > 0 && visible.length === 0 && (
-              <div className="flex items-center justify-center py-10 text-iron-muted text-xs">
-                {T.reservationPanel.emptyFiltered}
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center gap-2">
+                <p className="text-iron-muted text-xs">{T.reservationPanel.emptyFiltered}</p>
+                {quickSeatTableId != null && (
+                  <button type="button" onClick={onCancelQuickSeat} className="mt-1 text-xs px-3 py-1.5 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors">
+                    {T.reservationPanel.quickSeatExit}
+                  </button>
+                )}
               </div>
             )}
 

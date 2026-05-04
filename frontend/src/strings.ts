@@ -163,8 +163,10 @@ export const T = {
     runningLate:      'running late',
     reminded:         'reminded',
     smsSent:          'SMS sent',
-    quickSeatTo:      (table: string) => `Seating at ${table}`,
-    quickSeatCancel:  'Cancel',
+    quickSeatTo:         (table: string) => `Seating at ${table}`,
+    quickSeatCancel:     'Cancel',
+    quickSeatNoEligible: 'No pending or confirmed reservations to seat.',
+    quickSeatExit:       'Exit quick seat',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
