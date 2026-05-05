@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../../lib/prisma';
+import { eventBus } from '../../lib/eventBus';
 
 const router = Router();
 
@@ -16,6 +17,7 @@ const router = Router();
  *   record   – recording URL (optional)
  */
 router.get('/call', (req, res) => {
+  console.log('[link/call] Webhook received:', req.query);
   res.sendStatus(200);
 
   const { caller, status, duration, record } = req.query;
@@ -31,8 +33,12 @@ router.get('/call', (req, res) => {
       duration:  durationSecs !== null && !isNaN(durationSecs) ? durationSecs : null,
       recordUrl: record ? String(record) : null,
     },
+  }).then(log => {
+    console.log('[link/call] CallLog saved:', log.phone);
+    console.log('[link/call] Emitting incoming_call event:', log.phone);
+    eventBus.emit('incoming_call', { phone: log.phone, createdAt: log.createdAt.toISOString() });
   }).catch((err: unknown) => {
-    console.error('[integrations/link/call] failed to persist call log:', err);
+    console.error('[link/call] Failed to persist call log:', err);
   });
 });
 
