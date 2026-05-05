@@ -10,6 +10,7 @@ module.exports = {
           'green-light':'rgb(var(--iron-green-light) / <alpha-value>)',
           bg:           'rgb(var(--iron-bg) / <alpha-value>)',
           card:         'rgb(var(--iron-card) / <alpha-value>)',
+          elevated:     'rgb(var(--iron-elevated) / <alpha-value>)',
           border:       'rgb(var(--iron-border) / <alpha-value>)',
           text:         'rgb(var(--iron-text) / <alpha-value>)',
           muted:        'rgb(var(--iron-muted) / <alpha-value>)',

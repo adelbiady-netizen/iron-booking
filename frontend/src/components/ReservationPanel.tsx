@@ -331,37 +331,52 @@ export default function ReservationPanel({
 
   {ctxMenu && createPortal(
     (() => {
-      const menuWidth  = 160;
-      const menuHeight = 80;
-      let left = ctxMenu.x;
-      let top  = ctxMenu.y;
-      if (left + menuWidth  > window.innerWidth)  left = left - menuWidth;
-      if (top  + menuHeight > window.innerHeight) top  = top  - menuHeight;
+      const menuW = 184;
+      const menuH = 108;
+      let left = ctxMenu.x + 4;
+      let top  = ctxMenu.y + 4;
+      const flipX = left + menuW > window.innerWidth  - 8;
+      const flipY = top  + menuH > window.innerHeight - 8;
+      if (flipX) left = ctxMenu.x - menuW - 4;
+      if (flipY) top  = ctxMenu.y - menuH - 4;
+      left = Math.max(8, left);
+      top  = Math.max(8, top);
+
+      const hasSeat = ['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status);
 
       return (
         <div
           ref={ctxRef}
-          style={{ position: 'fixed', left, top, zIndex: 9999, border: '2px solid red' }}
-          className="bg-iron-card rounded-lg shadow-xl overflow-hidden"
+          style={{
+            position: 'fixed', left, top, zIndex: 9999,
+            minWidth: menuW,
+            maxWidth: 224,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)',
+            transformOrigin: `${flipX ? 'right' : 'left'} ${flipY ? 'bottom' : 'top'}`,
+          }}
+          className="bg-iron-elevated border border-iron-border/70 rounded-xl p-1.5 animate-ctx-menu"
           onContextMenu={e => e.preventDefault()}
         >
-          {['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status) && (
+          {hasSeat && (
             <button
               type="button"
-              style={{ width: menuWidth }}
-              className="block text-right px-4 py-2.5 text-sm text-iron-green-light hover:bg-iron-green/15 transition-colors font-medium"
+              className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm text-iron-green-light font-medium hover:bg-iron-green/15 active:bg-iron-green/25 transition-colors cursor-pointer"
               onClick={() => { onContextMenuSeat?.(ctxMenu.res); setCtxMenu(null); }}
             >
-              {T.reservationPanel.ctxSeat}
+              <span className="text-base leading-none shrink-0">🍽️</span>
+              <span>{T.reservationPanel.ctxSeat}</span>
             </button>
           )}
+
+          {hasSeat && <div className="h-px bg-iron-border/40 my-1 mx-1.5" />}
+
           <button
             type="button"
-            style={{ width: menuWidth }}
-            className="block text-right px-4 py-2.5 text-sm text-iron-muted hover:bg-white/5 transition-colors"
+            className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm text-iron-muted hover:bg-white/[0.06] active:bg-white/10 transition-colors cursor-pointer"
             onClick={() => setCtxMenu(null)}
           >
-            {T.reservationPanel.ctxClose}
+            <span className="text-[13px] leading-none shrink-0 opacity-60">✕</span>
+            <span>{T.reservationPanel.ctxClose}</span>
           </button>
         </div>
       );
