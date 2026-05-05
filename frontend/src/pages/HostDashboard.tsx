@@ -16,6 +16,8 @@ import ActionBar from '../components/ActionBar';
 import LayoutEditor from '../components/LayoutEditor';
 import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
+import { useServerEvents } from '../hooks/useServerEvents';
+import CallDrawer from '../components/CallDrawer';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -124,6 +126,45 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [preselectedTableId,   setPreselectedTableId]   = useState<string | null>(null);
   const [lockTarget,           setLockTarget]           = useState<FloorTable | null>(null);
   const [gapHint,              setGapHint]              = useState<GapHint | null>(null);
+  const [incomingCall,         setIncomingCall]         = useState<{ phone: string; createdAt: string } | null>(null);
+  const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string } | null>(null);
+  const [callHighlight,        setCallHighlight]        = useState(false);
+  const [callPrefillPhone,     setCallPrefillPhone]     = useState('');
+  const lastCallRef            = useRef<{ phone: string; at: number } | null>(null);
+  const callHighlightTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useServerEvents({
+    incoming_call: (data) => {
+      const d = data as { phone: string; createdAt: string };
+      const now = Date.now();
+
+      // 1. Deduplication — same phone within 10 s
+      if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) return;
+      lastCallRef.current = { phone: d.phone, at: now };
+
+      // 2. Drawer already open — update content + visual ping, no interruption
+      if (incomingCall) {
+        setIncomingCall(d);
+        if (callHighlightTimer.current) clearTimeout(callHighlightTimer.current);
+        setCallHighlight(true);
+        callHighlightTimer.current = setTimeout(() => setCallHighlight(false), 1200);
+        return;
+      }
+
+      // 3. User is actively typing — show small badge instead of opening drawer
+      const el  = document.activeElement;
+      const tag = el?.tagName.toLowerCase();
+      const typing = tag === 'input' || tag === 'textarea' || tag === 'select'
+        || !!(el as HTMLElement | null)?.isContentEditable;
+
+      if (typing) {
+        setCallNotification(d);
+      } else {
+        setIncomingCall(d);
+      }
+    },
+  });
+
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
     const id = ++toastIdRef.current;
     setToasts(prev => [...prev, { id, text, type, action }]);
@@ -794,8 +835,42 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           tables={allTables}
           preselectedTableId={preselectedTableId ?? undefined}
           gapHint={gapHint ?? undefined}
-          onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); }}
+          initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
+          onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); setCallPrefillPhone(''); }}
           onCreated={handleCreated}
+        />
+      )}
+
+      {/* Typing-guard notification badge */}
+      {callNotification && !incomingCall && (
+        <button
+          onClick={() => { setIncomingCall(callNotification); setCallNotification(null); }}
+          className="fixed bottom-16 right-4 z-50 flex items-center gap-2.5 bg-iron-elevated border border-iron-green/50 text-iron-green-light text-sm font-semibold pl-3 pr-4 py-2.5 rounded-full shadow-2xl animate-toast"
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-iron-green opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-iron-green" />
+          </span>
+          <span>📞 {callNotification.phone || T.callDrawer.unknownCaller}</span>
+        </button>
+      )}
+
+      {incomingCall && (
+        <CallDrawer
+          phone={incomingCall.phone}
+          createdAt={incomingCall.createdAt}
+          highlight={callHighlight}
+          onNewReservation={(phone) => {
+            setCallPrefillPhone(phone);
+            setCreateMode('reservation');
+            setIncomingCall(null);
+          }}
+          onOpenReservation={(resId) => {
+            const res = reservations.find(r => r.id === resId);
+            if (res) setSelectedRes(res);
+            setIncomingCall(null);
+          }}
+          onClose={() => setIncomingCall(null)}
         />
       )}
 

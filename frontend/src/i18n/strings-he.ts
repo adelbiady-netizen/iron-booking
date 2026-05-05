@@ -380,6 +380,24 @@ export const THe = {
     toastTableReassigned:      (table: string) => `שולחן הוחלף ל${table}`,
   },
 
+  // ── CallDrawer ─────────────────────────────────────────────────────────────
+  callDrawer: {
+    title:           'שיחה נכנסת',
+    incomingLabel:   'שיחה נכנסת',
+    unknownCaller:   'מתקשר לא מוכר',
+    lookingUp:       'מחפש מתקשר…',
+    guestFound:      'אורח ברשומות',
+    noGuest:         'לא נמצאה רשומת אורח',
+    newReservation:  'הזמנה חדשה',
+    dismiss:         'סגור',
+    visits:          (n: number) => `${n} ביקורים`,
+    noShows:         (n: number) => `${n} אי-הגעות`,
+    frequentGuest:   'אורח קבוע',
+    todayRes:        'הזמנה להיום',
+    openReservation: 'פתח הזמנה',
+    lastVisit:       'ביקור אחרון',
+  },
+
   // ── LockTableModal ─────────────────────────────────────────────────────────
   lockModal: {
     title:           (name: string) => `נעל את ${name}`,

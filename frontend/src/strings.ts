@@ -392,6 +392,24 @@ export const T = {
     toastTableReassigned:      (table: string) => `Table changed to ${table}`,
   },
 
+  // ── CallDrawer ─────────────────────────────────────────────────────────────
+  callDrawer: {
+    title:           'Incoming Call',
+    incomingLabel:   'Incoming call',
+    unknownCaller:   'Unknown Caller',
+    lookingUp:       'Looking up caller…',
+    guestFound:      'Guest on record',
+    noGuest:         'No guest record found',
+    newReservation:  'New Reservation',
+    dismiss:         'Dismiss',
+    visits:          (n: number) => `${n} visit${n === 1 ? '' : 's'}`,
+    noShows:         (n: number) => `${n} no-show${n === 1 ? '' : 's'}`,
+    frequentGuest:   'Regular',
+    todayRes:        "Today's reservation",
+    openReservation: 'Open reservation',
+    lastVisit:       'Last visit',
+  },
+
   // ── LockTableModal ─────────────────────────────────────────────────────────
   lockModal: {
     title:           (name: string) => `Lock ${name}`,

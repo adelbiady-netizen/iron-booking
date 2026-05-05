@@ -137,7 +137,7 @@ export default function CreateDrawer({
 
   // Reservation fields — pre-filled from gapHint when present
   const [resName,      setResName]      = useState('');
-  const [resPhone,     setResPhone]     = useState('');
+  const [resPhone,     setResPhone]     = useState(initialData?.guestPhone ?? '');
   const [resParty,     setResParty]     = useState(2);
   const [resDate,      setResDate]      = useState(defaultDate);
   const [resTime,      setResTime]      = useState(snapToSlot(gapHint?.startTime ?? defaultTime));

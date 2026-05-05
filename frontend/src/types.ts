@@ -296,6 +296,15 @@ export interface GuestLookupResult {
   visitCount: number;
   noShowCount: number;
   lastVisitAt: string | null;
+  recentReservations?: Array<{
+    id: string;
+    date: string;
+    time: string;
+    partySize: number;
+    status: ReservationStatus;
+    occasion: string | null;
+    table: { name: string } | null;
+  }>;
 }
 
 export interface PublicReservation {
