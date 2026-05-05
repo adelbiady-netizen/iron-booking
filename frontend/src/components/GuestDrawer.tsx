@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api } from '../api';
 import SmartTablePicker from './SmartTablePicker';
@@ -175,6 +175,29 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableSuggestions, setTableSuggestions] = useState<BackendTableSuggestion[]>([]);
   const [suggestBusy, setSuggestBusy] = useState(false);
+  const [topSuggestion, setTopSuggestion] = useState<BackendTableSuggestion | null>(null);
+  const [topSuggestLoading, setTopSuggestLoading] = useState(false);
+
+  useEffect(() => {
+    if (!['PENDING', 'CONFIRMED'].includes(res.status)) {
+      setTopSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    setTopSuggestLoading(true);
+    setTopSuggestion(null);
+    api.tables.suggest({
+      date: res.date, time: res.time, partySize: res.partySize,
+      duration: res.duration, excludeReservationId: res.id,
+    }).then(list => {
+      if (!cancelled) setTopSuggestion(list.find(s => !!s.tableId) ?? null);
+    }).catch(() => {
+      if (!cancelled) setTopSuggestion(null);
+    }).finally(() => {
+      if (!cancelled) setTopSuggestLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [res.id, res.status]);
 
   function enterEdit() {
     setEditName(res.guestName);
@@ -562,6 +585,69 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
             );
           })()}
+
+          {/* Smart table suggestion */}
+          {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (topSuggestLoading || topSuggestion) && (
+            <section className="rounded-xl border border-iron-green/30 bg-iron-green/5 p-3.5 space-y-3">
+              <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">
+                {T.guestDrawer.sectionSmartSuggest}
+              </p>
+
+              {topSuggestLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+                  <span className="text-iron-muted text-xs">{T.common.processing}</span>
+                </div>
+              ) : topSuggestion && (
+                <>
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-iron-text font-bold text-base leading-tight">{topSuggestion.tableName}</span>
+                    <span className="text-iron-muted text-xs">
+                      {T.guestDrawer.suggestCapacity(topSuggestion.minCovers, topSuggestion.maxCovers)}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {topSuggestion.reasons.some(r => r.code === 'PERFECT_FIT') && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
+                        {T.guestDrawer.suggestReasonPerfectFit}
+                      </span>
+                    )}
+                    {topSuggestion.status === 'recommended' && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
+                        {T.guestDrawer.suggestReasonAvailable}
+                      </span>
+                    )}
+                    {!topSuggestion.reasons.some(r => ['CONFLICT', 'GAP_BEFORE_TIGHT', 'GAP_AFTER_TIGHT'].includes(r.code)) && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
+                        {T.guestDrawer.suggestReasonNoConflicts}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => run(
+                        () => api.reservations.seat(res.id, topSuggestion.tableId!),
+                        T.guestDrawer.toastSeated(topSuggestion.tableName),
+                      )}
+                      disabled={busy}
+                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/25 border border-iron-green/50 text-iron-green-light hover:bg-iron-green/35 transition-colors disabled:opacity-40"
+                    >
+                      {T.guestDrawer.suggestSeatNow}
+                    </button>
+                    <button
+                      onClick={() => setMode('seat')}
+                      disabled={busy}
+                      className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                    >
+                      {T.guestDrawer.suggestChooseOther}
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
 
           {/* Reservation details */}
           <section className="space-y-2">

@@ -364,6 +364,14 @@ export const THe = {
     markAsConfirmed:      'סמן כמאושר',
     markedAsConfirmed:    'סומן כמאושר',
     sourceLabels:         { Phone: 'טלפוני', Internal: 'פנימי', 'Walk-in': 'Walk-in', Online: 'אונליין', System: 'מערכת' } as Record<string, string>,
+    // Smart suggestion
+    sectionSmartSuggest:      'הצעת שולחן',
+    suggestSeatNow:           'הושב עכשיו',
+    suggestChooseOther:       'בחר שולחן אחר',
+    suggestReasonPerfectFit:  'התאמה מושלמת',
+    suggestReasonAvailable:   'פנוי עכשיו',
+    suggestReasonNoConflicts: 'ללא התנגשויות',
+    suggestCapacity:          (min: number, max: number) => `${min}–${max} אורחים`,
   },
 
   // ── LockTableModal ─────────────────────────────────────────────────────────

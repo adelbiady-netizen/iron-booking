@@ -376,6 +376,14 @@ export const T = {
     markAsConfirmed:      'Mark as confirmed',
     markedAsConfirmed:    'Marked as confirmed',
     sourceLabels:         { Phone: 'Phone', Internal: 'Internal', 'Walk-in': 'Walk-in', Online: 'Online', System: 'System' } as Record<string, string>,
+    // Smart suggestion
+    sectionSmartSuggest:      'Suggested Table',
+    suggestSeatNow:           'Seat Now',
+    suggestChooseOther:       'Choose another table',
+    suggestReasonPerfectFit:  'Perfect fit',
+    suggestReasonAvailable:   'Available now',
+    suggestReasonNoConflicts: 'No conflicts',
+    suggestCapacity:          (min: number, max: number) => `${min}–${max} guests`,
   },
 
   // ── LockTableModal ─────────────────────────────────────────────────────────
