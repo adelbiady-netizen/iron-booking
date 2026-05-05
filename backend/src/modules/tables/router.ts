@@ -96,6 +96,16 @@ router.get('/floor-suggestions', validate(FloorStateQuerySchema, 'query'), async
   } catch (err) { next(err); }
 });
 
+// GET /tables/best — single best table for auto-allocation (Phase 1)
+// Returns { tableId, tableName, score, reason } or null when nothing is available.
+// Phase 2 will replace the service layer with a full-night optimizer.
+router.get('/best', validate(SuggestQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const best = await service.getBestTable(req.auth.restaurantId, req.query as unknown as SuggestQuery);
+    res.json(best);
+  } catch (err) { next(err); }
+});
+
 // GET /tables/suggest — smart table suggestions
 router.get('/suggest', validate(SuggestQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
   try {

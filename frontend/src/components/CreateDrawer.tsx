@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { BackendTableSuggestion, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
@@ -58,7 +58,7 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   );
 }
 
-// ─── Table picker grid ────────────────────────────────────────────────────────
+// ─── Table picker grid (walk-in mode) ─────────────────────────────────────────
 
 interface TablePickerProps {
   tables: Table[];
@@ -135,7 +135,7 @@ export default function CreateDrawer({
   const { locale } = useLocale();
   const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : initialMode);
 
-  // Reservation fields — pre-filled from gapHint when present
+  // Reservation fields
   const [resName,      setResName]      = useState('');
   const [resPhone,     setResPhone]     = useState(initialData?.guestPhone ?? '');
   const [resParty,     setResParty]     = useState(2);
@@ -153,13 +153,34 @@ export default function CreateDrawer({
   const [wiNotes, setWiNotes] = useState('');
   const [wiTable, setWiTable] = useState(preselectedTableId ?? '');
 
+  // Guest CRM hints
   const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
   const [hintDismissed,  setHintDismissed]  = useState(false);
   const [nameResults,    setNameResults]    = useState<GuestSearchResult[]>([]);
   const [showNameDrop,   setShowNameDrop]   = useState(false);
 
+  // Table suggestions (for SmartTablePicker override grid)
   const [resSuggestions, setResSuggestions] = useState<BackendTableSuggestion[]>([]);
   const [suggestBusy,    setSuggestBusy]    = useState(false);
+
+  // ── Auto-allocation state ────────────────────────────────────────────────────
+  // autoTableId/Name: system's recommended table (top non-blocked from /suggest)
+  // manualOverride: host explicitly chose a different table → don't auto-update
+  // showPicker: full SmartTablePicker grid is visible (override mode)
+  //
+  // If the drawer opened with a pre-selected table (floor click or gap hint),
+  // treat it as a manual selection from the start.
+  const hasPreselection = !!(gapHint?.tableId || preselectedTableId);
+  const [autoTableId,   setAutoTableId]   = useState<string | null>(null);
+  const [autoTableName, setAutoTableName] = useState('');
+  const [showPicker,    setShowPicker]    = useState(false);
+  // Ref keeps manualOverride readable inside async effects without stale closures
+  const manualOverrideRef = useRef(hasPreselection);
+  const [manualOverride, _setManualOverride] = useState(hasPreselection);
+  function setManualOverride(v: boolean) {
+    manualOverrideRef.current = v;
+    _setManualOverride(v);
+  }
 
   const [error, setError] = useState<string | null>(null);
   const [busy,  setBusy]  = useState(false);
@@ -172,15 +193,13 @@ export default function CreateDrawer({
         const { guest } = await api.guests.lookupByPhone(resPhone);
         setGuestHint(guest);
         setHintDismissed(false);
-        if (guest) {
-          setResName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
-        }
+        if (guest) setResName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
       } catch { /* non-fatal */ }
     }, 400);
     return () => clearTimeout(t);
   }, [resPhone]);
 
-  // Debounced guest search by name — skipped when phone already identified a guest
+  // Debounced guest search by name
   useEffect(() => {
     const q = resName.trim();
     if (q.length < 2 || (guestHint && !hintDismissed)) {
@@ -196,17 +215,43 @@ export default function CreateDrawer({
     return () => clearTimeout(t);
   }, [resName, guestHint, hintDismissed]);
 
-  // Debounced table suggestion fetch for reservation mode
+  // ── Auto-allocation + suggestion fetch ───────────────────────────────────────
+  // Fires when booking params change. Fetches suggestions, extracts best table,
+  // and auto-assigns it unless the host has manually overridden.
+  // When params change (new date/time/party), clears the override so the system
+  // re-evaluates — except when a table was explicitly pre-selected on open.
   useEffect(() => {
     if (mode !== 'reservation' || !resDate || !resTime || resParty < 1) return;
+
+    // Reset override only when params change post-open (not for pre-selections)
+    if (!hasPreselection) {
+      setManualOverride(false);
+      setShowPicker(false);
+    }
+
     setSuggestBusy(true);
     const t = setTimeout(async () => {
       try {
         const dur = resDuration ? parseInt(resDuration, 10) : undefined;
         const s = await api.tables.suggest({ date: resDate, time: resTime, partySize: resParty, duration: dur });
         setResSuggestions(s);
-      } catch { setResSuggestions([]); }
-      finally { setSuggestBusy(false); }
+
+        // Best table = first non-blocked suggestion (already sorted by score desc)
+        const best = s.find(x => x.tableId && x.status !== 'blocked') ?? null;
+        setAutoTableId(best?.tableId ?? null);
+        setAutoTableName(best?.tableName ?? '');
+
+        // Apply auto-selection only when host hasn't manually chosen
+        if (!manualOverrideRef.current) {
+          setResTable(best?.tableId ?? '');
+        }
+      } catch {
+        setResSuggestions([]);
+        setAutoTableId(null);
+        setAutoTableName('');
+      } finally {
+        setSuggestBusy(false);
+      }
     }, 450);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,6 +263,9 @@ export default function CreateDrawer({
   }
   function todayStr() {
     return new Date().toISOString().slice(0, 10);
+  }
+  function resolveTableName(id: string) {
+    return tables.find(t => t.id === id)?.name ?? id;
   }
 
   async function submitReservation(e: React.FormEvent) {
@@ -258,20 +306,29 @@ export default function CreateDrawer({
         guestNotes: wiNotes.trim() || undefined,
         source:    'WALK_IN',
       });
-
       if (seatNow && wiTable) {
-        // seat() auto-confirms and assigns the table
         r = await api.reservations.seat(r.id, wiTable);
       } else if (r.status === 'PENDING') {
         r = await api.reservations.confirm(r.id);
       }
-
       onCreated(r);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create walk-in');
     } finally {
       setBusy(false);
     }
+  }
+
+  // ── Confirm button label ──────────────────────────────────────────────────────
+  // Shows which table will be used so the host can confirm at a glance.
+  function confirmLabel(): string {
+    if (busy) return T.createDrawer.submitCreateBusy;
+    if (suggestBusy && !resTable) return T.createDrawer.confirmChecking;
+    const name = resTable
+      ? (autoTableId === resTable && !manualOverride ? autoTableName : resolveTableName(resTable))
+      : null;
+    if (name) return T.createDrawer.confirmWithTable(name);
+    return T.createDrawer.confirmNoTable;
   }
 
   return (
@@ -303,9 +360,7 @@ export default function CreateDrawer({
               type="button"
               onClick={() => { setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
-                mode === 'reservation'
-                  ? 'bg-iron-green text-white'
-                  : 'text-iron-muted hover:text-iron-text'
+                mode === 'reservation' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
               }`}
             >
               {T.createDrawer.tabReservation}
@@ -314,9 +369,7 @@ export default function CreateDrawer({
               type="button"
               onClick={() => { setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
-                mode === 'walkin'
-                  ? 'bg-iron-green text-white'
-                  : 'text-iron-muted hover:text-iron-text'
+                mode === 'walkin' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
               }`}
             >
               {T.createDrawer.tabWalkIn}
@@ -326,234 +379,341 @@ export default function CreateDrawer({
 
         {/* ── Reservation form ── */}
         {mode === 'reservation' && (
-          <form onSubmit={submitReservation} className="flex-1 overflow-y-auto p-4 space-y-4">
+          <>
+            {/* Scrollable body — form tag scoped here; submit button is in the sticky footer */}
+            <form
+              id="create-res-form"
+              onSubmit={submitReservation}
+              className="flex-1 overflow-y-auto p-4 space-y-4"
+            >
 
-            {/* Gap suggestion banner */}
-            {gapHint && (
-              <div className="flex items-start gap-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg px-3 py-2.5">
-                <span className="text-indigo-400 mt-0.5 shrink-0" style={{ fontSize: 13 }}>◈</span>
-                <div className="min-w-0">
-                  <p className="text-indigo-300 text-xs font-semibold">
-                    Available slot: {gapHint.startTime}–{gapHint.endTime}
-                  </p>
-                  <p className="text-indigo-400/70 text-[10px] mt-0.5">
-                    {gapHint.tableName} · seats {gapHint.minCovers}–{gapHint.maxCovers} · {gapHint.durationMins}m window
-                  </p>
+              {/* Gap suggestion banner */}
+              {gapHint && (
+                <div className="flex items-start gap-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg px-3 py-2.5">
+                  <span className="text-indigo-400 mt-0.5 shrink-0" style={{ fontSize: 13 }}>◈</span>
+                  <div className="min-w-0">
+                    <p className="text-indigo-300 text-xs font-semibold">
+                      Available slot: {gapHint.startTime}–{gapHint.endTime}
+                    </p>
+                    <p className="text-indigo-400/70 text-[10px] mt-0.5">
+                      {gapHint.tableName} · seats {gapHint.minCovers}–{gapHint.maxCovers} · {gapHint.durationMins}m window
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 relative">
-                <Label>{T.createDrawer.fieldGuestName}</Label>
-                <Input
-                  type="text"
-                  value={resName}
-                  onChange={e => setResName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Escape') { setShowNameDrop(false); } }}
-                  onBlur={() => setShowNameDrop(false)}
-                  placeholder={T.createDrawer.placeholderName}
-                  required
-                  autoFocus
-                />
-                {showNameDrop && nameResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-iron-card border border-iron-border rounded-lg shadow-xl z-50 overflow-hidden">
-                    {nameResults.map(g => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => {
-                          setResName(`${g.firstName} ${g.lastName}`);
-                          setResPhone(g.phone ?? '');
-                          setShowNameDrop(false);
-                          setNameResults([]);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-iron-bg/60 text-left transition-colors border-b border-iron-border/30 last:border-0"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-medium text-iron-text">{g.firstName} {g.lastName}</span>
-                            {g.isVip && <span className="text-[9px] font-semibold text-amber-400">VIP</span>}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Guest name with autocomplete */}
+                <div className="col-span-2 relative">
+                  <Label>{T.createDrawer.fieldGuestName}</Label>
+                  <Input
+                    type="text"
+                    value={resName}
+                    onChange={e => setResName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Escape') setShowNameDrop(false); }}
+                    onBlur={() => setShowNameDrop(false)}
+                    placeholder={T.createDrawer.placeholderName}
+                    required
+                    autoFocus
+                  />
+                  {showNameDrop && nameResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-iron-card border border-iron-border rounded-lg shadow-xl z-50 overflow-hidden">
+                      {nameResults.map(g => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            setResName(`${g.firstName} ${g.lastName}`);
+                            setResPhone(g.phone ?? '');
+                            setShowNameDrop(false);
+                            setNameResults([]);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-iron-bg/60 text-left transition-colors border-b border-iron-border/30 last:border-0"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-medium text-iron-text">{g.firstName} {g.lastName}</span>
+                              {g.isVip && <span className="text-[9px] font-semibold text-amber-400">VIP</span>}
+                            </div>
+                            <div className="text-[10px] text-iron-muted mt-0.5 flex items-center gap-1.5">
+                              {g.phone && <span>{g.phone}</span>}
+                              {g.visitCount > 0 && <span className="text-iron-muted/60">{g.visitCount} visit{g.visitCount !== 1 ? 's' : ''}</span>}
+                            </div>
                           </div>
-                          <div className="text-[10px] text-iron-muted mt-0.5 flex items-center gap-1.5">
-                            {g.phone && <span>{g.phone}</span>}
-                            {g.visitCount > 0 && <span className="text-iron-muted/60">{g.visitCount} visit{g.visitCount !== 1 ? 's' : ''}</span>}
-                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Phone + guest hint */}
+                <div>
+                  <Label>{T.createDrawer.fieldPhone}</Label>
+                  <Input
+                    type="tel"
+                    value={resPhone}
+                    onChange={e => setResPhone(e.target.value)}
+                    placeholder={T.createDrawer.placeholderPhone}
+                  />
+                  {guestHint && !hintDismissed && (
+                    <div className="mt-1.5 rounded-lg border border-iron-green/30 bg-iron-green/5 px-2.5 py-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-iron-green-light text-xs font-medium">{guestHint.firstName} {guestHint.lastName}</span>
+                          {guestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
                         </div>
-                      </button>
+                        <button type="button" onClick={() => setHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
+                      </div>
+                      <div className="text-[11px] text-iron-muted space-y-0.5">
+                        <div>
+                          {guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}
+                          {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
+                          {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
+                        </div>
+                        {guestHint.allergies.length > 0 && <div className="text-red-400">⚠ {guestHint.allergies.join(', ')}</div>}
+                        {guestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{guestHint.internalNotes}</div>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Party size */}
+                <div>
+                  <Label>{T.createDrawer.fieldPartySize}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={resParty}
+                    onChange={e => setResParty(parseInt(e.target.value, 10) || 1)}
+                    required
+                  />
+                  {gapHint && (
+                    <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                      {Array.from(
+                        { length: Math.min(gapHint.maxCovers, 20) - gapHint.minCovers + 1 },
+                        (_, i) => gapHint.minCovers + i,
+                      ).map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setResParty(n)}
+                          className={`text-[10px] w-6 h-6 rounded border font-semibold transition-colors ${
+                            resParty === n
+                              ? 'bg-indigo-500/25 border-indigo-400/60 text-indigo-300'
+                              : 'border-iron-border text-iron-muted hover:border-indigo-400/50 hover:text-indigo-300'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                      <span className="text-[10px] text-iron-muted/60 ml-0.5">fits {gapHint.minCovers}–{gapHint.maxCovers}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Date */}
+                <div>
+                  <Label>{T.createDrawer.fieldDate}</Label>
+                  <Input
+                    type="date"
+                    value={resDate}
+                    onChange={e => setResDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Time */}
+                <div>
+                  <Label>{T.createDrawer.fieldTime}</Label>
+                  <select
+                    value={resTime}
+                    onChange={e => setResTime(e.target.value)}
+                    required
+                    className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
+                  >
+                    {TIME_SLOTS.map(slot => (
+                      <option key={slot} value={slot}>{slot}</option>
                     ))}
-                  </div>
-                )}
-              </div>
+                  </select>
+                </div>
 
-              <div>
-                <Label>{T.createDrawer.fieldPhone}</Label>
-                <Input
-                  type="tel"
-                  value={resPhone}
-                  onChange={e => setResPhone(e.target.value)}
-                  placeholder={T.createDrawer.placeholderPhone}
-                />
-                {guestHint && !hintDismissed && (
-                  <div className="mt-1.5 rounded-lg border border-iron-green/30 bg-iron-green/5 px-2.5 py-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-iron-green-light text-xs font-medium">{guestHint.firstName} {guestHint.lastName}</span>
-                        {guestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
-                      </div>
-                      <button type="button" onClick={() => setHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
-                    </div>
-                    <div className="text-[11px] text-iron-muted space-y-0.5">
-                      <div>
-                        {guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}
-                        {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
-                        {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
-                      </div>
-                      {guestHint.allergies.length > 0 && <div className="text-red-400">⚠ {guestHint.allergies.join(', ')}</div>}
-                      {guestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{guestHint.internalNotes}</div>}
-                    </div>
-                  </div>
-                )}
-              </div>
+                {/* Duration */}
+                <div>
+                  <Label>{T.createDrawer.fieldDuration}</Label>
+                  <Input
+                    type="number"
+                    min={30}
+                    max={480}
+                    step={15}
+                    value={resDuration}
+                    onChange={e => setResDuration(e.target.value)}
+                    placeholder={T.createDrawer.placeholderDuration}
+                  />
+                </div>
 
-              <div>
-                <Label>{T.createDrawer.fieldPartySize}</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={resParty}
-                  onChange={e => setResParty(parseInt(e.target.value, 10) || 1)}
-                  required
-                />
-                {gapHint && (
-                  <div className="mt-1.5 flex items-center gap-1 flex-wrap">
-                    {Array.from(
-                      { length: Math.min(gapHint.maxCovers, 20) - gapHint.minCovers + 1 },
-                      (_, i) => gapHint.minCovers + i,
-                    ).map(n => (
+                {/* Source */}
+                <div>
+                  <Label>{T.createDrawer.fieldSource}</Label>
+                  <div className="flex gap-1 mt-0.5">
+                    {(['PHONE', 'INTERNAL'] as const).map(s => (
                       <button
-                        key={n}
+                        key={s}
                         type="button"
-                        onClick={() => setResParty(n)}
-                        className={`text-[10px] w-6 h-6 rounded border font-semibold transition-colors ${
-                          resParty === n
-                            ? 'bg-indigo-500/25 border-indigo-400/60 text-indigo-300'
-                            : 'border-iron-border text-iron-muted hover:border-indigo-400/50 hover:text-indigo-300'
+                        onClick={() => setResSource(s)}
+                        className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                          resSource === s
+                            ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light'
+                            : 'border-iron-border text-iron-muted hover:text-iron-text'
                         }`}
                       >
-                        {n}
+                        {s === 'PHONE' ? T.createDrawer.sourcePhone : T.createDrawer.sourceInternal}
                       </button>
                     ))}
-                    <span className="text-[10px] text-iron-muted/60 ml-0.5">fits {gapHint.minCovers}–{gapHint.maxCovers}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label>{T.createDrawer.fieldGuestNotes}</Label>
+                <TextArea
+                  value={resGuestNote}
+                  onChange={e => setResGuestNote(e.target.value)}
+                  placeholder={T.createDrawer.placeholderGuestNotes}
+                />
+              </div>
+
+              <div>
+                <Label>{T.createDrawer.fieldHostNotes}</Label>
+                <TextArea
+                  value={resHostNote}
+                  onChange={e => setResHostNote(e.target.value)}
+                  placeholder={T.createDrawer.placeholderHostNotes}
+                />
+              </div>
+
+              {/* ── Table allocation ── */}
+              <div>
+                <Label>{T.createDrawer.fieldTable}</Label>
+
+                {/* Loading state */}
+                {suggestBusy && (
+                  <div className="flex items-center gap-2 py-2 text-iron-muted">
+                    <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin shrink-0" />
+                    <span className="text-xs">{T.createDrawer.tableSearching}</span>
+                  </div>
+                )}
+
+                {/* Auto-selected, no override, picker hidden */}
+                {!suggestBusy && autoTableId && !manualOverride && !showPicker && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/35">
+                      <span className="text-iron-green-light font-semibold text-sm">
+                        {T.createDrawer.tableAutoSelected(autoTableName)}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-green/25 border border-iron-green/40 text-iron-green-light font-bold shrink-0">
+                        {T.createDrawer.autoLabel}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setShowPicker(true); setManualOverride(true); }}
+                      className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
+                    >
+                      {T.createDrawer.tableChangeBtn}
+                    </button>
+                  </div>
+                )}
+
+                {/* Manual override selected, picker hidden */}
+                {!suggestBusy && manualOverride && !showPicker && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-border/15 border border-iron-border/50 min-w-0">
+                      <span className="text-iron-text font-semibold text-sm truncate">
+                        {resTable ? resolveTableName(resTable) : T.createDrawer.tableNone}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPicker(true)}
+                      className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
+                    >
+                      {T.createDrawer.tableChangeBtn}
+                    </button>
+                    {autoTableId && autoTableId !== resTable && (
+                      <button
+                        type="button"
+                        onClick={() => { setManualOverride(false); setResTable(autoTableId); setShowPicker(false); }}
+                        className="text-xs text-iron-muted hover:text-iron-green-light transition-colors shrink-0"
+                      >
+                        {T.createDrawer.tableUseAuto}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* No table available, no picker */}
+                {!suggestBusy && !autoTableId && !manualOverride && !showPicker && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/20">
+                    <span className="text-amber-400 text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setShowPicker(true); setManualOverride(true); }}
+                      className="text-xs px-2 py-1 rounded border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0"
+                    >
+                      {T.createDrawer.tableShowAll}
+                    </button>
+                  </div>
+                )}
+
+                {/* Override picker — full SmartTablePicker grid */}
+                {showPicker && (
+                  <div className="space-y-2">
+                    <SmartTablePicker
+                      tables={tables}
+                      suggestions={resSuggestions}
+                      suggestBusy={false}
+                      selectedId={resTable}
+                      onPick={id => {
+                        setResTable(id);
+                        setManualOverride(true);
+                        setShowPicker(false);
+                      }}
+                      noTableLabel={T.createDrawer.tableNone}
+                      showNoTable
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPicker(false)}
+                      className="text-iron-muted text-xs hover:text-iron-text transition-colors"
+                    >
+                      {T.guestDrawer.backLink}
+                    </button>
                   </div>
                 )}
               </div>
 
-              <div>
-                <Label>{T.createDrawer.fieldDate}</Label>
-                <Input
-                  type="date"
-                  value={resDate}
-                  onChange={e => setResDate(e.target.value)}
-                  required
-                />
-              </div>
+              {error && (
+                <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
+            </form>
 
-              <div>
-                <Label>{T.createDrawer.fieldTime}</Label>
-                <select
-                  value={resTime}
-                  onChange={e => setResTime(e.target.value)}
-                  required
-                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
-                >
-                  {TIME_SLOTS.map(slot => (
-                    <option key={slot} value={slot}>{slot}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <Label>{T.createDrawer.fieldDuration}</Label>
-                <Input
-                  type="number"
-                  min={30}
-                  max={480}
-                  step={15}
-                  value={resDuration}
-                  onChange={e => setResDuration(e.target.value)}
-                  placeholder={T.createDrawer.placeholderDuration}
-                />
-              </div>
-
-              <div>
-                <Label>{T.createDrawer.fieldSource}</Label>
-                <div className="flex gap-1 mt-0.5">
-                  {(['PHONE', 'INTERNAL'] as const).map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setResSource(s)}
-                      className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
-                        resSource === s
-                          ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light'
-                          : 'border-iron-border text-iron-muted hover:text-iron-text'
-                      }`}
-                    >
-                      {s === 'PHONE' ? T.createDrawer.sourcePhone : T.createDrawer.sourceInternal}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* ── Sticky confirm footer ── */}
+            <div className="p-3 border-t border-iron-border shrink-0">
+              <button
+                type="submit"
+                form="create-res-form"
+                disabled={busy || (suggestBusy && !resTable)}
+                className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-3 rounded-lg text-sm transition-colors"
+              >
+                {confirmLabel()}
+              </button>
             </div>
-
-            <div>
-              <Label>{T.createDrawer.fieldGuestNotes}</Label>
-              <TextArea
-                value={resGuestNote}
-                onChange={e => setResGuestNote(e.target.value)}
-                placeholder={T.createDrawer.placeholderGuestNotes}
-              />
-            </div>
-
-            <div>
-              <Label>{T.createDrawer.fieldHostNotes}</Label>
-              <TextArea
-                value={resHostNote}
-                onChange={e => setResHostNote(e.target.value)}
-                placeholder={T.createDrawer.placeholderHostNotes}
-              />
-            </div>
-
-            <div>
-              <Label>{T.createDrawer.fieldTable}</Label>
-              <SmartTablePicker
-                tables={tables}
-                suggestions={resSuggestions}
-                suggestBusy={suggestBusy}
-                selectedId={resTable}
-                onPick={id => setResTable(id)}
-                noTableLabel={T.createDrawer.tableNone}
-                showNoTable
-              />
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
-            >
-              {busy ? T.createDrawer.submitCreateBusy : T.createDrawer.submitCreate}
-            </button>
-          </form>
+          </>
         )}
 
         {/* ── Walk-in form ── */}
@@ -600,7 +760,6 @@ export default function CreateDrawer({
               label={T.createDrawer.fieldWalkInTable}
             />
 
-            {/* Walk-in tip */}
             <p className="text-iron-muted text-xs border border-iron-border rounded-lg px-3 py-2">
               {wiTable
                 ? T.createDrawer.walkInTableSelected(tables.find(t => t.id === wiTable)?.name ?? '')

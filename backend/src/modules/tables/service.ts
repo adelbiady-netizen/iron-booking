@@ -305,6 +305,35 @@ export async function getTableSuggestions(restaurantId: string, query: {
   });
 }
 
+// ─── Best Table (Phase 1 auto-allocation) ────────────────────────────────────
+// Returns the single highest-scoring available table for a given slot,
+// or null when all tables are blocked/conflicting.
+//
+// Phase 2 TODO: replace with full-night optimization that considers table
+// utilization across the entire service period, not just per-slot scoring.
+
+export async function getBestTable(
+  restaurantId: string,
+  query: {
+    date: string;
+    time: string;
+    partySize: number;
+    duration?: number;
+    excludeReservationId?: string;
+  }
+): Promise<{ tableId: string; tableName: string; score: number; reason: string } | null> {
+  const suggestions = await getTableSuggestions(restaurantId, query);
+  // Prefer recommended, then possible, then tight — skip anything blocked
+  const best = suggestions.find(s => s.tableId && s.status !== 'blocked');
+  if (!best?.tableId) return null;
+  return {
+    tableId:   best.tableId,
+    tableName: best.tableName,
+    score:     best.score,
+    reason:    best.reasons[0]?.code ?? 'AVAILABLE',
+  };
+}
+
 // ─── Floor Suggestions ───────────────────────────────────────────────────────
 // For each AVAILABLE table, find the best-matching unassigned PENDING/CONFIRMED
 // reservation based on party size fit, time proximity, and status.
