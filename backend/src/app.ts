@@ -13,6 +13,7 @@ import guestsRouter from './modules/guests/router';
 import analyticsRouter from './modules/analytics/router';
 import adminRouter from './modules/admin/router';
 import publicRouter from './modules/public/router';
+import linkRouter  from './modules/integrations/link.router';
 
 const app = express();
 
@@ -63,7 +64,8 @@ app.use('/api/waitlist', waitlistRouter);
 app.use('/api/guests', guestsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/public', publicRouter);
+app.use('/api/public',              publicRouter);
+app.use('/api/integrations/link',  linkRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

@@ -475,3 +475,17 @@ enum FloorObjKind {
   ENTRANCE
   ZONE
 }
+
+// ─── Call Logs (Link telephony webhook) ──────────────────────────────────────
+
+model CallLog {
+  id        String   @id @default(uuid())
+  phone     String
+  status    String
+  duration  Int?     // seconds; null when not provided
+  recordUrl String?
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@map("call_logs")
+}
