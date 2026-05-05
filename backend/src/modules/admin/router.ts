@@ -179,11 +179,12 @@ router.get('/restaurants/:id', async (req: Request, res: Response, next: NextFun
 });
 
 const UpdateRestaurantSchema = z.object({
-  name:    z.string().min(1).optional(),
-  phone:   z.string().nullable().optional(),
-  email:   z.string().email().nullable().optional(),
-  address: z.string().nullable().optional(),
-  timezone: z.string().optional(),
+  name:      z.string().min(1).optional(),
+  phone:     z.string().nullable().optional(),
+  email:     z.string().email().nullable().optional(),
+  address:   z.string().nullable().optional(),
+  timezone:  z.string().optional(),
+  linkPhone: z.string().nullable().optional(), // Link telephony DID for call routing
 });
 
 // PATCH /admin/restaurants/:id
@@ -340,6 +341,20 @@ router.post('/restaurants/:id/sample-layout', async (req: Request, res: Response
     });
 
     res.json({ ok: true, message: 'Sample layout applied' });
+  } catch (err) { next(err); }
+});
+
+// ─── Telephony ────────────────────────────────────────────────────────────────
+
+// GET /admin/telephony — list all restaurants with their telephony routing config
+router.get('/telephony', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rows = await prisma.restaurant.findMany({
+      where: { isSystem: false },
+      select: { id: true, name: true, linkPhone: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(rows);
   } catch (err) { next(err); }
 });
 
