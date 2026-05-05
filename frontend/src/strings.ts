@@ -163,6 +163,8 @@ export const T = {
     runningLate:      'running late',
     reminded:         'reminded',
     smsSent:          'SMS sent',
+    ctxSeat:          'Seat',
+    ctxClose:         'Close',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
@@ -577,6 +579,7 @@ export const T = {
     toastNoShow:      'Marked as no-show',
     toastNoShowFail:  'Failed',
     toastSeatFail:    'Failed to seat guest',
+    toastNoTable:     'Select a table before seating',
     toastSeatAt:        (name: string, table: string) => `${name} seated at ${table}`,
     toastNotified:      (name: string) => `WhatsApp sent to ${name}`,
     toastNotifyFail:    'Failed to send WhatsApp',

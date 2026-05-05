@@ -163,6 +163,8 @@ export const THe = {
     runningLate:      'מאחר',
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
+    ctxSeat:          'הושבה',
+    ctxClose:         'סגור',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
@@ -554,6 +556,7 @@ export const THe = {
     toastNoShow:      'סומן כלא הגיע',
     toastNoShowFail:  'הפעולה נכשלה',
     toastSeatFail:    'ההושבה נכשלה',
+    toastNoTable:     'יש לבחור שולחן לפני הושבה',
     toastSeatAt:        (name: string, table: string) => `${name} הושב בשולחן ${table}`,
     toastNotified:      (name: string) => `וואטסאפ נשלח ל-${name}`,
     toastNotifyFail:    'שליחת וואטסאפ נכשלה',

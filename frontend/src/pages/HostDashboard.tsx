@@ -280,6 +280,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     }
   }, [handleInsightAction, reservations, floorTables]);
 
+  const handleContextMenuSeat = useCallback(async (res: Reservation) => {
+    if (!res.tableId) {
+      showToast(T.hostDashboard.toastNoTable, 'error');
+      return;
+    }
+    await handleInsightAction(res.tableId, res.id);
+  }, [handleInsightAction, showToast]);
+
   const handleAvailableClick = useCallback((table: FloorTable) => {
     setPreselectedTableId(table.id);
     setCreateMode('reservation');
@@ -761,6 +769,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           priorityQueue={priorityQueue}
           nowTime={time}
           operationalNow={operationalNow}
+          onContextMenuSeat={handleContextMenuSeat}
         />
       </div>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Reservation, ReservationStatus, WaitlistEntry } from '../types';
 import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
@@ -40,6 +40,7 @@ interface Props {
   priorityQueue?: PriorityEntry[];
   nowTime?: string;
   operationalNow?: number;
+  onContextMenuSeat?: (res: Reservation) => void;
 }
 
 export default function ReservationPanel({
@@ -47,11 +48,23 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
+  onContextMenuSeat,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ALL');
   const [search, setSearch] = useState('');
+  const [ctxMenu, setCtxMenu] = useState<{ res: Reservation; x: number; y: number } | null>(null);
+  const ctxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    function onDown(e: MouseEvent) {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [ctxMenu]);
 
   const STATUS_LABEL: Record<string, string> = {
     PENDING:   T.reservationStatus.PENDING,
@@ -246,6 +259,7 @@ export default function ReservationPanel({
                   <button
                     type="button"
                     onClick={() => onSelect(r)}
+                    onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     className="flex-1 text-left px-3.5 py-4 min-w-0"
                   >
                     {/* Row 1 — name + badge */}
@@ -310,6 +324,36 @@ export default function ReservationPanel({
             {T.reservationPanel.showing(visible.length, reservations.length)}
           </div>
         </>
+      )}
+      {/* Right-click context menu */}
+      {ctxMenu && (
+        <div
+          ref={ctxRef}
+          style={{
+            position: 'fixed',
+            top:  Math.min(ctxMenu.y, window.innerHeight - 80),
+            left: Math.min(ctxMenu.x, window.innerWidth  - 140),
+            zIndex: 9999,
+          }}
+          className="bg-iron-card border border-iron-border rounded-lg shadow-xl overflow-hidden min-w-[130px]"
+        >
+          {['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status) && (
+            <button
+              type="button"
+              className="w-full text-right px-4 py-2.5 text-sm text-iron-green-light hover:bg-iron-green/15 transition-colors font-medium"
+              onClick={() => { onContextMenuSeat?.(ctxMenu.res); setCtxMenu(null); }}
+            >
+              {T.reservationPanel.ctxSeat}
+            </button>
+          )}
+          <button
+            type="button"
+            className="w-full text-right px-4 py-2.5 text-sm text-iron-muted hover:bg-white/5 transition-colors"
+            onClick={() => setCtxMenu(null)}
+          >
+            {T.reservationPanel.ctxClose}
+          </button>
+        </div>
       )}
     </aside>
   );
