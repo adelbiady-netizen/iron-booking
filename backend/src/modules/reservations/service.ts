@@ -585,6 +585,29 @@ export async function unseatReservation(
   });
 }
 
+export async function unconfirmReservation(
+  restaurantId: string,
+  id: string,
+  actorName: string
+) {
+  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  if (r.status !== 'CONFIRMED') {
+    throw new BusinessRuleError(`Cannot revert a reservation with status ${r.status} to pending`);
+  }
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.reservation.update({
+      where: { id },
+      data: { status: 'PENDING', confirmedAt: null },
+      include: { table: true },
+    });
+    await logActivity(tx, id, 'REVERTED_TO_PENDING', actorName, {
+      fromStatus: 'CONFIRMED',
+      toStatus: 'PENDING',
+    });
+    return updated;
+  });
+}
+
 // ─── Undo ─────────────────────────────────────────────────────────────────────
 
 const UNDOABLE_ACTIONS = ['CONFIRMED', 'NO_SHOW', 'CANCELLED', 'SEATED', 'COMPLETED', 'MOVED'] as const;

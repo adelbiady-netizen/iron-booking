@@ -109,9 +109,8 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   }
 
   const activeRaw = entries.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED');
-  const active = priorityQueue
-    ? [...activeRaw].sort((a, b) => (rankMap.get(a.id) ?? 999) - (rankMap.get(b.id) ?? 999))
-    : activeRaw;
+  // Preserve backend addedAt ASC order; priorityQueue is used only for urgency/rank badges
+  const active = activeRaw;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

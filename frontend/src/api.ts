@@ -237,6 +237,8 @@ export const api = {
       }),
     unseat: (id: string) =>
       request<Reservation>(`/reservations/${id}/unseat`, { method: 'POST' }),
+    unconfirm: (id: string) =>
+      request<Reservation>(`/reservations/${id}/unconfirm`, { method: 'POST' }),
     undo: (id: string) =>
       request<Reservation>(`/reservations/${id}/undo`, { method: 'POST' }),
     sendConfirmation: (id: string) =>

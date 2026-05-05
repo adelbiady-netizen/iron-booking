@@ -135,6 +135,14 @@ router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err); }
 });
 
+// POST /reservations/:id/unconfirm — revert CONFIRMED → PENDING
+router.post('/:id/unconfirm', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.unconfirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
+    res.json(r);
+  } catch (err) { next(err); }
+});
+
 // POST /reservations/:id/undo
 router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
   try {

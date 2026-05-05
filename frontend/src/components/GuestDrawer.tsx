@@ -149,7 +149,7 @@ function SuggestionChips({ s, T }: { s: BackendTableSuggestion; T: ReturnType<ty
 
 // ─── Main drawer ──────────────────────────────────────────────────────────────
 
-type Mode = 'view' | 'edit' | 'seat' | 'move' | 'cancel' | 'lock';
+type Mode = 'view' | 'edit' | 'seat' | 'move' | 'change-table' | 'cancel' | 'lock';
 
 type SmartSuggestion =
   | { mode: 'assign'; suggestion: BackendTableSuggestion }
@@ -508,7 +508,26 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     if (res.status === 'PENDING') return (
       <>
         <ActionBtn label={T.guestDrawer.actionConfirm}  cls={btnBlue}   onClick={() => run(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed)} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionSeat}     cls={btnGreen}  onClick={() => setMode('seat')}  disabled={busy} />
+        <ActionBtn
+          label={T.guestDrawer.actionSeat}
+          cls={btnGreen}
+          onClick={() => res.tableId
+            ? run(() => api.reservations.seat(res.id, res.tableId!), T.guestDrawer.toastSeated(tableName(res.tableId!)))
+            : setMode('seat')
+          }
+          disabled={busy}
+        />
+        {res.tableId && (
+          <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => setMode('change-table')} disabled={busy} />
+        )}
+        {res.guestPhone && !res.isConfirmedByGuest && (
+          <ActionBtn
+            label={T.guestDrawer.actionSendSms}
+            cls={btnNeutral}
+            onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+            disabled={busy}
+          />
+        )}
         <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
       </>
@@ -516,7 +535,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     if (res.status === 'CONFIRMED') return (
       <>
-        <ActionBtn label={T.guestDrawer.actionSeat}     cls={btnGreen}  onClick={() => setMode('seat')}  disabled={busy} />
+        <ActionBtn
+          label={T.guestDrawer.actionSeat}
+          cls={btnGreen}
+          onClick={() => res.tableId
+            ? run(() => api.reservations.seat(res.id, res.tableId!), T.guestDrawer.toastSeated(tableName(res.tableId!)))
+            : setMode('seat')
+          }
+          disabled={busy}
+        />
+        {res.tableId && (
+          <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => setMode('change-table')} disabled={busy} />
+        )}
+        {res.guestPhone && !res.isConfirmedByGuest && (
+          <ActionBtn
+            label={T.guestDrawer.actionSendSms}
+            cls={btnNeutral}
+            onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+            disabled={busy}
+          />
+        )}
+        <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber}  onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
       </>
@@ -1055,6 +1094,17 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 label={T.guestDrawer.movePickerLabel}
                 busy={busy}
                 onPick={tableId => run(() => api.reservations.move(res.id, tableId), T.guestDrawer.toastMoved(tableName(tableId)))}
+                onBack={() => setMode('view')}
+              />
+            )}
+
+            {mode === 'change-table' && (
+              <TablePicker
+                tables={tables}
+                excludeId={res.tableId}
+                label={T.guestDrawer.changeTablePickerLabel}
+                busy={busy}
+                onPick={tableId => run(() => api.reservations.update(res.id, { tableId }), T.guestDrawer.toastTableAssigned(tableName(tableId)))}
                 onBack={() => setMode('view')}
               />
             )}

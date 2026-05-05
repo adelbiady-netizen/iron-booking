@@ -289,6 +289,9 @@ export const T = {
     actionComplete:       'Complete',
     actionMoveTable:      'Move table',
     actionUnseat:         'Unseat',
+    actionUnconfirm:      'Revert to pending',
+    actionChangeTable:    'Change table',
+    actionSendSms:        'Send SMS',
     actionUndo:           'Undo',
     // Edit mode fields
     fieldGuestName:       'Guest name',
@@ -315,8 +318,9 @@ export const T = {
     allTablesLabel:       'All tables',
     sectionTableUpcoming: (name: string) => `Also booked at ${name}`,
     // Seat / move pickers
-    seatPickerLabel:      'Select a table to seat:',
-    movePickerLabel:      'Move to table:',
+    seatPickerLabel:         'Select a table to seat:',
+    movePickerLabel:         'Move to table:',
+    changeTablePickerLabel:  'Assign a different table:',
     noTablesAvailable:    'No tables available',
     backLink:             '← Back',
     // Cancel mode
@@ -343,10 +347,12 @@ export const T = {
     // Toasts
     toastUpdated:         'Reservation updated',
     toastConfirmed:       'Reservation confirmed',
+    toastUnconfirmed:     'Reverted to pending',
     toastNoShow:          'Marked as no-show',
     toastCompleted:       'Reservation completed',
     toastUnseated:        'Guest returned to confirmed',
     toastUndone:          'Action undone',
+    toastTableAssigned:   (table: string) => `Table ${table} assigned`,
     toastSeated:          (table: string) => `Seated at ${table}`,
     toastMoved:           (table: string) => `Moved to ${table}`,
     toastLocked:          (name: string) => `${name} locked`,
