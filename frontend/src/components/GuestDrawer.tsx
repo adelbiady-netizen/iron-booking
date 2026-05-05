@@ -156,8 +156,29 @@ type SmartSuggestion =
   | { mode: 'upgrade'; current: BackendTableSuggestion | null; suggestion: BackendTableSuggestion }
   | null;
 
-const UPGRADE_SCORE_THRESHOLD = 20;
-const PROBLEM_REASONS = ['CONFLICT', 'GAP_BEFORE_TIGHT', 'GAP_AFTER_TIGHT', 'TOO_SMALL', 'TABLE_BLOCKED'];
+function isMeaningfulUpgrade(
+  current: BackendTableSuggestion | null,
+  suggestion: BackendTableSuggestion,
+): boolean {
+  const curCodes = (current?.reasons ?? []).map(r => r.code);
+
+  // Current table is blocked for any reason (conflict, too small, table lock)
+  if (current?.status === 'blocked') return true;
+
+  // Overlapping reservation on current table
+  if (curCodes.includes('CONFLICT')) return true;
+
+  // Current table is oversized (≥4 excess covers); suggestion fits the party better
+  if (curCodes.includes('LARGE_TABLE') &&
+      suggestion.reasons.some(r => r.code === 'PERFECT_FIT' || r.code === 'GOOD_FIT')) return true;
+
+  // Current has a tight gap (< 15 min before or after); suggestion avoids it
+  const curTight = curCodes.includes('GAP_BEFORE_TIGHT') || curCodes.includes('GAP_AFTER_TIGHT');
+  const sugTight = suggestion.reasons.some(r => r.code === 'GAP_BEFORE_TIGHT' || r.code === 'GAP_AFTER_TIGHT');
+  if (curTight && !sugTight) return true;
+
+  return false;
+}
 
 interface Props {
   reservation: Reservation;
@@ -227,9 +248,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         setSmartSuggestion(bestOther ? { mode: 'assign', suggestion: bestOther } : null);
       } else {
         if (!bestOther) { setSmartSuggestion(null); return; }
-        const currentScore = currentEntry?.score ?? 0;
-        const currentHasProblem = (currentEntry?.reasons ?? []).some(r => PROBLEM_REASONS.includes(r.code));
-        if (bestOther.score - currentScore >= UPGRADE_SCORE_THRESHOLD || currentHasProblem) {
+        if (isMeaningfulUpgrade(currentEntry, bestOther)) {
           setSmartSuggestion({ mode: 'upgrade', current: currentEntry, suggestion: bestOther });
         } else {
           setSmartSuggestion(null);
