@@ -190,6 +190,19 @@ export async function lookupGuestByPhone(restaurantId: string, rawPhone: string)
       visitCount: true,
       noShowCount: true,
       lastVisitAt: true,
+      reservations: {
+        orderBy: { date: 'desc' },
+        take: 6,
+        select: {
+          id: true,
+          date: true,
+          time: true,
+          partySize: true,
+          status: true,
+          occasion: true,
+          table: { select: { name: true } },
+        },
+      },
     },
   });
 }
