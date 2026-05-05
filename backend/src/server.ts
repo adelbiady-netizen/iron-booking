@@ -74,7 +74,10 @@ async function maybeBootstrapSuperAdmin() {
 }
 
 async function main() {
-  // 🔥 BOOT TIMESTAMP — if you don't see this after saving, nodemon did not restart
+  // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
+  // If this line does NOT appear in Render logs after a deploy, the new binary
+  // is not running — check the build log for compile/seed failures.
+  console.log('BOOT VERSION: api-test-route-enabled');
   console.log('🔥 SERVER BOOTED AT', new Date().toISOString());
 
   // Verify DB connection before accepting traffic
