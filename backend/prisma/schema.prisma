@@ -32,6 +32,10 @@ model Restaurant {
   //   lastSeatingOffset: number         minutes before close (e.g. 60)
   // }
 
+  // Link telephony DID — the number the system routes calls to for this restaurant.
+  // Used to match incoming call webhooks to the correct restaurant.
+  linkPhone   String?  @unique
+
   // Per-restaurant WhatsApp (UltraMsg) credentials — optional; if absent, no messages sent
   ultramsgInstanceId  String?
   ultramsgToken       String?
@@ -63,6 +67,7 @@ model Restaurant {
 
   users            User[]
   guests           Guest[]
+  callLogs         CallLog[]
   tables           Table[]
   tableCombinations TableCombination[]
   sections         Section[]
@@ -479,13 +484,20 @@ enum FloorObjKind {
 // ─── Call Logs (Link telephony webhook) ──────────────────────────────────────
 
 model CallLog {
-  id        String   @id @default(uuid())
-  phone     String
-  status    String
-  duration  Int?     // seconds; null when not provided
-  recordUrl String?
-  createdAt DateTime @default(now())
+  id           String      @id @default(uuid())
+  restaurantId String?     // null when called number doesn't match any restaurant
+  phone        String      // caller (ANI)
+  called       String?     // dialed number (DNIS) — used for restaurant routing
+  group        String?     // Link call group / ring group
+  extension    String?     // Link extension reached
+  status       String
+  duration     Int?        // seconds; null when not provided
+  recordUrl    String?
+  createdAt    DateTime    @default(now())
+
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
 
   @@index([phone])
+  @@index([restaurantId])
   @@map("call_logs")
 }
