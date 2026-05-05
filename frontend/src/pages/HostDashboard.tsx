@@ -18,6 +18,7 @@ import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
+import { DrawerErrorBoundary } from '../components/ErrorBoundary';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -817,30 +818,34 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       </div>
 
       {selectedRes && !createMode && (
-        <GuestDrawer
-          reservation={selectedRes}
-          tables={allTables}
-          allReservations={reservations}
-          onClose={() => setSelectedRes(null)}
-          onUpdated={handleUpdated}
-          onSuccess={showToast}
-          onTableLockChange={handleTableLockChange}
-          nowTime={time}
-        />
+        <DrawerErrorBoundary key={selectedRes.id} onClose={() => setSelectedRes(null)}>
+          <GuestDrawer
+            reservation={selectedRes}
+            tables={allTables}
+            allReservations={reservations}
+            onClose={() => setSelectedRes(null)}
+            onUpdated={handleUpdated}
+            onSuccess={showToast}
+            onTableLockChange={handleTableLockChange}
+            nowTime={time}
+          />
+        </DrawerErrorBoundary>
       )}
 
       {createMode && (
-        <CreateDrawer
-          initialMode={createMode}
-          defaultDate={date}
-          defaultTime={time}
-          tables={allTables}
-          preselectedTableId={preselectedTableId ?? undefined}
-          gapHint={gapHint ?? undefined}
-          initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
-          onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); setCallPrefillPhone(''); }}
-          onCreated={handleCreated}
-        />
+        <DrawerErrorBoundary key={`create-${createMode}`} onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); setCallPrefillPhone(''); }}>
+          <CreateDrawer
+            initialMode={createMode}
+            defaultDate={date}
+            defaultTime={time}
+            tables={allTables}
+            preselectedTableId={preselectedTableId ?? undefined}
+            gapHint={gapHint ?? undefined}
+            initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
+            onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); setCallPrefillPhone(''); }}
+            onCreated={handleCreated}
+          />
+        </DrawerErrorBoundary>
       )}
 
       {/* Typing-guard notification badge */}
