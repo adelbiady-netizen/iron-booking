@@ -3,6 +3,18 @@ import { config } from './config';
 import { prisma } from './lib/prisma';
 import * as bcrypt from 'bcryptjs';
 
+// ─── Global crash guards ──────────────────────────────────────────────────────
+// Without these, Node silently closes connections when an exception escapes
+// the Express error handler (e.g. in a fire-and-forget async call).
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException — process will exit:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] unhandledRejection:', reason);
+  // Do NOT exit — unhandled rejections in fire-and-forget chains are recoverable
+});
+
 // ─── One-time startup bootstrap ───────────────────────────────────────────────
 // Triggered by BOOTSTRAP_EMAIL + BOOTSTRAP_PASSWORD env vars in Render dashboard.
 //

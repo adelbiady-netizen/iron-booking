@@ -13,9 +13,16 @@ import guestsRouter from './modules/guests/router';
 import analyticsRouter from './modules/analytics/router';
 import adminRouter from './modules/admin/router';
 import publicRouter from './modules/public/router';
-import linkRouter  from './modules/integrations/link.router';
+import linkRouter   from './modules/integrations/link.router';
+import eventsRouter from './modules/integrations/events.router';
 
 const app = express();
+
+// ─── Request trace (before everything else) ───────────────────────────────────
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.path} — origin: ${req.headers.origin ?? '(none)'}`);
+  next();
+});
 
 app.use(helmet());
 
@@ -37,6 +44,7 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.warn('[CORS] Rejected origin:', origin, '| Allowed:', allowedOrigins);
         callback(new Error('Not allowed by CORS: ' + origin));
       }
     },
@@ -57,6 +65,11 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Unauthenticated smoke-test — confirms server process is alive
+app.get('/api/test', (_req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() });
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/tables', tablesRouter);
@@ -65,7 +78,8 @@ app.use('/api/guests', guestsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/public',              publicRouter);
-app.use('/api/integrations/link',  linkRouter);
+app.use('/api/integrations/link',   linkRouter);
+app.use('/api/integrations/events', eventsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({
