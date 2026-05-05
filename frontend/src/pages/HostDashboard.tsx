@@ -125,6 +125,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [lockTarget,           setLockTarget]           = useState<FloorTable | null>(null);
   const [gapHint,              setGapHint]              = useState<GapHint | null>(null);
   const [quickSeatTableId,     setQuickSeatTableId]     = useState<string | null>(null);
+  const [unseatTarget,         setUnseatTarget]         = useState<{ tableId: string; tableName: string; reservationId: string } | null>(null);
   // Ref kept in sync each render so callbacks never read stale closure values
   const quickSeatIdRef = useRef<string | null>(null);
   quickSeatIdRef.current = quickSeatTableId;
@@ -298,10 +299,33 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, []);
 
   const handleTableSelect = useCallback((table: FloorTable) => {
+    const isQuickSeatActive = quickSeatIdRef.current !== null;
+    const seatedRes = table.currentReservation?.status === 'SEATED' ? table.currentReservation : null;
+
+    if (isQuickSeatActive && seatedRes) {
+      // Occupied table in quick-seat mode → prompt to unseat instead of toggling
+      setUnseatTarget({ tableId: table.id, tableName: table.name, reservationId: seatedRes.id });
+      return;
+    }
+
     setQuickSeatTableId(prev => prev === table.id ? null : table.id);
     setSelectedRes(null);
     setCreateMode(null);
   }, []);
+
+  const handleUnseatConfirm = useCallback(async () => {
+    if (!unseatTarget) return;
+    const { reservationId, tableName } = unseatTarget;
+    setUnseatTarget(null);
+    try {
+      const updated = await api.reservations.unseat(reservationId);
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      setRefreshKey(k => k + 1);
+      showToast(T.hostDashboard.toastQuickUnseat(tableName), 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    }
+  }, [unseatTarget, showToast]);
 
   const handleLockTable = useCallback((table: FloorTable) => {
     setLockTarget(table);
@@ -757,6 +781,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onGapWaitlistSeat={handleGapWaitlistSeat}
           onQuickAction={handleTimelineQuickAction}
           onTableSelect={handleTableSelect}
+          quickSeatActive={quickSeatTableId != null}
         />
 
         <ReservationPanel
@@ -824,6 +849,34 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onClose={() => setLockTarget(null)}
           onLocked={handleTableLocked}
         />
+      )}
+
+      {/* Quick-seat unseat confirmation */}
+      {unseatTarget && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setUnseatTarget(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-72 space-y-4">
+              <p className="text-iron-text text-sm font-medium text-center">
+                {T.hostDashboard.confirmQuickUnseat(unseatTarget.tableName)}
+              </p>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={handleUnseatConfirm}
+                  className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg bg-iron-border/20 border border-iron-border/50 text-iron-text hover:bg-iron-border/35 transition-colors"
+                >
+                  {T.guestDrawer.actionUnseat}
+                </button>
+                <button
+                  onClick={() => setUnseatTarget(null)}
+                  className="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+                >
+                  {T.guestDrawer.backLink}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
