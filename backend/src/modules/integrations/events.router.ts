@@ -18,6 +18,8 @@ router.get('/', authenticate, (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no'); // disable nginx response buffering
   res.flushHeaders();
 
+  console.log('[events/sse] Client connected — userId:', req.auth.userId, '| restaurantId:', req.auth.restaurantId);
+
   // Ping every 25 s — most proxies drop idle connections at 30 s
   const ping = setInterval(() => res.write(':ping\n\n'), 25_000);
 
@@ -29,6 +31,7 @@ router.get('/', authenticate, (req, res) => {
   eventBus.on('incoming_call', relay);
 
   req.on('close', () => {
+    console.log('[events/sse] Client disconnected — userId:', req.auth.userId);
     clearInterval(ping);
     eventBus.off('incoming_call', relay);
   });
