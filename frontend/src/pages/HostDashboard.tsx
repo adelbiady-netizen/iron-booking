@@ -133,6 +133,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const lastCallRef            = useRef<{ phone: string; at: number } | null>(null);
   const callHighlightTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => { console.log('[HostDashboard] mounted'); }, []);
+
   useServerEvents({
     incoming_call: (data) => {
       const d = data as { phone: string; createdAt: string };

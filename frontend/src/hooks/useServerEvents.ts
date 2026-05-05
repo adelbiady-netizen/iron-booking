@@ -12,6 +12,7 @@ type EventHandlers = Record<string, (data: unknown) => void>;
  * closures — just pass a plain object literal each render.
  */
 export function useServerEvents(handlers: EventHandlers): void {
+  console.log('[useServerEvents] HOOK START');
   console.log('[useServerEvents] hook called');
   const handlersRef = useRef<EventHandlers>(handlers);
   handlersRef.current = handlers;
@@ -22,15 +23,18 @@ export function useServerEvents(handlers: EventHandlers): void {
     let controller = new AbortController();
 
     async function connect() {
+      console.log('[useServerEvents] checking auth');
       const auth = getStoredAuth();
       console.log('[useServerEvents] attempting connect — token present:', !!auth?.token, '| value prefix:', auth?.token?.slice(0, 12) ?? 'null');
       if (!auth?.token) {
         console.warn('[useServerEvents] no auth token — aborting connect, will NOT retry');
         return;
       }
+      console.log('[useServerEvents] token found');
 
       controller = new AbortController();
 
+      console.log('[useServerEvents] connecting to SSE:', `${BASE}/integrations/events`);
       try {
         const res = await fetch(`${BASE}/integrations/events`, {
           headers: { Authorization: `Bearer ${auth.token}` },
