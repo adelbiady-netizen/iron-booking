@@ -12,16 +12,22 @@ type EventHandlers = Record<string, (data: unknown) => void>;
  * closures — just pass a plain object literal each render.
  */
 export function useServerEvents(handlers: EventHandlers): void {
+  console.log('[useServerEvents] hook called');
   const handlersRef = useRef<EventHandlers>(handlers);
   handlersRef.current = handlers;
 
   useEffect(() => {
+    console.log('[useServerEvents] effect mounted, BASE =', BASE);
     let active = true;
     let controller = new AbortController();
 
     async function connect() {
       const auth = getStoredAuth();
-      if (!auth?.token) return;
+      console.log('[useServerEvents] attempting connect — token present:', !!auth?.token, '| value prefix:', auth?.token?.slice(0, 12) ?? 'null');
+      if (!auth?.token) {
+        console.warn('[useServerEvents] no auth token — aborting connect, will NOT retry');
+        return;
+      }
 
       controller = new AbortController();
 
@@ -65,16 +71,21 @@ export function useServerEvents(handlers: EventHandlers): void {
             // lines starting with ':' are comments/pings — ignore
           }
         }
-      } catch {
-        // AbortError on cleanup, network error on disconnect — both are fine
+      } catch (err) {
+        const name = (err as Error)?.name;
+        if (name !== 'AbortError') console.warn('[useServerEvents] fetch error:', name, err);
       }
 
-      if (active) setTimeout(connect, 3_000); // reconnect after brief pause
+      if (active) {
+        console.log('[useServerEvents] disconnected — reconnecting in 3 s');
+        setTimeout(connect, 3_000);
+      }
     }
 
     connect();
 
     return () => {
+      console.log('[useServerEvents] effect cleanup — aborting');
       active = false;
       controller.abort();
     };
