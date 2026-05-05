@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Reservation, ReservationStatus, WaitlistEntry } from '../types';
 import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
@@ -40,10 +40,6 @@ interface Props {
   priorityQueue?: PriorityEntry[];
   nowTime?: string;
   operationalNow?: number;
-  quickSeatTableId?: string | null;
-  quickSeatTableName?: string | null;
-  onQuickSeat?: (resId: string) => void;
-  onCancelQuickSeat?: () => void;
 }
 
 export default function ReservationPanel({
@@ -51,19 +47,11 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
-  quickSeatTableId, quickSeatTableName, onQuickSeat, onCancelQuickSeat,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ALL');
   const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (quickSeatTableId == null) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancelQuickSeat?.(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [quickSeatTableId, onCancelQuickSeat]);
 
   const STATUS_LABEL: Record<string, string> = {
     PENDING:   T.reservationStatus.PENDING,
@@ -85,8 +73,6 @@ export default function ReservationPanel({
 
   const visible = reservations
     .filter(r => {
-      // Quick-seat mode: only show reservations that can be seated
-      if (quickSeatTableId != null) return r.status === 'PENDING' || r.status === 'CONFIRMED';
       if (filter === 'DONE') return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
       if (filter === 'ALL')  return ['PENDING', 'CONFIRMED', 'SEATED'].includes(r.status);
       return r.status === filter;
@@ -180,25 +166,8 @@ export default function ReservationPanel({
         )}
       </div>
 
-      {/* Quick Seat Banner */}
-      {quickSeatTableId != null && (
-        <div className="shrink-0 flex items-center gap-2 px-3.5 py-3 bg-iron-green/25 border-b-2 border-iron-green/60" dir="rtl">
-          <span className="text-sm text-iron-green-light font-bold flex-1 leading-snug text-right">
-            {T.reservationPanel.quickSeatTo(quickSeatTableName ?? quickSeatTableId!)}
-          </span>
-          <button
-            type="button"
-            onClick={onCancelQuickSeat}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-iron-green-light/70 hover:text-iron-green-light hover:bg-iron-green/20 active:bg-iron-green/40 text-base font-bold transition-colors"
-            aria-label="ביטול הושבה מהירה"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Content — quick-seat mode forces the reservations tab */}
-      {tab === 'waitlist' && quickSeatTableId == null ? (
+      {/* Content */}
+      {tab === 'waitlist' ? (
         <WaitlistPanel
           entries={waitlist}
           loading={waitlistLoading}
@@ -224,32 +193,16 @@ export default function ReservationPanel({
 
             {!loading && reservations.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center gap-2">
-                {quickSeatTableId != null ? (
-                  <>
-                    <p className="text-iron-muted text-sm">{T.reservationPanel.quickSeatNoEligible}</p>
-                    <button type="button" onClick={onCancelQuickSeat} className="mt-2 text-xs px-3 py-1.5 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors">
-                      {T.reservationPanel.quickSeatExit}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-iron-muted text-sm">{T.reservationPanel.emptyTitle}</p>
-                    <p className="text-iron-muted text-xs opacity-60">
-                      {T.reservationPanel.emptyHintPrefix}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
-                    </p>
-                  </>
-                )}
+                <p className="text-iron-muted text-sm">{T.reservationPanel.emptyTitle}</p>
+                <p className="text-iron-muted text-xs opacity-60">
+                  {T.reservationPanel.emptyHintPrefix}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
+                </p>
               </div>
             )}
 
             {!loading && reservations.length > 0 && visible.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 px-4 text-center gap-2">
-                <p className="text-iron-muted text-xs">{T.reservationPanel.emptyFiltered}</p>
-                {quickSeatTableId != null && (
-                  <button type="button" onClick={onCancelQuickSeat} className="mt-1 text-xs px-3 py-1.5 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors">
-                    {T.reservationPanel.quickSeatExit}
-                  </button>
-                )}
+              <div className="flex items-center justify-center py-10 text-iron-muted text-xs">
+                {T.reservationPanel.emptyFiltered}
               </div>
             )}
 
@@ -284,8 +237,6 @@ export default function ReservationPanel({
                 : needsReminder
                 ? 'bg-amber-500/5 hover:bg-amber-500/10'
                 : 'hover:bg-white/[0.04]';
-
-              const canQuickSeat = quickSeatTableId != null && (r.status === 'PENDING' || r.status === 'CONFIRMED');
 
               return (
                 <div
@@ -350,19 +301,6 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-
-                  {canQuickSeat && (
-                    <button
-                      type="button"
-                      onClick={() => onQuickSeat?.(r.id)}
-                      className="flex items-center justify-center w-14 shrink-0 border-s border-iron-green/30 bg-iron-green/10 hover:bg-iron-green/25 active:bg-iron-green/50 active:scale-95 transition-all"
-                      title={T.reservationPanel.quickSeatTo(quickSeatTableName ?? '')}
-                    >
-                      <span className="w-10 h-10 rounded-full bg-iron-green/20 border-2 border-iron-green/60 flex items-center justify-center text-iron-green-light text-2xl font-bold leading-none select-none">
-                        +
-                      </span>
-                    </button>
-                  )}
                 </div>
               );
             })}

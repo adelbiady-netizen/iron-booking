@@ -163,10 +163,6 @@ export const THe = {
     runningLate:      'מאחר',
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
-    quickSeatTo:         (table: string) => `הושבה מהירה לשולחן ${table}`,
-    quickSeatCancel:     'ביטול',
-    quickSeatNoEligible: 'אין הזמנות ממתינות או מאושרות להושבה.',
-    quickSeatExit:       'יציאה מהושבה מהירה',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────
@@ -565,7 +561,5 @@ export const THe = {
     toastQuickUndone:    'הפעולה בוטלה',
     toastUndoFail:       'הביטול נכשל',
     quickSeatUndo:       'בטל',
-    toastQuickUnseat:    (table: string) => `הישיבה בוטלה בשולחן ${table}`,
-    confirmQuickUnseat:  (table: string) => `לבטל את הישיבה בשולחן ${table}?`,
   },
 };

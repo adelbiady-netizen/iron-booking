@@ -60,8 +60,6 @@ interface Props {
   onGapClick?: (tableId: string, startTime: string, endTime: string) => void;
   onGapWaitlistSeat?: (tableId: string, entry: WaitlistEntry, startTime: string, endTime: string) => void;
   onQuickAction?: (action: 'seat' | 'move' | 'cancel', res: Reservation) => void;
-  onTableSelect?: (table: FloorTable) => void;
-  quickSeatActive?: boolean;
 }
 
 const CANVAS_W = 1500;
@@ -87,7 +85,7 @@ export default function FloorBoard({
   softHoldMap = {}, pressureInfo,
   nowTime, operationalNow,
   reservations = [], date,
-  onGapClick, onGapWaitlistSeat, onQuickAction, onTableSelect, quickSeatActive = false,
+  onGapClick, onGapWaitlistSeat, onQuickAction,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -163,10 +161,6 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
-    if (onTableSelect) {
-      onTableSelect(t);
-      return;
-    }
     const res = (t.currentReservation ?? t.upcomingReservations[0]) as Reservation | undefined;
     if (res) {
       onSelect(res);
@@ -352,7 +346,6 @@ export default function FloorBoard({
                   operationalNow={operationalNow}
                   extraTurns={extraTurns}
                   turnTooltip={turnTooltip}
-                  quickSeatActive={quickSeatActive}
                 />
               );
             })}
@@ -556,7 +549,6 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
   operationalNow?: number;
   extraTurns?: number;
   turnTooltip?: string;
-  quickSeatActive?: boolean;
 }) {
   const T = useT();
   // Detect late arrival: RESERVED_SOON tables whose upcoming reservation is past due
@@ -614,14 +606,11 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
         transition: 'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
       }}
     >
-      {/* Name + indicators */}
+      {/* Name + priority dot */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: 'rgb(var(--iron-text))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {table.name}
         </span>
-        {quickSeatActive && table.liveStatus === 'OCCUPIED' && (
-          <span style={{ fontSize: 10, color: '#f87171', flexShrink: 0, lineHeight: 1 }} title="Click to unseat">↺</span>
-        )}
         {insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
         {insight?.priority === 'MEDIUM' && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />}
       </div>

@@ -124,12 +124,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [preselectedTableId,   setPreselectedTableId]   = useState<string | null>(null);
   const [lockTarget,           setLockTarget]           = useState<FloorTable | null>(null);
   const [gapHint,              setGapHint]              = useState<GapHint | null>(null);
-  const [quickSeatTableId,     setQuickSeatTableId]     = useState<string | null>(null);
-  const [unseatTarget,         setUnseatTarget]         = useState<{ tableId: string; tableName: string; reservationId: string } | null>(null);
-  // Ref kept in sync each render so callbacks never read stale closure values
-  const quickSeatIdRef = useRef<string | null>(null);
-  quickSeatIdRef.current = quickSeatTableId;
-
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
     const id = ++toastIdRef.current;
     setToasts(prev => [...prev, { id, text, type, action }]);
@@ -233,8 +227,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [loadError]);
 
   const handleSelect = useCallback((r: Reservation) => {
-    // Guard: floor table clicks must never open GuestDrawer while quick-seat mode is active
-    if (quickSeatIdRef.current !== null) return;
     const enriched = reservations.find(x => x.id === r.id) ?? r;
     setSelectedRes(enriched);
   }, [reservations]);
@@ -247,12 +239,12 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setWaitlistRefreshKey(k => k + 1);
   }, [date, time]);
 
-  const handleQuickSeat = useCallback(async (tableId: string, reservationId: string) => {
+  const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
     try {
       const updated = await api.reservations.seat(reservationId, tableId);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       setRefreshKey(k => k + 1);
-      setQuickSeatTableId(null);
+      setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
       showToast(T.hostDashboard.toastQuickSeated(tableName), 'success', {
         label: T.hostDashboard.quickSeatUndo,
@@ -270,11 +262,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     }
   }, [floorTables, showToast]);
-
-  const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
-    await handleQuickSeat(tableId, reservationId);
-    setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
-  }, [handleQuickSeat]);
 
   const handleActionBarClick = useCallback((insight: FloorInsight) => {
     if (insight.type === 'SEAT_NOW' && insight.reservationId) {
@@ -297,35 +284,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setPreselectedTableId(table.id);
     setCreateMode('reservation');
   }, []);
-
-  const handleTableSelect = useCallback((table: FloorTable) => {
-    const isQuickSeatActive = quickSeatIdRef.current !== null;
-    const seatedRes = table.currentReservation?.status === 'SEATED' ? table.currentReservation : null;
-
-    if (isQuickSeatActive && seatedRes) {
-      // Occupied table in quick-seat mode → prompt to unseat instead of toggling
-      setUnseatTarget({ tableId: table.id, tableName: table.name, reservationId: seatedRes.id });
-      return;
-    }
-
-    setQuickSeatTableId(prev => prev === table.id ? null : table.id);
-    setSelectedRes(null);
-    setCreateMode(null);
-  }, []);
-
-  const handleUnseatConfirm = useCallback(async () => {
-    if (!unseatTarget) return;
-    const { reservationId, tableName } = unseatTarget;
-    setUnseatTarget(null);
-    try {
-      const updated = await api.reservations.unseat(reservationId);
-      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-      setRefreshKey(k => k + 1);
-      showToast(T.hostDashboard.toastQuickUnseat(tableName), 'success');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
-    }
-  }, [unseatTarget, showToast]);
 
   const handleLockTable = useCallback((table: FloorTable) => {
     setLockTarget(table);
@@ -409,7 +367,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const handleTimelineQuickAction = useCallback(async (action: 'seat' | 'move' | 'cancel', res: Reservation) => {
     if (action === 'seat') {
       if (!res.tableId) { setSelectedRes(res); return; }
-      try { await handleQuickSeat(res.tableId, res.id); }
+      try { await handleInsightAction(res.tableId, res.id); }
       catch { setSelectedRes(res); }
       return;
     }
@@ -418,7 +376,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       try { await api.reservations.cancel(res.id); setRefreshKey(k => k + 1); }
       catch { /* ignore */ }
     }
-  }, [handleQuickSeat]);
+  }, [handleInsightAction]);
 
   const handleTableLocked = useCallback((updated: Table) => {
     setFloorTables(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t));
@@ -780,8 +738,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onGapClick={handleGapClick}
           onGapWaitlistSeat={handleGapWaitlistSeat}
           onQuickAction={handleTimelineQuickAction}
-          onTableSelect={handleTableSelect}
-          quickSeatActive={quickSeatTableId != null}
         />
 
         <ReservationPanel
@@ -790,10 +746,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           highlightId={highlightId}
           onSelect={setSelectedRes}
           loading={resLoading}
-          onNewReservation={() => {
-            setPreselectedTableId(quickSeatTableId);
-            setCreateMode('reservation');
-          }}
+          onNewReservation={() => { setPreselectedTableId(null); setCreateMode('reservation'); }}
           onWalkIn={() => setCreateMode('walkin')}
           waitlist={waitlist}
           waitlistLoading={waitlistLoading}
@@ -808,10 +761,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           priorityQueue={priorityQueue}
           nowTime={time}
           operationalNow={operationalNow}
-          quickSeatTableId={quickSeatTableId}
-          quickSeatTableName={floorTables.find(t => t.id === quickSeatTableId)?.name ?? null}
-          onQuickSeat={(resId) => { if (quickSeatTableId) handleQuickSeat(quickSeatTableId, resId); }}
-          onCancelQuickSeat={() => setQuickSeatTableId(null)}
         />
       </div>
 
@@ -851,33 +800,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         />
       )}
 
-      {/* Quick-seat unseat confirmation */}
-      {unseatTarget && (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setUnseatTarget(null)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-72 space-y-4">
-              <p className="text-iron-text text-sm font-medium text-center">
-                {T.hostDashboard.confirmQuickUnseat(unseatTarget.tableName)}
-              </p>
-              <div className="flex gap-2 justify-center">
-                <button
-                  onClick={handleUnseatConfirm}
-                  className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg bg-iron-border/20 border border-iron-border/50 text-iron-text hover:bg-iron-border/35 transition-colors"
-                >
-                  {T.guestDrawer.actionUnseat}
-                </button>
-                <button
-                  onClick={() => setUnseatTarget(null)}
-                  className="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
-                >
-                  {T.guestDrawer.backLink}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
