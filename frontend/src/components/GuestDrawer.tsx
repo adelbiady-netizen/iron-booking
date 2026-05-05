@@ -126,9 +126,38 @@ function Field({ label, children }: FieldProps) {
 
 const inputCls = 'w-full bg-iron-bg border border-iron-border rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors';
 
+// ─── Suggestion reason chips ──────────────────────────────────────────────────
+
+function SuggestionChips({ s, T }: { s: BackendTableSuggestion; T: ReturnType<typeof import('../i18n/useT').useT> }) {
+  const chips: string[] = [];
+  if (s.reasons.some(r => r.code === 'PERFECT_FIT')) chips.push(T.guestDrawer.suggestReasonPerfectFit);
+  if (s.status === 'recommended') chips.push(T.guestDrawer.suggestReasonAvailable);
+  if (!s.reasons.some(r => ['CONFLICT', 'GAP_BEFORE_TIGHT', 'GAP_AFTER_TIGHT'].includes(r.code))) {
+    chips.push(T.guestDrawer.suggestReasonNoConflicts);
+  }
+  if (chips.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {chips.map(chip => (
+        <span key={chip} className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
+          {chip}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main drawer ──────────────────────────────────────────────────────────────
 
 type Mode = 'view' | 'edit' | 'seat' | 'move' | 'cancel' | 'lock';
+
+type SmartSuggestion =
+  | { mode: 'assign'; suggestion: BackendTableSuggestion }
+  | { mode: 'upgrade'; current: BackendTableSuggestion | null; suggestion: BackendTableSuggestion }
+  | null;
+
+const UPGRADE_SCORE_THRESHOLD = 20;
+const PROBLEM_REASONS = ['CONFLICT', 'GAP_BEFORE_TIGHT', 'GAP_AFTER_TIGHT', 'TOO_SMALL', 'TABLE_BLOCKED'];
 
 interface Props {
   reservation: Reservation;
@@ -175,29 +204,44 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableSuggestions, setTableSuggestions] = useState<BackendTableSuggestion[]>([]);
   const [suggestBusy, setSuggestBusy] = useState(false);
-  const [topSuggestion, setTopSuggestion] = useState<BackendTableSuggestion | null>(null);
-  const [topSuggestLoading, setTopSuggestLoading] = useState(false);
+  const [smartSuggestion, setSmartSuggestion] = useState<SmartSuggestion>(null);
+  const [smartLoading, setSmartLoading] = useState(false);
 
   useEffect(() => {
     if (!['PENDING', 'CONFIRMED'].includes(res.status)) {
-      setTopSuggestion(null);
+      setSmartSuggestion(null);
       return;
     }
     let cancelled = false;
-    setTopSuggestLoading(true);
-    setTopSuggestion(null);
+    setSmartLoading(true);
+    setSmartSuggestion(null);
     api.tables.suggest({
       date: res.date, time: res.time, partySize: res.partySize,
       duration: res.duration, excludeReservationId: res.id,
     }).then(list => {
-      if (!cancelled) setTopSuggestion(list.find(s => !!s.tableId) ?? null);
+      if (cancelled) return;
+      const currentEntry = res.tableId ? (list.find(s => s.tableId === res.tableId) ?? null) : null;
+      const bestOther = list.filter(s => s.tableId !== res.tableId).find(s => !!s.tableId) ?? null;
+
+      if (!res.tableId) {
+        setSmartSuggestion(bestOther ? { mode: 'assign', suggestion: bestOther } : null);
+      } else {
+        if (!bestOther) { setSmartSuggestion(null); return; }
+        const currentScore = currentEntry?.score ?? 0;
+        const currentHasProblem = (currentEntry?.reasons ?? []).some(r => PROBLEM_REASONS.includes(r.code));
+        if (bestOther.score - currentScore >= UPGRADE_SCORE_THRESHOLD || currentHasProblem) {
+          setSmartSuggestion({ mode: 'upgrade', current: currentEntry, suggestion: bestOther });
+        } else {
+          setSmartSuggestion(null);
+        }
+      }
     }).catch(() => {
-      if (!cancelled) setTopSuggestion(null);
+      if (!cancelled) setSmartSuggestion(null);
     }).finally(() => {
-      if (!cancelled) setTopSuggestLoading(false);
+      if (!cancelled) setSmartLoading(false);
     });
     return () => { cancelled = true; };
-  }, [res.id, res.status]);
+  }, [res.id, res.status, res.tableId]);
 
   function enterEdit() {
     setEditName(res.guestName);
@@ -587,49 +631,39 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           })()}
 
           {/* Smart table suggestion */}
-          {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (topSuggestLoading || topSuggestion) && (
-            <section className="rounded-xl border border-iron-green/30 bg-iron-green/5 p-3.5 space-y-3">
+          {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
+            <section className={`rounded-xl border p-3.5 space-y-3 ${
+              smartSuggestion?.mode === 'upgrade'
+                ? 'border-amber-500/30 bg-amber-500/5'
+                : 'border-iron-green/30 bg-iron-green/5'
+            }`}>
               <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">
-                {T.guestDrawer.sectionSmartSuggest}
+                {smartSuggestion?.mode === 'upgrade'
+                  ? T.guestDrawer.sectionSmartUpgrade
+                  : T.guestDrawer.sectionSmartSuggest}
               </p>
 
-              {topSuggestLoading ? (
+              {smartLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-3.5 h-3.5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
                   <span className="text-iron-muted text-xs">{T.common.processing}</span>
                 </div>
-              ) : topSuggestion && (
+              ) : smartSuggestion?.mode === 'assign' ? (
                 <>
                   <div className="flex items-baseline gap-2.5">
-                    <span className="text-iron-text font-bold text-base leading-tight">{topSuggestion.tableName}</span>
+                    <span className="text-iron-text font-bold text-base leading-tight">{smartSuggestion.suggestion.tableName}</span>
                     <span className="text-iron-muted text-xs">
-                      {T.guestDrawer.suggestCapacity(topSuggestion.minCovers, topSuggestion.maxCovers)}
+                      {T.guestDrawer.suggestCapacity(smartSuggestion.suggestion.minCovers, smartSuggestion.suggestion.maxCovers)}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {topSuggestion.reasons.some(r => r.code === 'PERFECT_FIT') && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
-                        {T.guestDrawer.suggestReasonPerfectFit}
-                      </span>
-                    )}
-                    {topSuggestion.status === 'recommended' && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
-                        {T.guestDrawer.suggestReasonAvailable}
-                      </span>
-                    )}
-                    {!topSuggestion.reasons.some(r => ['CONFLICT', 'GAP_BEFORE_TIGHT', 'GAP_AFTER_TIGHT'].includes(r.code)) && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-iron-green/15 border border-iron-green/25 text-iron-green-light font-medium">
-                        {T.guestDrawer.suggestReasonNoConflicts}
-                      </span>
-                    )}
-                  </div>
+                  <SuggestionChips s={smartSuggestion.suggestion} T={T} />
 
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => run(
-                        () => api.reservations.seat(res.id, topSuggestion.tableId!),
-                        T.guestDrawer.toastSeated(topSuggestion.tableName),
+                        () => api.reservations.seat(res.id, smartSuggestion.suggestion.tableId!),
+                        T.guestDrawer.toastSeated(smartSuggestion.suggestion.tableName),
                       )}
                       disabled={busy}
                       className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/25 border border-iron-green/50 text-iron-green-light hover:bg-iron-green/35 transition-colors disabled:opacity-40"
@@ -645,7 +679,42 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     </button>
                   </div>
                 </>
-              )}
+              ) : smartSuggestion?.mode === 'upgrade' ? (
+                <>
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                    <span className="text-iron-muted shrink-0">{T.guestDrawer.suggestCurrentLabel}:</span>
+                    <span className="text-iron-text font-semibold">{smartSuggestion.current?.tableName ?? res.table?.name ?? '—'}</span>
+                    <span className="text-iron-muted">→</span>
+                    <span className="text-iron-muted shrink-0">{T.guestDrawer.suggestBetterLabel}:</span>
+                    <span className="text-amber-300 font-semibold">{smartSuggestion.suggestion.tableName}</span>
+                    <span className="text-iron-muted">
+                      {T.guestDrawer.suggestCapacity(smartSuggestion.suggestion.minCovers, smartSuggestion.suggestion.maxCovers)}
+                    </span>
+                  </div>
+
+                  <SuggestionChips s={smartSuggestion.suggestion} T={T} />
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => run(
+                        () => api.reservations.update(res.id, { tableId: smartSuggestion.suggestion.tableId! }),
+                        T.guestDrawer.toastTableReassigned(smartSuggestion.suggestion.tableName),
+                      )}
+                      disabled={busy}
+                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40"
+                    >
+                      {T.guestDrawer.suggestSwapTable}
+                    </button>
+                    <button
+                      onClick={() => setSmartSuggestion(null)}
+                      disabled={busy}
+                      className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                    >
+                      {T.guestDrawer.suggestKeepCurrent}
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </section>
           )}
 
