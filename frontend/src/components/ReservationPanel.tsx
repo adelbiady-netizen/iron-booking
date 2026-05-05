@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Reservation, ReservationStatus, WaitlistEntry } from '../types';
 import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
@@ -97,6 +98,7 @@ export default function ReservationPanel({
     .sort((a, b) => a.time.localeCompare(b.time));
 
   return (
+    <>
     <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-l border-iron-border bg-iron-card">
 
       {/* Tab bar + action buttons */}
@@ -325,22 +327,29 @@ export default function ReservationPanel({
           </div>
         </>
       )}
-      {/* Right-click context menu */}
-      {ctxMenu && (
+    </aside>
+
+  {ctxMenu && createPortal(
+    (() => {
+      const menuWidth  = 160;
+      const menuHeight = 80;
+      let left = ctxMenu.x;
+      let top  = ctxMenu.y;
+      if (left + menuWidth  > window.innerWidth)  left = left - menuWidth;
+      if (top  + menuHeight > window.innerHeight) top  = top  - menuHeight;
+
+      return (
         <div
           ref={ctxRef}
-          style={{
-            position: 'fixed',
-            top:  Math.min(ctxMenu.y, window.innerHeight - 80),
-            left: Math.min(ctxMenu.x, window.innerWidth  - 140),
-            zIndex: 9999,
-          }}
-          className="bg-iron-card border border-iron-border rounded-lg shadow-xl overflow-hidden min-w-[130px]"
+          style={{ position: 'fixed', left, top, zIndex: 9999, border: '2px solid red' }}
+          className="bg-iron-card rounded-lg shadow-xl overflow-hidden"
+          onContextMenu={e => e.preventDefault()}
         >
           {['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status) && (
             <button
               type="button"
-              className="w-full text-right px-4 py-2.5 text-sm text-iron-green-light hover:bg-iron-green/15 transition-colors font-medium"
+              style={{ width: menuWidth }}
+              className="block text-right px-4 py-2.5 text-sm text-iron-green-light hover:bg-iron-green/15 transition-colors font-medium"
               onClick={() => { onContextMenuSeat?.(ctxMenu.res); setCtxMenu(null); }}
             >
               {T.reservationPanel.ctxSeat}
@@ -348,13 +357,17 @@ export default function ReservationPanel({
           )}
           <button
             type="button"
-            className="w-full text-right px-4 py-2.5 text-sm text-iron-muted hover:bg-white/5 transition-colors"
+            style={{ width: menuWidth }}
+            className="block text-right px-4 py-2.5 text-sm text-iron-muted hover:bg-white/5 transition-colors"
             onClick={() => setCtxMenu(null)}
           >
             {T.reservationPanel.ctxClose}
           </button>
         </div>
-      )}
-    </aside>
+      );
+    })(),
+    document.body,
+  )}
+  </>
   );
 }
