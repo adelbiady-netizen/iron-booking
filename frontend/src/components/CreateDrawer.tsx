@@ -374,8 +374,8 @@ export default function CreateDrawer({
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      {/* Backdrop — hidden during map pick so the floor is accessible */}
+      {!pickingOnMap && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
 
       {/* Drawer */}
       <aside className="fixed right-0 top-0 h-full w-[420px] bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">

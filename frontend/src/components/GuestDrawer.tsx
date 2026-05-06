@@ -686,11 +686,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-      />
+      {/* Backdrop — hidden during map pick so the floor is accessible */}
+      {!(pickingOnMap || pickingForAction) && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+        />
+      )}
 
       {/* Drawer panel */}
       <aside className="fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">

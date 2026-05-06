@@ -380,7 +380,7 @@ export async function seatReservation(
   tableId: string,
   actorName: string,
   overrideConflicts = false,
-  combinedTableIds: string[] = []
+  combinedTableIds?: string[]
 ) {
   const r = await assertReservationBelongsToRestaurant(id, restaurantId);
 
@@ -389,6 +389,8 @@ export async function seatReservation(
   }
 
   const settings = await getRestaurantSettings(restaurantId);
+  // When combinedTableIds not provided, preserve the existing value on the reservation
+  const resolvedCombinedIds = combinedTableIds ?? r.combinedTableIds;
 
   if (!overrideConflicts) {
     await validateTableAssignment(
@@ -400,7 +402,7 @@ export async function seatReservation(
       settings.bufferBetweenTurnsMinutes,
       r.partySize,
       id,
-      combinedTableIds
+      resolvedCombinedIds
     );
   }
 
@@ -410,7 +412,7 @@ export async function seatReservation(
       data: {
         status: 'SEATED',
         tableId,
-        combinedTableIds,
+        combinedTableIds: resolvedCombinedIds,
         seatedAt: new Date(),
         confirmedAt: r.confirmedAt ?? new Date(),
       },

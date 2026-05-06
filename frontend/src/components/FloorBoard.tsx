@@ -172,8 +172,7 @@ export default function FloorBoard({
                 t.posY < fr.y + fr.h && t.posY + t.height > fr.y
               );
             }).map(t => t.id);
-            const kept = prev.filter(id => !newIds.includes(id));
-            return [...kept, ...newIds];
+            return newIds;
           });
         }
       }

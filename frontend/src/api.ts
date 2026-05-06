@@ -209,7 +209,7 @@ export const api = {
         body: JSON.stringify({
           tableId,
           overrideConflicts,
-          ...(combinedTableIds?.length ? { combinedTableIds } : {}),
+          ...(combinedTableIds !== undefined ? { combinedTableIds } : {}),
         }),
       }),
     move: (id: string, tableId: string, reason?: string, combinedTableIds?: string[]) =>
@@ -219,7 +219,7 @@ export const api = {
           tableId,
           reason: reason || undefined,
           overrideConflicts: false,
-          ...(combinedTableIds?.length ? { combinedTableIds } : {}),
+          ...(combinedTableIds !== undefined ? { combinedTableIds } : {}),
         }),
       }),
     complete: (id: string) =>
