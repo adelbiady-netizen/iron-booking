@@ -694,8 +694,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         />
       )}
 
-      {/* Drawer panel */}
-      <aside className="fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">
+      {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
+      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`}>
 
         {/* Header */}
         <div className="p-4 border-b border-iron-border shrink-0">
