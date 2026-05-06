@@ -273,8 +273,9 @@ export async function updateReservation(
   const time = input.time ?? existing.time;
   const duration = input.duration ?? existing.duration;
   const tableId = input.tableId !== undefined ? input.tableId : existing.tableId;
+  const combinedTableIds = input.combinedTableIds !== undefined ? input.combinedTableIds : existing.combinedTableIds;
 
-  if (tableId && (input.date || input.time || input.duration || input.tableId)) {
+  if (tableId && (input.date || input.time || input.duration || input.tableId !== undefined || input.combinedTableIds !== undefined)) {
     await validateTableAssignment(
       restaurantId,
       tableId,
@@ -283,7 +284,8 @@ export async function updateReservation(
       duration,
       settings.bufferBetweenTurnsMinutes,
       input.partySize ?? existing.partySize,
-      id
+      id,
+      combinedTableIds
     );
   }
 
@@ -321,6 +323,7 @@ export async function updateReservation(
         ...(input.guestNotes !== undefined && { guestNotes: input.guestNotes }),
         ...(input.hostNotes !== undefined && { hostNotes: input.hostNotes }),
         ...(input.tableId !== undefined && { tableId: input.tableId }),
+        ...(input.combinedTableIds !== undefined && { combinedTableIds: input.combinedTableIds }),
         ...(input.tags && { tags: input.tags }),
       },
       include: { table: true, guest: true },
@@ -736,27 +739,14 @@ async function validateTableAssignment(
     throw new BusinessRuleError(`Table ${table.name} is inactive`);
   }
 
-  const isCombined = combinedTableIds.length > 0;
-
-  if (!isCombined) {
-    // Single-table booking: validate individual capacity
-    if (table.minCovers > partySize) {
-      throw new BusinessRuleError(
-        `Table ${table.name} minimum is ${table.minCovers} covers, party size is ${partySize}`
-      );
-    }
-    if (table.maxCovers < partySize) {
-      throw new BusinessRuleError(
-        `Table ${table.name} maximum is ${table.maxCovers} covers, party size is ${partySize}`
-      );
-    }
-  } else {
-    // Combined booking: validate total capacity across all tables
+  // For combined bookings, validate that all combined tables are active.
+  // Capacity mismatches (party size vs table min/max covers) are advisory only —
+  // hosts may intentionally over-seat (added chairs, VIP override, etc.).
+  if (combinedTableIds.length > 0) {
     const combinedTables = await prisma.table.findMany({
       where: { id: { in: combinedTableIds }, restaurantId },
-      select: { id: true, name: true, maxCovers: true, isActive: true },
+      select: { id: true, name: true, isActive: true },
     });
-
     const missingOrInactive = combinedTableIds.find(
       id => !combinedTables.find(t => t.id === id && t.isActive)
     );
@@ -764,14 +754,6 @@ async function validateTableAssignment(
       const t = combinedTables.find(t => t.id === missingOrInactive);
       throw new BusinessRuleError(
         t ? `Table ${t.name} is inactive` : `Combined table not found: ${missingOrInactive}`
-      );
-    }
-
-    const totalMax = table.maxCovers + combinedTables.reduce((sum, t) => sum + t.maxCovers, 0);
-    if (totalMax < partySize) {
-      const allNames = [table.name, ...combinedTables.map(t => t.name)].join(' + ');
-      throw new BusinessRuleError(
-        `Combined tables ${allNames} maximum is ${totalMax} covers, party size is ${partySize}`
       );
     }
   }

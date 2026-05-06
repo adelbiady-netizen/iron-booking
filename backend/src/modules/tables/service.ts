@@ -57,9 +57,9 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       };
     }
 
-    // Find seated reservation
+    // Find seated reservation — matches primary tableId OR secondary combined tables
     const seated = reservations.find(
-      (r) => r.tableId === table.id && r.status === 'SEATED'
+      (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status === 'SEATED'
     );
     if (seated) {
       const [rH, rM] = seated.time.split(':').map(Number);
@@ -97,9 +97,9 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       };
     }
 
-    // Find upcoming reservations for this table on this date
+    // Find upcoming reservations — matches primary tableId OR secondary combined tables
     const upcoming = reservations
-      .filter((r) => r.tableId === table.id && r.status !== 'SEATED')
+      .filter((r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status !== 'SEATED')
       .sort((a, b) => a.time.localeCompare(b.time));
 
     const nextRes = upcoming[0];

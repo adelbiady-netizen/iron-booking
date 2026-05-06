@@ -124,47 +124,59 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
 
       {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
+        const isCombined   = currentRes.combinedTableIds.length > 0;
+        const isSecondary  = isCombined && currentRes.combinedTableIds.includes(table.id);
         return (
           <div>
-            <p className="text-iron-text text-xs font-medium truncate">{currentRes.guestName}</p>
-            <p className="text-iron-muted text-[11px]">
-              {T.common.guests(currentRes.partySize)}
-              {mr > 5 && (
-                <span> · {T.tableCard.endsIn(mr)}</span>
+            <div className="flex items-center gap-1 min-w-0">
+              <p className="text-iron-text text-xs font-medium truncate flex-1">{currentRes.guestName}</p>
+              {isCombined && (
+                <span className="shrink-0 text-[8px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
               )}
-              {mr >= -5 && mr <= 5 && (
-                <span className="text-amber-400"> · {T.tableCard.endsNow}</span>
-              )}
-              {mr < -5 && (
-                <span className="text-orange-400"> · {T.tableCard.overBy(Math.abs(mr))}</span>
-              )}
-            </p>
+            </div>
+            {!isSecondary && (
+              <p className="text-iron-muted text-[11px]">
+                {T.common.guests(currentRes.partySize)}
+                {mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
+                {mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
+                {mr < -5 && <span className="text-orange-400"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+              </p>
+            )}
           </div>
         );
       })()}
 
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (
-        <div>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className="text-iron-text text-xs font-medium truncate">{displayRes.guestName}</p>
-            {displayRes.isConfirmedByGuest && (
-              <span className="shrink-0 text-[9px] px-1 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold">✓</span>
-            )}
-            {!displayRes.isConfirmedByGuest && displayRes.confirmationSentAt && (
-              <span className="shrink-0 text-[9px] px-1 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-semibold">SMS</span>
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+        const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
+        const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
+        return (
+          <div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-iron-text text-xs font-medium truncate flex-1">{displayRes.guestName}</p>
+              {isCombined && (
+                <span className="shrink-0 text-[8px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
+              )}
+              {displayRes.isConfirmedByGuest && (
+                <span className="shrink-0 text-[9px] px-1 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold">✓</span>
+              )}
+              {!displayRes.isConfirmedByGuest && displayRes.confirmationSentAt && (
+                <span className="shrink-0 text-[9px] px-1 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-semibold">SMS</span>
+              )}
+            </div>
+            {!isSecondary && (
+              <p className="text-iron-muted text-[11px]">
+                {T.common.guests(displayRes.partySize)} · {displayRes.time}
+                {insight?.type === 'LATE_GUEST' && nextRes && nextRes.minutesUntil < 0
+                  ? <span className="text-red-400"> · {T.tableCard.lateBy(Math.abs(nextRes.minutesUntil))}</span>
+                  : nextRes && nextRes.minutesUntil > 0
+                  ? <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>
+                  : null
+                }
+              </p>
             )}
           </div>
-          <p className="text-iron-muted text-[11px]">
-            {T.common.guests(displayRes.partySize)} · {displayRes.time}
-            {insight?.type === 'LATE_GUEST' && nextRes && nextRes.minutesUntil < 0
-              ? <span className="text-red-400"> · {T.tableCard.lateBy(Math.abs(nextRes.minutesUntil))}</span>
-              : nextRes && nextRes.minutesUntil > 0
-              ? <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>
-              : null
-            }
-          </p>
-        </div>
-      )}
+        );
+      })()}
 
       {isAvailable && insight?.type === 'SEAT_NOW' && insight.reservation && (
         <div

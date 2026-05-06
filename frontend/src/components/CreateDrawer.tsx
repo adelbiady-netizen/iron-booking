@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import type { BackendTableSuggestion, BestTableResult, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
+import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
-import SmartTablePicker from './SmartTablePicker';
+import FloorTablePicker from './FloorTablePicker';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -24,10 +24,13 @@ interface Props {
   tables: Table[];
   preselectedTableId?: string;
   preselectedCombinedTableIds?: string[];
+  floorObjs?: FloorObjectData[];
   initialData?: { guestName?: string; partySize?: number; guestPhone?: string };
   gapHint?: GapHint;
   onClose: () => void;
   onCreated: (r: Reservation) => void;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
+  onPickTablesCancel?: () => void;
 }
 
 // ─── Shared field components ──────────────────────────────────────────────────
@@ -131,8 +134,9 @@ function snapToSlot(time: string): string {
 
 export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables,
-  preselectedTableId, preselectedCombinedTableIds,
+  preselectedTableId, preselectedCombinedTableIds, floorObjs,
   initialData, gapHint, onClose, onCreated,
+  onPickTables, onPickTablesCancel,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -178,6 +182,7 @@ export default function CreateDrawer({
   const [autoResult,          setAutoResult]          = useState<BestTableResult | null>(null);
   const [resCombinedTableIds, setResCombinedTableIds] = useState<string[]>(preselectedCombinedTableIds ?? []);
   const [showPicker,          setShowPicker]          = useState(false);
+  const [pickingOnMap,        setPickingOnMap]        = useState(false);
   // Ref keeps manualOverride readable inside async effects without stale closures
   const manualOverrideRef = useRef(hasPreselection);
   const [manualOverride, _setManualOverride] = useState(hasPreselection);
@@ -257,7 +262,9 @@ export default function CreateDrawer({
       } catch {
         setResSuggestions([]);
         setAutoResult(null);
-        setResCombinedTableIds([]);
+        if (!manualOverrideRef.current) {
+          setResCombinedTableIds([]);
+        }
       } finally {
         setSuggestBusy(false);
       }
@@ -275,6 +282,23 @@ export default function CreateDrawer({
   }
   function resolveTableName(id: string) {
     return tables.find(t => t.id === id)?.name ?? id;
+  }
+
+  function openMapPicker() {
+    setPickingOnMap(true);
+    setShowPicker(false);
+    onPickTables?.(
+      [resTable, ...resCombinedTableIds].filter(Boolean),
+      resSuggestions,
+      (ids) => {
+        setPickingOnMap(false);
+        if (ids !== null) {
+          setResTable(ids[0] ?? '');
+          setResCombinedTableIds(ids.slice(1));
+          setManualOverride(true);
+        }
+      },
+    );
   }
 
   async function submitReservation(e: React.FormEvent) {
@@ -615,8 +639,23 @@ export default function CreateDrawer({
               <div>
                 <Label>{T.createDrawer.fieldTable}</Label>
 
+                {/* Picking on map banner */}
+                {pickingOnMap && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                    <span className="text-blue-300 text-xs flex-1">{T.createDrawer.tablePickingOnMap}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setPickingOnMap(false); onPickTablesCancel?.(); }}
+                      className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                    >
+                      {T.common.cancel}
+                    </button>
+                  </div>
+                )}
+
                 {/* Loading state */}
-                {suggestBusy && (
+                {!pickingOnMap && suggestBusy && (
                   <div className="flex items-center gap-2 py-2 text-iron-muted">
                     <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin shrink-0" />
                     <span className="text-xs">{T.createDrawer.tableSearching}</span>
@@ -624,7 +663,7 @@ export default function CreateDrawer({
                 )}
 
                 {/* Auto-selected, no override, picker hidden */}
-                {!suggestBusy && autoResult && !manualOverride && !showPicker && (
+                {!pickingOnMap && !suggestBusy && autoResult && !manualOverride && !showPicker && (
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/35">
                       <span className="text-iron-green-light font-semibold text-sm">
@@ -643,11 +682,20 @@ export default function CreateDrawer({
                     >
                       {T.createDrawer.tableChangeBtn}
                     </button>
+                    {onPickTables && (
+                      <button
+                        type="button"
+                        onClick={openMapPicker}
+                        className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                      >
+                        {T.createDrawer.tableSelectOnMap}
+                      </button>
+                    )}
                   </div>
                 )}
 
                 {/* Manual override selected, picker hidden */}
-                {!suggestBusy && manualOverride && !showPicker && (() => {
+                {!pickingOnMap && !suggestBusy && manualOverride && !showPicker && (() => {
                   const manualNames = [resTable, ...resCombinedTableIds].filter(Boolean).map(resolveTableName);
                   const autoIds = autoResult?.tableIds ?? [];
                   const currentIds = [resTable, ...resCombinedTableIds].filter(Boolean);
@@ -666,6 +714,15 @@ export default function CreateDrawer({
                       >
                         {T.createDrawer.tableChangeBtn}
                       </button>
+                      {onPickTables && (
+                        <button
+                          type="button"
+                          onClick={openMapPicker}
+                          className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                        >
+                          {T.createDrawer.tableSelectOnMap}
+                        </button>
+                      )}
                       {autoResult && differsFromAuto && (
                         <button
                           type="button"
@@ -685,7 +742,7 @@ export default function CreateDrawer({
                 })()}
 
                 {/* No table available, no picker */}
-                {!suggestBusy && !autoResult && !manualOverride && !showPicker && (
+                {!pickingOnMap && !suggestBusy && !autoResult && !manualOverride && !showPicker && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/20">
                     <span className="text-amber-400 text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                     <button
@@ -695,16 +752,25 @@ export default function CreateDrawer({
                     >
                       {T.createDrawer.tableShowAll}
                     </button>
+                    {onPickTables && (
+                      <button
+                        type="button"
+                        onClick={openMapPicker}
+                        className="text-xs px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                      >
+                        {T.createDrawer.tableSelectOnMap}
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {/* Override picker — multi-select SmartTablePicker grid */}
+                {/* Override picker — floor map (falls back to grid when no positions) */}
                 {showPicker && (
                   <div className="space-y-2">
-                    <SmartTablePicker
+                    <FloorTablePicker
                       tables={tables}
+                      floorObjs={floorObjs ?? []}
                       suggestions={resSuggestions}
-                      suggestBusy={false}
                       selectedIds={[resTable, ...resCombinedTableIds].filter(Boolean)}
                       onMultiPick={ids => {
                         setResTable(ids[0] ?? '');
@@ -733,6 +799,23 @@ export default function CreateDrawer({
                   </div>
                 )}
               </div>
+
+              {/* Capacity advisory warning */}
+              {(() => {
+                const allIds = [resTable, ...resCombinedTableIds].filter(Boolean);
+                if (allIds.length === 0 || resParty < 1) return null;
+                const totalMax = allIds.reduce((sum, id) => {
+                  const t = tables.find(t => t.id === id);
+                  return sum + (t?.maxCovers ?? 0);
+                }, 0);
+                if (totalMax >= resParty) return null;
+                return (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/25">
+                    <span className="text-amber-400 shrink-0 mt-0.5">⚠</span>
+                    <p className="text-amber-400 text-xs">{T.createDrawer.tableCapacityWarn(totalMax, resParty)}</p>
+                  </div>
+                );
+              })()}
 
               {error && (
                 <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">

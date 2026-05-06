@@ -189,9 +189,11 @@ interface Props {
   onSuccess?: (message: string) => void;
   onTableLockChange?: () => void;
   nowTime?: string;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
+  onPickTablesCancel?: () => void;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, onPickTables, onPickTablesCancel }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -221,9 +223,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [originalDuration, setOriginalDuration] = useState(0);
   const [editNotes,      setEditNotes]      = useState('');
   const [editHostNotes,  setEditHostNotes]  = useState('');
-  const [editTableId,    setEditTableId]    = useState<string | null>(null);
-  const [showTablePicker, setShowTablePicker] = useState(false);
-  const [tableSuggestions, setTableSuggestions] = useState<BackendTableSuggestion[]>([]);
+  const [editTableId,         setEditTableId]         = useState<string | null>(null);
+  const [editCombinedTableIds, setEditCombinedTableIds] = useState<string[]>([]);
+  const [pickingOnMap,         setPickingOnMap]         = useState(false);
+  const [showTablePicker,      setShowTablePicker]      = useState(false);
+  const [tableSuggestions,     setTableSuggestions]     = useState<BackendTableSuggestion[]>([]);
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [smartSuggestion, setSmartSuggestion] = useState<SmartSuggestion>(null);
   const [smartLoading, setSmartLoading] = useState(false);
@@ -273,6 +277,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     setEditNotes(res.guestNotes ?? '');
     setEditHostNotes(res.hostNotes ?? '');
     setEditTableId(res.tableId ?? null);
+    setEditCombinedTableIds(res.combinedTableIds ?? []);
+    setPickingOnMap(false);
     setShowTablePicker(false);
     setTableSuggestions([]);
     setError(null);
@@ -300,6 +306,22 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
+  function openMapPicker() {
+    setPickingOnMap(true);
+    setShowTablePicker(false);
+    onPickTables?.(
+      [editTableId, ...editCombinedTableIds].filter(Boolean) as string[],
+      tableSuggestions,
+      (ids) => {
+        setPickingOnMap(false);
+        if (ids !== null) {
+          setEditTableId(ids[0] ?? null);
+          setEditCombinedTableIds(ids.slice(1));
+        }
+      },
+    );
+  }
+
   async function saveEdit() {
     const isSeated = res.status === 'SEATED';
     const partySize = parseInt(editParty, 10);
@@ -309,15 +331,18 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     if (!isSeated && !editDate) { setError(T.guestDrawer.fieldDate + ' is required'); return; }
     if (!isSeated && !editTime) { setError(T.guestDrawer.fieldTime + ' is required'); return; }
 
+    const tableChanged = editTableId !== res.tableId ||
+      JSON.stringify([...editCombinedTableIds].sort()) !== JSON.stringify([...(res.combinedTableIds ?? [])].sort());
+
     await run(
       () => api.reservations.update(res.id, {
         guestName:  editName.trim(),
         guestPhone: editPhone.trim() || undefined,
         ...(isSeated ? {} : {
           partySize,
-          date:     editDate !== res.date     ? editDate     : undefined,
-          time:     editTime !== res.time     ? editTime     : undefined,
-          ...(editTableId !== res.tableId ? { tableId: editTableId } : {}),
+          date:     editDate !== res.date ? editDate : undefined,
+          time:     editTime !== res.time ? editTime : undefined,
+          ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
         }),
         duration:   editDuration,
         guestNotes: editNotes.trim() || undefined,
@@ -641,7 +666,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 )}
                 <span className="text-iron-muted text-xs">{T.common.guests(res.partySize)}</span>
                 {res.table && (
-                  <span className="text-iron-muted text-xs">· {res.table.name}</span>
+                  <span className="text-iron-muted text-xs">
+                    · {res.combinedTableIds.length
+                      ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
+                      : res.table.name}
+                  </span>
                 )}
               </div>
             </div>
@@ -781,7 +810,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <Row label={T.guestDrawer.rowDate}       value={res.date} />
             <Row label={T.guestDrawer.rowTime}       value={res.time} />
             <Row label={T.guestDrawer.rowDuration}   value={T.guestDrawer.durationValue(res.duration)} />
-            <Row label={T.guestDrawer.rowTable}      value={res.table?.name ?? (res.tableId ? '…' : T.guestDrawer.tableUnassigned)} />
+            <Row label={T.guestDrawer.rowTable}      value={(() => {
+              if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
+              if (!res.combinedTableIds.length) return res.table.name;
+              const secondaryNames = res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id);
+              return [res.table.name, ...secondaryNames].join(' + ');
+            })()} />
             <Row label={T.guestDrawer.rowSource}     value={formatReservationSource(res.source, locale)} />
             {res.occasion  && <Row label={T.guestDrawer.rowOccasion}   value={res.occasion}   accent />}
             {res.guestNotes && <Row label={T.guestDrawer.rowGuestNotes} value={res.guestNotes} />}
@@ -927,42 +961,70 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     <Field label={T.guestDrawer.fieldTable}>
                       <div className="space-y-2">
 
-                        {/* Current assignment row */}
-                        <div className="flex items-center gap-2">
-                          {editTableId ? (
-                            <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/35 text-iron-green-light flex-1 truncate">
-                              {tables.find(t => t.id === editTableId)?.name ?? editTableId}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-iron-muted italic flex-1">
-                              {T.guestDrawer.tableUnassigned}
-                            </span>
-                          )}
-                          {editTableId && !showTablePicker && (
+                        {/* Picking on map banner */}
+                        {pickingOnMap && (
+                          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                            <span className="text-blue-300 text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
                             <button
                               type="button"
-                              onClick={() => setEditTableId(null)}
-                              className="text-xs text-iron-muted hover:text-red-400 border border-iron-border/50 hover:border-red-900/40 px-2 py-1 rounded-md transition-colors shrink-0"
+                              onClick={() => { setPickingOnMap(false); onPickTablesCancel?.(); }}
+                              className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
                             >
-                              {T.guestDrawer.clearTable}
+                              {T.common.cancel}
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = !showTablePicker;
-                              setShowTablePicker(next);
-                              if (next) fetchTableSuggestions();
-                            }}
-                            className={`text-xs font-semibold px-3 py-1 rounded-md border transition-colors shrink-0 ${
-                              showTablePicker
-                                ? 'text-iron-muted border-iron-border/50 hover:text-iron-text'
-                                : 'bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30'
-                            }`}
-                          >
-                            {showTablePicker ? T.guestDrawer.backLink : T.guestDrawer.changeTable}
-                          </button>
-                        </div>
+                          </div>
+                        )}
+
+                        {/* Current assignment row */}
+                        {!pickingOnMap && (
+                          <div className="flex items-center gap-2">
+                            {editTableId ? (
+                              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/35 text-iron-green-light flex-1 truncate">
+                                {[editTableId, ...editCombinedTableIds]
+                                  .map(id => tables.find(t => t.id === id)?.name ?? id)
+                                  .join(' + ')}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-iron-muted italic flex-1">
+                                {T.guestDrawer.tableUnassigned}
+                              </span>
+                            )}
+                            {editTableId && !showTablePicker && (
+                              <button
+                                type="button"
+                                onClick={() => { setEditTableId(null); setEditCombinedTableIds([]); }}
+                                className="text-xs text-iron-muted hover:text-red-400 border border-iron-border/50 hover:border-red-900/40 px-2 py-1 rounded-md transition-colors shrink-0"
+                              >
+                                {T.guestDrawer.clearTable}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = !showTablePicker;
+                                setShowTablePicker(next);
+                                if (next) fetchTableSuggestions();
+                              }}
+                              className={`text-xs font-semibold px-3 py-1 rounded-md border transition-colors shrink-0 ${
+                                showTablePicker
+                                  ? 'text-iron-muted border-iron-border/50 hover:text-iron-text'
+                                  : 'bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30'
+                              }`}
+                            >
+                              {showTablePicker ? T.guestDrawer.backLink : T.guestDrawer.changeTable}
+                            </button>
+                            {onPickTables && !showTablePicker && (
+                              <button
+                                type="button"
+                                onClick={openMapPicker}
+                                className="text-xs px-2.5 py-1 rounded-md border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                              >
+                                {T.guestDrawer.selectOnMap}
+                              </button>
+                            )}
+                          </div>
+                        )}
 
                         {/* Inline picker */}
                         {showTablePicker && (
@@ -971,7 +1033,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                             suggestions={tableSuggestions}
                             suggestBusy={suggestBusy}
                             selectedId={editTableId}
-                            onPick={id => { setEditTableId(id); setShowTablePicker(false); }}
+                            onPick={id => { setEditTableId(id); setEditCombinedTableIds([]); setShowTablePicker(false); }}
                           />
                         )}
                       </div>
@@ -982,6 +1044,25 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         {T.guestDrawer.tableConflictNote}
                       </p>
                     )}
+
+                    {/* Capacity advisory warning */}
+                    {(() => {
+                      const allIds = [editTableId, ...editCombinedTableIds].filter(Boolean) as string[];
+                      if (allIds.length === 0) return null;
+                      const party = parseInt(editParty, 10);
+                      if (isNaN(party) || party < 1) return null;
+                      const totalMax = allIds.reduce((sum, id) => {
+                        const t = tables.find(t => t.id === id);
+                        return sum + (t?.maxCovers ?? 0);
+                      }, 0);
+                      if (totalMax >= party) return null;
+                      return (
+                        <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-amber-500/25">
+                          <span className="text-amber-400 shrink-0">⚠</span>
+                          <p className="text-amber-400 text-xs">{T.guestDrawer.tableCapacityWarn(totalMax, party)}</p>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 

@@ -232,6 +232,7 @@ export const api = {
       hostNotes: string;
       duration: number;
       tableId: string | null;
+      combinedTableIds: string[];
     }>) =>
       request<Reservation>(`/reservations/${id}`, {
         method: 'PATCH',

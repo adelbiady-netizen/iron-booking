@@ -38,6 +38,7 @@ export const UpdateReservationSchema = z.object({
   guestNotes: z.string().max(1000).optional(),
   hostNotes: z.string().max(1000).optional(),
   tableId: z.string().uuid().nullable().optional(),
+  combinedTableIds: z.array(z.string().uuid()).optional(),
   tags: z.array(z.string()).optional(),
 });
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { AuthState, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
+import type { AuthState, BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
@@ -137,6 +137,12 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [callPrefillPhone,     setCallPrefillPhone]     = useState('');
   const lastCallRef            = useRef<{ phone: string; at: number } | null>(null);
   const callHighlightTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Floor-map table pick mode — triggered by CreateDrawer or GuestDrawer
+  const [tablePickMode,        setTablePickMode]        = useState(false);
+  const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
+  const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
+  const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
 
   useEffect(() => { console.log('[HostDashboard] mounted'); }, []);
 
@@ -665,10 +671,30 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     }
   }, [floorTables, showToast]);
 
+  const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => {
+    tablePickCallbackRef.current = callback;
+    setTablePickIds(currentIds);
+    setTablePickSuggestions(suggestions);
+    setTablePickMode(true);
+  }, []);
+
+  const handlePickDone = useCallback((ids: string[]) => {
+    tablePickCallbackRef.current?.(ids);
+    tablePickCallbackRef.current = null;
+    setTablePickMode(false);
+  }, []);
+
+  const handlePickCancel = useCallback(() => {
+    tablePickCallbackRef.current?.(null);
+    tablePickCallbackRef.current = null;
+    setTablePickMode(false);
+  }, []);
+
   // Called after a reservation is created — refresh everything and open it in the drawer
   const handleCreated = useCallback((created: Reservation) => {
     setCreateMode(null);
     setPreselectedTableId(null);
+    setPreselectedCombinedTableIds([]);
     setReservations(prev => [...prev, created]);
     setRefreshKey(k => k + 1);
     setSelectedRes(created);
@@ -832,6 +858,11 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           combinedSelection={combinedSelection}
           onCombineToggle={handleCombineToggle}
           onCombineCreate={handleCombineCreate}
+          pickMode={tablePickMode}
+          pickIds={tablePickIds}
+          pickSuggestions={tablePickSuggestions}
+          onPickDone={handlePickDone}
+          onPickCancel={handlePickCancel}
         />
 
         <ReservationPanel
@@ -870,6 +901,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             onSuccess={showToast}
             onTableLockChange={handleTableLockChange}
             nowTime={time}
+            onPickTables={handlePickTables}
+            onPickTablesCancel={handlePickCancel}
           />
         </DrawerErrorBoundary>
       )}
@@ -881,12 +914,15 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             defaultDate={date}
             defaultTime={time}
             tables={allTables}
+            floorObjs={floorObjs}
             preselectedTableId={preselectedTableId ?? undefined}
             preselectedCombinedTableIds={preselectedCombinedTableIds.length > 0 ? preselectedCombinedTableIds : undefined}
             gapHint={gapHint ?? undefined}
             initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
             onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}
             onCreated={handleCreated}
+            onPickTables={handlePickTables}
+            onPickTablesCancel={handlePickCancel}
           />
         </DrawerErrorBoundary>
       )}

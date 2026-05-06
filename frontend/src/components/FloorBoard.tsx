@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type React from 'react';
-import type { FloorInsight, FloorObjectData, FloorTable, Reservation, WaitlistEntry } from '../types';
+import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
 import { logOverride } from '../utils/flowControl';
 import TableCard from './TableCard';
@@ -26,7 +26,6 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
   ZONE:     { bg: '#37415120', border: '#374151', zone: true  },
 };
 
-// Status-driven background — section color drives the border
 const STATUS_BG: Record<string, string> = {
   AVAILABLE:     'rgb(var(--iron-card))',
   OCCUPIED:      'rgba(22,163,74,0.20)',
@@ -65,6 +64,12 @@ interface Props {
   combinedSelection?: string[];
   onCombineToggle?: (tableId: string) => void;
   onCombineCreate?: () => void;
+  // Table pick mode (Tabit-style map selection from drawer)
+  pickMode?: boolean;
+  pickIds?: string[];
+  pickSuggestions?: BackendTableSuggestion[];
+  onPickDone?: (ids: string[]) => void;
+  onPickCancel?: () => void;
 }
 
 const CANVAS_W = 1500;
@@ -82,6 +87,8 @@ function hasPositions(tables: FloorTable[]): boolean {
 
 type View = 'floor' | 'timeline';
 
+type PickStatus = 'recommended' | 'possible' | 'tight' | 'unavailable' | null;
+
 export default function FloorBoard({
   tables, floorObjs = [], selectedId, onSelect, onAvailableClick,
   insights = [], onInsightAction, loadError, errorPhase,
@@ -92,6 +99,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
+  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -100,6 +108,112 @@ export default function FloorBoard({
   const [softHoldWarning,  setSoftHoldWarning]  = useState<{ table: FloorTable; entry: WaitlistEntry } | null>(null);
   const [ctxMenu,          setCtxMenu]          = useState<{ x: number; y: number; table: FloorTable } | null>(null);
   const [view,             setView]             = useState<View>('floor');
+
+  // Pick mode state
+  const [pickSelection, setPickSelection]     = useState<string[]>([]);
+  const [pickWarn,      setPickWarn]          = useState<string | null>(null);
+  const dragStartRef   = useRef<{ cx: number; cy: number } | null>(null);
+  const isDraggingRef  = useRef(false);
+  const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const canvasScrollRef = useRef<HTMLDivElement>(null);
+
+  // Force floor view and sync selection when entering pick mode
+  useEffect(() => {
+    if (pickMode) {
+      setView('floor');
+      setPickSelection(pickIds);
+      setPickWarn(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickMode]);
+
+  // Drag-to-select — document-level mouse handlers active only in pick mode
+  useEffect(() => {
+    if (!pickMode) return;
+
+    function handleMouseMove(e: MouseEvent) {
+      if (!dragStartRef.current || !canvasScrollRef.current) return;
+      const container = canvasScrollRef.current;
+      const rect = container.getBoundingClientRect();
+      const cx = e.clientX - rect.left + container.scrollLeft;
+      const cy = e.clientY - rect.top + container.scrollTop;
+      const { cx: sx, cy: sy } = dragStartRef.current;
+      if (Math.abs(cx - sx) > 5 || Math.abs(cy - sy) > 5) {
+        isDraggingRef.current = true;
+        setDragRect({
+          x: Math.min(sx, cx), y: Math.min(sy, cy),
+          w: Math.abs(cx - sx), h: Math.abs(cy - sy),
+        });
+      }
+    }
+
+    function handleMouseUp(e: MouseEvent) {
+      if (isDraggingRef.current && dragStartRef.current && canvasScrollRef.current) {
+        const container = canvasScrollRef.current;
+        const rect = container.getBoundingClientRect();
+        const cx = e.clientX - rect.left + container.scrollLeft;
+        const cy = e.clientY - rect.top + container.scrollTop;
+        const { cx: sx, cy: sy } = dragStartRef.current;
+        const fr = {
+          x: Math.min(sx, cx), y: Math.min(sy, cy),
+          w: Math.abs(cx - sx), h: Math.abs(cy - sy),
+        };
+        if (fr.w > 8 && fr.h > 8) {
+          setPickSelection(prev => {
+            const newIds = tables.filter(t => {
+              if (!t.isActive) return false;
+              const sug = pickSuggestions.find(s => s.tableId === t.id);
+              const unavail = sug
+                ? sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')
+                : false;
+              if (unavail) return false;
+              return (
+                t.posX < fr.x + fr.w && t.posX + t.width  > fr.x &&
+                t.posY < fr.y + fr.h && t.posY + t.height > fr.y
+              );
+            }).map(t => t.id);
+            const kept = prev.filter(id => !newIds.includes(id));
+            return [...kept, ...newIds];
+          });
+        }
+      }
+      dragStartRef.current  = null;
+      isDraggingRef.current = false;
+      setDragRect(null);
+    }
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [pickMode, tables, pickSuggestions]);
+
+  function handleCanvasMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
+    if ((e.target as Element).closest('button')) return;
+    const container = canvasScrollRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    dragStartRef.current = {
+      cx: e.clientX - rect.left + container.scrollLeft,
+      cy: e.clientY - rect.top + container.scrollTop,
+    };
+    isDraggingRef.current = false;
+  }
+
+  function getPickStatus(t: FloorTable): PickStatus {
+    const sug = pickSuggestions.find(s => s.tableId === t.id);
+    if (!sug) return null;
+    // Only genuine conflicts/locks are hard-unavailable; capacity mismatches (TOO_SMALL) are advisory.
+    if (sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')) {
+      return 'unavailable';
+    }
+    // TOO_SMALL-only blocked → downgrade to 'tight' (selectable with warning)
+    if (sug.status === 'blocked') return 'tight';
+    return sug.status as PickStatus;
+  }
 
   if (loadError) {
     if (errorPhase !== 'failed') {
@@ -157,7 +271,6 @@ export default function FloorBoard({
       : []),
   ];
 
-  // Unique sections for the canvas legend
   const sections = Array.from(sectionMap.values());
 
   function isSelected(t: FloorTable): boolean {
@@ -167,8 +280,20 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
-    // In combine mode: toggle available tables into the selection set.
-    // Occupied / reserved / blocked tables are ignored.
+    // Pick mode: toggle or warn
+    if (pickMode) {
+      const ps = getPickStatus(t);
+      if (ps === 'unavailable') {
+        setPickWarn(t.name);
+        setTimeout(() => setPickWarn(w => (w === t.name ? null : w)), 2500);
+        return;
+      }
+      setPickSelection(prev =>
+        prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+      );
+      return;
+    }
+    // Combine mode: toggle available tables
     if (combineMode) {
       if (t.liveStatus === 'AVAILABLE' && !t.locked && !softHoldMap[t.id]) {
         onCombineToggle?.(t.id);
@@ -193,7 +318,7 @@ export default function FloorBoard({
     setCtxMenu({ x, y, table: t });
   }
 
-  // ── Turn data: per-table upcoming count from full reservations list ──────────
+  // ── Turn data ─────────────────────────────────────────────────────────────────
   const turnData = new Map<string, Reservation[]>();
   for (const r of reservations) {
     if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
@@ -203,7 +328,7 @@ export default function FloorBoard({
   }
   for (const arr of turnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
 
-  // ── Stats ───────────────────────────────────────────────────────────────────
+  // ── Stats ─────────────────────────────────────────────────────────────────────
   const available    = tables.filter(t => t.liveStatus === 'AVAILABLE').length;
   const occupied     = tables.filter(t => t.liveStatus === 'OCCUPIED').length;
   const reservedSoon = tables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
@@ -213,6 +338,15 @@ export default function FloorBoard({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+
+      {/* Pick mode banner */}
+      {pickMode && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-blue-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
+          <span className="text-blue-300 text-xs font-medium flex-1">{T.floorBoard.pickModeHint}</span>
+        </div>
+      )}
+
       {/* Stats + section legend */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-iron-border bg-iron-card/50 shrink-0 flex-wrap">
         <Stat label={T.floorBoard.statAvailable} value={available}    color="text-iron-muted" />
@@ -220,7 +354,6 @@ export default function FloorBoard({
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
         <Stat label={T.floorBoard.statReserved}  value={reserved}     color="text-blue-400" />
 
-        {/* Section legend — only shown in canvas mode */}
         {positioned && sections.length > 0 && (
           <>
             <div className="w-px h-3 bg-iron-border mx-1" />
@@ -239,7 +372,6 @@ export default function FloorBoard({
           </>
         )}
 
-        {/* Pressure indicator — only shown under MEDIUM/HIGH load */}
         {pressureInfo && pressureInfo.level !== 'LOW' && (
           <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium ${
             pressureInfo.level === 'HIGH'
@@ -254,17 +386,16 @@ export default function FloorBoard({
 
         <span className="ml-auto text-xs text-iron-muted">{T.floorBoard.tableCount(tables.length)}</span>
 
-        {/* View toggle */}
         <div className="flex items-center gap-px ml-3 rounded border border-iron-border overflow-hidden shrink-0">
           {(['floor', 'timeline'] as View[]).map(v => (
             <button
               key={v}
-              onClick={() => setView(v)}
+              onClick={() => !pickMode && setView(v)}
               className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
                 view === v
                   ? 'bg-iron-green/20 text-iron-green-light'
                   : 'text-iron-muted hover:text-iron-text hover:bg-iron-border/30'
-              }`}
+              } ${pickMode ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               {v === 'floor' ? T.floorBoard.viewFloor : T.floorBoard.viewTimeline}
             </button>
@@ -273,7 +404,7 @@ export default function FloorBoard({
       </div>
 
       {/* Timeline view */}
-      {view === 'timeline' && date && (
+      {view === 'timeline' && !pickMode && date && (
         <TableTimeline
           tables={tables}
           reservations={reservations}
@@ -288,10 +419,11 @@ export default function FloorBoard({
         />
       )}
 
-      {view === 'floor' && (positioned ? (
+      {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
-        <div className="flex-1 overflow-auto">
+        <div ref={canvasScrollRef} className="flex-1 overflow-auto">
           <div
+            onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
               position: 'relative',
               width: CANVAS_W,
@@ -299,9 +431,10 @@ export default function FloorBoard({
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px)',
               backgroundSize: '24px 24px',
+              userSelect: pickMode ? 'none' : undefined,
             }}
           >
-            {/* Floor objects rendered beneath tables */}
+            {/* Floor objects */}
             {floorObjs.map(o => {
               const s = OBJ_STYLE[o.kind] ?? OBJ_STYLE['WALL'];
               return (
@@ -309,16 +442,12 @@ export default function FloorBoard({
                   key={o.id}
                   style={{
                     position: 'absolute',
-                    left: o.posX,
-                    top: o.posY,
-                    width: o.width,
-                    height: o.height,
+                    left: o.posX, top: o.posY,
+                    width: o.width, height: o.height,
                     backgroundColor: s.bg,
                     border: `1.5px solid ${s.border}`,
                     borderRadius: s.zone ? 8 : 3,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     pointerEvents: 'none',
                   }}
                 >
@@ -330,53 +459,68 @@ export default function FloorBoard({
             })}
 
             {tables.map(t => {
-              const insight = insights.find(i => i.tableId === t.id);
-              const dimmed  = hoveredSectionId !== null && t.section?.id !== hoveredSectionId;
-              const wMatch  = waitlistMatches[t.id];
-              const turns   = turnData.get(t.id) ?? [];
-              const extraTurns  = Math.max(0, turns.length - 1);
+              const insight    = insights.find(i => i.tableId === t.id);
+              const dimmed     = !pickMode && hoveredSectionId !== null && t.section?.id !== hoveredSectionId;
+              const wMatch     = waitlistMatches[t.id];
+              const turns      = turnData.get(t.id) ?? [];
+              const extraTurns = Math.max(0, turns.length - 1);
               const turnTooltip = turns.length > 0
                 ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                 : undefined;
+              const ps = pickMode ? getPickStatus(t) : null;
               return (
                 <MapTable
                   key={t.id}
                   table={t}
-                  selected={isSelected(t)}
-                  combinedSelected={combinedSelection.includes(t.id)}
+                  selected={!pickMode && isSelected(t)}
+                  combinedSelected={!pickMode && combinedSelection.includes(t.id)}
                   dimmed={dimmed}
-                  bestSuggestion={!isSelected(t) && t.id === bestSuggestionTableId}
-                  softHold={softHoldMap[t.id]}
+                  bestSuggestion={!pickMode && !isSelected(t) && t.id === bestSuggestionTableId}
+                  softHold={!pickMode ? softHoldMap[t.id] : undefined}
                   onClick={() => handleClick(t)}
-                  onContextMenu={e => handleContextMenu(e, t)}
-                  insight={insight}
+                  onContextMenu={e => !pickMode && handleContextMenu(e, t)}
+                  insight={!pickMode ? insight : undefined}
                   onInsightAction={
-                    insight?.reservationId
+                    !pickMode && insight?.reservationId
                       ? () => onInsightAction?.(t.id, insight.reservationId!)
                       : undefined
                   }
-                  waitlistMatch={wMatch}
-                  onWaitlistAction={wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
+                  waitlistMatch={!pickMode ? wMatch : undefined}
+                  onWaitlistAction={!pickMode && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                   nowTime={nowTime}
                   operationalNow={operationalNow}
-                  extraTurns={extraTurns}
-                  turnTooltip={turnTooltip}
+                  extraTurns={pickMode ? 0 : extraTurns}
+                  turnTooltip={pickMode ? undefined : turnTooltip}
+                  pickMode={pickMode}
+                  pickSelected={pickMode && pickSelection.includes(t.id)}
+                  pickStatus={ps}
                 />
               );
             })}
+
+            {/* Drag selection rect */}
+            {pickMode && dragRect && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: dragRect.x, top: dragRect.y,
+                  width: dragRect.w, height: dragRect.h,
+                  border: '1.5px solid rgba(59,130,246,0.7)',
+                  backgroundColor: 'rgba(59,130,246,0.07)',
+                  pointerEvents: 'none',
+                  zIndex: 100,
+                }}
+              />
+            )}
           </div>
         </div>
       ) : (
         // ── Grouped grid (fallback when no positions saved) ────────────────────
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
           {groups.map(group => (
             <section key={group.id}>
               <div className="flex items-center gap-2 mb-3">
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: group.color }}
-                />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
                 <h3 className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
                   {formatSectionName(group.name, locale)}
                 </h3>
@@ -384,37 +528,42 @@ export default function FloorBoard({
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
                 {group.tables.map(t => {
-                  const insight = insights.find(i => i.tableId === t.id);
-                  const wMatch  = waitlistMatches[t.id];
-                  const turns   = turnData.get(t.id) ?? [];
-                  const extraTurns  = Math.max(0, turns.length - 1);
+                  const insight    = insights.find(i => i.tableId === t.id);
+                  const wMatch     = waitlistMatches[t.id];
+                  const turns      = turnData.get(t.id) ?? [];
+                  const extraTurns = Math.max(0, turns.length - 1);
                   const turnTooltip = turns.length > 0
                     ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                     : undefined;
+                  const isPickSelected = pickMode && pickSelection.includes(t.id);
                   return (
                     <div
                       key={t.id}
-                      className={combinedSelection.includes(t.id) ? 'ring-2 ring-blue-500/50 rounded-lg' : ''}
+                      className={
+                        isPickSelected || combinedSelection.includes(t.id)
+                          ? 'ring-2 ring-blue-500/50 rounded-lg'
+                          : ''
+                      }
                     >
                       <TableCard
                         table={t}
-                        selected={isSelected(t)}
-                        isBestSuggestion={!isSelected(t) && t.id === bestSuggestionTableId}
-                        softHold={softHoldMap[t.id]}
+                        selected={!pickMode && isSelected(t)}
+                        isBestSuggestion={!pickMode && !isSelected(t) && t.id === bestSuggestionTableId}
+                        softHold={!pickMode ? softHoldMap[t.id] : undefined}
                         onClick={() => handleClick(t)}
-                        onContextMenu={e => handleContextMenu(e, t)}
-                        insight={insight}
+                        onContextMenu={e => !pickMode && handleContextMenu(e, t)}
+                        insight={!pickMode ? insight : undefined}
                         onInsightAction={
-                          insight?.reservationId
+                          !pickMode && insight?.reservationId
                             ? () => onInsightAction?.(t.id, insight.reservationId!)
                             : undefined
                         }
-                        waitlistMatch={wMatch}
-                        onWaitlistAction={wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
+                        waitlistMatch={!pickMode ? wMatch : undefined}
+                        onWaitlistAction={!pickMode && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                         nowTime={nowTime}
                         operationalNow={operationalNow}
-                        extraTurns={extraTurns}
-                        turnTooltip={turnTooltip}
+                        extraTurns={pickMode ? 0 : extraTurns}
+                        turnTooltip={pickMode ? undefined : turnTooltip}
                       />
                     </div>
                   );
@@ -426,7 +575,7 @@ export default function FloorBoard({
       ))}
 
       {/* Right-click context menu */}
-      {ctxMenu && (
+      {ctxMenu && !pickMode && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
           <div
@@ -455,8 +604,8 @@ export default function FloorBoard({
         </>
       )}
 
-      {/* Seating-attempt warning for locked available tables */}
-      {lockedWarning && (
+      {/* Locked table warning */}
+      {lockedWarning && !pickMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-72 space-y-3">
             <div>
@@ -489,8 +638,8 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Soft hold warning — host clicked a table held for a waitlist guest */}
-      {softHoldWarning && (
+      {/* Soft hold warning */}
+      {softHoldWarning && !pickMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-72 space-y-3">
             <div>
@@ -538,8 +687,42 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Combine-tables action bar — visible when combine mode is active */}
-      {combineMode && (
+      {/* Pick mode action bar */}
+      {pickMode && (
+        <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            {pickWarn ? (
+              <span className="text-red-400 text-xs font-medium">{T.floorBoard.pickModeUnavailable(pickWarn)}</span>
+            ) : pickSelection.length === 0 ? (
+              <span className="text-blue-400 text-sm">{T.floorBoard.pickModeHint}</span>
+            ) : (
+              <span className="text-iron-text text-sm font-semibold truncate">
+                {pickSelection.map(id => tables.find(t => t.id === id)?.name ?? id).join(' + ')}
+                <span className="text-iron-muted font-normal text-xs ml-1.5">
+                  · {T.floorBoard.pickModeSelected(pickSelection.length)}
+                </span>
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onPickCancel}
+            className="text-iron-muted text-xs hover:text-iron-text transition-colors shrink-0"
+          >
+            {T.floorBoard.pickModeCancel}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPickDone?.(pickSelection)}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+          >
+            {T.floorBoard.pickModeConfirm}
+          </button>
+        </div>
+      )}
+
+      {/* Combine-tables action bar */}
+      {!pickMode && combineMode && (
         <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           {combinedSelection.length === 0 ? (
             <span className="text-blue-400 text-sm flex-1">{T.floorBoard.combineHint}</span>
@@ -577,7 +760,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, extraTurns = 0, turnTooltip }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -594,9 +777,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   operationalNow?: number;
   extraTurns?: number;
   turnTooltip?: string;
+  pickMode?: boolean;
+  pickSelected?: boolean;
+  pickStatus?: PickStatus;
 }) {
   const T = useT();
-  // Detect late arrival: RESERVED_SOON tables whose upcoming reservation is past due
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
   const arrMins = nowTime && nextRes
     ? minutesUntilRes(nextRes.time, nowTime)
@@ -604,21 +789,86 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isNoShowRisk = arrMins !== null && arrMins <= -15;
   const isLate       = arrMins !== null && arrMins < -5 && !isNoShowRisk;
 
-  const bg = isNoShowRisk ? 'rgba(239,68,68,0.15)'
-           : isLate       ? 'rgba(249,115,22,0.15)'
-           : softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
-           : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
   const sectionColor = table.section?.color ?? '#3f3f46';
-  const borderColor  = selected        ? '#22c55e'
-                     : combinedSelected ? '#3b82f6'
-                     : isNoShowRisk   ? '#ef4444'
-                     : isLate         ? '#f97316'
-                     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
-                     : table.locked   ? '#f59e0b'
-                     : sectionColor;
-  const borderWidth  = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
-  const currentRes   = table.currentReservation;
-  const displayRes   = currentRes ?? nextRes ?? null;
+
+  // Base (non-pick) colors
+  let bg = isNoShowRisk ? 'rgba(239,68,68,0.15)'
+    : isLate       ? 'rgba(249,115,22,0.15)'
+    : softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
+    : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
+
+  let borderColor = selected        ? '#22c55e'
+    : combinedSelected ? '#3b82f6'
+    : isNoShowRisk   ? '#ef4444'
+    : isLate         ? '#f97316'
+    : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
+    : table.locked   ? '#f59e0b'
+    : sectionColor;
+
+  let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
+
+  let boxShadow: string | undefined = selected
+    ? '0 0 0 3px rgba(34,197,94,0.25)'
+    : combinedSelected
+    ? '0 0 0 3px rgba(59,130,246,0.30)'
+    : softHold && table.liveStatus === 'AVAILABLE'
+    ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
+    : bestSuggestion
+    ? '0 0 0 3px rgba(34,197,94,0.18), 0 0 10px rgba(34,197,94,0.12)'
+    : table.locked ? '0 0 0 2px rgba(245,158,11,0.15)' : undefined;
+
+  let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
+  let cursor = 'pointer';
+
+  // Pick mode overrides
+  if (pickMode) {
+    if (pickSelected) {
+      bg          = 'rgba(59,130,246,0.22)';
+      borderColor = '#3b82f6';
+      borderWidth = 2;
+      boxShadow   = '0 0 0 3px rgba(59,130,246,0.35)';
+      opacity     = 1;
+    } else {
+      switch (pickStatus) {
+        case 'recommended':
+          bg          = 'rgba(22,163,74,0.12)';
+          borderColor = '#22c55e';
+          borderWidth = 1.5;
+          boxShadow   = '0 0 0 2px rgba(34,197,94,0.15)';
+          opacity     = 1;
+          break;
+        case 'possible':
+          bg          = 'rgba(37,99,235,0.10)';
+          borderColor = '#3b82f6';
+          borderWidth = 1.5;
+          opacity     = 1;
+          break;
+        case 'tight':
+          bg          = 'rgba(217,119,6,0.10)';
+          borderColor = '#d97706';
+          borderWidth = 1.5;
+          opacity     = 1;
+          break;
+        case 'unavailable':
+          bg          = 'rgba(82,82,91,0.08)';
+          borderColor = '#52525b';
+          borderWidth = 1;
+          boxShadow   = undefined;
+          opacity     = 0.4;
+          cursor      = 'not-allowed';
+          break;
+        default:
+          bg          = 'rgba(82,82,91,0.08)';
+          borderColor = '#52525b';
+          borderWidth = 1;
+          opacity     = 0.85;
+          break;
+      }
+    }
+  }
+
+  const currentRes = table.currentReservation;
+  const displayRes = currentRes ?? nextRes ?? null;
 
   return (
     <button
@@ -627,30 +877,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       title={turnTooltip}
       style={{
         position: 'absolute',
-        left: table.posX,
-        top: table.posY,
-        width: table.width,
-        height: table.height,
+        left: table.posX, top: table.posY,
+        width: table.width, height: table.height,
         borderRadius: tableRadius(table.shape),
         border: `${borderWidth}px solid ${borderColor}`,
         backgroundColor: bg,
-        boxShadow: selected
-          ? '0 0 0 3px rgba(34,197,94,0.25)'
-          : combinedSelected
-          ? '0 0 0 3px rgba(59,130,246,0.30)'
-          : softHold && table.liveStatus === 'AVAILABLE'
-          ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
-          : bestSuggestion
-          ? '0 0 0 3px rgba(34,197,94,0.18), 0 0 10px rgba(34,197,94,0.12)'
-          : table.locked ? '0 0 0 2px rgba(245,158,11,0.15)' : undefined,
-        opacity: dimmed ? 0.25 : table.locked ? 0.55 : 1,
+        boxShadow,
+        opacity,
         padding: '5px 7px',
         overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
+        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         textAlign: 'left',
-        cursor: 'pointer',
+        cursor,
         transition: 'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
       }}
     >
@@ -659,8 +897,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         <span style={{ fontSize: 11, fontWeight: 600, color: 'rgb(var(--iron-text))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {table.name}
         </span>
-        {insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
-        {insight?.priority === 'MEDIUM' && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />}
+        {!pickMode && insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
+        {!pickMode && insight?.priority === 'MEDIUM' && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />}
+        {pickMode && pickSelected && (
+          <span style={{ fontSize: 9, color: '#93c5fd', fontWeight: 700, flexShrink: 0 }}>✓</span>
+        )}
+        {pickMode && !pickSelected && pickStatus === 'recommended' && (
+          <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
+        )}
       </div>
 
       {/* Capacity */}
@@ -668,56 +912,75 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
       </span>
 
-      {/* OCCUPIED */}
-      {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
+      {/* OCCUPIED — only show detail when not in pick mode */}
+      {!pickMode && table.liveStatus === 'OCCUPIED' && currentRes && (() => {
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
+        const isCombined  = currentRes.combinedTableIds.length > 0;
+        const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
-            <p style={{ fontSize: 10, color: 'var(--canvas-status-occupied)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentRes.guestName}
-            </p>
-            <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
-              {currentRes.partySize} ·{' '}
-              {mr > 5
-                ? T.floorBoard.mLeft(mr)
-                : mr >= -5
-                ? T.floorBoard.ending
-                : T.floorBoard.mOver(Math.abs(mr))}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
+              <p style={{ fontSize: 10, color: 'var(--canvas-status-occupied)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {currentRes.guestName}
+              </p>
+              {isCombined && (
+                <span style={{ fontSize: 8, color: '#60a5fa', fontWeight: 700, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
+                  ⊞
+                </span>
+              )}
+            </div>
+            {!isSecondary && (
+              <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
+                {currentRes.partySize} ·{' '}
+                {mr > 5
+                  ? T.floorBoard.mLeft(mr)
+                  : mr >= -5
+                  ? T.floorBoard.ending
+                  : T.floorBoard.mOver(Math.abs(mr))}
+              </p>
+            )}
           </div>
         );
       })()}
 
-      {/* RESERVED / RESERVED_SOON */}
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (
-        <div style={{ marginTop: 'auto', width: '100%' }}>
-          <p style={{ fontSize: 10, color: 'var(--canvas-status-reserved)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {displayRes.guestName}
-          </p>
-          {nextRes && (
-            <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
-              {nextRes.partySize} · {nextRes.minutesUntil > 0 ? T.floorBoard.inNMin(nextRes.minutesUntil) : nextRes.time}
-            </p>
-          )}
-        </div>
-      )}
+      {/* RESERVED / RESERVED_SOON — only show detail when not in pick mode */}
+      {!pickMode && (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+        const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
+        const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
+        return (
+          <div style={{ marginTop: 'auto', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
+              <p style={{ fontSize: 10, color: 'var(--canvas-status-reserved)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {displayRes.guestName}
+              </p>
+              {isCombined && (
+                <span style={{ fontSize: 8, color: '#60a5fa', fontWeight: 700, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
+                  ⊞
+                </span>
+              )}
+            </div>
+            {!isSecondary && nextRes && (
+              <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
+                {nextRes.partySize} · {nextRes.minutesUntil > 0 ? T.floorBoard.inNMin(nextRes.minutesUntil) : nextRes.time}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* BLOCKED */}
-      {table.liveStatus === 'BLOCKED' && (
+      {!pickMode && table.liveStatus === 'BLOCKED' && (
         <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
           {table.blockReason ?? 'Blocked'}
         </p>
       )}
 
-      {/* AVAILABLE + soft hold: table is mentally reserved for a waitlist guest */}
-      {table.liveStatus === 'AVAILABLE' && softHold && !insight && (
+      {/* AVAILABLE + soft hold */}
+      {!pickMode && table.liveStatus === 'AVAILABLE' && softHold && !insight && (
         <div style={{
-          marginTop: 'auto',
-          width: '100%',
-          backgroundColor: 'rgba(99,102,241,0.12)',
-          border: '1px solid rgba(99,102,241,0.35)',
-          borderRadius: 4,
-          padding: '2px 4px',
+          marginTop: 'auto', width: '100%',
+          backgroundColor: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)',
+          borderRadius: 4, padding: '2px 4px',
         }}>
           <p style={{ fontSize: 9, color: '#a5b4fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             ⏸ {softHold.guestName} · {softHold.partySize}
@@ -726,17 +989,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       )}
 
       {/* AVAILABLE + SEAT_NOW insight */}
-      {table.liveStatus === 'AVAILABLE' && insight?.type === 'SEAT_NOW' && insight.reservation && (
+      {!pickMode && table.liveStatus === 'AVAILABLE' && insight?.type === 'SEAT_NOW' && insight.reservation && (
         <div
           onClick={(e) => { e.stopPropagation(); onInsightAction?.(); }}
           style={{
-            marginTop: 'auto',
-            width: '100%',
-            backgroundColor: 'rgba(22,163,74,0.15)',
-            border: '1px solid rgba(22,163,74,0.3)',
-            borderRadius: 4,
-            padding: '2px 4px',
-            cursor: 'pointer',
+            marginTop: 'auto', width: '100%',
+            backgroundColor: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)',
+            borderRadius: 4, padding: '2px 4px', cursor: 'pointer',
           }}
         >
           <p style={{ fontSize: 9, color: 'var(--canvas-status-occupied)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -745,18 +1004,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </div>
       )}
 
-      {/* AVAILABLE + waitlist match (when no SEAT_NOW insight) */}
-      {table.liveStatus === 'AVAILABLE' && !insight && waitlistMatch && (
+      {/* AVAILABLE + waitlist match */}
+      {!pickMode && table.liveStatus === 'AVAILABLE' && !insight && waitlistMatch && (
         <div
           onClick={(e) => { e.stopPropagation(); onWaitlistAction?.(); }}
           style={{
-            marginTop: 'auto',
-            width: '100%',
-            backgroundColor: 'rgba(22,163,74,0.15)',
-            border: '1px solid rgba(22,163,74,0.3)',
-            borderRadius: 4,
-            padding: '2px 4px',
-            cursor: 'pointer',
+            marginTop: 'auto', width: '100%',
+            backgroundColor: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)',
+            borderRadius: 4, padding: '2px 4px', cursor: 'pointer',
           }}
         >
           <p style={{ fontSize: 9, color: 'var(--canvas-status-occupied)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -767,60 +1022,35 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Lock badge */}
       {table.locked && (
-        <div style={{
-          position: 'absolute',
-          bottom: 3,
-          left: 0,
-          right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-        }}>
+        <div style={{ position: 'absolute', bottom: 3, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
           <span style={{
-            fontSize: 8,
-            color: '#f59e0b',
-            backgroundColor: 'rgba(245,158,11,0.15)',
-            border: '1px solid rgba(245,158,11,0.3)',
-            borderRadius: 3,
-            padding: '1px 4px',
-            letterSpacing: '0.04em',
-            userSelect: 'none',
+            fontSize: 8, color: '#f59e0b',
+            backgroundColor: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: 3, padding: '1px 4px', letterSpacing: '0.04em', userSelect: 'none',
           }}>
             LOCKED
           </span>
         </div>
       )}
 
-      {/* Turn count badge — top-right, only when multiple upcoming exist */}
-      {extraTurns > 0 && (
+      {/* Turn count badge */}
+      {!pickMode && extraTurns > 0 && (
         <span style={{
-          position: 'absolute',
-          top: 3,
-          right: 3,
-          fontSize: 9,
-          fontWeight: 700,
-          color: '#60a5fa',
-          backgroundColor: 'rgba(59,130,246,0.15)',
-          border: '1px solid rgba(59,130,246,0.25)',
-          borderRadius: 3,
-          padding: '1px 4px',
-          userSelect: 'none',
-          lineHeight: 1.4,
+          position: 'absolute', top: 3, right: 3,
+          fontSize: 9, fontWeight: 700, color: '#60a5fa',
+          backgroundColor: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)',
+          borderRadius: 3, padding: '1px 4px', userSelect: 'none', lineHeight: 1.4,
         }}>
           +{extraTurns}
         </span>
       )}
 
-      {/* Section color dot (bottom-right) */}
-      {table.section?.color && !table.locked && (
+      {/* Section color dot */}
+      {!pickMode && table.section?.color && !table.locked && (
         <span style={{
-          position: 'absolute',
-          bottom: 4,
-          right: 4,
-          width: 5,
-          height: 5,
-          borderRadius: '50%',
-          backgroundColor: table.section.color,
-          opacity: 0.9,
+          position: 'absolute', bottom: 4, right: 4,
+          width: 5, height: 5, borderRadius: '50%',
+          backgroundColor: table.section.color, opacity: 0.9,
         }} />
       )}
     </button>
