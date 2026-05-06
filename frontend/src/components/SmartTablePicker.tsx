@@ -33,10 +33,11 @@ function resolveReason(r: ScoredReason, reasonText: (r: ScoredReason) => string)
 interface CellProps {
   suggestion: BackendTableSuggestion;
   selected: boolean;
+  multiMode: boolean;
   onPick: (id: string) => void;
 }
 
-function SuggestionCell({ suggestion, selected, onPick }: CellProps) {
+function SuggestionCell({ suggestion, selected, multiMode, onPick }: CellProps) {
   const T = useT();
   const { tableId, tableName, minCovers, maxCovers, status, reasons } = suggestion;
   if (!tableId) return null;
@@ -57,7 +58,9 @@ function SuggestionCell({ suggestion, selected, onPick }: CellProps) {
     >
       <div className="font-bold text-iron-text text-[11px] truncate">{tableName}</div>
       <div className="text-iron-muted text-[10px] mt-px">{minCovers}–{maxCovers}</div>
-      {!selected && (
+      {selected && multiMode ? (
+        <div className="text-[10px] mt-0.5 font-bold text-iron-green-light">✓</div>
+      ) : !selected ? (
         <>
           <span className={`inline-block mt-1 text-[8px] font-bold px-1 py-px rounded border ${BADGE_CLS[status]}`}>
             {T.tablePicker.statusBadge[status]}
@@ -68,7 +71,7 @@ function SuggestionCell({ suggestion, selected, onPick }: CellProps) {
             </div>
           )}
         </>
-      )}
+      ) : null}
     </button>
   );
 }
@@ -79,8 +82,13 @@ interface Props {
   tables: Table[];
   suggestions: BackendTableSuggestion[];
   suggestBusy: boolean;
-  selectedId: string | null | '';
-  onPick: (id: string) => void;
+  // Single-select mode (existing — used by GuestDrawer and single-pick flows)
+  selectedId?: string | null | '';
+  onPick?: (id: string) => void;
+  // Multi-select mode (used by CreateDrawer override picker)
+  // When both selectedIds and onMultiPick are provided, multi mode is active.
+  selectedIds?: string[];
+  onMultiPick?: (ids: string[]) => void;
   noTableLabel?: string;
   showNoTable?: boolean;
 }
@@ -88,18 +96,41 @@ interface Props {
 /**
  * Unified smart table picker grid.
  *
- * When suggestions are loaded, all tables are shown sorted by status
- * (recommended → possible → tight → blocked) with a badge and short reason.
- * Blocked tables are visible but disabled.
+ * Single-select mode (default): pass selectedId + onPick. Clicking a table
+ * immediately calls onPick with that table's ID.
  *
- * When suggestions have not loaded yet (busy or empty), falls back to a
- * plain grid from the `tables` prop.
+ * Multi-select mode: pass selectedIds + onMultiPick. Clicking a non-blocked
+ * table toggles it in the selection set and calls onMultiPick with the new
+ * full array. Blocked tables are always disabled.
+ *
+ * When suggestions are loaded, all tables are shown sorted by status
+ * (recommended → possible → tight → blocked). Blocked tables are visible
+ * but disabled (never selectable in either mode).
  */
 export default function SmartTablePicker({
-  tables, suggestions, suggestBusy, selectedId, onPick,
+  tables, suggestions, suggestBusy,
+  selectedId, onPick,
+  selectedIds, onMultiPick,
   noTableLabel, showNoTable = false,
 }: Props) {
   const T = useT();
+
+  const multiMode = !!(selectedIds && onMultiPick);
+
+  function handleCellPick(id: string) {
+    if (multiMode) {
+      const next = selectedIds!.includes(id)
+        ? selectedIds!.filter(x => x !== id)
+        : [...selectedIds!, id];
+      onMultiPick!(next);
+    } else {
+      onPick?.(id);
+    }
+  }
+
+  function isCellSelected(id: string): boolean {
+    return multiMode ? selectedIds!.includes(id) : selectedId === id;
+  }
 
   if (suggestBusy) {
     return (
@@ -115,10 +146,10 @@ export default function SmartTablePicker({
     const single = suggestions.filter(s => s.tableId);
     return (
       <div className="grid grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-1">
-        {showNoTable && (
+        {showNoTable && !multiMode && (
           <button
             type="button"
-            onClick={() => onPick('')}
+            onClick={() => onPick?.('')}
             className={`text-xs py-2 px-1.5 rounded-lg border transition-all text-center ${
               selectedId === '' || selectedId === null
                 ? 'border-iron-green bg-iron-green/15 text-iron-green-light'
@@ -132,8 +163,9 @@ export default function SmartTablePicker({
           <SuggestionCell
             key={s.tableId}
             suggestion={s}
-            selected={selectedId === s.tableId}
-            onPick={onPick}
+            selected={isCellSelected(s.tableId!)}
+            multiMode={multiMode}
+            onPick={handleCellPick}
           />
         ))}
       </div>
@@ -144,10 +176,10 @@ export default function SmartTablePicker({
   const active = tables.filter(t => t.isActive);
   return (
     <div className="grid grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-1">
-      {showNoTable && (
+      {showNoTable && !multiMode && (
         <button
           type="button"
-          onClick={() => onPick('')}
+          onClick={() => onPick?.('')}
           className={`text-xs p-2 rounded-lg border transition-colors text-center ${
             selectedId === '' || selectedId === null
               ? 'border-iron-green bg-iron-green/15 text-iron-green-light'
@@ -161,15 +193,18 @@ export default function SmartTablePicker({
         <button
           key={t.id}
           type="button"
-          onClick={() => onPick(t.id)}
+          onClick={() => handleCellPick(t.id)}
           className={`text-xs p-2 rounded-lg border transition-colors text-center ${
-            selectedId === t.id
-              ? 'border-iron-green bg-iron-green/15 text-iron-green-light'
+            isCellSelected(t.id)
+              ? 'bg-iron-green/25 border-iron-green/60 text-iron-green-light ring-1 ring-iron-green/25'
               : 'border-iron-border/60 text-iron-text hover:border-iron-green'
           }`}
         >
           <div className="font-semibold">{t.name}</div>
           <div className="text-[10px] text-iron-muted">{t.minCovers}–{t.maxCovers}</div>
+          {multiMode && isCellSelected(t.id) && (
+            <div className="text-[10px] mt-0.5 font-bold text-iron-green-light">✓</div>
+          )}
         </button>
       ))}
     </div>

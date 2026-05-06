@@ -181,7 +181,6 @@ export default function CreateDrawer({
   function setManualOverride(v: boolean) {
     manualOverrideRef.current = v;
     _setManualOverride(v);
-    if (v) setResCombinedTableIds([]);
   }
 
   const [error, setError] = useState<string | null>(null);
@@ -332,12 +331,16 @@ export default function CreateDrawer({
   function confirmLabel(): string {
     if (busy) return T.createDrawer.submitCreateBusy;
     if (suggestBusy && !resTable) return T.createDrawer.confirmChecking;
-    if (!manualOverride && autoResult?.type === 'combined') {
-      return T.createDrawer.confirmWithTables(autoResult.tableNames.join(' + '));
+
+    if (manualOverride) {
+      const allIds = [resTable, ...resCombinedTableIds].filter(Boolean);
+      if (allIds.length > 1) return T.createDrawer.confirmWithTables(allIds.map(resolveTableName).join(' + '));
+      if (allIds.length === 1) return T.createDrawer.confirmWithTable(resolveTableName(allIds[0]));
+      return T.createDrawer.confirmNoTable;
     }
-    const name = resTable
-      ? (!manualOverride && autoResult ? autoResult.tableNames[0] : resolveTableName(resTable))
-      : null;
+
+    if (autoResult?.type === 'combined') return T.createDrawer.confirmWithTables(autoResult.tableNames.join(' + '));
+    const name = resTable ? (autoResult ? autoResult.tableNames[0] : resolveTableName(resTable)) : null;
     if (name) return T.createDrawer.confirmWithTable(name);
     return T.createDrawer.confirmNoTable;
   }
@@ -641,36 +644,42 @@ export default function CreateDrawer({
                 )}
 
                 {/* Manual override selected, picker hidden */}
-                {!suggestBusy && manualOverride && !showPicker && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-border/15 border border-iron-border/50 min-w-0">
-                      <span className="text-iron-text font-semibold text-sm truncate">
-                        {resTable ? resolveTableName(resTable) : T.createDrawer.tableNone}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPicker(true)}
-                      className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
-                    >
-                      {T.createDrawer.tableChangeBtn}
-                    </button>
-                    {autoResult && autoResult.tableIds[0] !== resTable && (
+                {!suggestBusy && manualOverride && !showPicker && (() => {
+                  const manualNames = [resTable, ...resCombinedTableIds].filter(Boolean).map(resolveTableName);
+                  const autoIds = autoResult?.tableIds ?? [];
+                  const currentIds = [resTable, ...resCombinedTableIds].filter(Boolean);
+                  const differsFromAuto = autoIds.join(',') !== currentIds.join(',');
+                  return (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-border/15 border border-iron-border/50 min-w-0">
+                        <span className="text-iron-text font-semibold text-sm truncate">
+                          {manualNames.length > 0 ? manualNames.join(' + ') : T.createDrawer.tableNone}
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          setManualOverride(false);
-                          setResTable(autoResult.tableIds[0]);
-                          setResCombinedTableIds(autoResult.tableIds.slice(1));
-                          setShowPicker(false);
-                        }}
-                        className="text-xs text-iron-muted hover:text-iron-green-light transition-colors shrink-0"
+                        onClick={() => setShowPicker(true)}
+                        className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
                       >
-                        {T.createDrawer.tableUseAuto}
+                        {T.createDrawer.tableChangeBtn}
                       </button>
-                    )}
-                  </div>
-                )}
+                      {autoResult && differsFromAuto && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManualOverride(false);
+                            setResTable(autoResult.tableIds[0]);
+                            setResCombinedTableIds(autoResult.tableIds.slice(1));
+                            setShowPicker(false);
+                          }}
+                          className="text-xs text-iron-muted hover:text-iron-green-light transition-colors shrink-0"
+                        >
+                          {T.createDrawer.tableUseAuto}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* No table available, no picker */}
                 {!suggestBusy && !autoResult && !manualOverride && !showPicker && (
@@ -686,29 +695,38 @@ export default function CreateDrawer({
                   </div>
                 )}
 
-                {/* Override picker — full SmartTablePicker grid */}
+                {/* Override picker — multi-select SmartTablePicker grid */}
                 {showPicker && (
                   <div className="space-y-2">
                     <SmartTablePicker
                       tables={tables}
                       suggestions={resSuggestions}
                       suggestBusy={false}
-                      selectedId={resTable}
-                      onPick={id => {
-                        setResTable(id);
+                      selectedIds={[resTable, ...resCombinedTableIds].filter(Boolean)}
+                      onMultiPick={ids => {
+                        setResTable(ids[0] ?? '');
+                        setResCombinedTableIds(ids.slice(1));
                         setManualOverride(true);
-                        setShowPicker(false);
                       }}
-                      noTableLabel={T.createDrawer.tableNone}
-                      showNoTable
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPicker(false)}
-                      className="text-iron-muted text-xs hover:text-iron-text transition-colors"
-                    >
-                      {T.guestDrawer.backLink}
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setShowPicker(false)}
+                        className="text-iron-muted text-xs hover:text-iron-text transition-colors"
+                      >
+                        {T.guestDrawer.backLink}
+                      </button>
+                      {[resTable, ...resCombinedTableIds].some(Boolean) && (
+                        <button
+                          type="button"
+                          onClick={() => { setResTable(''); setResCombinedTableIds([]); }}
+                          className="text-xs text-iron-muted hover:text-red-400 transition-colors"
+                        >
+                          {T.createDrawer.tableClearSelection}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

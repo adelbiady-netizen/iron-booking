@@ -230,6 +230,7 @@ export const T = {
     tableNoAvailable:        'No available table for this slot',
     tableShowAll:            'Show all tables',
     tableChangeBtn:          'Change table',
+    tableClearSelection:     'Clear selection',
     tableUseAuto:            '← Use suggested',
     confirmWithTable:        (name: string) => `Confirm Reservation – Table ${name}`,
     confirmWithTables:       (names: string) => `Confirm Reservation – Tables ${names}`,

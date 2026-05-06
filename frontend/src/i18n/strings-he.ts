@@ -229,6 +229,7 @@ export const THe = {
     tableNoAvailable:        'אין שולחן פנוי לחלון זה',
     tableShowAll:            'הצג את כל השולחנות',
     tableChangeBtn:          'שנה שולחן',
+    tableClearSelection:     'נקה בחירה',
     tableUseAuto:            '← שולחן מוצע',
     confirmWithTable:        (name: string) => `אשר הזמנה – שולחן ${name}`,
     confirmWithTables:       (names: string) => `אשר הזמנה – שולחנות ${names}`,
