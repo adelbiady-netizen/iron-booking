@@ -379,7 +379,8 @@ export async function seatReservation(
   id: string,
   tableId: string,
   actorName: string,
-  overrideConflicts = false
+  overrideConflicts = false,
+  combinedTableIds: string[] = []
 ) {
   const r = await assertReservationBelongsToRestaurant(id, restaurantId);
 
@@ -398,7 +399,8 @@ export async function seatReservation(
       r.duration,
       settings.bufferBetweenTurnsMinutes,
       r.partySize,
-      id
+      id,
+      combinedTableIds
     );
   }
 
@@ -408,6 +410,7 @@ export async function seatReservation(
       data: {
         status: 'SEATED',
         tableId,
+        combinedTableIds,
         seatedAt: new Date(),
         confirmedAt: r.confirmedAt ?? new Date(),
       },
@@ -446,7 +449,8 @@ export async function moveReservation(
       r.duration,
       settings.bufferBetweenTurnsMinutes,
       r.partySize,
-      id
+      id,
+      input.combinedTableIds ?? []
     );
   }
 
@@ -456,6 +460,7 @@ export async function moveReservation(
       data: {
         tableId: input.tableId,
         previousTableId: r.tableId,
+        combinedTableIds: input.combinedTableIds ?? [],
       },
       include: { table: true },
     });

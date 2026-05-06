@@ -44,13 +44,15 @@ export const UpdateReservationSchema = z.object({
 
 export const AssignTableSchema = z.object({
   tableId: z.string().uuid(),
-  overrideConflicts: z.boolean().default(false), // host can force-assign
+  overrideConflicts: z.boolean().default(false),
+  combinedTableIds: z.array(z.string().uuid()).optional(),
 });
 
 export const MoveTableSchema = z.object({
   tableId: z.string().uuid(),
   reason: z.string().optional(),
   overrideConflicts: z.boolean().default(false),
+  combinedTableIds: z.array(z.string().uuid()).optional(),
 });
 
 export const ListReservationsQuerySchema = z.object({

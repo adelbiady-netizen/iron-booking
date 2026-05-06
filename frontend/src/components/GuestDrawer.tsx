@@ -226,6 +226,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [editTableId,         setEditTableId]         = useState<string | null>(null);
   const [editCombinedTableIds, setEditCombinedTableIds] = useState<string[]>([]);
   const [pickingOnMap,         setPickingOnMap]         = useState(false);
+  const [pickingForAction,     setPickingForAction]     = useState<'seat' | 'move' | 'change-table' | null>(null);
   const [showTablePicker,      setShowTablePicker]      = useState(false);
   const [tableSuggestions,     setTableSuggestions]     = useState<BackendTableSuggestion[]>([]);
   const [suggestBusy, setSuggestBusy] = useState(false);
@@ -317,6 +318,36 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         if (ids !== null) {
           setEditTableId(ids[0] ?? null);
           setEditCombinedTableIds(ids.slice(1));
+        }
+      },
+    );
+  }
+
+  function openActionMapPicker(action: 'seat' | 'move' | 'change-table') {
+    const currentIds = [res.tableId, ...(res.combinedTableIds ?? [])].filter(Boolean) as string[];
+    setPickingForAction(action);
+    onPickTables?.(
+      currentIds,
+      tableSuggestions,
+      (ids) => {
+        setPickingForAction(null);
+        if (ids === null || ids.length === 0) return;
+        const [primaryId, ...secondaryIds] = ids;
+        if (action === 'seat') {
+          run(
+            () => api.reservations.seat(res.id, primaryId, false, secondaryIds),
+            T.guestDrawer.toastSeated(tableName(primaryId)),
+          );
+        } else if (action === 'move') {
+          run(
+            () => api.reservations.move(res.id, primaryId, undefined, secondaryIds),
+            T.guestDrawer.toastMoved(tableName(primaryId)),
+          );
+        } else {
+          run(
+            () => api.reservations.update(res.id, { tableId: primaryId, combinedTableIds: secondaryIds }),
+            T.guestDrawer.toastTableAssigned(tableName(primaryId)),
+          );
         }
       },
     );
@@ -536,14 +567,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <ActionBtn
           label={T.guestDrawer.actionSeat}
           cls={btnGreen}
-          onClick={() => res.tableId
-            ? run(() => api.reservations.seat(res.id, res.tableId!), T.guestDrawer.toastSeated(tableName(res.tableId!)))
-            : setMode('seat')
-          }
+          onClick={() => {
+            if (onPickTables) {
+              openActionMapPicker('seat');
+            } else if (res.tableId) {
+              run(
+                () => api.reservations.seat(res.id, res.tableId!, false, res.combinedTableIds ?? []),
+                T.guestDrawer.toastSeated(tableName(res.tableId!)),
+              );
+            } else {
+              setMode('seat');
+            }
+          }}
           disabled={busy}
         />
         {res.tableId && (
-          <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => setMode('change-table')} disabled={busy} />
+          <ActionBtn
+            label={T.guestDrawer.actionChangeTable}
+            cls={btnNeutral}
+            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
+            disabled={busy}
+          />
         )}
         {res.guestPhone && !res.isConfirmedByGuest && (
           <ActionBtn
@@ -563,14 +607,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <ActionBtn
           label={T.guestDrawer.actionSeat}
           cls={btnGreen}
-          onClick={() => res.tableId
-            ? run(() => api.reservations.seat(res.id, res.tableId!), T.guestDrawer.toastSeated(tableName(res.tableId!)))
-            : setMode('seat')
-          }
+          onClick={() => {
+            if (onPickTables) {
+              openActionMapPicker('seat');
+            } else if (res.tableId) {
+              run(
+                () => api.reservations.seat(res.id, res.tableId!, false, res.combinedTableIds ?? []),
+                T.guestDrawer.toastSeated(tableName(res.tableId!)),
+              );
+            } else {
+              setMode('seat');
+            }
+          }}
           disabled={busy}
         />
         {res.tableId && (
-          <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => setMode('change-table')} disabled={busy} />
+          <ActionBtn
+            label={T.guestDrawer.actionChangeTable}
+            cls={btnNeutral}
+            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
+            disabled={busy}
+          />
         )}
         {res.guestPhone && !res.isConfirmedByGuest && (
           <ActionBtn
@@ -589,7 +646,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     if (res.status === 'SEATED') return (
       <>
         <ActionBtn label={T.guestDrawer.actionComplete}  cls={btnGreen}   onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionMoveTable} cls={btnNeutral} onClick={() => setMode('move')}   disabled={busy} />
+        <ActionBtn
+          label={T.guestDrawer.actionMoveTable}
+          cls={btnNeutral}
+          onClick={() => onPickTables ? openActionMapPicker('move') : setMode('move')}
+          disabled={busy}
+        />
         {unseatConfirm ? (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs text-iron-muted">להחזיר לממתין?</span>
@@ -897,9 +959,23 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </p>
 
             {mode === 'view' && (
-              <div className="flex flex-wrap gap-2">
-                <Actions />
-              </div>
+              pickingForAction ? (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                  <span className="text-blue-300 text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setPickingForAction(null); onPickTablesCancel?.(); }}
+                    className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                  >
+                    {T.common.cancel}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <Actions />
+                </div>
+              )
             )}
 
             {mode === 'edit' && (
@@ -1174,7 +1250,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 excludeId={res.tableId}
                 label={T.guestDrawer.movePickerLabel}
                 busy={busy}
-                onPick={tableId => run(() => api.reservations.move(res.id, tableId), T.guestDrawer.toastMoved(tableName(tableId)))}
+                onPick={tableId => run(() => api.reservations.move(res.id, tableId, undefined, []), T.guestDrawer.toastMoved(tableName(tableId)))}
                 onBack={() => setMode('view')}
               />
             )}
@@ -1185,7 +1261,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 excludeId={res.tableId}
                 label={T.guestDrawer.changeTablePickerLabel}
                 busy={busy}
-                onPick={tableId => run(() => api.reservations.update(res.id, { tableId }), T.guestDrawer.toastTableAssigned(tableName(tableId)))}
+                onPick={tableId => run(() => api.reservations.update(res.id, { tableId, combinedTableIds: [] }), T.guestDrawer.toastTableAssigned(tableName(tableId)))}
                 onBack={() => setMode('view')}
               />
             )}
