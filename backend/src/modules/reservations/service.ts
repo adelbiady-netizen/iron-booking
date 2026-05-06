@@ -174,7 +174,9 @@ export async function createReservation(
       input.time,
       duration,
       settings.bufferBetweenTurnsMinutes,
-      input.partySize
+      input.partySize,
+      undefined,
+      input.combinedTableIds
     );
   }
 
@@ -710,6 +712,10 @@ export async function undoReservation(
 }
 
 // ─── Table Assignment Validation ─────────────────────────────────────────────
+//
+// combinedTableIds: when non-empty, the booking spans multiple tables.
+// Capacity is validated across all tables combined; individual tables may be
+// smaller than the full party size, which is expected and valid.
 
 async function validateTableAssignment(
   restaurantId: string,
@@ -719,7 +725,8 @@ async function validateTableAssignment(
   duration: number,
   bufferMinutes: number,
   partySize: number,
-  excludeReservationId?: string
+  excludeReservationId?: string,
+  combinedTableIds: string[] = []
 ) {
   const table = await prisma.table.findUnique({ where: { id: tableId } });
   if (!table || table.restaurantId !== restaurantId) {
@@ -728,15 +735,45 @@ async function validateTableAssignment(
   if (!table.isActive) {
     throw new BusinessRuleError(`Table ${table.name} is inactive`);
   }
-  if (table.minCovers > partySize) {
-    throw new BusinessRuleError(
-      `Table ${table.name} minimum is ${table.minCovers} covers, party size is ${partySize}`
+
+  const isCombined = combinedTableIds.length > 0;
+
+  if (!isCombined) {
+    // Single-table booking: validate individual capacity
+    if (table.minCovers > partySize) {
+      throw new BusinessRuleError(
+        `Table ${table.name} minimum is ${table.minCovers} covers, party size is ${partySize}`
+      );
+    }
+    if (table.maxCovers < partySize) {
+      throw new BusinessRuleError(
+        `Table ${table.name} maximum is ${table.maxCovers} covers, party size is ${partySize}`
+      );
+    }
+  } else {
+    // Combined booking: validate total capacity across all tables
+    const combinedTables = await prisma.table.findMany({
+      where: { id: { in: combinedTableIds }, restaurantId },
+      select: { id: true, name: true, maxCovers: true, isActive: true },
+    });
+
+    const missingOrInactive = combinedTableIds.find(
+      id => !combinedTables.find(t => t.id === id && t.isActive)
     );
-  }
-  if (table.maxCovers < partySize) {
-    throw new BusinessRuleError(
-      `Table ${table.name} maximum is ${table.maxCovers} covers, party size is ${partySize}`
-    );
+    if (missingOrInactive) {
+      const t = combinedTables.find(t => t.id === missingOrInactive);
+      throw new BusinessRuleError(
+        t ? `Table ${t.name} is inactive` : `Combined table not found: ${missingOrInactive}`
+      );
+    }
+
+    const totalMax = table.maxCovers + combinedTables.reduce((sum, t) => sum + t.maxCovers, 0);
+    if (totalMax < partySize) {
+      const allNames = [table.name, ...combinedTables.map(t => t.name)].join(' + ');
+      throw new BusinessRuleError(
+        `Combined tables ${allNames} maximum is ${totalMax} covers, party size is ${partySize}`
+      );
+    }
   }
 
   const availability = await getTableAvailability(
@@ -747,23 +784,45 @@ async function validateTableAssignment(
     bufferMinutes
   );
 
+  // Check primary table availability
   const tableAvail = availability.find((a) => a.tableId === tableId);
   if (!tableAvail?.isAvailable) {
     if (
       tableAvail?.conflictingReservationId &&
       tableAvail.conflictingReservationId === excludeReservationId
     ) {
-      return;
-    }
-    if (tableAvail?.blockedBy) {
+      // fall through to check combined tables
+    } else if (tableAvail?.blockedBy) {
       throw new ConflictError(`Table ${table.name} is blocked: ${tableAvail.blockedBy}`);
+    } else {
+      throw new ConflictError(
+        `Table ${table.name} is not available at that time`,
+        {
+          conflictingReservationId: tableAvail?.conflictingReservationId,
+          nextAvailableAt: tableAvail?.nextAvailableAt,
+        }
+      );
     }
-    throw new ConflictError(
-      `Table ${table.name} is not available at that time`,
-      {
-        conflictingReservationId: tableAvail?.conflictingReservationId,
-        nextAvailableAt: tableAvail?.nextAvailableAt,
+  }
+
+  // Check each combined table's availability
+  for (const combinedId of combinedTableIds) {
+    const combinedAvail = availability.find((a) => a.tableId === combinedId);
+    if (!combinedAvail?.isAvailable) {
+      if (
+        combinedAvail?.conflictingReservationId &&
+        combinedAvail.conflictingReservationId === excludeReservationId
+      ) {
+        continue;
       }
-    );
+      const combinedName = (await prisma.table.findUnique({
+        where: { id: combinedId },
+        select: { name: true },
+      }))?.name ?? combinedId;
+      if (combinedAvail?.blockedBy) {
+        throw new ConflictError(`Table ${combinedName} is blocked: ${combinedAvail.blockedBy}`);
+      }
+      throw new ConflictError(`Table ${combinedName} is not available at that time`);
+    }
   }
 }

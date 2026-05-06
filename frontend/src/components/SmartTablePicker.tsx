@@ -42,18 +42,29 @@ function SuggestionCell({ suggestion, selected, multiMode, onPick }: CellProps) 
   const { tableId, tableName, minCovers, maxCovers, status, reasons } = suggestion;
   if (!tableId) return null;
 
-  const isBlocked = status === 'blocked';
+  // TOO_SMALL = time-available but undersized for solo use.
+  // In multi mode it is selectable for combining; only CONFLICT / TABLE_BLOCKED
+  // mean genuinely unavailable and must stay disabled.
+  const isTooSmall = reasons.some(r => r.code === 'TOO_SMALL');
+  const isDisabled = multiMode
+    ? reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')
+    : status === 'blocked';
+
+  // In multi mode, present TOO_SMALL tables as "possible" so they look tappable
+  const displayStatus: TablePickerStatus =
+    multiMode && isTooSmall && !selected ? 'possible' : status;
+
   const primaryReason = reasons[0] ? resolveReason(reasons[0], T.tablePicker.reasonText) : '';
 
   return (
     <button
       type="button"
-      disabled={isBlocked}
-      onClick={() => !isBlocked && onPick(tableId)}
+      disabled={isDisabled}
+      onClick={() => !isDisabled && onPick(tableId)}
       className={`text-xs py-2 px-1.5 rounded-lg border transition-all text-center ${
         selected
           ? 'bg-iron-green/25 border-iron-green/60 text-iron-green-light ring-1 ring-iron-green/25'
-          : BORDER_CLS[status]
+          : BORDER_CLS[displayStatus]
       }`}
     >
       <div className="font-bold text-iron-text text-[11px] truncate">{tableName}</div>
@@ -62,11 +73,11 @@ function SuggestionCell({ suggestion, selected, multiMode, onPick }: CellProps) 
         <div className="text-[10px] mt-0.5 font-bold text-iron-green-light">✓</div>
       ) : !selected ? (
         <>
-          <span className={`inline-block mt-1 text-[8px] font-bold px-1 py-px rounded border ${BADGE_CLS[status]}`}>
-            {T.tablePicker.statusBadge[status]}
+          <span className={`inline-block mt-1 text-[8px] font-bold px-1 py-px rounded border ${BADGE_CLS[displayStatus]}`}>
+            {multiMode && isTooSmall ? 'combine' : T.tablePicker.statusBadge[displayStatus]}
           </span>
-          {primaryReason && (
-            <div className={`text-[9px] mt-0.5 leading-tight ${REASON_CLS[status]}`}>
+          {primaryReason && !isTooSmall && (
+            <div className={`text-[9px] mt-0.5 leading-tight ${REASON_CLS[displayStatus]}`}>
               {primaryReason}
             </div>
           )}
