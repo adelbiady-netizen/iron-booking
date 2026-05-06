@@ -83,6 +83,8 @@ export const THe = {
     viewFloor:        'מפה',
     viewTimeline:     'ציר זמן',
     sectionOther:     'אחר',
+    combineHint:      'לחץ על שולחנות פנויים לשילוב',
+    combineCreate:    'צור הזמנה משולבת',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -599,6 +601,8 @@ export const THe = {
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'עריכת מפה',
+    combineTables:    'שלב שולחנות',
+    cancelCombine:    'ביטול',
     toastSeated:      'האורח הושב',
     toastCreated:     'ההזמנה נוצרה',
     toastUnlocked:    'השולחן שוחרר',

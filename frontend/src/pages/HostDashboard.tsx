@@ -121,12 +121,16 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
-  const [activePage,           setActivePage]           = useState<'dashboard' | 'guests'>('dashboard');
-  const [layoutMode,           setLayoutMode]           = useState(false);
-  const [createMode,           setCreateMode]           = useState<CreateMode | null>(null);
-  const [preselectedTableId,   setPreselectedTableId]   = useState<string | null>(null);
-  const [lockTarget,           setLockTarget]           = useState<FloorTable | null>(null);
-  const [gapHint,              setGapHint]              = useState<GapHint | null>(null);
+  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests'>('dashboard');
+  const [layoutMode,                  setLayoutMode]                  = useState(false);
+  const [createMode,                  setCreateMode]                  = useState<CreateMode | null>(null);
+  const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
+  const [preselectedCombinedTableIds, setPreselectedCombinedTableIds] = useState<string[]>([]);
+  const [lockTarget,                  setLockTarget]                  = useState<FloorTable | null>(null);
+  const [gapHint,                     setGapHint]                     = useState<GapHint | null>(null);
+  // Combine-tables mode: host taps multiple available tables before creating a combined reservation
+  const [combineMode,       setCombineMode]       = useState(false);
+  const [combinedSelection, setCombinedSelection] = useState<string[]>([]);
   const [incomingCall,         setIncomingCall]         = useState<{ phone: string; createdAt: string } | null>(null);
   const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string } | null>(null);
   const [callHighlight,        setCallHighlight]        = useState(false);
@@ -336,6 +340,21 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setPreselectedTableId(table.id);
     setCreateMode('reservation');
   }, []);
+
+  const handleCombineToggle = useCallback((tableId: string) => {
+    setCombinedSelection(prev =>
+      prev.includes(tableId) ? prev.filter(id => id !== tableId) : [...prev, tableId]
+    );
+  }, []);
+
+  const handleCombineCreate = useCallback(() => {
+    if (combinedSelection.length === 0) return;
+    setPreselectedTableId(combinedSelection[0]);
+    setPreselectedCombinedTableIds(combinedSelection.slice(1));
+    setCreateMode('reservation');
+    setCombineMode(false);
+    setCombinedSelection([]);
+  }, [combinedSelection]);
 
   const handleLockTable = useCallback((table: FloorTable) => {
     setLockTarget(table);
@@ -753,7 +772,26 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       />
 
       {/* Secondary toolbar */}
-      <div className="flex items-center justify-end px-4 py-1.5 border-b border-iron-border bg-iron-card/30 shrink-0">
+      <div className="flex items-center justify-between px-4 py-1.5 border-b border-iron-border bg-iron-card/30 shrink-0">
+        <button
+          onClick={() => {
+            if (combineMode) {
+              setCombineMode(false);
+              setCombinedSelection([]);
+            } else {
+              setSelectedRes(null);
+              setCreateMode(null);
+              setCombineMode(true);
+            }
+          }}
+          className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+            combineMode
+              ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 hover:bg-blue-600/30'
+              : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+          }`}
+        >
+          {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
+        </button>
         <button
           onClick={() => setLayoutMode(true)}
           className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
@@ -790,6 +828,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onGapClick={handleGapClick}
           onGapWaitlistSeat={handleGapWaitlistSeat}
           onQuickAction={handleTimelineQuickAction}
+          combineMode={combineMode}
+          combinedSelection={combinedSelection}
+          onCombineToggle={handleCombineToggle}
+          onCombineCreate={handleCombineCreate}
         />
 
         <ReservationPanel
@@ -833,16 +875,17 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       )}
 
       {createMode && (
-        <DrawerErrorBoundary key={`create-${createMode}`} onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); setCallPrefillPhone(''); }}>
+        <DrawerErrorBoundary key={`create-${createMode}`} onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}>
           <CreateDrawer
             initialMode={createMode}
             defaultDate={date}
             defaultTime={time}
             tables={allTables}
             preselectedTableId={preselectedTableId ?? undefined}
+            preselectedCombinedTableIds={preselectedCombinedTableIds.length > 0 ? preselectedCombinedTableIds : undefined}
             gapHint={gapHint ?? undefined}
             initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
-            onClose={() => { setCreateMode(null); setPreselectedTableId(null); setGapHint(null); setCallPrefillPhone(''); }}
+            onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}
             onCreated={handleCreated}
           />
         </DrawerErrorBoundary>

@@ -23,6 +23,7 @@ interface Props {
   defaultTime: string;
   tables: Table[];
   preselectedTableId?: string;
+  preselectedCombinedTableIds?: string[];
   initialData?: { guestName?: string; partySize?: number; guestPhone?: string };
   gapHint?: GapHint;
   onClose: () => void;
@@ -129,7 +130,9 @@ function snapToSlot(time: string): string {
 // ─── Main drawer ──────────────────────────────────────────────────────────────
 
 export default function CreateDrawer({
-  initialMode, defaultDate, defaultTime, tables, preselectedTableId, initialData, gapHint, onClose, onCreated,
+  initialMode, defaultDate, defaultTime, tables,
+  preselectedTableId, preselectedCombinedTableIds,
+  initialData, gapHint, onClose, onCreated,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -171,9 +174,9 @@ export default function CreateDrawer({
   //
   // If the drawer opened with a pre-selected table (floor click or gap hint),
   // treat it as a manual selection from the start.
-  const hasPreselection = !!(gapHint?.tableId || preselectedTableId);
+  const hasPreselection = !!(gapHint?.tableId || preselectedTableId || (preselectedCombinedTableIds?.length ?? 0) > 0);
   const [autoResult,          setAutoResult]          = useState<BestTableResult | null>(null);
-  const [resCombinedTableIds, setResCombinedTableIds] = useState<string[]>([]);
+  const [resCombinedTableIds, setResCombinedTableIds] = useState<string[]>(preselectedCombinedTableIds ?? []);
   const [showPicker,          setShowPicker]          = useState(false);
   // Ref keeps manualOverride readable inside async effects without stale closures
   const manualOverrideRef = useRef(hasPreselection);

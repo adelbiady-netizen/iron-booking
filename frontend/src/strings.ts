@@ -83,6 +83,8 @@ export const T = {
     viewFloor:        'Floor',
     viewTimeline:     'Timeline',
     sectionOther:     'Other',
+    combineHint:      'Tap available tables to combine',
+    combineCreate:    'Create Combined Reservation',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -622,6 +624,8 @@ export const T = {
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'Edit Map',
+    combineTables:    'Combine tables',
+    cancelCombine:    'Cancel',
     toastSeated:      'Guest seated',
     toastCreated:     'Reservation created',
     toastUnlocked:    'Table unlocked',

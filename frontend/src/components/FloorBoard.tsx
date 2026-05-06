@@ -60,6 +60,11 @@ interface Props {
   onGapClick?: (tableId: string, startTime: string, endTime: string) => void;
   onGapWaitlistSeat?: (tableId: string, entry: WaitlistEntry, startTime: string, endTime: string) => void;
   onQuickAction?: (action: 'seat' | 'move' | 'cancel', res: Reservation) => void;
+  // Combine-tables mode
+  combineMode?: boolean;
+  combinedSelection?: string[];
+  onCombineToggle?: (tableId: string) => void;
+  onCombineCreate?: () => void;
 }
 
 const CANVAS_W = 1500;
@@ -86,6 +91,7 @@ export default function FloorBoard({
   nowTime, operationalNow,
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
+  combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -161,6 +167,14 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
+    // In combine mode: toggle available tables into the selection set.
+    // Occupied / reserved / blocked tables are ignored.
+    if (combineMode) {
+      if (t.liveStatus === 'AVAILABLE' && !t.locked && !softHoldMap[t.id]) {
+        onCombineToggle?.(t.id);
+      }
+      return;
+    }
     const res = (t.currentReservation ?? t.upcomingReservations[0]) as Reservation | undefined;
     if (res) {
       onSelect(res);
@@ -329,6 +343,7 @@ export default function FloorBoard({
                   key={t.id}
                   table={t}
                   selected={isSelected(t)}
+                  combinedSelected={combinedSelection.includes(t.id)}
                   dimmed={dimmed}
                   bestSuggestion={!isSelected(t) && t.id === bestSuggestionTableId}
                   softHold={softHoldMap[t.id]}
@@ -377,27 +392,31 @@ export default function FloorBoard({
                     ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                     : undefined;
                   return (
-                    <TableCard
+                    <div
                       key={t.id}
-                      table={t}
-                      selected={isSelected(t)}
-                      isBestSuggestion={!isSelected(t) && t.id === bestSuggestionTableId}
-                      softHold={softHoldMap[t.id]}
-                      onClick={() => handleClick(t)}
-                      onContextMenu={e => handleContextMenu(e, t)}
-                      insight={insight}
-                      onInsightAction={
-                        insight?.reservationId
-                          ? () => onInsightAction?.(t.id, insight.reservationId!)
-                          : undefined
-                      }
-                      waitlistMatch={wMatch}
-                      onWaitlistAction={wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
-                      nowTime={nowTime}
-                      operationalNow={operationalNow}
-                      extraTurns={extraTurns}
-                      turnTooltip={turnTooltip}
-                    />
+                      className={combinedSelection.includes(t.id) ? 'ring-2 ring-blue-500/50 rounded-lg' : ''}
+                    >
+                      <TableCard
+                        table={t}
+                        selected={isSelected(t)}
+                        isBestSuggestion={!isSelected(t) && t.id === bestSuggestionTableId}
+                        softHold={softHoldMap[t.id]}
+                        onClick={() => handleClick(t)}
+                        onContextMenu={e => handleContextMenu(e, t)}
+                        insight={insight}
+                        onInsightAction={
+                          insight?.reservationId
+                            ? () => onInsightAction?.(t.id, insight.reservationId!)
+                            : undefined
+                        }
+                        waitlistMatch={wMatch}
+                        onWaitlistAction={wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
+                        nowTime={nowTime}
+                        operationalNow={operationalNow}
+                        extraTurns={extraTurns}
+                        turnTooltip={turnTooltip}
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -518,6 +537,31 @@ export default function FloorBoard({
           </div>
         </div>
       )}
+
+      {/* Combine-tables action bar — visible when combine mode is active */}
+      {combineMode && (
+        <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
+          {combinedSelection.length === 0 ? (
+            <span className="text-blue-400 text-sm flex-1">{T.floorBoard.combineHint}</span>
+          ) : (
+            <>
+              <span className="text-iron-text text-sm font-semibold flex-1 truncate">
+                {combinedSelection
+                  .map(id => tables.find(t => t.id === id)?.name ?? id)
+                  .join(' + ')}
+              </span>
+              <button
+                type="button"
+                onClick={onCombineCreate}
+                disabled={combinedSelection.length < 1}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+              >
+                {T.floorBoard.combineCreate}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -533,9 +577,10 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, extraTurns = 0, turnTooltip }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, extraTurns = 0, turnTooltip }: {
   table: FloorTable;
   selected: boolean;
+  combinedSelected: boolean;
   dimmed: boolean;
   bestSuggestion?: boolean;
   softHold?: WaitlistEntry;
@@ -564,13 +609,14 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
            : softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
            : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
   const sectionColor = table.section?.color ?? '#3f3f46';
-  const borderColor  = selected      ? '#22c55e'
-                     : isNoShowRisk  ? '#ef4444'
-                     : isLate        ? '#f97316'
+  const borderColor  = selected        ? '#22c55e'
+                     : combinedSelected ? '#3b82f6'
+                     : isNoShowRisk   ? '#ef4444'
+                     : isLate         ? '#f97316'
                      : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
-                     : table.locked  ? '#f59e0b'
+                     : table.locked   ? '#f59e0b'
                      : sectionColor;
-  const borderWidth  = selected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
+  const borderWidth  = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
   const currentRes   = table.currentReservation;
   const displayRes   = currentRes ?? nextRes ?? null;
 
@@ -590,6 +636,8 @@ function MapTable({ table, selected, dimmed, bestSuggestion, softHold, onClick, 
         backgroundColor: bg,
         boxShadow: selected
           ? '0 0 0 3px rgba(34,197,94,0.25)'
+          : combinedSelected
+          ? '0 0 0 3px rgba(59,130,246,0.30)'
           : softHold && table.liveStatus === 'AVAILABLE'
           ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
           : bestSuggestion
