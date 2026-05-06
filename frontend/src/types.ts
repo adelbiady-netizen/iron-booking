@@ -58,6 +58,7 @@ export interface Reservation {
   duration: number;
   source: string;
   tableId: string | null;
+  combinedTableIds: string[];
   table?: { id: string; name: string; section: { name: string } | null } | null;
   guestId: string | null;
   guest?: Guest | null;
@@ -423,8 +424,17 @@ export interface CreateReservationBody {
   guestNotes?: string;
   hostNotes?: string;
   tableId?: string;
+  combinedTableIds?: string[];
   source: 'PHONE' | 'INTERNAL' | 'WALK_IN';
   lang?: 'en' | 'he';
   tags?: string[];
   depositRequired?: boolean;
 }
+
+export type BestTableResult = {
+  type: 'single' | 'combined';
+  tableIds: string[];
+  tableNames: string[];
+  score: number;
+  reason: string;
+};

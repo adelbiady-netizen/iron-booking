@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -161,6 +161,8 @@ export const api = {
     list: () => request<Table[]>('/tables'),
     suggest: (params: { date: string; time: string; partySize: number; duration?: number; excludeReservationId?: string }) =>
       request<BackendTableSuggestion[]>(`/tables/suggest?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}${params.excludeReservationId ? `&excludeReservationId=${params.excludeReservationId}` : ''}`),
+    best: (params: { date: string; time: string; partySize: number; duration?: number; excludeReservationId?: string }) =>
+      request<BestTableResult | null>(`/tables/best?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}${params.excludeReservationId ? `&excludeReservationId=${params.excludeReservationId}` : ''}`),
     create: (body: {
       name: string; sectionId?: string; minCovers: number; maxCovers: number;
       shape?: string; posX?: number; posY?: number; width?: number; height?: number;

@@ -16,6 +16,7 @@ export const CreateReservationSchema = z.object({
   guestNotes: z.string().max(1000).optional(),
   hostNotes: z.string().max(1000).optional(),
   tableId: z.string().uuid().optional(), // optionally assign table at creation
+  combinedTableIds: z.array(z.string().uuid()).default([]),
   source: z
     .enum(['ONLINE', 'PHONE', 'WALK_IN', 'OPENTABLE', 'RESY', 'INTERNAL'])
     .default('PHONE'),

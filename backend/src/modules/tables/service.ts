@@ -306,11 +306,129 @@ export async function getTableSuggestions(restaurantId: string, query: {
 }
 
 // ─── Best Table (Phase 1 auto-allocation) ────────────────────────────────────
-// Returns the single highest-scoring available table for a given slot,
-// or null when all tables are blocked/conflicting.
+// Returns the highest-scoring single table or table combination for a slot,
+// or null when no arrangement fits.
 //
-// Phase 2 TODO: replace with full-night optimization that considers table
-// utilization across the entire service period, not just per-slot scoring.
+// Phase 1 rules:
+//   1. Prefer a single table (smallest that fits, best score)
+//   2. If no single table fits the party, try all 2-table combos (nC2)
+//   3. If no pair fits, try all 3-table combos (nC3)
+//
+// TODO: Phase 2 — full-night optimization across all turns
+// TODO: honor owner-defined forbidden combinations
+// TODO: preferred combination groups
+// TODO: block combinations that cross walking paths
+// TODO: zone strategy (keep combinations within one zone)
+
+export type BestTableResult = {
+  type: 'single' | 'combined';
+  tableIds: string[];
+  tableNames: string[];
+  score: number;
+  reason: string;
+};
+
+interface CombinableTable {
+  id: string;
+  name: string;
+  sectionId: string | null;
+  maxCovers: number;
+  posX: number;
+  posY: number;
+}
+
+function scoreCombination(tables: CombinableTable[], partySize: number, tableCount: 2 | 3): number {
+  const totalMax = tables.reduce((sum, t) => sum + t.maxCovers, 0);
+  if (totalMax < partySize) return -1;
+
+  let score = 0;
+
+  // Same section bonus
+  const sections = new Set(tables.map(t => t.sectionId));
+  if (sections.size === 1) score += 20;
+
+  // Physical distance penalty: max pairwise Euclidean distance, mapped 0–20
+  let maxDist = 0;
+  for (let i = 0; i < tables.length; i++) {
+    for (let j = i + 1; j < tables.length; j++) {
+      const dx = tables[i].posX - tables[j].posX;
+      const dy = tables[i].posY - tables[j].posY;
+      maxDist = Math.max(maxDist, Math.sqrt(dx * dx + dy * dy));
+    }
+  }
+  score += Math.max(0, 20 - Math.round(maxDist / 15));
+
+  // Minimal capacity waste bonus (0–20)
+  const waste = totalMax - partySize;
+  score += Math.max(0, 20 - Math.floor(waste / 2));
+
+  // Fewer tables bonus
+  if (tableCount === 2) score += 10;
+
+  return score;
+}
+
+async function findBestCombination(
+  restaurantId: string,
+  availableTableIds: string[],
+  partySize: number
+): Promise<BestTableResult | null> {
+  if (availableTableIds.length < 2) return null;
+
+  const tables = await prisma.table.findMany({
+    where: { restaurantId, isActive: true, id: { in: availableTableIds } },
+    select: { id: true, name: true, sectionId: true, maxCovers: true, posX: true, posY: true },
+  });
+
+  if (tables.length < 2) return null;
+
+  let bestResult: BestTableResult | null = null;
+  let bestScore = -1;
+
+  // Try all pairs
+  for (let i = 0; i < tables.length; i++) {
+    for (let j = i + 1; j < tables.length; j++) {
+      const pair = [tables[i], tables[j]];
+      const score = scoreCombination(pair, partySize, 2);
+      if (score < 0) continue;
+      if (score > bestScore) {
+        bestScore = score;
+        bestResult = {
+          type: 'combined',
+          tableIds: pair.map(t => t.id),
+          tableNames: pair.map(t => t.name),
+          score,
+          reason: 'COMBINED_PAIR',
+        };
+      }
+    }
+  }
+
+  if (bestResult) return bestResult;
+
+  // No pair fits — try triples
+  for (let i = 0; i < tables.length; i++) {
+    for (let j = i + 1; j < tables.length; j++) {
+      for (let k = j + 1; k < tables.length; k++) {
+        const triple = [tables[i], tables[j], tables[k]];
+        const score = scoreCombination(triple, partySize, 3);
+        if (score < 0) continue;
+        if (score > bestScore) {
+          bestScore = score;
+          bestResult = {
+            type: 'combined',
+            tableIds: triple.map(t => t.id),
+            tableNames: triple.map(t => t.name),
+            score,
+            reason: 'COMBINED_TRIPLE',
+          };
+        }
+      }
+    }
+  }
+
+  return bestResult;
+}
 
 export async function getBestTable(
   restaurantId: string,
@@ -321,17 +439,30 @@ export async function getBestTable(
     duration?: number;
     excludeReservationId?: string;
   }
-): Promise<{ tableId: string; tableName: string; score: number; reason: string } | null> {
+): Promise<BestTableResult | null> {
   const suggestions = await getTableSuggestions(restaurantId, query);
-  // Prefer recommended, then possible, then tight — skip anything blocked
+
+  // Single table: prefer recommended → possible → tight, skip blocked
   const best = suggestions.find(s => s.tableId && s.status !== 'blocked');
-  if (!best?.tableId) return null;
-  return {
-    tableId:   best.tableId,
-    tableName: best.tableName,
-    score:     best.score,
-    reason:    best.reasons[0]?.code ?? 'AVAILABLE',
-  };
+  if (best?.tableId) {
+    return {
+      type: 'single',
+      tableIds:   [best.tableId],
+      tableNames: [best.tableName],
+      score:      best.score,
+      reason:     best.reasons[0]?.code ?? 'AVAILABLE',
+    };
+  }
+
+  // No single table fits — build combination pool from time-available tables.
+  // Include tables that are TOO_SMALL (time-available but undersized individually).
+  // Exclude tables with CONFLICT or TABLE_BLOCKED (genuinely unavailable).
+  const combinationPool = suggestions
+    .filter(s => !s.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED'))
+    .map(s => s.tableId)
+    .filter(Boolean) as string[];
+
+  return findBestCombination(restaurantId, combinationPool, query.partySize);
 }
 
 // ─── Floor Suggestions ───────────────────────────────────────────────────────

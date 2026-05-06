@@ -88,6 +88,7 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
       select: {
         id: true,
         tableId: true,
+        combinedTableIds: true,
         time: true,
         duration: true,
         guestName: true,
@@ -131,7 +132,7 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
 
     // ── Reservations for this table, sorted by start time ─────────────────────
     const tableResv = dayReservations
-      .filter(r => r.tableId === table.id)
+      .filter(r => r.tableId === table.id || r.combinedTableIds.includes(table.id))
       .map(r => {
         const startDate = parseTimeOnDate(ctx.date, r.time);
         const endDate = addMinutes(startDate, r.duration);

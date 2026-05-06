@@ -226,11 +226,13 @@ export const T = {
     autoLabel:               'Auto',
     tableSearching:          'Finding best table…',
     tableAutoSelected:       (name: string) => `Table ${name}`,
+    tableAutoCombined:       (names: string) => `Tables ${names}`,
     tableNoAvailable:        'No available table for this slot',
     tableShowAll:            'Show all tables',
     tableChangeBtn:          'Change table',
     tableUseAuto:            '← Use suggested',
     confirmWithTable:        (name: string) => `Confirm Reservation – Table ${name}`,
+    confirmWithTables:       (names: string) => `Confirm Reservation – Tables ${names}`,
     confirmNoTable:          'Confirm – No Table Assigned',
     confirmChecking:         'Checking tables…',
     // Walk-in form

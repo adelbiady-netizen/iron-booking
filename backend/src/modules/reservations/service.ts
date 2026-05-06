@@ -203,6 +203,7 @@ export async function createReservation(
         restaurantId,
         guestId: resolvedGuestId,
         tableId: input.tableId ?? null,
+        combinedTableIds: input.combinedTableIds ?? [],
         partySize: input.partySize,
         date,
         time: input.time,

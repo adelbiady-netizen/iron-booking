@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { BackendTableSuggestion, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
+import type { BackendTableSuggestion, BestTableResult, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
@@ -164,22 +164,24 @@ export default function CreateDrawer({
   const [suggestBusy,    setSuggestBusy]    = useState(false);
 
   // ── Auto-allocation state ────────────────────────────────────────────────────
-  // autoTableId/Name: system's recommended table (top non-blocked from /suggest)
+  // autoResult: system's best table or combination from /tables/best
+  // resCombinedTableIds: secondary tables when autoResult.type === 'combined'
   // manualOverride: host explicitly chose a different table → don't auto-update
   // showPicker: full SmartTablePicker grid is visible (override mode)
   //
   // If the drawer opened with a pre-selected table (floor click or gap hint),
   // treat it as a manual selection from the start.
   const hasPreselection = !!(gapHint?.tableId || preselectedTableId);
-  const [autoTableId,   setAutoTableId]   = useState<string | null>(null);
-  const [autoTableName, setAutoTableName] = useState('');
-  const [showPicker,    setShowPicker]    = useState(false);
+  const [autoResult,          setAutoResult]          = useState<BestTableResult | null>(null);
+  const [resCombinedTableIds, setResCombinedTableIds] = useState<string[]>([]);
+  const [showPicker,          setShowPicker]          = useState(false);
   // Ref keeps manualOverride readable inside async effects without stale closures
   const manualOverrideRef = useRef(hasPreselection);
   const [manualOverride, _setManualOverride] = useState(hasPreselection);
   function setManualOverride(v: boolean) {
     manualOverrideRef.current = v;
     _setManualOverride(v);
+    if (v) setResCombinedTableIds([]);
   }
 
   const [error, setError] = useState<string | null>(null);
@@ -216,8 +218,7 @@ export default function CreateDrawer({
   }, [resName, guestHint, hintDismissed]);
 
   // ── Auto-allocation + suggestion fetch ───────────────────────────────────────
-  // Fires when booking params change. Fetches suggestions, extracts best table,
-  // and auto-assigns it unless the host has manually overridden.
+  // Fires when booking params change. Fetches suggestions + best result in parallel.
   // When params change (new date/time/party), clears the override so the system
   // re-evaluates — except when a table was explicitly pre-selected on open.
   useEffect(() => {
@@ -233,22 +234,28 @@ export default function CreateDrawer({
     const t = setTimeout(async () => {
       try {
         const dur = resDuration ? parseInt(resDuration, 10) : undefined;
-        const s = await api.tables.suggest({ date: resDate, time: resTime, partySize: resParty, duration: dur });
+        const params = { date: resDate, time: resTime, partySize: resParty, duration: dur };
+        const [s, best] = await Promise.all([
+          api.tables.suggest(params),
+          api.tables.best(params),
+        ]);
         setResSuggestions(s);
-
-        // Best table = first non-blocked suggestion (already sorted by score desc)
-        const best = s.find(x => x.tableId && x.status !== 'blocked') ?? null;
-        setAutoTableId(best?.tableId ?? null);
-        setAutoTableName(best?.tableName ?? '');
+        setAutoResult(best);
 
         // Apply auto-selection only when host hasn't manually chosen
         if (!manualOverrideRef.current) {
-          setResTable(best?.tableId ?? '');
+          if (best) {
+            setResTable(best.tableIds[0]);
+            setResCombinedTableIds(best.tableIds.slice(1));
+          } else {
+            setResTable('');
+            setResCombinedTableIds([]);
+          }
         }
       } catch {
         setResSuggestions([]);
-        setAutoTableId(null);
-        setAutoTableName('');
+        setAutoResult(null);
+        setResCombinedTableIds([]);
       } finally {
         setSuggestBusy(false);
       }
@@ -274,17 +281,18 @@ export default function CreateDrawer({
     setBusy(true);
     try {
       const r = await api.reservations.create({
-        guestName:  resName.trim(),
-        guestPhone: resPhone.trim() || undefined,
-        partySize:  resParty,
-        date:       resDate,
-        time:       resTime,
-        duration:   resDuration ? parseInt(resDuration, 10) : undefined,
-        guestNotes: resGuestNote.trim() || undefined,
-        hostNotes:  resHostNote.trim() || undefined,
-        tableId:    resTable || undefined,
-        source:     resSource,
-        lang:       locale,
+        guestName:        resName.trim(),
+        guestPhone:       resPhone.trim() || undefined,
+        partySize:        resParty,
+        date:             resDate,
+        time:             resTime,
+        duration:         resDuration ? parseInt(resDuration, 10) : undefined,
+        guestNotes:       resGuestNote.trim() || undefined,
+        hostNotes:        resHostNote.trim() || undefined,
+        tableId:          resTable || undefined,
+        combinedTableIds: resCombinedTableIds.length > 0 ? resCombinedTableIds : undefined,
+        source:           resSource,
+        lang:             locale,
       });
       onCreated(r);
     } catch (err: unknown) {
@@ -320,12 +328,15 @@ export default function CreateDrawer({
   }
 
   // ── Confirm button label ──────────────────────────────────────────────────────
-  // Shows which table will be used so the host can confirm at a glance.
+  // Shows which table(s) will be used so the host can confirm at a glance.
   function confirmLabel(): string {
     if (busy) return T.createDrawer.submitCreateBusy;
     if (suggestBusy && !resTable) return T.createDrawer.confirmChecking;
+    if (!manualOverride && autoResult?.type === 'combined') {
+      return T.createDrawer.confirmWithTables(autoResult.tableNames.join(' + '));
+    }
     const name = resTable
-      ? (autoTableId === resTable && !manualOverride ? autoTableName : resolveTableName(resTable))
+      ? (!manualOverride && autoResult ? autoResult.tableNames[0] : resolveTableName(resTable))
       : null;
     if (name) return T.createDrawer.confirmWithTable(name);
     return T.createDrawer.confirmNoTable;
@@ -607,11 +618,13 @@ export default function CreateDrawer({
                 )}
 
                 {/* Auto-selected, no override, picker hidden */}
-                {!suggestBusy && autoTableId && !manualOverride && !showPicker && (
+                {!suggestBusy && autoResult && !manualOverride && !showPicker && (
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/35">
                       <span className="text-iron-green-light font-semibold text-sm">
-                        {T.createDrawer.tableAutoSelected(autoTableName)}
+                        {autoResult.type === 'combined'
+                          ? T.createDrawer.tableAutoCombined(autoResult.tableNames.join(' + '))
+                          : T.createDrawer.tableAutoSelected(autoResult.tableNames[0])}
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-green/25 border border-iron-green/40 text-iron-green-light font-bold shrink-0">
                         {T.createDrawer.autoLabel}
@@ -642,10 +655,15 @@ export default function CreateDrawer({
                     >
                       {T.createDrawer.tableChangeBtn}
                     </button>
-                    {autoTableId && autoTableId !== resTable && (
+                    {autoResult && autoResult.tableIds[0] !== resTable && (
                       <button
                         type="button"
-                        onClick={() => { setManualOverride(false); setResTable(autoTableId); setShowPicker(false); }}
+                        onClick={() => {
+                          setManualOverride(false);
+                          setResTable(autoResult.tableIds[0]);
+                          setResCombinedTableIds(autoResult.tableIds.slice(1));
+                          setShowPicker(false);
+                        }}
                         className="text-xs text-iron-muted hover:text-iron-green-light transition-colors shrink-0"
                       >
                         {T.createDrawer.tableUseAuto}
@@ -655,7 +673,7 @@ export default function CreateDrawer({
                 )}
 
                 {/* No table available, no picker */}
-                {!suggestBusy && !autoTableId && !manualOverride && !showPicker && (
+                {!suggestBusy && !autoResult && !manualOverride && !showPicker && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/20">
                     <span className="text-amber-400 text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                     <button

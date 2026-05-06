@@ -265,7 +265,8 @@ model Reservation {
   id           String            @id @default(uuid())
   restaurantId String
   guestId      String?
-  tableId      String?           // null until assigned
+  tableId          String?   // null until assigned (primary table)
+  combinedTableIds String[]  @default([]) // secondary tables for combined seatings
 
   // Booking details
   partySize    Int
