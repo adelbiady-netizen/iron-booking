@@ -159,7 +159,7 @@ export default function FloorBoard({
           w: Math.abs(cx - sx), h: Math.abs(cy - sy),
         };
         if (fr.w > 8 && fr.h > 8) {
-          setPickSelection(prev => {
+          setPickSelection(() => {
             const newIds = tables.filter(t => {
               if (!t.isActive) return false;
               const sug = pickSuggestions.find(s => s.tableId === t.id);
