@@ -75,31 +75,49 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // expectedEnd is the real-time moment the turn is scheduled to finish.
       // It is included in the response so the frontend never has to recompute it.
       const expectedEnd = addMinutes(seatedAt, seated.duration);
-      // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
-      // but the slot is past midnight (e.g. 00:03), the slot is on the NEXT calendar
-      // day — advance effectiveSlotTime by one day so minutesRemaining is correct.
-      const effectiveSlotTime = resMins > slotMins + 720
-        ? parseTimeOnDate(new Date(date.getTime() + 86_400_000), time)
-        : slotTime;
-      const minutesRemaining = Math.round(
-        (expectedEnd.getTime() - effectiveSlotTime.getTime()) / 60000
-      );
-      return {
-        ...table,
-        locked: effectiveLocked,
-        liveStatus: 'OCCUPIED' as const,
-        currentReservation: {
-          ...seated,
-          minutesRemaining,
-          expectedEndTime: expectedEnd.toISOString(),
-        },
-        upcomingReservations: [],
-      };
+
+      // Only render as OCCUPIED if the turn has not yet ended at the selected slot time.
+      // A seated reservation from 14:30 (duration 90 min, ending 16:00) must NOT block
+      // a board view at 23:00 — the host forgot to mark it complete but the table is free.
+      // This aligns board rendering with the same overlap logic used by tableMatcher.ts
+      // and availability.ts (areIntervalsOverlapping).
+      if (expectedEnd > slotTime) {
+        // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
+        // but the slot is past midnight (e.g. 00:03), the slot is on the NEXT calendar
+        // day — advance effectiveSlotTime by one day so minutesRemaining is correct.
+        const effectiveSlotTime = resMins > slotMins + 720
+          ? parseTimeOnDate(new Date(date.getTime() + 86_400_000), time)
+          : slotTime;
+        const minutesRemaining = Math.round(
+          (expectedEnd.getTime() - effectiveSlotTime.getTime()) / 60000
+        );
+        return {
+          ...table,
+          locked: effectiveLocked,
+          liveStatus: 'OCCUPIED' as const,
+          currentReservation: {
+            ...seated,
+            minutesRemaining,
+            expectedEndTime: expectedEnd.toISOString(),
+          },
+          upcomingReservations: [],
+        };
+      }
+      // Turn has ended — fall through to upcoming/available check so the table
+      // correctly shows any later reservations or appears free.
     }
 
-    // Find upcoming reservations — matches primary tableId OR secondary combined tables
+    // Find upcoming reservations — matches primary tableId OR secondary combined tables.
+    // Exclude reservations whose entire window (start + duration) has already passed the
+    // selected slot time — a 14:30 reservation ending at 16:00 must not show as blocking
+    // a board at 23:00.  Uses the same end-time overlap logic as tableMatcher.ts.
     const upcoming = reservations
-      .filter((r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status !== 'SEATED')
+      .filter((r) => {
+        if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
+        if (r.status === 'SEATED') return false;
+        const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
+        return resEnd > slotTime;
+      })
       .sort((a, b) => a.time.localeCompare(b.time));
 
     const nextRes = upcoming[0];
