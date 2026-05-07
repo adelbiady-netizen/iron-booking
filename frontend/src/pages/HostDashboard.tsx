@@ -205,8 +205,32 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       if (cancelled) return;
       const floorOk = floorResult.status === 'fulfilled';
       const resOk   = resResult.status   === 'fulfilled';
-      if (floorOk) { setFloorTables(floorResult.value); setLoadError(false); }
-      if (resOk)   { setReservations(resResult.value.data); loadedDateRef.current = date; }
+      if (floorOk) {
+        setFloorTables(floorResult.value);
+        setLoadError(false);
+        const occupied = floorResult.value.filter(t => t.liveStatus === 'OCCUPIED');
+        console.log('[FloorLoad] occupied tables:', occupied.map(t => ({
+          id: t.id, name: t.name,
+          resId: t.currentReservation?.id,
+          combinedTableIds: t.currentReservation?.combinedTableIds,
+        })));
+        const ghostCheck = floorResult.value.filter(t =>
+          t.liveStatus !== 'AVAILABLE' &&
+          t.currentReservation?.combinedTableIds?.length === 0 &&
+          !t.currentReservation
+        );
+        if (ghostCheck.length > 0) {
+          console.warn('[FloorLoad] potential ghost tables detected:', ghostCheck.map(t => t.name));
+        }
+      }
+      if (resOk) {
+        const seated = resResult.value.data.filter(r => r.status === 'SEATED');
+        console.log('[FloorLoad] SEATED reservations from list API:', seated.map(r => ({
+          id: r.id, guestName: r.guestName, tableId: r.tableId, combinedTableIds: r.combinedTableIds,
+        })));
+        setReservations(resResult.value.data);
+        loadedDateRef.current = date;
+      }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
       // Both critical calls failed — backend is likely unreachable
       if (!floorOk && !resOk) setLoadError(true);
@@ -671,6 +695,16 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     }
   }, [floorTables, showToast]);
 
+  // Bidirectional date sync: called by CreateDrawer and GuestDrawer (edit mode)
+  // whenever the host changes the reservation date or time inside the drawer.
+  // Keeps the floor board and the open drawer on the same calendar day so
+  // availability shown in the form always matches what the board is rendering.
+  const handleDrawerDateTimeChange = useCallback((d: string, t: string) => {
+    setDate(d);
+    setTime(t);
+    setLiveMode(false);
+  }, []);
+
   const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => {
     tablePickCallbackRef.current = callback;
     setTablePickIds(currentIds);
@@ -903,6 +937,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             nowTime={time}
             onPickTables={handlePickTables}
             onPickTablesCancel={handlePickCancel}
+            onDateTimeChange={handleDrawerDateTimeChange}
           />
         </DrawerErrorBoundary>
       )}
@@ -923,6 +958,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             onCreated={handleCreated}
             onPickTables={handlePickTables}
             onPickTablesCancel={handlePickCancel}
+            onDateTimeChange={handleDrawerDateTimeChange}
           />
         </DrawerErrorBoundary>
       )}

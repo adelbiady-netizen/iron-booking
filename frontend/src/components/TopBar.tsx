@@ -76,6 +76,9 @@ export default function TopBar({
   const atMax  = zoom >= 150;
   const atNorm = zoom === 100;
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday  = date === todayStr;
+
   return (
     <header className="h-14 shrink-0 bg-iron-card border-b border-iron-border flex items-center px-4 gap-3">
       {/* Brand */}
@@ -98,6 +101,16 @@ export default function TopBar({
           className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer"
         />
         <NavBtn onClick={onNextDay} title={T.topBar.nextDay}>›</NavBtn>
+        {!isToday && (
+          <button
+            onClick={onNow}
+            title={T.topBar.backToToday}
+            className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500/35 hover:border-blue-400/60 transition-colors shrink-0 leading-none"
+            aria-label={T.topBar.backToToday}
+          >
+            <span className="text-[11px] font-bold leading-none select-none">×</span>
+          </button>
+        )}
       </div>
 
       {/* Time navigation */}

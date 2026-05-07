@@ -31,6 +31,9 @@ interface Props {
   onCreated: (r: Reservation) => void;
   onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
   onPickTablesCancel?: () => void;
+  /** Called whenever the reservation date or time changes so the parent can keep
+   *  the floor board in sync with the drawer. */
+  onDateTimeChange?: (date: string, time: string) => void;
 }
 
 // ─── Shared field components ──────────────────────────────────────────────────
@@ -137,6 +140,7 @@ export default function CreateDrawer({
   preselectedTableId, preselectedCombinedTableIds, floorObjs,
   initialData, gapHint, onClose, onCreated,
   onPickTables, onPickTablesCancel,
+  onDateTimeChange,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -272,6 +276,15 @@ export default function CreateDrawer({
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resDate, resTime, resParty, resDuration, mode]);
+
+  // Board → drawer: when the host navigates to a different date on the top bar,
+  // pull the new date into the reservation form so board and drawer stay on the
+  // same day. Time is intentionally NOT synced here — the booking slot chosen by
+  // the host should not be overwritten by the board's 60-second auto-refresh ticks.
+  useEffect(() => {
+    if (mode !== 'reservation') return;
+    setResDate(defaultDate);
+  }, [defaultDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function nowStr() {
     const d = new Date();
@@ -560,7 +573,11 @@ export default function CreateDrawer({
                   <Input
                     type="date"
                     value={resDate}
-                    onChange={e => setResDate(e.target.value)}
+                    onChange={e => {
+                      const d = e.target.value;
+                      setResDate(d);
+                      onDateTimeChange?.(d, resTime);
+                    }}
                     required
                   />
                 </div>
@@ -570,7 +587,11 @@ export default function CreateDrawer({
                   <Label>{T.createDrawer.fieldTime}</Label>
                   <select
                     value={resTime}
-                    onChange={e => setResTime(e.target.value)}
+                    onChange={e => {
+                      const t = e.target.value;
+                      setResTime(t);
+                      onDateTimeChange?.(resDate, t);
+                    }}
                     required
                     className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
                   >

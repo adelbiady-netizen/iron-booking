@@ -191,9 +191,12 @@ interface Props {
   nowTime?: string;
   onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
   onPickTablesCancel?: () => void;
+  /** Called when the host changes the date/time in edit mode so the floor board
+   *  can reload for the same date and stay in sync with the drawer. */
+  onDateTimeChange?: (date: string, time: string) => void;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, onPickTables, onPickTablesCancel }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, onPickTables, onPickTablesCancel, onDateTimeChange }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -813,7 +816,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => run(
-                        () => api.reservations.seat(res.id, smartSuggestion.suggestion.tableId!),
+                        () => api.reservations.seat(res.id, smartSuggestion.suggestion.tableId!, false, []),
                         T.guestDrawer.toastSeated(smartSuggestion.suggestion.tableName),
                       )}
                       disabled={busy}
@@ -1012,7 +1015,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                           className={inputCls}
                           type="date"
                           value={editDate}
-                          onChange={e => setEditDate(e.target.value)}
+                          onChange={e => {
+                            const d = e.target.value;
+                            setEditDate(d);
+                            onDateTimeChange?.(d, editTime);
+                          }}
                         />
                       </Field>
                       <Field label={T.guestDrawer.fieldTime}>
@@ -1020,7 +1027,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                           className={inputCls}
                           type="time"
                           value={editTime}
-                          onChange={e => setEditTime(e.target.value)}
+                          onChange={e => {
+                            const t = e.target.value;
+                            setEditTime(t);
+                            onDateTimeChange?.(editDate, t);
+                          }}
                         />
                       </Field>
                     </div>
@@ -1241,7 +1252,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 excludeId={null}
                 label={T.guestDrawer.seatPickerLabel}
                 busy={busy}
-                onPick={tableId => run(() => api.reservations.seat(res.id, tableId), T.guestDrawer.toastSeated(tableName(tableId)))}
+                onPick={tableId => run(() => api.reservations.seat(res.id, tableId, false, []), T.guestDrawer.toastSeated(tableName(tableId)))}
                 onBack={() => setMode('view')}
               />
             )}

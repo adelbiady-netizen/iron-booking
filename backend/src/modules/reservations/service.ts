@@ -585,7 +585,7 @@ export async function unseatReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'CONFIRMED', tableId: null, seatedAt: null },
+      data: { status: 'CONFIRMED', tableId: null, combinedTableIds: [], seatedAt: null },
       include: { table: true },
     });
     await logActivity(tx, id, 'CONFIRMED', actorName, {
@@ -688,6 +688,7 @@ export async function undoReservation(
           status: toStatus as ReservationStatus,
           seatedAt: null,
           tableId: detailsStr(details, 'previousTableId'),
+          combinedTableIds: [],
         };
         break;
 

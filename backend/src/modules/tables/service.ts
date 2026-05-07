@@ -39,6 +39,25 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
 
   const slotTime = parseTimeOnDate(date, time);
 
+  // Diagnostic: log every SEATED reservation and its combinedTableIds so ghost
+  // occupancy can be traced if it re-appears.
+  const seatedReservations = reservations.filter(r => r.status === 'SEATED');
+  if (seatedReservations.length > 0) {
+    console.log('[FloorState] SEATED reservations:', seatedReservations.map(r => ({
+      id: r.id,
+      guestName: r.guestName,
+      tableId: r.tableId,
+      combinedTableIds: r.combinedTableIds,
+    })));
+  }
+
+  const occupiedTableIds = new Set<string>();
+  for (const r of seatedReservations) {
+    if (r.tableId) occupiedTableIds.add(r.tableId);
+    for (const id of r.combinedTableIds) occupiedTableIds.add(id);
+  }
+  console.log('[FloorState] Final occupied table IDs:', [...occupiedTableIds]);
+
   return tables.map((table) => {
     // Respect lockedUntil expiry without a DB write
     const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotTime);

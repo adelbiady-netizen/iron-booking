@@ -54,6 +54,7 @@ export const THe = {
     prev15:         '−15 דק׳',
     next15:         '+15 דק׳',
     nowBtn:         'עכשיו',
+    backToToday:    'חזרה להיום',
     guestsButton:   'אורחים',
     adminButton:    'ניהול',
   },
