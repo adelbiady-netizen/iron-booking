@@ -197,18 +197,28 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       api.tables.listFloorObjects(),
     ])
       .then(([ts, secs, fobjs]) => {
-        setTables(ts.map(t => ({
-          id: t.id, name: t.name,
-          minCovers: t.minCovers, maxCovers: t.maxCovers,
-          shape: (t.shape as ShapeType) || 'RECTANGLE',
-          sectionId: t.section?.id ?? null, section: t.section ?? null,
-          isActive: t.isActive,
-          locked: t.locked ?? false,
-          posX: t.posX ?? 0, posY: t.posY ?? 0,
-          width: t.width ?? SHAPE_DIMS['RECTANGLE'][0],
-          height: t.height ?? SHAPE_DIMS['RECTANGLE'][1],
-          isNew: false, deleted: false, dirty: false,
-        })));
+        // Tables with posX≤5 and posY≤5 were never positioned (DB default 0,0).
+        // Auto-assign them a stacking grid position and mark dirty so the next
+        // Save persists the corrected coordinates — no valid positions are overwritten.
+        let unposIdx = 0;
+        setTables(ts.map(t => {
+          const hasPos = (t.posX ?? 0) > 5 || (t.posY ?? 0) > 5;
+          const posX = hasPos ? (t.posX ?? 0) : 40 + (unposIdx % 7) * 168;
+          const posY = hasPos ? (t.posY ?? 0) : 40 + Math.floor(unposIdx / 7) * 112;
+          if (!hasPos) unposIdx++;
+          return {
+            id: t.id, name: t.name,
+            minCovers: t.minCovers, maxCovers: t.maxCovers,
+            shape: (t.shape as ShapeType) || 'RECTANGLE',
+            sectionId: t.section?.id ?? null, section: t.section ?? null,
+            isActive: t.isActive,
+            locked: t.locked ?? false,
+            posX, posY,
+            width: t.width ?? SHAPE_DIMS['RECTANGLE'][0],
+            height: t.height ?? SHAPE_DIMS['RECTANGLE'][1],
+            isNew: false, deleted: false, dirty: !hasPos,
+          };
+        }));
         setSections(secs);
         setFloorObjs(fobjs);
         setLoading(false);

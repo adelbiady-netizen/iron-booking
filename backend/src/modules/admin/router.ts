@@ -328,14 +328,17 @@ router.post('/restaurants/:id/sample-layout', async (req: Request, res: Response
       });
       await tx.table.createMany({
         data: [
-          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T1', minCovers: 2, maxCovers: 4 },
-          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T2', minCovers: 2, maxCovers: 4 },
-          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T3', minCovers: 4, maxCovers: 6, shape: 'ROUND' },
-          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T4', minCovers: 4, maxCovers: 8 },
-          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T5', minCovers: 2, maxCovers: 4 },
-          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T6', minCovers: 2, maxCovers: 2, shape: 'SQUARE' },
-          { restaurantId: p(req, 'id'), sectionId: bar.id,  name: 'B1', minCovers: 1, maxCovers: 2, shape: 'SQUARE' },
-          { restaurantId: p(req, 'id'), sectionId: bar.id,  name: 'B2', minCovers: 1, maxCovers: 2, shape: 'SQUARE' },
+          // Main Dining — two rows of tables with explicit canvas positions
+          // so the floor map activates immediately without needing a LayoutEditor save.
+          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T1', minCovers: 2, maxCovers: 4,                       posX:  60, posY:  80, width: 120, height: 72 },
+          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T2', minCovers: 2, maxCovers: 4,                       posX: 240, posY:  80, width: 120, height: 72 },
+          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T3', minCovers: 4, maxCovers: 6, shape: 'ROUND',        posX: 420, posY:  76, width:  80, height: 80 },
+          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T4', minCovers: 4, maxCovers: 8,                       posX: 560, posY:  72, width: 160, height: 80 },
+          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T5', minCovers: 2, maxCovers: 4,                       posX:  60, posY: 220, width: 120, height: 72 },
+          { restaurantId: p(req, 'id'), sectionId: main.id, name: 'T6', minCovers: 2, maxCovers: 2, shape: 'SQUARE',       posX: 240, posY: 216, width:  80, height: 80 },
+          // Bar — small square tops in their own area
+          { restaurantId: p(req, 'id'), sectionId: bar.id,  name: 'B1', minCovers: 1, maxCovers: 2, shape: 'SQUARE',       posX:  60, posY: 500, width:  72, height: 72 },
+          { restaurantId: p(req, 'id'), sectionId: bar.id,  name: 'B2', minCovers: 1, maxCovers: 2, shape: 'SQUARE',       posX: 180, posY: 500, width:  72, height: 72 },
         ],
       });
     });

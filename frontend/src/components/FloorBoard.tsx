@@ -82,7 +82,10 @@ function tableRadius(shape: string): string {
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
-  return tables.some(t => t.posX > 5 || t.posY > 5);
+  if (tables.length === 0) return false;
+  // All tables must have saved positions; a single zero-position table
+  // would otherwise render at top-left while the rest look correct.
+  return tables.every(t => t.posX > 5 || t.posY > 5);
 }
 
 type View = 'floor' | 'timeline';
