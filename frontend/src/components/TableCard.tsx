@@ -35,9 +35,10 @@ interface Props {
   operationalNow?: number;
   extraTurns?: number;
   turnTooltip?: string;
+  date?: string;
 }
 
-export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow, extraTurns = 0, turnTooltip }: Props) {
+export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow, extraTurns = 0, turnTooltip, date }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_STYLE: Record<string, StatusStyle> = {
@@ -52,12 +53,18 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
+  // Late/no-show warnings only make sense when viewing today's service.
+  // On future dates every reservation would appear "late" relative to the
+  // board's operational time even though the day hasn't arrived yet.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isFutureDate = !!date && date > todayStr;
+
   // Detect late/no-show risk for RESERVED_SOON tables
   const arrMins = nowTime && nextRes
     ? minutesUntilRes(nextRes.time, nowTime)
     : nextRes?.minutesUntil ?? null;
-  const isNoShowRisk = arrMins !== null && arrMins <= -15;
-  const isLate       = arrMins !== null && arrMins < -5 && !isNoShowRisk;
+  const isNoShowRisk = !isFutureDate && arrMins !== null && arrMins <= -15;
+  const isLate       = !isFutureDate && arrMins !== null && arrMins < -5 && !isNoShowRisk;
 
   const style = isNoShowRisk
     ? { ...STATUS_STYLE['RESERVED_SOON'], border: 'border-red-500/60',    bg: 'bg-red-900/15',    dot: 'bg-red-500',    label: T.arrival.noShowRisk,                              labelColor: 'text-red-400'    }
@@ -166,7 +173,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             {!isSecondary && (
               <p className="text-iron-muted text-[11px]">
                 {T.common.guests(displayRes.partySize)} · {displayRes.time}
-                {insight?.type === 'LATE_GUEST' && nextRes && nextRes.minutesUntil < 0
+                {!isFutureDate && insight?.type === 'LATE_GUEST' && nextRes && nextRes.minutesUntil < 0
                   ? <span className="text-red-400"> · {T.tableCard.lateBy(Math.abs(nextRes.minutesUntil))}</span>
                   : nextRes && nextRes.minutesUntil > 0
                   ? <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>

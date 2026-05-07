@@ -389,8 +389,11 @@ export async function seatReservation(
   }
 
   const settings = await getRestaurantSettings(restaurantId);
-  // When combinedTableIds not provided, preserve the existing value on the reservation
-  const resolvedCombinedIds = combinedTableIds ?? r.combinedTableIds;
+  // Never fall back to the DB's existing combinedTableIds — doing so would
+  // preserve stale IDs from a previous combined-table seat and cause ghost
+  // occupancy on unrelated tables.  Always use what the caller provides,
+  // defaulting to [] (single-table seat) when the argument is omitted.
+  const resolvedCombinedIds = combinedTableIds ?? [];
 
   if (!overrideConflicts) {
     await validateTableAssignment(

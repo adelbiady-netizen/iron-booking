@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type React from 'react';
 import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
@@ -103,6 +103,24 @@ export default function FloorBoard({
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
+
+  // Diagnostic: log whenever the occupied table set changes so ghost tables
+  // can be identified from the browser console.
+  const occupiedSnapshot = useMemo(() => {
+    const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED');
+    return occupied.map(t => ({
+      name: t.name,
+      id: t.id,
+      resId: t.currentReservation?.id ?? null,
+      tableId: t.currentReservation?.tableId ?? null,
+      combinedTableIds: t.currentReservation?.combinedTableIds ?? [],
+    }));
+  }, [tables]);
+
+  useEffect(() => {
+    console.log('[FloorBoard] occupied tables:', occupiedSnapshot);
+  }, [occupiedSnapshot]);
+
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
   const [softHoldWarning,  setSoftHoldWarning]  = useState<{ table: FloorTable; entry: WaitlistEntry } | null>(null);
@@ -488,6 +506,7 @@ export default function FloorBoard({
                   onWaitlistAction={!pickMode && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                   nowTime={nowTime}
                   operationalNow={operationalNow}
+                  date={date}
                   extraTurns={pickMode ? 0 : extraTurns}
                   turnTooltip={pickMode ? undefined : turnTooltip}
                   pickMode={pickMode}
@@ -561,6 +580,7 @@ export default function FloorBoard({
                         onWaitlistAction={!pickMode && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                         nowTime={nowTime}
                         operationalNow={operationalNow}
+                        date={date}
                         extraTurns={pickMode ? 0 : extraTurns}
                         turnTooltip={pickMode ? undefined : turnTooltip}
                       />
@@ -759,7 +779,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, date }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -779,14 +799,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickMode?: boolean;
   pickSelected?: boolean;
   pickStatus?: PickStatus;
+  date?: string;
 }) {
   const T = useT();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isFutureDate = !!date && date > todayStr;
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
   const arrMins = nowTime && nextRes
     ? minutesUntilRes(nextRes.time, nowTime)
     : nextRes?.minutesUntil ?? null;
-  const isNoShowRisk = arrMins !== null && arrMins <= -15;
-  const isLate       = arrMins !== null && arrMins < -5 && !isNoShowRisk;
+  const isNoShowRisk = !isFutureDate && arrMins !== null && arrMins <= -15;
+  const isLate       = !isFutureDate && arrMins !== null && arrMins < -5 && !isNoShowRisk;
 
   const sectionColor = table.section?.color ?? '#3f3f46';
 
