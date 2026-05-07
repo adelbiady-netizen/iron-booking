@@ -16,6 +16,14 @@ import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
+import { eventBus } from '../../lib/eventBus';
+
+// Notify all SSE-connected hosts in this restaurant that floor state changed.
+// Called after every mutation that creates, updates, or removes a reservation.
+// Fire-and-forget — never awaited, never allowed to throw.
+function notifyFloorUpdated(restaurantId: string): void {
+  eventBus.emit('floor_updated', { restaurantId });
+}
 
 const router = Router();
 router.use(authenticate);
@@ -45,6 +53,7 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
   try {
     const r = await service.createReservation(req.auth.restaurantId, req.body, actorName(req));
     res.status(201).json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -69,6 +78,7 @@ router.patch('/:id', validate(UpdateReservationSchema), async (req: Request, res
   try {
     const r = await service.updateReservation(req.auth.restaurantId, p(req, 'id'), req.body, actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -77,6 +87,7 @@ router.post('/:id/confirm', async (req: Request, res: Response, next: NextFuncti
   try {
     const r = await service.confirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -92,6 +103,7 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
       req.body.combinedTableIds
     );
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -100,6 +112,7 @@ router.post('/:id/move', validate(MoveTableSchema), async (req: Request, res: Re
   try {
     const r = await service.moveReservation(req.auth.restaurantId, p(req, 'id'), req.body, actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -108,6 +121,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
   try {
     const r = await service.completeReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -116,6 +130,7 @@ router.post('/:id/no-show', async (req: Request, res: Response, next: NextFuncti
   try {
     const r = await service.markNoShow(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -125,6 +140,7 @@ router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunctio
     const reason = req.body?.reason as string | undefined;
     const r = await service.cancelReservation(req.auth.restaurantId, p(req, 'id'), reason, actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -133,6 +149,7 @@ router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunctio
   try {
     const r = await service.unseatReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -141,6 +158,7 @@ router.post('/:id/unconfirm', async (req: Request, res: Response, next: NextFunc
   try {
     const r = await service.unconfirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -149,6 +167,7 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
   try {
     const r = await service.undoReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 

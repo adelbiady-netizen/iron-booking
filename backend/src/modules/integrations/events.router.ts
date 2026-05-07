@@ -15,6 +15,7 @@ const router = Router();
  *
  * Emitted events:
  *   incoming_call  { phone: string, createdAt: string }
+ *   floor_updated  { ts: number } — any reservation or waitlist-seat mutation
  */
 router.get('/', (req, res) => {
   const raw = req.query.token;
@@ -52,12 +53,22 @@ router.get('/', (req, res) => {
     res.write(`event: incoming_call\ndata: ${JSON.stringify(data)}\n\n`);
   }
 
+  // Relay floor_updated only to connections belonging to the same restaurant.
+  // The payload carries restaurantId for tenant isolation; only the timestamp
+  // is forwarded to the client so no reservation data leaks across tenants.
+  function relayFloorUpdate(data: { restaurantId: string }) {
+    if (data.restaurantId !== payload.restaurantId) return;
+    res.write(`event: floor_updated\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`);
+  }
+
   eventBus.on('incoming_call', relay);
+  eventBus.on('floor_updated', relayFloorUpdate);
 
   req.on('close', () => {
     console.log('[events/sse] Client disconnected — userId:', payload.userId);
     clearInterval(ping);
     eventBus.off('incoming_call', relay);
+    eventBus.off('floor_updated', relayFloorUpdate);
   });
 });
 

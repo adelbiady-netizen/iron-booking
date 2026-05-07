@@ -174,6 +174,13 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         setIncomingCall(d);
       }
     },
+    // Push-triggered refresh: when any device mutates a reservation the backend
+    // emits floor_updated over SSE. Trigger the same refresh key that the 60-second
+    // poll uses so the floor board + reservation list update immediately.
+    floor_updated: () => {
+      setRefreshKey(k => k + 1);
+      setWaitlistRefreshKey(k => k + 1);
+    },
   });
 
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {

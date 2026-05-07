@@ -47,6 +47,13 @@ export function useServerEvents(handlers: EventHandlers): void {
       } catch { /* ignore malformed JSON */ }
     });
 
+    es.addEventListener('floor_updated', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as unknown;
+        handlersRef.current['floor_updated']?.(data);
+      } catch { /* ignore malformed JSON */ }
+    });
+
     es.onerror = (err) => {
       console.warn('[useServerEvents] SSE error — readyState:', es.readyState, err);
     };

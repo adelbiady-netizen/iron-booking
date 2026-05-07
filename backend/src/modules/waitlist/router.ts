@@ -3,6 +3,7 @@ import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { z } from 'zod';
 import * as service from './service';
+import { eventBus } from '../../lib/eventBus';
 
 const router = Router();
 router.use(authenticate);
@@ -93,6 +94,7 @@ router.post('/:id/seat', async (req: Request, res: Response, next: NextFunction)
       req.body.tableId
     );
     res.json(result);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
   } catch (err) { next(err); }
 });
 
