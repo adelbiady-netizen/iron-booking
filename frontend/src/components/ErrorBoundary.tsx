@@ -109,3 +109,50 @@ export class DrawerErrorBoundary extends Component<DrawerBoundaryProps, DrawerSt
     return this.props.children;
   }
 }
+
+// ─── Board-level boundary ─────────────────────────────────────────────────────
+// Wraps the FloorBoard + ReservationPanel area. A render crash shows an inline
+// error state (not full-screen) with a Retry button so the rest of the UI
+// (TopBar, drawers) stays usable.
+
+interface BoardState { hasError: boolean; message: string }
+
+export class BoardErrorBoundary extends Component<{ children: ReactNode }, BoardState> {
+  state: BoardState = { hasError: false, message: '' };
+
+  static getDerivedStateFromError(err: unknown): BoardState {
+    return {
+      hasError: true,
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  componentDidCatch(err: unknown, info: { componentStack: string }) {
+    console.error('[Iron Booking] board render error:', err, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-sm w-full text-center space-y-4">
+            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-red-500/30 flex items-center justify-center mx-auto">
+              <span className="text-red-400 text-lg font-bold">!</span>
+            </div>
+            <p className="text-iron-text font-semibold text-sm">Floor board error</p>
+            <p className="text-iron-muted text-xs font-mono break-all leading-relaxed">
+              {this.state.message}
+            </p>
+            <button
+              onClick={() => this.setState({ hasError: false, message: '' })}
+              className="px-5 py-2.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white text-sm font-semibold transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}

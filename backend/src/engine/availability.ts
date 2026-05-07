@@ -83,7 +83,7 @@ export async function getTableAvailability(
     const conflict = reservations.find((r) => {
       if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
       const rStart = parseTimeOnDate(date, r.time);
-      const rEnd = addMinutes(rStart, r.duration + bufferMinutes);
+      const rEnd = addMinutes(rStart, r.duration);
       return areIntervalsOverlapping(requestedSlot, { start: rStart, end: rEnd });
     });
 

@@ -4,6 +4,7 @@ import { NotFoundError, BusinessRuleError } from '../../lib/errors';
 import { getFloorState } from '../tables/service';
 import { sendWhatsApp } from '../../lib/sms';
 import { findOrCreateGuest, splitName } from '../guests/service';
+import { validateTableAssignment } from '../reservations/service';
 
 function parseDateArg(dateStr: string): Date {
   return new Date(dateStr + 'T00:00:00.000Z');
@@ -216,21 +217,26 @@ export async function seatWaitlistGuest(
     throw new BusinessRuleError(`Cannot seat a guest with status ${entry.status}`);
   }
 
-  if (tableId) {
-    const occupying = await prisma.reservation.findFirst({
-      where: { tableId, status: 'SEATED', date: entry.date },
-      select: { id: true, guestName: true },
-    });
-    if (occupying) {
-      throw new BusinessRuleError(`Table is currently occupied by ${occupying.guestName}`);
-    }
-  }
-
   const settings = await prisma.restaurant.findUniqueOrThrow({
     where: { id: restaurantId },
     select: { settings: true },
   });
   const s = settings.settings as Record<string, any>;
+  const seatTime = new Date().toTimeString().slice(0, 5);
+  const duration = (s.defaultTurnMinutes as number) ?? 90;
+  const bufferMinutes = (s.bufferBetweenTurnsMinutes as number) ?? 15;
+
+  if (tableId) {
+    await validateTableAssignment(
+      restaurantId,
+      tableId,
+      entry.date,
+      seatTime,
+      duration,
+      bufferMinutes,
+      entry.partySize
+    );
+  }
 
   // Resolve guest CRM link: use existing link from entry, or try to resolve
   let resolvedGuestId: string | null = entry.guestId ?? null;
@@ -256,8 +262,8 @@ export async function seatWaitlistGuest(
         guestId: resolvedGuestId,
         partySize: entry.partySize,
         date: entry.date,
-        time: new Date().toTimeString().slice(0, 5),
-        duration: (s.defaultTurnMinutes as number) ?? 90,
+        time: seatTime,
+        duration,
         status: 'SEATED',
         source: 'WALK_IN',
         guestName: entry.guestName,

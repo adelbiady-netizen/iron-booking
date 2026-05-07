@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type React from 'react';
 import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
@@ -103,23 +103,6 @@ export default function FloorBoard({
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
-
-  // Diagnostic: log whenever the occupied table set changes so ghost tables
-  // can be identified from the browser console.
-  const occupiedSnapshot = useMemo(() => {
-    const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED');
-    return occupied.map(t => ({
-      name: t.name,
-      id: t.id,
-      resId: t.currentReservation?.id ?? null,
-      tableId: t.currentReservation?.tableId ?? null,
-      combinedTableIds: t.currentReservation?.combinedTableIds ?? [],
-    }));
-  }, [tables]);
-
-  useEffect(() => {
-    console.log('[FloorBoard] occupied tables:', occupiedSnapshot);
-  }, [occupiedSnapshot]);
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
@@ -669,7 +652,7 @@ export default function FloorBoard({
                 {T.common.guests(softHoldWarning.entry.partySize)}
                 {' · '}
                 {T.flowControl.softHoldWaiting(
-                  Math.floor((Date.now() - new Date(softHoldWarning.entry.addedAt).getTime()) / 60_000)
+                  Math.floor(((operationalNow ?? Date.now()) - new Date(softHoldWarning.entry.addedAt).getTime()) / 60_000)
                 )}
               </p>
             </div>

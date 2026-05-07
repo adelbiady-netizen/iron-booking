@@ -18,7 +18,7 @@ import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
-import { DrawerErrorBoundary } from '../components/ErrorBoundary';
+import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -144,8 +144,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
 
-  useEffect(() => { console.log('[HostDashboard] mounted'); }, []);
-
   useServerEvents({
     incoming_call: (data) => {
       const d = data as { phone: string; createdAt: string };
@@ -208,26 +206,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       if (floorOk) {
         setFloorTables(floorResult.value);
         setLoadError(false);
-        const occupied = floorResult.value.filter(t => t.liveStatus === 'OCCUPIED');
-        console.log('[FloorLoad] occupied tables:', occupied.map(t => ({
-          id: t.id, name: t.name,
-          resId: t.currentReservation?.id,
-          combinedTableIds: t.currentReservation?.combinedTableIds,
-        })));
-        const ghostCheck = floorResult.value.filter(t =>
-          t.liveStatus !== 'AVAILABLE' &&
-          t.currentReservation?.combinedTableIds?.length === 0 &&
-          !t.currentReservation
-        );
-        if (ghostCheck.length > 0) {
-          console.warn('[FloorLoad] potential ghost tables detected:', ghostCheck.map(t => t.name));
-        }
       }
       if (resOk) {
-        const seated = resResult.value.data.filter(r => r.status === 'SEATED');
-        console.log('[FloorLoad] SEATED reservations from list API:', seated.map(r => ({
-          id: r.id, guestName: r.guestName, tableId: r.tableId, combinedTableIds: r.combinedTableIds,
-        })));
         setReservations(resResult.value.data);
         loadedDateRef.current = date;
       }
@@ -246,10 +226,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     api.tables.listFloorObjects().then(setFloorObjs).catch(() => {});
   }, [refreshKey]);
 
-  // Static table list for seat/move/create pickers
+  // Static table list for seat/move/create pickers — refresh on layout saves
   useEffect(() => {
     api.tables.list().then(setAllTables).catch(() => {});
-  }, []);
+  }, [refreshKey]);
 
   // Operational timestamp: dashboard date + time as a local-time ms value.
   // Used instead of Date.now() for wait-time and ETA calculations so that
@@ -312,14 +292,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const handleUpdated = useCallback((updated: Reservation) => {
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setSelectedRes(updated);
-    api.tables.floor(date, time).then(setFloorTables).catch(() => {});
-    api.tables.insights(date, time).then(setInsights).catch(() => {});
+    setRefreshKey(k => k + 1);
     setWaitlistRefreshKey(k => k + 1);
-  }, [date, time]);
+  }, []);
 
   const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
     try {
-      const updated = await api.reservations.seat(reservationId, tableId);
+      const combinedTableIds = reservations.find(r => r.id === reservationId)?.combinedTableIds ?? [];
+      const updated = await api.reservations.seat(reservationId, tableId, false, combinedTableIds);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       setRefreshKey(k => k + 1);
       setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
@@ -339,7 +319,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     }
-  }, [floorTables, showToast]);
+  }, [floorTables, reservations, showToast]);
 
   const handleActionBarClick = useCallback((insight: FloorInsight) => {
     if (insight.type === 'SEAT_NOW' && insight.reservationId) {
@@ -862,6 +842,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
 
       <ActionBar insights={allInsights} onItemClick={handleActionBarClick} />
 
+      <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
         <FloorBoard
           tables={floorTables}
@@ -923,6 +904,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onContextMenuSeat={handleContextMenuSeat}
         />
       </div>
+      </BoardErrorBoundary>
 
       {selectedRes && !createMode && (
         <DrawerErrorBoundary key={selectedRes.id} onClose={() => setSelectedRes(null)}>

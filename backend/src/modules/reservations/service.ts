@@ -264,8 +264,11 @@ export async function updateReservation(
   }
 
   // SEATED guests: only allow name, phone, and notes changes
-  if (existing.status === 'SEATED' && (input.date || input.time || input.partySize)) {
-    throw new BusinessRuleError('Cannot change date, time, or party size for a seated reservation');
+  if (existing.status === 'SEATED' && (
+    input.date || input.time || input.partySize ||
+    input.tableId !== undefined || input.combinedTableIds !== undefined
+  )) {
+    throw new BusinessRuleError('Cannot change date, time, party size, or table for a seated reservation');
   }
 
   const settings = await getRestaurantSettings(restaurantId);
@@ -473,6 +476,7 @@ export async function moveReservation(
       fromStatus: 'SEATED',
       toStatus: 'SEATED',
       fromTableId: r.tableId ?? null,
+      fromCombinedTableIds: r.combinedTableIds,
       toTableId: input.tableId,
       reason: input.reason ?? null,
     });
@@ -634,6 +638,11 @@ function detailsStr(details: Record<string, unknown>, key: string): string | nul
   return typeof v === 'string' ? v : null;
 }
 
+function detailsArr(details: Record<string, unknown>, key: string): string[] | null {
+  const v = details[key];
+  return Array.isArray(v) ? (v as string[]) : null;
+}
+
 export async function undoReservation(
   restaurantId: string,
   id: string,
@@ -703,6 +712,7 @@ export async function undoReservation(
       case 'MOVED':
         updateData = {
           tableId: detailsStr(details, 'fromTableId'),
+          combinedTableIds: detailsArr(details, 'fromCombinedTableIds') ?? [],
           previousTableId: null,
         };
         break;
@@ -731,7 +741,7 @@ export async function undoReservation(
 // Capacity is validated across all tables combined; individual tables may be
 // smaller than the full party size, which is expected and valid.
 
-async function validateTableAssignment(
+export async function validateTableAssignment(
   restaurantId: string,
   tableId: string,
   date: Date,
