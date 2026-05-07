@@ -310,12 +310,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
-  function openMapPicker() {
+  async function openMapPicker() {
     setPickingOnMap(true);
     setShowTablePicker(false);
+    // tableSuggestions is only populated when the inline picker opens first;
+    // direct "Select on map" clicks bypass that, so fetch fresh here if needed.
+    let sug = tableSuggestions;
+    if (sug.length === 0) {
+      const partySize = parseInt(editParty, 10);
+      if (editDate && editTime && !isNaN(partySize) && partySize >= 1) {
+        try {
+          sug = await api.tables.suggest({
+            date: editDate, time: editTime, partySize, duration: editDuration,
+            excludeReservationId: res.id,
+          });
+          setTableSuggestions(sug);
+        } catch { /* fall back to empty */ }
+      }
+    }
     onPickTables?.(
       [editTableId, ...editCombinedTableIds].filter(Boolean) as string[],
-      tableSuggestions,
+      sug,
       (ids) => {
         setPickingOnMap(false);
         if (ids !== null) {
@@ -326,12 +341,23 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     );
   }
 
-  function openActionMapPicker(action: 'seat' | 'move' | 'change-table') {
+  async function openActionMapPicker(action: 'seat' | 'move' | 'change-table') {
     const currentIds = [res.tableId, ...(res.combinedTableIds ?? [])].filter(Boolean) as string[];
     setPickingForAction(action);
+    // tableSuggestions is never auto-fetched for action pickers (Seat/Move/Change Table
+    // in view mode); always fetch fresh to ensure combined-table conflicts are visible.
+    let sug = tableSuggestions;
+    if (sug.length === 0) {
+      try {
+        sug = await api.tables.suggest({
+          date: res.date, time: res.time, partySize: res.partySize,
+          duration: res.duration, excludeReservationId: res.id,
+        });
+      } catch { /* fall back to empty */ }
+    }
     onPickTables?.(
       currentIds,
-      tableSuggestions,
+      sug,
       (ids) => {
         setPickingForAction(null);
         if (ids === null || ids.length === 0) return;

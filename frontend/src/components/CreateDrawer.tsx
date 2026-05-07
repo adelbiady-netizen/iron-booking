@@ -297,12 +297,21 @@ export default function CreateDrawer({
     return tables.find(t => t.id === id)?.name ?? id;
   }
 
-  function openMapPicker() {
+  async function openMapPicker() {
     setPickingOnMap(true);
     setShowPicker(false);
+    // Suggestions may be empty (debounce hasn't fired) or stale (time just changed).
+    // Fetch fresh ones so the picker always shows correct availability.
+    let sug = resSuggestions;
+    if (suggestBusy || sug.length === 0) {
+      try {
+        const dur = resDuration ? parseInt(resDuration, 10) : undefined;
+        sug = await api.tables.suggest({ date: resDate, time: resTime, partySize: resParty, duration: dur });
+      } catch { /* fall back to cached */ }
+    }
     onPickTables?.(
       [resTable, ...resCombinedTableIds].filter(Boolean),
-      resSuggestions,
+      sug,
       (ids) => {
         setPickingOnMap(false);
         if (ids !== null) {
