@@ -37,7 +37,12 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
 
   const slotTime = parseTimeOnDate(date, time);
 
-  return tables.map((table) => {
+  // Exclude seed/unpositioned tables (posX ≤ 5 AND posY ≤ 5) once any table has
+  // been explicitly placed, so dev-login sample tables cannot ghost onto a real layout.
+  const positionedTables = tables.filter(t => t.posX > 5 || t.posY > 5);
+  const effectiveTables  = positionedTables.length > 0 ? positionedTables : tables;
+
+  return effectiveTables.map((table) => {
     // Respect lockedUntil expiry without a DB write
     const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotTime);
 

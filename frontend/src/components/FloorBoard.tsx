@@ -252,11 +252,18 @@ export default function FloorBoard({
     );
   }
 
+  // Only explicitly-placed tables render on canvas / grid. Seed tables at the
+  // default origin (posX ≤ 5 AND posY ≤ 5) are excluded so they cannot ghost.
+  const canvasTables = tables.filter(t => t.posX > 5 || t.posY > 5);
+  // Use positioned-only set when any table has been placed; fall back to all
+  // tables only when no layout exists yet (brand-new restaurant).
+  const visibleTables = canvasTables.length > 0 ? canvasTables : tables;
+
   // ── Section groups (grid fallback) ──────────────────────────────────────────
   const sectionMap = new Map<string, SectionGroup>();
   const noSection: FloorTable[] = [];
 
-  for (const t of tables) {
+  for (const t of visibleTables) {
     if (t.section) {
       const key = t.section.id;
       if (!sectionMap.has(key)) {
@@ -338,11 +345,7 @@ export default function FloorBoard({
   const reservedSoon = tables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
   const reserved     = tables.filter(t => t.liveStatus === 'RESERVED').length;
 
-  const positioned    = hasPositions(tables);
-  // Only explicitly-placed tables render on the canvas. Seed/sample tables
-  // left at the default origin (posX ≤ 5 AND posY ≤ 5) are excluded so
-  // they cannot ghost onto a layout the user built above them.
-  const canvasTables  = tables.filter(t => t.posX > 5 || t.posY > 5);
+  const positioned = hasPositions(tables);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
