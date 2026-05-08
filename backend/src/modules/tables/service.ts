@@ -3,7 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
 import { addMinutes } from 'date-fns';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -65,13 +65,11 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     const seated = reservations.find(
       (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status === 'SEATED'
     );
-    if (seated && reservationOverlapsSlotTime(seated, date, slotTime)) {
+    if (seated) {
       const [rH, rM] = seated.time.split(':').map(Number);
       const [sH, sM] = time.split(':').map(Number);
       const resMins  = rH * 60 + rM;
       const slotMins = sH * 60 + sM;
-      // Use the scheduled start time (virtual local) — seatedAt is real UTC and
-      // would be offset against slotTime by the restaurant's UTC offset on the server.
       const anchor      = parseTimeOnDate(date, seated.time);
       const expectedEnd = addMinutes(anchor, seated.duration);
       // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
@@ -94,7 +92,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         },
         upcomingReservations: [],
       };
-      // If seated but turn ended, fall through to upcoming/available check.
     }
 
     // Find upcoming reservations that should visually mark this table on the floor map.
