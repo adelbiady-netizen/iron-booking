@@ -617,6 +617,11 @@ export async function getFloorInsights(
   const [nowH, nowM] = time.split(':').map(Number);
   const nowMinutes = nowH * 60 + nowM;
 
+  // Operational alerts (LATE_GUEST, ENDING_SOON) are live-service alerts only.
+  // They must never fire for future dates because the service day hasn't started.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday  = date === todayStr;
+
   // SEAT_NOW only fires for unassigned reservations that are imminent (within
   // RESERVED_SOON_MINUTES) or already late (up to 30 min). Far-future
   // reservations are excluded so guest names don't appear on AVAILABLE table
@@ -632,7 +637,7 @@ export async function getFloorInsights(
   for (const table of floorState) {
 
     // ── ENDING_SOON: occupied table where turn is nearly up ──────────────────
-    if (table.liveStatus === 'OCCUPIED' && table.currentReservation) {
+    if (isToday && table.liveStatus === 'OCCUPIED' && table.currentReservation) {
       const expectedEnd = (table.currentReservation as { expectedEndTime: string }).expectedEndTime;
       const mr = Math.round((new Date(expectedEnd).getTime() - Date.now()) / 60_000);
       if (mr < 10) {
@@ -648,7 +653,7 @@ export async function getFloorInsights(
     }
 
     // ── LATE_GUEST: assigned reservation whose time has already passed ───────
-    if (table.liveStatus === 'RESERVED_SOON') {
+    if (isToday && table.liveStatus === 'RESERVED_SOON') {
       type UpcomingRes = { id: string; guestName: string; minutesUntil: number };
       const nextRes = (table.upcomingReservations as UpcomingRes[])[0];
       if (nextRes && nextRes.minutesUntil < 0) {

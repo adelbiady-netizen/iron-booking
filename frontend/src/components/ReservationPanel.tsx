@@ -42,6 +42,7 @@ interface Props {
   nowTime?: string;
   operationalNow?: number;
   onContextMenuSeat?: (res: Reservation) => void;
+  date?: string;
 }
 
 export default function ReservationPanel({
@@ -49,7 +50,7 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
-  onContextMenuSeat,
+  onContextMenuSeat, date,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
@@ -66,6 +67,9 @@ export default function ReservationPanel({
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [ctxMenu]);
+
+  const todayStr     = new Date().toISOString().slice(0, 10);
+  const isFutureDate = !!date && date > todayStr;
 
   const STATUS_LABEL: Record<string, string> = {
     PENDING:   T.reservationStatus.PENDING,
@@ -222,7 +226,7 @@ export default function ReservationPanel({
             )}
 
             {!loading && visible.map(r => {
-              const aState = nowTime ? arrivalState(r.time, r.status, nowTime) : null;
+              const aState = !isFutureDate && nowTime ? arrivalState(r.time, r.status, nowTime) : null;
               const arrivalBadge = aState ? {
                 ARRIVING_SOON: { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    label: T.arrival.arrivingSoon },
                 DUE_NOW:       { cls: 'bg-amber-500/25 text-amber-300 border-amber-400/40',    label: T.arrival.dueNow },

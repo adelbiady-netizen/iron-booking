@@ -909,6 +909,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           nowTime={time}
           operationalNow={operationalNow}
           onContextMenuSeat={handleContextMenuSeat}
+          date={date}
         />
       </div>
       </BoardErrorBoundary>
