@@ -3,7 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
 import { addMinutes } from 'date-fns';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime, reservationIsUpcoming } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime, reservationIsUpcoming, RESERVED_SOON_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -617,6 +617,16 @@ export async function getFloorInsights(
   const [nowH, nowM] = time.split(':').map(Number);
   const nowMinutes = nowH * 60 + nowM;
 
+  // SEAT_NOW only fires for unassigned reservations that are imminent (within
+  // RESERVED_SOON_MINUTES) or already late (up to 30 min). Far-future
+  // reservations are excluded so guest names don't appear on AVAILABLE table
+  // cards hours before the turn.
+  const imminentUnassigned = unassigned.filter(res => {
+    const [rH, rM] = res.time.split(':').map(Number);
+    const diff = rH * 60 + rM - nowMinutes;
+    return diff >= -30 && diff <= RESERVED_SOON_MINUTES;
+  });
+
   const insights: FloorInsight[] = [];
 
   for (const table of floorState) {
@@ -653,11 +663,11 @@ export async function getFloorInsights(
     }
 
     // ── SEAT_NOW: available table + best-scoring unassigned reservation ──────
-    if (table.liveStatus === 'AVAILABLE' && !table.locked && unassigned.length > 0) {
-      let bestRes: (typeof unassigned)[0] | null = null;
+    if (table.liveStatus === 'AVAILABLE' && !table.locked && imminentUnassigned.length > 0) {
+      let bestRes: (typeof imminentUnassigned)[0] | null = null;
       let bestScore = -1;
 
-      for (const res of unassigned) {
+      for (const res of imminentUnassigned) {
         if (res.partySize > table.maxCovers) continue;
 
         const fit = res.partySize >= table.minCovers && res.partySize <= table.maxCovers;

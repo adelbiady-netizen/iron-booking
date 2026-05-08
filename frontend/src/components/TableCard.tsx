@@ -95,7 +95,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <span className="text-iron-text font-semibold text-sm leading-tight truncate">{table.name}</span>
           {insight?.priority === 'HIGH'   && <span className="w-2 h-2 rounded-full shrink-0 bg-red-500"   title={insight.message} />}
           {insight?.priority === 'MEDIUM' && <span className="w-2 h-2 rounded-full shrink-0 bg-amber-400" title={insight.message} />}
-          {extraTurns > 0 && (
+          {extraTurns > 0 && !isAvailable && (
             <span className="shrink-0 text-[9px] font-bold px-1 py-px rounded bg-blue-500/15 border border-blue-500/25 text-blue-400 tabular-nums">
               +{extraTurns}
             </span>

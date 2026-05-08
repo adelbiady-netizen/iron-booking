@@ -1041,8 +1041,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </div>
       )}
 
-      {/* Turn count badge */}
-      {!pickMode && extraTurns > 0 && (
+      {/* Turn count badge — only for non-AVAILABLE tables (badge means "N more turns after the current one") */}
+      {!pickMode && extraTurns > 0 && table.liveStatus !== 'AVAILABLE' && (
         <span style={{
           position: 'absolute', top: 3, right: 3,
           fontSize: 9, fontWeight: 700, color: '#60a5fa',
