@@ -136,7 +136,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
 
 export async function listTables(restaurantId: string) {
   return prisma.table.findMany({
-    where: { restaurantId },
+    where: { restaurantId, isActive: true },
     include: { section: true },
     orderBy: [{ section: { sortOrder: 'asc' } }, { name: 'asc' }],
   });

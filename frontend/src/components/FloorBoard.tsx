@@ -83,9 +83,10 @@ function tableRadius(shape: string): string {
 
 function hasPositions(tables: FloorTable[]): boolean {
   if (tables.length === 0) return false;
-  // All tables must have saved positions; a single zero-position table
-  // would otherwise render at top-left while the rest look correct.
-  return tables.every(t => t.posX > 5 || t.posY > 5);
+  // Canvas mode activates when at least one table has been explicitly positioned.
+  // Unpositioned tables (posX ≤ 5 AND posY ≤ 5, i.e. default origin) are
+  // excluded from the canvas render so seed/sample tables don't ghost.
+  return tables.some(t => t.posX > 5 || t.posY > 5);
 }
 
 type View = 'floor' | 'timeline';
@@ -337,7 +338,11 @@ export default function FloorBoard({
   const reservedSoon = tables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
   const reserved     = tables.filter(t => t.liveStatus === 'RESERVED').length;
 
-  const positioned = hasPositions(tables);
+  const positioned    = hasPositions(tables);
+  // Only explicitly-placed tables render on the canvas. Seed/sample tables
+  // left at the default origin (posX ≤ 5 AND posY ≤ 5) are excluded so
+  // they cannot ghost onto a layout the user built above them.
+  const canvasTables  = tables.filter(t => t.posX > 5 || t.posY > 5);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -461,7 +466,7 @@ export default function FloorBoard({
               );
             })}
 
-            {tables.map(t => {
+            {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
               const dimmed     = !pickMode && hoveredSectionId !== null && t.section?.id !== hoveredSectionId;
               const wMatch     = waitlistMatches[t.id];
