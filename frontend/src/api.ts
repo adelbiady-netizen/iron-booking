@@ -260,6 +260,8 @@ export const api = {
         '/reservations/send-reminders',
         { method: 'POST', body: JSON.stringify(body) }
       ),
+    delete: (id: string) =>
+      request<void>(`/reservations/${id}`, { method: 'DELETE' }),
   },
 
   waitlist: {

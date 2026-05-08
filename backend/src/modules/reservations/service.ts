@@ -747,6 +747,11 @@ export async function undoReservation(
 
 // ─── Table Assignment Validation ─────────────────────────────────────────────
 //
+export async function deleteReservation(restaurantId: string, id: string) {
+  await assertReservationBelongsToRestaurant(id, restaurantId);
+  await prisma.reservation.delete({ where: { id } });
+}
+
 // combinedTableIds: when non-empty, the booking spans multiple tables.
 // Capacity is validated across all tables combined; individual tables may be
 // smaller than the full party size, which is expected and valid.

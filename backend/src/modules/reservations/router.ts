@@ -162,6 +162,15 @@ router.post('/:id/unconfirm', async (req: Request, res: Response, next: NextFunc
   } catch (err) { next(err); }
 });
 
+// DELETE /reservations/:id
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await service.deleteReservation(req.auth.restaurantId, p(req, 'id'));
+    res.status(204).send();
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
 // POST /reservations/:id/undo
 router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
   try {

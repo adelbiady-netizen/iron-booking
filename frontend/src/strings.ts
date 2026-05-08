@@ -328,6 +328,7 @@ export const T = {
     actionChangeTable:    'Change table',
     actionSendSms:        'Send SMS',
     actionUndo:           'Undo',
+    actionDelete:         'Delete reservation',
     // Edit mode fields
     fieldGuestName:       'Guest name',
     fieldPhone:           'Phone',
@@ -366,6 +367,10 @@ export const T = {
     cancelReasonPh:       'Guest request, weather…',
     confirmCancel:        'Confirm cancel',
     backButton:           'Back',
+    // Delete mode
+    deleteConfirmLabel:   'This will permanently delete the reservation. This cannot be undone.',
+    confirmDelete:        'Yes, permanently delete',
+    toastDeleted:         'Reservation deleted',
     // Table lock section
     sectionTableLock:     'Table lock',
     unlockButton:         'Unlock',
