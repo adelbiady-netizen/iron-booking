@@ -3,7 +3,10 @@ import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 // ─── parseTimeOnDate ──────────────────────────────────────────────────────────
 // date is always created as UTC midnight (e.g. new Date('YYYY-MM-DDT00:00:00.000Z')).
 // Extract the UTC calendar date so we get the right day regardless of local timezone,
-// then build a local-time string (no Z) to match seatedAt/confirmedAt timestamps.
+// then build a "virtual local time" Date — no timezone suffix — so the server
+// interprets it as local time.  All occupancy time arithmetic MUST stay in this
+// virtual-local-time space; never mix in real UTC timestamps (seatedAt, confirmedAt)
+// or the comparison will be off by the restaurant's UTC offset.
 export function parseTimeOnDate(date: Date, timeStr: string): Date {
   const yyyy = date.getUTCFullYear();
   const mm   = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -40,9 +43,14 @@ export function reservationConflicts(
 // ─── reservationOverlapsSlotTime ──────────────────────────────────────────────
 // Is existing reservation R active at point-in-time T?
 //
-// SEATED uses real seatedAt so a late-arriving guest's turn ends proportionally
-// later. Falls back to the scheduled time field if seatedAt is missing.
-// Non-SEATED uses scheduled time + duration.
+// Both SEATED and non-SEATED use the scheduled reservation time as the anchor.
+// seatedAt is intentionally NOT used here: it is a real UTC timestamp while
+// slotTime comes from parseTimeOnDate (virtual local time, no timezone suffix).
+// On a UTC server those two time-spaces are offset by the restaurant's UTC
+// offset, which made seated tables appear ended hours before their turn was up.
+//
+// seatedAt is still passed to the frontend inside currentReservation for
+// display-only purposes (GuestDrawer "Seated at HH:mm" row).
 //
 // Used for SEATED checks in getFloorState(). For upcoming (non-SEATED)
 // reservations on the board, use reservationIsUpcoming() instead.
@@ -51,10 +59,6 @@ export function reservationOverlapsSlotTime(
   date:     Date,
   slotTime: Date,
 ): boolean {
-  if (res.status === 'SEATED') {
-    const anchor = res.seatedAt ?? parseTimeOnDate(date, res.time);
-    return addMinutes(anchor, res.duration) > slotTime;
-  }
   return addMinutes(parseTimeOnDate(date, res.time), res.duration) > slotTime;
 }
 

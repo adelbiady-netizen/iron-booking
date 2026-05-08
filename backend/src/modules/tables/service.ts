@@ -69,8 +69,10 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       const [sH, sM] = time.split(':').map(Number);
       const resMins  = rH * 60 + rM;
       const slotMins = sH * 60 + sM;
-      const seatedAt = seated.seatedAt ?? parseTimeOnDate(date, seated.time);
-      const expectedEnd = addMinutes(seatedAt, seated.duration);
+      // Use the scheduled start time (virtual local) — seatedAt is real UTC and
+      // would be offset against slotTime by the restaurant's UTC offset on the server.
+      const anchor      = parseTimeOnDate(date, seated.time);
+      const expectedEnd = addMinutes(anchor, seated.duration);
       // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
       // but the slot is past midnight (e.g. 00:03), advance effectiveSlotTime by one
       // calendar day so minutesRemaining is correct.
