@@ -1,6 +1,9 @@
 import { prisma } from '../lib/prisma';
-import { addMinutes, parseISO, isWithinInterval, areIntervalsOverlapping } from 'date-fns';
+import { addMinutes } from 'date-fns';
 import { ReservationStatus } from '@prisma/client';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationConflicts } from './occupancy';
+
+export { parseTimeOnDate } from './occupancy';
 
 export interface TimeSlot {
   start: Date;
@@ -15,8 +18,6 @@ export interface TableAvailability {
   nextAvailableAt?: Date;
 }
 
-const OCCUPIED_STATUSES: ReservationStatus[] = ['CONFIRMED', 'SEATED', 'PENDING'];
-
 /**
  * Given a date, time string ("HH:mm"), and duration (minutes),
  * compute which tables are available for that slot.
@@ -30,11 +31,9 @@ export async function getTableAvailability(
 ): Promise<TableAvailability[]> {
   const slotStart = parseTimeOnDate(date, timeStr);
   const slotEnd = addMinutes(slotStart, durationMinutes);
-  // Buffer is added to both ends to account for setup/teardown
+  // Buffer endpoints used only for blocked-period filtering
   const effectiveStart = addMinutes(slotStart, -bufferMinutes);
   const effectiveEnd = addMinutes(slotEnd, bufferMinutes);
-
-  const requestedSlot: TimeSlot = { start: effectiveStart, end: effectiveEnd };
 
   // Pull all tables, reservations, and blocks for this date in one pass
   const [tables, reservations, blocks] = await Promise.all([
@@ -45,7 +44,7 @@ export async function getTableAvailability(
       where: {
         restaurantId,
         date,
-        status: { in: OCCUPIED_STATUSES },
+        status: { in: [...ACTIVE_STATUSES] as ReservationStatus[] },
         tableId: { not: null },
       },
       select: {
@@ -82,9 +81,7 @@ export async function getTableAvailability(
     // Check reservation conflicts
     const conflict = reservations.find((r) => {
       if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
-      const rStart = parseTimeOnDate(date, r.time);
-      const rEnd = addMinutes(rStart, r.duration);
-      return areIntervalsOverlapping(requestedSlot, { start: rStart, end: rEnd });
+      return reservationConflicts(r, { date, time: timeStr, duration: durationMinutes }, bufferMinutes);
     });
 
     if (conflict) {
@@ -136,16 +133,6 @@ export async function getAvailableSlots(
   }
 
   return slots;
-}
-
-export function parseTimeOnDate(date: Date, timeStr: string): Date {
-  // date is always created as UTC midnight (e.g. new Date('YYYY-MM-DDT00:00:00.000Z')).
-  // Extract the UTC calendar date so we get the right day regardless of local timezone,
-  // then build a local-time string (no Z) to match seatedAt/confirmedAt timestamps.
-  const yyyy = date.getUTCFullYear();
-  const mm   = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const dd   = String(date.getUTCDate()).padStart(2, '0');
-  return new Date(`${yyyy}-${mm}-${dd}T${timeStr}:00`);
 }
 
 export function formatTime(date: Date): string {

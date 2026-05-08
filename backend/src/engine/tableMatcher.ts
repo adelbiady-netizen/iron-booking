@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
-import { parseTimeOnDate } from './availability';
-import { addMinutes, areIntervalsOverlapping } from 'date-fns';
-import { Table, Section } from '@prisma/client';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationConflicts } from './occupancy';
+import { addMinutes } from 'date-fns';
+import { Table, Section, ReservationStatus } from '@prisma/client';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
       where: {
         restaurantId: ctx.restaurantId,
         date: ctx.date,
-        status: { in: ['PENDING', 'CONFIRMED', 'SEATED'] },
+        status: { in: [...ACTIVE_STATUSES] as ReservationStatus[] },
         tableId: { not: null },
         ...(ctx.excludeReservationId ? { id: { not: ctx.excludeReservationId } } : {}),
       },
@@ -141,14 +141,15 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
       .sort((a, b) => a.startMs - b.startMs);
 
     // ── Conflict check (with buffer) ───────────────────────────────────────────
-    const conflict = tableResv.find(r => {
-      const rStart = parseTimeOnDate(ctx.date, r.time);
-      const rEnd = addMinutes(rStart, r.duration + ctx.bufferMinutes);
-      return areIntervalsOverlapping(
-        { start: bufferedStart, end: bufferedEnd },
-        { start: rStart, end: rEnd },
-      );
-    });
+    // Uses reservationConflicts() — buffer applied to slot only, matching
+    // getTableAvailability() semantics and fixing the prior double-buffer bug.
+    const conflict = tableResv.find(r =>
+      reservationConflicts(
+        r,
+        { date: ctx.date, time: ctx.time, duration: ctx.durationMinutes },
+        ctx.bufferMinutes,
+      )
+    );
 
     if (conflict) {
       suggestions.push({

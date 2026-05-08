@@ -3,9 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
 import { addMinutes } from 'date-fns';
-import { parseTimeOnDate } from '../../engine/availability';
-
-const ACTIVE_STATUSES: ReservationStatus[] = ['CONFIRMED', 'SEATED', 'PENDING'];
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -22,7 +20,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       where: {
         restaurantId,
         date,
-        status: { in: ACTIVE_STATUSES },
+        status: { in: [...ACTIVE_STATUSES] as ReservationStatus[] },
       },
       include: {
         guest: { select: { id: true, firstName: true, lastName: true, isVip: true, tags: true } },
@@ -61,62 +59,44 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     const seated = reservations.find(
       (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status === 'SEATED'
     );
-    if (seated) {
+    if (seated && reservationOverlapsSlotTime(seated, date, slotTime)) {
       const [rH, rM] = seated.time.split(':').map(Number);
       const [sH, sM] = time.split(':').map(Number);
       const resMins  = rH * 60 + rM;
       const slotMins = sH * 60 + sM;
-      // seatedAt is a real wall-clock timestamp set by seatReservation / seatWaitlistGuest.
-      // The fallback only fires if a reservation was inserted directly into the DB as SEATED
-      // without going through those code paths (e.g. data migrations, tests).
-      // It uses the reservation's time on the selected service-day date — no midnight
-      // adjustment needed here because the reservation belongs to this calendar date.
       const seatedAt = seated.seatedAt ?? parseTimeOnDate(date, seated.time);
-      // expectedEnd is the real-time moment the turn is scheduled to finish.
-      // It is included in the response so the frontend never has to recompute it.
       const expectedEnd = addMinutes(seatedAt, seated.duration);
-
-      // Only render as OCCUPIED if the turn has not yet ended at the selected slot time.
-      // A seated reservation from 14:30 (duration 90 min, ending 16:00) must NOT block
-      // a board view at 23:00 — the host forgot to mark it complete but the table is free.
-      // This aligns board rendering with the same overlap logic used by tableMatcher.ts
-      // and availability.ts (areIntervalsOverlapping).
-      if (expectedEnd > slotTime) {
-        // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
-        // but the slot is past midnight (e.g. 00:03), the slot is on the NEXT calendar
-        // day — advance effectiveSlotTime by one day so minutesRemaining is correct.
-        const effectiveSlotTime = resMins > slotMins + 720
-          ? parseTimeOnDate(new Date(date.getTime() + 86_400_000), time)
-          : slotTime;
-        const minutesRemaining = Math.round(
-          (expectedEnd.getTime() - effectiveSlotTime.getTime()) / 60000
-        );
-        return {
-          ...table,
-          locked: effectiveLocked,
-          liveStatus: 'OCCUPIED' as const,
-          currentReservation: {
-            ...seated,
-            minutesRemaining,
-            expectedEndTime: expectedEnd.toISOString(),
-          },
-          upcomingReservations: [],
-        };
-      }
-      // Turn has ended — fall through to upcoming/available check so the table
-      // correctly shows any later reservations or appears free.
+      // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
+      // but the slot is past midnight (e.g. 00:03), advance effectiveSlotTime by one
+      // calendar day so minutesRemaining is correct.
+      const effectiveSlotTime = resMins > slotMins + 720
+        ? parseTimeOnDate(new Date(date.getTime() + 86_400_000), time)
+        : slotTime;
+      const minutesRemaining = Math.round(
+        (expectedEnd.getTime() - effectiveSlotTime.getTime()) / 60000
+      );
+      return {
+        ...table,
+        locked: effectiveLocked,
+        liveStatus: 'OCCUPIED' as const,
+        currentReservation: {
+          ...seated,
+          minutesRemaining,
+          expectedEndTime: expectedEnd.toISOString(),
+        },
+        upcomingReservations: [],
+      };
+      // If seated but turn ended, fall through to upcoming/available check.
     }
 
     // Find upcoming reservations — matches primary tableId OR secondary combined tables.
-    // Exclude reservations whose entire window (start + duration) has already passed the
-    // selected slot time — a 14:30 reservation ending at 16:00 must not show as blocking
-    // a board at 23:00.  Uses the same end-time overlap logic as tableMatcher.ts.
+    // Delegates time-window check to reservationOverlapsSlotTime so floor board and
+    // availability engine share identical overlap semantics.
     const upcoming = reservations
       .filter((r) => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
         if (r.status === 'SEATED') return false;
-        const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
-        return resEnd > slotTime;
+        return reservationOverlapsSlotTime(r, date, slotTime);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -214,7 +194,7 @@ export async function deleteTable(restaurantId: string, tableId: string) {
 
   // Check for active reservations
   const active = await prisma.reservation.count({
-    where: { tableId, status: { in: ACTIVE_STATUSES } },
+    where: { tableId, status: { in: [...ACTIVE_STATUSES] as ReservationStatus[] } },
   });
   if (active > 0) {
     throw new BusinessRuleError('Cannot delete table with active reservations');
