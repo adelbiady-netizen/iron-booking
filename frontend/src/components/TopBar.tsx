@@ -115,14 +115,14 @@ export default function TopBar({
 
       {/* Time navigation */}
       <div className="flex items-center gap-1">
-        <NavBtn onClick={onPrev15} title={T.topBar.prev15}>{T.topBar.prev15}</NavBtn>
+        <NavBtn onClick={onPrev15} title={T.topBar.prev15}>‹</NavBtn>
         <input
           type="time"
           value={time}
           onChange={e => onTimeChange(e.target.value)}
           className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer min-w-[7.5rem]"
         />
-        <NavBtn onClick={onNext15} title={T.topBar.next15}>{T.topBar.next15}</NavBtn>
+        <NavBtn onClick={onNext15} title={T.topBar.next15}>›</NavBtn>
       </div>
 
       {/* Now button — highlighted when not live */}
