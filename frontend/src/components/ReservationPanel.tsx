@@ -5,7 +5,7 @@ import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
-import { arrivalState, minutesUntilRes } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isStaleReservation } from '../utils/arrival';
 
 const STATUS_BADGE: Record<ReservationStatus, string> = {
   PENDING:   'bg-amber-500/15 text-amber-400 border-amber-500/25',
@@ -226,7 +226,9 @@ export default function ReservationPanel({
             )}
 
             {!loading && visible.map(r => {
-              const aState = !isFutureDate && nowTime ? arrivalState(r.time, r.status, nowTime) : null;
+              const aState  = !isFutureDate && nowTime ? arrivalState(r.time, r.status, nowTime) : null;
+              const isStale = !isFutureDate && !!nowTime && isStaleReservation(r.time, r.status, nowTime);
+
               const arrivalBadge = aState ? {
                 ARRIVING_SOON: { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    label: T.arrival.arrivingSoon },
                 DUE_NOW:       { cls: 'bg-amber-500/25 text-amber-300 border-amber-400/40',    label: T.arrival.dueNow },
@@ -241,7 +243,11 @@ export default function ReservationPanel({
                 return minsUntil > 0 && minsUntil <= 60;
               })();
 
-              const statusBadge = arrivalBadge ?? (needsReminder
+              const staleBadge = isStale
+                ? { cls: 'bg-zinc-700/30 text-zinc-500 border-zinc-600/30', label: `${STATUS_LABEL['NO_SHOW']}?` }
+                : null;
+
+              const statusBadge = staleBadge ?? arrivalBadge ?? (needsReminder
                 ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25', label: T.reservationPanel.needsReminder }
                 : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
 
@@ -249,6 +255,8 @@ export default function ReservationPanel({
                 ? 'bg-iron-green/10'
                 : highlightId === r.id
                 ? 'animate-flash'
+                : isStale
+                ? 'opacity-50 hover:opacity-70'
                 : aState === 'NO_SHOW_RISK'
                 ? 'bg-red-900/5 hover:bg-red-900/10'
                 : aState === 'LATE'

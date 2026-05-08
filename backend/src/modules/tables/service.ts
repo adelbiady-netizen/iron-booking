@@ -3,7 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
 import { addMinutes } from 'date-fns';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime, reservationIsUpcoming, RESERVED_SOON_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -634,7 +634,7 @@ export async function getFloorInsights(
   const imminentUnassigned = unassigned.filter(res => {
     const [rH, rM] = res.time.split(':').map(Number);
     const diff = rH * 60 + rM - nowMinutes;
-    return diff >= -30 && diff <= RESERVED_SOON_MINUTES;
+    return diff >= -NO_SHOW_AFTER_MINUTES && diff <= RESERVED_SOON_MINUTES;
   });
 
   const insights: FloorInsight[] = [];

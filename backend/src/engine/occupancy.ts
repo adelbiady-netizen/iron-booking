@@ -65,17 +65,25 @@ export function reservationOverlapsSlotTime(
 // still shows in the sidebar list which uses the full day's data).
 export const RESERVED_SOON_MINUTES = 15;
 
+// ─── NO_SHOW_AFTER_MINUTES ───────────────────────────────────────────────────
+// Grace period after a reservation's scheduled start before it is considered a
+// no-show on the live floor. Once this threshold has elapsed without the guest
+// being seated the table is released on the floor map (AVAILABLE), even though
+// the DB record remains PENDING/CONFIRMED for historical integrity.
+// Hosts can still manually mark it NO_SHOW at any time.
+export const NO_SHOW_AFTER_MINUTES = 30;
+
 // ─── reservationIsUpcoming ────────────────────────────────────────────────────
 // Should a non-SEATED reservation make the floor board show this table as
 // non-AVAILABLE at the selected board time?
 //
 // Returns true when the reservation:
-//   (a) starts within RESERVED_SOON_MINUTES of slotTime (imminent, or guest is late), AND
+//   (a) starts within RESERVED_SOON_MINUTES in the future (imminent), OR
+//       started within NO_SHOW_AFTER_MINUTES in the past (guest may still arrive), AND
 //   (b) hasn't ended yet (turn still relevant).
 //
-// Reservations that start more than RESERVED_SOON_MINUTES in the future are
-// intentionally excluded — the host can still seat the table for a different
-// turn without any floor-map conflict signal.
+// Reservations that started more than NO_SHOW_AFTER_MINUTES ago are treated as
+// operationally expired on the floor map — the DB record is untouched.
 export function reservationIsUpcoming(
   res:      { time: string; duration: number },
   date:     Date,
@@ -84,5 +92,7 @@ export function reservationIsUpcoming(
   const resStart     = parseTimeOnDate(date, res.time);
   const resEnd       = addMinutes(resStart, res.duration);
   const minutesUntil = (resStart.getTime() - slotTime.getTime()) / 60_000;
-  return minutesUntil <= RESERVED_SOON_MINUTES && resEnd > slotTime;
+  return minutesUntil <= RESERVED_SOON_MINUTES
+    && minutesUntil >= -NO_SHOW_AFTER_MINUTES
+    && resEnd > slotTime;
 }
