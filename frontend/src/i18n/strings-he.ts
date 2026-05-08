@@ -247,6 +247,8 @@ export const THe = {
     confirmNoTable:          'אשר – ללא שולחן',
     confirmChecking:         'בודק שולחנות…',
     fieldWalkInName:      'שם האורח',
+    fieldWalkInPhone:     'טלפון',
+    placeholderWalkInPhone: 'אופציונלי — לאיתור אורח חוזר',
     fieldWalkInParty:     'מספר אורחים *',
     fieldWalkInNotes:     'הערות',
     fieldWalkInTable:     'שולחן (בחר להושבה מיידית)',

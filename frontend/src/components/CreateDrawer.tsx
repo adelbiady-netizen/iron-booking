@@ -159,10 +159,13 @@ export default function CreateDrawer({
   const [resTable,     setResTable]     = useState(gapHint?.tableId ?? preselectedTableId ?? '');
 
   // Walk-in fields
-  const [wiName,  setWiName]  = useState(initialData?.guestName  ?? '');
-  const [wiParty, setWiParty] = useState(initialData?.partySize  ?? 2);
-  const [wiNotes, setWiNotes] = useState('');
-  const [wiTable, setWiTable] = useState(preselectedTableId ?? '');
+  const [wiName,          setWiName]          = useState(initialData?.guestName  ?? '');
+  const [wiPhone,         setWiPhone]         = useState(initialData?.guestPhone ?? '');
+  const [wiParty,         setWiParty]         = useState(initialData?.partySize  ?? 2);
+  const [wiNotes,         setWiNotes]         = useState('');
+  const [wiTable,         setWiTable]         = useState(preselectedTableId ?? '');
+  const [wiGuestHint,     setWiGuestHint]     = useState<GuestLookupResult | null>(null);
+  const [wiHintDismissed, setWiHintDismissed] = useState(false);
 
   // Guest CRM hints
   const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
@@ -227,6 +230,20 @@ export default function CreateDrawer({
     }, 300);
     return () => clearTimeout(t);
   }, [resName, guestHint, hintDismissed]);
+
+  // Walk-in mode: debounced guest lookup by phone — same logic as reservation mode
+  useEffect(() => {
+    if (!wiPhone.trim()) { setWiGuestHint(null); setWiHintDismissed(false); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { guest } = await api.guests.lookupByPhone(wiPhone);
+        setWiGuestHint(guest);
+        setWiHintDismissed(false);
+        if (guest) setWiName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
+      } catch { /* non-fatal */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [wiPhone]);
 
   // ── Auto-allocation + suggestion fetch ───────────────────────────────────────
   // Fires when booking params change. Fetches suggestions + best result in parallel.
@@ -355,12 +372,13 @@ export default function CreateDrawer({
     setBusy(true);
     try {
       let r = await api.reservations.create({
-        guestName: wiName.trim() || 'Walk-in Guest',
-        partySize: wiParty,
-        date:      todayStr(),
-        time:      nowStr(),
+        guestName:  wiName.trim() || 'Walk-in Guest',
+        guestPhone: wiPhone.trim() || undefined,
+        partySize:  wiParty,
+        date:       todayStr(),
+        time:       nowStr(),
         guestNotes: wiNotes.trim() || undefined,
-        source:    'WALK_IN',
+        source:     'WALK_IN',
       });
       if (seatNow && wiTable) {
         r = await api.reservations.seat(r.id, wiTable);
@@ -882,6 +900,37 @@ export default function CreateDrawer({
                   placeholder={T.createDrawer.placeholderWalkInName}
                   autoFocus
                 />
+              </div>
+
+              <div className="col-span-2">
+                <Label>{T.createDrawer.fieldWalkInPhone}</Label>
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  value={wiPhone}
+                  onChange={e => setWiPhone(e.target.value)}
+                  placeholder={T.createDrawer.placeholderWalkInPhone}
+                />
+                {wiGuestHint && !wiHintDismissed && (
+                  <div className="mt-1.5 rounded-lg border border-iron-green/30 bg-iron-green/5 px-2.5 py-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-iron-green-light text-xs font-medium">{wiGuestHint.firstName} {wiGuestHint.lastName}</span>
+                        {wiGuestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
+                      </div>
+                      <button type="button" onClick={() => setWiHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
+                    </div>
+                    <div className="text-[11px] text-iron-muted space-y-0.5">
+                      <div>
+                        {wiGuestHint.visitCount} visit{wiGuestHint.visitCount !== 1 ? 's' : ''}
+                        {wiGuestHint.noShowCount > 0 && <span className="text-orange-400"> · {wiGuestHint.noShowCount} no-show{wiGuestHint.noShowCount !== 1 ? 's' : ''}</span>}
+                        {wiGuestHint.lastVisitAt && <span> · last {new Date(wiGuestHint.lastVisitAt).toLocaleDateString()}</span>}
+                      </div>
+                      {wiGuestHint.allergies.length > 0 && <div className="text-red-400">⚠ {wiGuestHint.allergies.join(', ')}</div>}
+                      {wiGuestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{wiGuestHint.internalNotes}</div>}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="col-span-2">

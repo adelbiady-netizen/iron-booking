@@ -249,6 +249,8 @@ export const T = {
     confirmChecking:         'Checking tables…',
     // Walk-in form
     fieldWalkInName:      'Guest name',
+    fieldWalkInPhone:     'Phone',
+    placeholderWalkInPhone: 'Optional — for repeat guest lookup',
     fieldWalkInParty:     'Party size *',
     fieldWalkInNotes:     'Notes',
     fieldWalkInTable:     'Table (select to seat immediately)',
