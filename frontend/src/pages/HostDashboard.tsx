@@ -400,6 +400,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [allTables]);
 
   const handleGapWaitlistSeat = useCallback(async (tableId: string, entry: WaitlistEntry, startTime: string, endTime: string) => {
+    if (date > new Date().toISOString().slice(0, 10)) {
+      showToast(T.waitlistPanel.seatFutureDisabled, 'error');
+      return;
+    }
     const toServiceMins = (t: string) => {
       const [h, m] = t.split(':').map(Number);
       const mins = h * 60 + m;
@@ -618,6 +622,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [date]);
 
   const handleWaitlistSeat = useCallback(async (entry: WaitlistEntry) => {
+    if (entry.date > new Date().toISOString().slice(0, 10)) {
+      showToast(T.waitlistPanel.seatFutureDisabled, 'error');
+      return;
+    }
     try {
       const { reservation } = await api.waitlist.seat(entry.id);
       setReservations(prev => [...prev, reservation]);
@@ -666,6 +674,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [showToast]);
 
   const handleSuggestionSeat = useCallback(async (tableId: string, entry: WaitlistEntry) => {
+    if (entry.date > new Date().toISOString().slice(0, 10)) {
+      showToast(T.waitlistPanel.seatFutureDisabled, 'error');
+      return;
+    }
     try {
       const { reservation } = await api.waitlist.seat(entry.id, tableId);
       setReservations(prev => [...prev, reservation]);

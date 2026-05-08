@@ -180,6 +180,7 @@ export const THe = {
   waitlistPanel: {
     readyToSeat:      'מוכן להושבה',
     seatButton:       'הושב',
+    seatFutureDisabled: 'לא ניתן להושיב עבור תאריך עתידי. הושבה מותרת רק בזמן השירות הנוכחי.',
     namePlaceholder:  'שם האורח *',
     partyPlaceholder: 'מספר אורחים *',
     phonePlaceholder: 'טלפון (אופציונלי)',

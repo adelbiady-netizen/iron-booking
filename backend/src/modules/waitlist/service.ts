@@ -217,6 +217,16 @@ export async function seatWaitlistGuest(
     throw new BusinessRuleError(`Cannot seat a guest with status ${entry.status}`);
   }
 
+  const todayUtc     = new Date().toISOString().slice(0, 10);
+  const entryDateStr = entry.date instanceof Date
+    ? entry.date.toISOString().slice(0, 10)
+    : String(entry.date).slice(0, 10);
+  if (entryDateStr > todayUtc) {
+    throw new BusinessRuleError(
+      'Cannot seat a waitlist reservation in the future. Seating is allowed only for the current service time.'
+    );
+  }
+
   const settings = await prisma.restaurant.findUniqueOrThrow({
     where: { id: restaurantId },
     select: { settings: true },

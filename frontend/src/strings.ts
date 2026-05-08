@@ -180,6 +180,7 @@ export const T = {
   waitlistPanel: {
     readyToSeat:      'Ready to seat',
     seatButton:       'Seat',
+    seatFutureDisabled: 'Cannot seat for a future date. Seating is allowed only for the current service time.',
     namePlaceholder:  'Guest name *',
     partyPlaceholder: 'Party *',
     phonePlaceholder: 'Phone (optional)',
