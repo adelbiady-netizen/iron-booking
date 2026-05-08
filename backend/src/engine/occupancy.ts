@@ -43,6 +43,9 @@ export function reservationConflicts(
 // SEATED uses real seatedAt so a late-arriving guest's turn ends proportionally
 // later. Falls back to the scheduled time field if seatedAt is missing.
 // Non-SEATED uses scheduled time + duration.
+//
+// Used for SEATED checks in getFloorState(). For upcoming (non-SEATED)
+// reservations on the board, use reservationIsUpcoming() instead.
 export function reservationOverlapsSlotTime(
   res:      { time: string; duration: number; status: string; seatedAt?: Date | null },
   date:     Date,
@@ -53,4 +56,33 @@ export function reservationOverlapsSlotTime(
     return addMinutes(anchor, res.duration) > slotTime;
   }
   return addMinutes(parseTimeOnDate(date, res.time), res.duration) > slotTime;
+}
+
+// ─── RESERVED_SOON_MINUTES ────────────────────────────────────────────────────
+// A non-SEATED reservation marks the floor board as RESERVED_SOON when its
+// scheduled start is within this many minutes of the selected board time.
+// Beyond this window the table appears AVAILABLE on the map (the reservation
+// still shows in the sidebar list which uses the full day's data).
+export const RESERVED_SOON_MINUTES = 15;
+
+// ─── reservationIsUpcoming ────────────────────────────────────────────────────
+// Should a non-SEATED reservation make the floor board show this table as
+// non-AVAILABLE at the selected board time?
+//
+// Returns true when the reservation:
+//   (a) starts within RESERVED_SOON_MINUTES of slotTime (imminent, or guest is late), AND
+//   (b) hasn't ended yet (turn still relevant).
+//
+// Reservations that start more than RESERVED_SOON_MINUTES in the future are
+// intentionally excluded — the host can still seat the table for a different
+// turn without any floor-map conflict signal.
+export function reservationIsUpcoming(
+  res:      { time: string; duration: number },
+  date:     Date,
+  slotTime: Date,
+): boolean {
+  const resStart     = parseTimeOnDate(date, res.time);
+  const resEnd       = addMinutes(resStart, res.duration);
+  const minutesUntil = (resStart.getTime() - slotTime.getTime()) / 60_000;
+  return minutesUntil <= RESERVED_SOON_MINUTES && resEnd > slotTime;
 }

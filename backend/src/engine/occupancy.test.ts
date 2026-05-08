@@ -9,8 +9,10 @@ import assert from 'node:assert/strict';
 import {
   reservationConflicts,
   reservationOverlapsSlotTime,
+  reservationIsUpcoming,
   parseTimeOnDate,
   ACTIVE_STATUSES,
+  RESERVED_SOON_MINUTES,
 } from './occupancy';
 
 let passed = 0;
@@ -203,6 +205,79 @@ test('SEATED seatedAt=undefined: falls back to scheduled time field', () => {
   assert.equal(
     reservationOverlapsSlotTime({ time: '14:30', duration: 90, status: 'SEATED' }, D, slot23),
     false,
+  );
+});
+
+// ─── reservationIsUpcoming ────────────────────────────────────────────────────
+
+console.log('\nreservationIsUpcoming');
+
+// Board time: 11:55
+
+const slot1155 = parseTimeOnDate(D, '11:55');
+
+test('RESERVED_SOON_MINUTES constant is 15', () => {
+  assert.equal(RESERVED_SOON_MINUTES, 15);
+});
+
+test('reservation 335 min in the future (17:30 at 11:55) → false — not on floor map', () => {
+  // The bug scenario: 17:30 res at board time 11:55
+  assert.equal(
+    reservationIsUpcoming({ time: '17:30', duration: 90 }, D, slot1155),
+    false,
+  );
+});
+
+test('reservation 35 min in the future (12:30 at 11:55) → false — beyond RESERVED_SOON window', () => {
+  // The bug scenario: 12:30 res at board time 11:55
+  assert.equal(
+    reservationIsUpcoming({ time: '12:30', duration: 90 }, D, slot1155),
+    false,
+  );
+});
+
+test('reservation 15 min away (12:10 at 11:55) → true — exactly at RESERVED_SOON boundary', () => {
+  assert.equal(
+    reservationIsUpcoming({ time: '12:10', duration: 90 }, D, slot1155),
+    true,
+  );
+});
+
+test('reservation 14 min away (12:09 at 11:55) → true — within RESERVED_SOON window', () => {
+  assert.equal(
+    reservationIsUpcoming({ time: '12:09', duration: 90 }, D, slot1155),
+    true,
+  );
+});
+
+test('reservation 16 min away (12:11 at 11:55) → false — just outside window', () => {
+  assert.equal(
+    reservationIsUpcoming({ time: '12:11', duration: 90 }, D, slot1155),
+    false,
+  );
+});
+
+test('guest 5 min late (res at 11:50 at board time 11:55, turn not yet ended) → true', () => {
+  // minutesUntil = -5 ≤ 15; resEnd = 11:50+90 = 13:20 > 11:55 → true
+  assert.equal(
+    reservationIsUpcoming({ time: '11:50', duration: 90 }, D, slot1155),
+    true,
+  );
+});
+
+test('guest 2 hours late, turn has ended (res at 09:00 dur 60min at 11:55) → false', () => {
+  // minutesUntil = -175 ≤ 15 BUT resEnd = 10:00 < 11:55 → false
+  assert.equal(
+    reservationIsUpcoming({ time: '09:00', duration: 60 }, D, slot1155),
+    false,
+  );
+});
+
+test('reservation starting now (11:55 at 11:55) → true', () => {
+  // minutesUntil = 0 ≤ 15; resEnd = 13:25 > 11:55 → true
+  assert.equal(
+    reservationIsUpcoming({ time: '11:55', duration: 90 }, D, slot1155),
+    true,
   );
 });
 

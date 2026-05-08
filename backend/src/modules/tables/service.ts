@@ -3,7 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
 import { addMinutes } from 'date-fns';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationOverlapsSlotTime, reservationIsUpcoming } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -89,14 +89,16 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // If seated but turn ended, fall through to upcoming/available check.
     }
 
-    // Find upcoming reservations — matches primary tableId OR secondary combined tables.
-    // Delegates time-window check to reservationOverlapsSlotTime so floor board and
-    // availability engine share identical overlap semantics.
+    // Find upcoming reservations that should visually mark this table on the floor map.
+    // Uses reservationIsUpcoming() — only reservations starting within RESERVED_SOON_MINUTES
+    // (15 min) are included, so a 17:30 reservation does not block the board at 11:55.
+    // The full day's reservation list is still available in the sidebar via the separate
+    // reservations prop; this filter only governs floor-map visual state.
     const upcoming = reservations
       .filter((r) => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
         if (r.status === 'SEATED') return false;
-        return reservationOverlapsSlotTime(r, date, slotTime);
+        return reservationIsUpcoming(r, date, slotTime);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
