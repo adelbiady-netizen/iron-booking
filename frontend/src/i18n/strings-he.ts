@@ -297,6 +297,7 @@ export const THe = {
     editButton:           'עריכה',
     rowDate:              'תאריך',
     rowTime:              'שעה',
+    rowSeatedAt:          'הושב בשעה',
     rowDuration:          'משך',
     rowTable:             'שולחן',
     rowSource:            'מקור',

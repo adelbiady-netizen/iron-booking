@@ -747,12 +747,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     {T.guestDrawer.guestConfirmed}
                   </span>
                 )}
-                {res.isRunningLate && (
+                {res.isRunningLate && res.status !== 'SEATED' && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
                     {T.guestDrawer.runningLate}
                   </span>
                 )}
-                {!res.isConfirmedByGuest && res.confirmationSentAt && (
+                {!res.isConfirmedByGuest && res.confirmationSentAt && res.status !== 'SEATED' && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-medium">
                     {T.guestDrawer.smsSentBadge}
                   </span>
@@ -902,6 +902,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           <section className="space-y-2">
             <Row label={T.guestDrawer.rowDate}       value={res.date} />
             <Row label={T.guestDrawer.rowTime}       value={res.time} />
+            {res.status === 'SEATED' && res.seatedAt && (
+              <Ts label={T.guestDrawer.rowSeatedAt}  ts={res.seatedAt} />
+            )}
             <Row label={T.guestDrawer.rowDuration}   value={T.guestDrawer.durationValue(res.duration)} />
             <Row label={T.guestDrawer.rowTable}      value={(() => {
               if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
@@ -980,8 +983,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
-          {/* Confirmation */}
-          <ConfirmationSection />
+          {/* Confirmation — hidden once guest is physically present or turn is closed */}
+          {!['SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && <ConfirmationSection />}
 
           {/* Actions */}
           <section className="border-t border-iron-border pt-4">

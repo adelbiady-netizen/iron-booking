@@ -300,6 +300,7 @@ export const T = {
     // Reservation detail rows
     rowDate:              'Date',
     rowTime:              'Time',
+    rowSeatedAt:          'Seated at',
     rowDuration:          'Duration',
     rowTable:             'Table',
     rowSource:            'Source',
