@@ -83,10 +83,9 @@ function tableRadius(shape: string): string {
 
 function hasPositions(tables: FloorTable[]): boolean {
   if (tables.length === 0) return false;
-  // Canvas mode activates when at least one table has been explicitly positioned.
-  // Unpositioned tables (posX ≤ 5 AND posY ≤ 5, i.e. default origin) are
-  // excluded from the canvas render so seed/sample tables don't ghost.
-  return tables.some(t => t.posX > 5 || t.posY > 5);
+  // Canvas mode only activates when at least one table has BOTH axes placed (> 5 px).
+  // OR would let a table dragged along a single axis pass, ghosting onto the canvas.
+  return tables.some(t => t.posX > 5 && t.posY > 5);
 }
 
 type View = 'floor' | 'timeline';
@@ -254,7 +253,7 @@ export default function FloorBoard({
 
   // Only explicitly-placed tables render on canvas / grid. Seed tables at the
   // default origin (posX ≤ 5 AND posY ≤ 5) are excluded so they cannot ghost.
-  const canvasTables = tables.filter(t => t.posX > 5 || t.posY > 5);
+  const canvasTables = tables.filter(t => t.posX > 5 && t.posY > 5);
   // Use positioned-only set when any table has been placed; fall back to all
   // tables only when no layout exists yet (brand-new restaurant).
   const visibleTables = canvasTables.length > 0 ? canvasTables : tables;

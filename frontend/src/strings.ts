@@ -301,6 +301,7 @@ export const T = {
     rowDate:              'Date',
     rowTime:              'Time',
     rowSeatedAt:          'Seated at',
+    seatFutureDisabled:   'Seating is only available on the day of the reservation',
     rowDuration:          'Duration',
     rowTable:             'Table',
     rowSource:            'Source',

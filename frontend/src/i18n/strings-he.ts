@@ -298,6 +298,7 @@ export const THe = {
     rowDate:              'תאריך',
     rowTime:              'שעה',
     rowSeatedAt:          'הושב בשעה',
+    seatFutureDisabled:   'הושבה זמינה רק ביום ההזמנה',
     rowDuration:          'משך',
     rowTable:             'שולחן',
     rowSource:            'מקור',

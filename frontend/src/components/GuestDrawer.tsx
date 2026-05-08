@@ -95,13 +95,15 @@ interface ActionBtnProps {
   cls: string;
   onClick: () => void;
   disabled: boolean;
+  title?: string;
 }
 
-function ActionBtn({ label, cls, onClick, disabled }: ActionBtnProps) {
+function ActionBtn({ label, cls, onClick, disabled, title }: ActionBtnProps) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${cls}`}
     >
       {label}
@@ -210,6 +212,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
   const [res, setRes] = useState<Reservation>(init);
   const [mode, setMode] = useState<Mode>('view');
+
+  // Seating is only allowed for today's service — block future-date reservations.
+  const isFutureReservation = res.date > new Date().toISOString().slice(0, 10);
   const [cancelReason,  setCancelReason]  = useState('');
   const [unseatConfirm, setUnseatConfirm] = useState(false);
   const [lockReason,   setLockReason]   = useState('');
@@ -608,7 +613,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               setMode('seat');
             }
           }}
-          disabled={busy}
+          disabled={busy || isFutureReservation}
+          title={isFutureReservation ? T.guestDrawer.seatFutureDisabled : undefined}
         />
         {res.tableId && (
           <ActionBtn
@@ -648,7 +654,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               setMode('seat');
             }
           }}
-          disabled={busy}
+          disabled={busy || isFutureReservation}
+          title={isFutureReservation ? T.guestDrawer.seatFutureDisabled : undefined}
         />
         {res.tableId && (
           <ActionBtn

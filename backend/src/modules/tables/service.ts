@@ -37,9 +37,10 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
 
   const slotTime = parseTimeOnDate(date, time);
 
-  // Exclude seed/unpositioned tables (posX ≤ 5 AND posY ≤ 5) once any table has
-  // been explicitly placed, so dev-login sample tables cannot ghost onto a real layout.
-  const positionedTables = tables.filter(t => t.posX > 5 || t.posY > 5);
+  // A table is "placed" only when BOTH axes are meaningfully positioned (> 5 px).
+  // Using AND (not OR) prevents a table dragged along one axis only — e.g. (100, 0)
+  // — from passing the filter and ghosting onto the canvas.
+  const positionedTables = tables.filter(t => t.posX > 5 && t.posY > 5);
   const effectiveTables  = positionedTables.length > 0 ? positionedTables : tables;
 
   return effectiveTables.map((table) => {

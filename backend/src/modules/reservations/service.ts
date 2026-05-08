@@ -391,6 +391,16 @@ export async function seatReservation(
     throw new BusinessRuleError(`Cannot seat a reservation with status ${r.status}`);
   }
 
+  // Seating is an operational action that only makes sense for today's service.
+  // Block future-date reservations to prevent accidental early seating.
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const resDateUtc = r.date instanceof Date
+    ? r.date.toISOString().slice(0, 10)
+    : String(r.date).slice(0, 10);
+  if (resDateUtc > todayUtc) {
+    throw new BusinessRuleError('Cannot seat a reservation scheduled for a future date');
+  }
+
   const settings = await getRestaurantSettings(restaurantId);
   // Never fall back to the DB's existing combinedTableIds — doing so would
   // preserve stale IDs from a previous combined-table seat and cause ghost
