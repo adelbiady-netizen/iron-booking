@@ -276,6 +276,14 @@ export default function ReservationPanel({
                           <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
                         )}
                       </span>
+                      {!r.guestPhone && (
+                        <span
+                          title={T.reservationPanel.noPhone}
+                          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-iron-border/40 text-iron-muted/50 font-medium"
+                        >
+                          ✆–
+                        </span>
+                      )}
                       <span className={`text-xs px-2.5 py-1 rounded-md border font-semibold shrink-0 ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>

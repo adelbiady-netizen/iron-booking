@@ -167,6 +167,7 @@ export const T = {
     emptyHintMid:     ' for a phone booking or ',
     emptyHintSuffix:  ' for guests at the door.',
     needsReminder:    'Needs reminder',
+    noPhone:          'No phone',
     confirmedTick:    '✓ confirmed',
     runningLate:      'running late',
     reminded:         'reminded',
@@ -262,6 +263,11 @@ export const T = {
     submitSeatNowBusy:    'Seating…',
     submitAddToList:      'Add to List',
     submitAddToListBusy:  'Adding…',
+    // Phone warning
+    phoneWarnTitle:       'No phone number entered',
+    phoneWarnBody:        'Without a phone number you won\'t be able to send confirmations, reminders, or contact this guest if they\'re late.',
+    phoneWarnAddPhone:    'Go Back and Add Phone',
+    phoneWarnContinue:    'Continue Without Phone',
   },
 
   // ── Table picker ───────────────────────────────────────────────────────────

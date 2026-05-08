@@ -167,6 +167,7 @@ export const THe = {
     emptyHintMid:     ' להזמנה טלפונית, או ב-',
     emptyHintSuffix:  ' לאורחים שהגיעו.',
     needsReminder:    'צריך תזכורת',
+    noPhone:          'אין טלפון',
     confirmedTick:    '✓ אושר',
     runningLate:      'מאחר',
     reminded:         'תוזכר',
@@ -260,6 +261,11 @@ export const THe = {
     submitSeatNowBusy:    'מושיב…',
     submitAddToList:      'הוסף לרשימה',
     submitAddToListBusy:  'מוסיף…',
+    // Phone warning
+    phoneWarnTitle:       'לא הוזן מספר טלפון',
+    phoneWarnBody:        'ללא מספר טלפון לא ניתן לשלוח אישורים, תזכורות, או ליצור קשר עם האורח אם יאחר.',
+    phoneWarnAddPhone:    'חזור והוסף טלפון',
+    phoneWarnContinue:    'המשך ללא טלפון',
   },
 
   // ── Table picker ───────────────────────────────────────────────────────────

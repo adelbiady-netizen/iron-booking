@@ -198,8 +198,10 @@ export default function CreateDrawer({
     _setManualOverride(v);
   }
 
-  const [error, setError] = useState<string | null>(null);
-  const [busy,  setBusy]  = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [busy,         setBusy]         = useState(false);
+  const [phoneWarning, setPhoneWarning] = useState(false);
+  const [pendingSeat,  setPendingSeat]  = useState(false);
 
   // Debounced guest lookup by phone
   useEffect(() => {
@@ -340,8 +342,7 @@ export default function CreateDrawer({
     );
   }
 
-  async function submitReservation(e: React.FormEvent) {
-    e.preventDefault();
+  async function doSubmitReservation() {
     setError(null);
     setBusy(true);
     try {
@@ -367,7 +368,13 @@ export default function CreateDrawer({
     }
   }
 
-  async function submitWalkIn(seatNow: boolean) {
+  async function submitReservation(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resPhone.trim()) { setPhoneWarning(true); return; }
+    await doSubmitReservation();
+  }
+
+  async function doSubmitWalkIn(seatNow: boolean) {
     setError(null);
     setBusy(true);
     try {
@@ -391,6 +398,11 @@ export default function CreateDrawer({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submitWalkIn(seatNow: boolean) {
+    if (!wiPhone.trim()) { setPendingSeat(seatNow); setPhoneWarning(true); return; }
+    await doSubmitWalkIn(seatNow);
   }
 
   // ── Confirm button label ──────────────────────────────────────────────────────
@@ -439,7 +451,7 @@ export default function CreateDrawer({
           <div className="flex gap-1 bg-iron-bg rounded-lg p-1">
             <button
               type="button"
-              onClick={() => { setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); }}
+              onClick={() => { setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); setPhoneWarning(false); }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
                 mode === 'reservation' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
               }`}
@@ -448,7 +460,7 @@ export default function CreateDrawer({
             </button>
             <button
               type="button"
-              onClick={() => { setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); }}
+              onClick={() => { setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); setPhoneWarning(false); }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
                 mode === 'walkin' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
               }`}
@@ -874,14 +886,39 @@ export default function CreateDrawer({
 
             {/* ── Sticky confirm footer ── */}
             <div className="p-3 border-t border-iron-border shrink-0">
-              <button
-                type="submit"
-                form="create-res-form"
-                disabled={busy || (suggestBusy && !resTable)}
-                className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-3 rounded-lg text-sm transition-colors"
-              >
-                {confirmLabel()}
-              </button>
+              {phoneWarning ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-900/10 p-3 space-y-2.5">
+                  <div>
+                    <p className="text-amber-400 text-xs font-semibold">{T.createDrawer.phoneWarnTitle}</p>
+                    <p className="text-iron-muted text-[11px] mt-1 leading-relaxed">{T.createDrawer.phoneWarnBody}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPhoneWarning(false)}
+                      className="flex-1 text-xs py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors font-medium"
+                    >
+                      {T.createDrawer.phoneWarnAddPhone}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPhoneWarning(false); doSubmitReservation(); }}
+                      className="flex-1 text-xs py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+                    >
+                      {T.createDrawer.phoneWarnContinue}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  form="create-res-form"
+                  disabled={busy || (suggestBusy && !resTable)}
+                  className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-3 rounded-lg text-sm transition-colors"
+                >
+                  {confirmLabel()}
+                </button>
+              )}
             </div>
           </>
         )}
@@ -974,7 +1011,30 @@ export default function CreateDrawer({
             )}
 
             <div className="space-y-2">
-              {wiTable ? (
+              {phoneWarning ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-900/10 p-3 space-y-2.5">
+                  <div>
+                    <p className="text-amber-400 text-xs font-semibold">{T.createDrawer.phoneWarnTitle}</p>
+                    <p className="text-iron-muted text-[11px] mt-1 leading-relaxed">{T.createDrawer.phoneWarnBody}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPhoneWarning(false)}
+                      className="flex-1 text-xs py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors font-medium"
+                    >
+                      {T.createDrawer.phoneWarnAddPhone}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPhoneWarning(false); doSubmitWalkIn(pendingSeat); }}
+                      className="flex-1 text-xs py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+                    >
+                      {T.createDrawer.phoneWarnContinue}
+                    </button>
+                  </div>
+                </div>
+              ) : wiTable ? (
                 <button
                   type="button"
                   disabled={busy}
