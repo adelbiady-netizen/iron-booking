@@ -863,7 +863,6 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           errorPhase={errorPhase}
           onLockTable={handleLockTable}
           onUnlockTable={handleUnlockTable}
-          waitlistMatches={waitlistMatches}
           onWaitlistSuggestion={handleSuggestionSeat}
           bestSuggestionTableId={bestSuggestionTableId}
           softHoldMap={softHoldMap}
