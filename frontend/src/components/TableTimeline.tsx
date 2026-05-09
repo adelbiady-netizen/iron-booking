@@ -195,8 +195,12 @@ export default function TableTimeline({
     return { table: t, laned, rowH, gaps };
   }), [tables, byTable]);
 
-  // Density insight — reruns every 60 s tick, API refresh, or language change
+  const isToday = date === new Date().toISOString().slice(0, 10);
+
+  // Density insight — reruns every 60 s tick, API refresh, or language change.
+  // Suppressed on future dates: countdown labels have no meaning in planning mode.
   const densityByTable = useMemo<Map<string, DensityInfo | null>>(() => {
+    if (!isToday) return new Map();
     const map = new Map<string, DensityInfo | null>();
     for (const { table, laned } of tableLayouts) {
       const active = laned.find(b => b.startMins <= nowMins && b.endMins > nowMins);
@@ -220,7 +224,7 @@ export default function TableTimeline({
       }
     }
     return map;
-  }, [tableLayouts, nowMins, T]);
+  }, [tableLayouts, nowMins, T, isToday]);
 
   // Single highest-priority waitlist guest across all gap-bearing tables — only one glows
   const topGuestId = useMemo<string | null>(() => {

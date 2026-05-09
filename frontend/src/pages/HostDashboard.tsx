@@ -274,6 +274,11 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     return new Date(y, mo - 1, d, h, m).getTime();
   }, [date, time]);
 
+  // True only when the selected date is calendar-today (live service mode).
+  // On future dates the board is in schedule/planning mode — live-clock
+  // countdowns, overdue indicators, and arrival alerts must be suppressed.
+  const isToday = date === todayStr();
+
   // Waitlist — refresh on date, time, main refresh, or dedicated 30s waitlist key.
   // Same stale-while-revalidate pattern: spinner only on date change or first load.
   useEffect(() => {
@@ -581,6 +586,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   // Arrival-based insights for CONFIRMED late/at-risk guests (frontend-computed,
   // uses operational time, covers both assigned and unassigned reservations).
   const arrivalInsights = useMemo((): FloorInsight[] => {
+    if (!isToday) return [];
     return reservations
       .filter(r => r.status === 'CONFIRMED')
       .flatMap(r => {
@@ -605,7 +611,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         const bMins = bId ? Math.abs(minutesUntilRes(bId.time, time)) : 0;
         return bMins - aMins;
       });
-  }, [reservations, time, T]);
+  }, [reservations, time, T, isToday]);
 
   // Backend insights + frontend arrival insights, deduped by reservationId.
   // Backend messages are English-hardcoded, so we re-derive them from raw data using T.
@@ -624,7 +630,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       if (insight.type === 'ENDING_SOON') {
         const table = floorTables.find(t => t.id === insight.tableId);
         if (table?.currentReservation) {
-          const mr = Math.round((new Date(table.currentReservation.expectedEndTime).getTime() - Date.now()) / 60_000);
+          const mr = Math.round((new Date(table.currentReservation.expectedEndTime).getTime() - operationalNow) / 60_000);
           return { ...insight, message: mr > 0 ? `${table.name} · ${T.tableCard.endsIn(mr)}` : `${table.name} · ${T.tableCard.overBy(Math.abs(mr))}` };
         }
       }

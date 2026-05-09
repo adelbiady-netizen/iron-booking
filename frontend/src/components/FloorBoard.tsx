@@ -857,7 +857,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, date: _date }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, date }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -878,9 +878,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickSelected?: boolean;
   pickStatus?: PickStatus;
   waitlistAssignTarget?: boolean;
-  date?: string; // kept for potential future use; not currently consumed
+  date?: string;
 }) {
   const T = useT();
+  const isToday = !date || date === new Date().toISOString().slice(0, 10);
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
 
   const sectionColor = table.section?.color ?? '#3f3f46';
@@ -1030,12 +1031,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && (
               <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
-                {currentRes.partySize} ·{' '}
-                {mr > 5
-                  ? T.floorBoard.mLeft(mr)
-                  : mr >= -5
-                  ? T.floorBoard.ending
-                  : T.floorBoard.mOver(Math.abs(mr))}
+                {currentRes.partySize}
+                {isToday && <>{' · '}{mr > 5 ? T.floorBoard.mLeft(mr) : mr >= -5 ? T.floorBoard.ending : T.floorBoard.mOver(Math.abs(mr))}</>}
               </p>
             )}
           </div>

@@ -37,9 +37,10 @@ interface Props {
   date?: string;
 }
 
-export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip }: Props) {
+export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip, date }: Props) {
   const T = useT();
   const { locale } = useLocale();
+  const isToday = !date || date === new Date().toISOString().slice(0, 10);
   const STATUS_STYLE: Record<string, StatusStyle> = {
     AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
     OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
@@ -126,9 +127,9 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             {!isSecondary && (
               <p className="text-iron-muted text-[11px]">
                 {T.common.guests(currentRes.partySize)}
-                {mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
-                {mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
-                {mr < -5 && <span className="text-orange-400"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+                {isToday && mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
+                {isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
+                {isToday && mr < -5 && <span className="text-orange-400"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
               </p>
             )}
           </div>
@@ -182,7 +183,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <p className="text-indigo-300 text-[11px] font-medium truncate">
             ⏸ {softHold.guestName} · {T.common.guests(softHold.partySize)}
           </p>
-          <p className="text-iron-muted text-[10px]">{(() => { const m = waitMins(softHold.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.flowControl.softHoldWaiting(m); })()}</p>
+          <p className="text-iron-muted text-[10px]">{isToday ? (() => { const m = waitMins(softHold.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.flowControl.softHoldWaiting(m); })() : ''}</p>
         </div>
       )}
 
@@ -194,7 +195,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <p className="text-iron-green-light text-[11px] font-medium truncate">
             → {waitlistMatch.guestName} · {T.common.guests(waitlistMatch.partySize)}
           </p>
-          <p className="text-iron-muted text-[10px]">{(() => { const m = waitMins(waitlistMatch.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.tableCard.waitlistWaiting(m); })()}</p>
+          <p className="text-iron-muted text-[10px]">{isToday ? (() => { const m = waitMins(waitlistMatch.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.tableCard.waitlistWaiting(m); })() : ''}</p>
         </div>
       )}
 

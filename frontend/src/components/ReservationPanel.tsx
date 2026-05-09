@@ -200,6 +200,7 @@ export default function ReservationPanel({
           entrySuggestions={entrySuggestions}
           priorityQueue={priorityQueue}
           operationalNow={operationalNow}
+          isToday={!isFutureDate}
         />
       ) : (
         <>

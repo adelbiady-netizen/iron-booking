@@ -28,9 +28,10 @@ interface Props {
   entrySuggestions?: Map<string, TableSuggestion[]>;
   priorityQueue?: PriorityEntry[];
   operationalNow?: number;
+  isToday?: boolean;
 }
 
-export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow }: Props) {
+export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow, isToday = true }: Props) {
   const T = useT();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [showForm, setShowForm] = useState(false);
@@ -142,7 +143,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                   <p className="text-iron-muted text-[10px]">
                     {T.waitlistPanel.guests(entry.partySize)}
                     {' · '}{T.waitlistPanel.tableLabel(tableName)}
-                    {' · '}{(() => { const m = waitMins(entry.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(m); })()}
+                    {isToday && <>{' · '}{(() => { const m = waitMins(entry.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(m); })()}</>}
                   </p>
                 </div>
                 <button
@@ -324,7 +325,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                         {' · '}pref {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}
                       </span>
                     )}
-                    {' · '}{mins < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(mins)}
+                    {isToday && <>{' · '}{mins < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(mins)}</>}
                     {eta !== null && (
                       <span className={etaColor}>
                         {' · '}
