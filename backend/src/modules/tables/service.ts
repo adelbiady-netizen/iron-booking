@@ -2,7 +2,6 @@ import { prisma } from '../../lib/prisma';
 import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
-import { addMinutes } from 'date-fns';
 import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
@@ -66,21 +65,13 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status === 'SEATED'
     );
     if (seated) {
-      const [rH, rM] = seated.time.split(':').map(Number);
-      const [sH, sM] = time.split(':').map(Number);
-      const resMins  = rH * 60 + rM;
-      const slotMins = sH * 60 + sM;
-      const anchor      = parseTimeOnDate(date, seated.time);
-      const expectedEnd = addMinutes(anchor, seated.duration);
-      // Service-day midnight crossing: if the reservation is late-night (e.g. 23:47)
-      // but the slot is past midnight (e.g. 00:03), advance effectiveSlotTime by one
-      // calendar day so minutesRemaining is correct.
-      const effectiveSlotTime = resMins > slotMins + 720
-        ? parseTimeOnDate(new Date(date.getTime() + 86_400_000), time)
-        : slotTime;
-      const minutesRemaining = Math.round(
-        (expectedEnd.getTime() - effectiveSlotTime.getTime()) / 60000
-      );
+      // Occupancy timing is anchored to the actual seating moment (seatedAt),
+      // not the reservation's scheduled time. This is timezone-safe: seatedAt
+      // is a real UTC timestamp, so seatedAt + duration gives a correct UTC end
+      // regardless of the server's local timezone or the restaurant's timezone.
+      const seatedAtMs    = new Date(seated.seatedAt!).getTime();
+      const expectedEndMs = seatedAtMs + seated.duration * 60_000;
+      const minutesRemaining = Math.round((expectedEndMs - Date.now()) / 60_000);
       return {
         ...table,
         locked: effectiveLocked,
@@ -88,7 +79,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         currentReservation: {
           ...seated,
           minutesRemaining,
-          expectedEndTime: expectedEnd.toISOString(),
+          expectedEndTime: new Date(expectedEndMs).toISOString(),
         },
         upcomingReservations: [],
       };
