@@ -352,8 +352,11 @@ export default function FloorBoard({
   for (const arr of turnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
 
   // ── Stats (derived from deduplicated set for accurate counters) ──────────────
+  // "Seated" counts SEATED RESERVATIONS (parties), not occupied tables.
+  // A combined-table booking occupies 2 tables but is 1 party — counting by
+  // table would always exceed the ReservationPanel's SEATED filter count.
   const available    = dedupedTables.filter(t => t.liveStatus === 'AVAILABLE').length;
-  const occupied     = dedupedTables.filter(t => t.liveStatus === 'OCCUPIED').length;
+  const seatedParties = (reservations ?? []).filter(r => r.status === 'SEATED').length;
   const reservedSoon = dedupedTables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
   const reserved     = dedupedTables.filter(t => t.liveStatus === 'RESERVED').length;
 
@@ -372,8 +375,8 @@ export default function FloorBoard({
 
       {/* Stats + section legend */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-iron-border bg-iron-card/50 shrink-0 flex-wrap">
-        <Stat label={T.floorBoard.statAvailable} value={available}    color="text-iron-muted" />
-        <Stat label={T.floorBoard.statSeated}    value={occupied}     color="text-iron-green-light" />
+        <Stat label={T.floorBoard.statAvailable} value={available}      color="text-iron-muted" />
+        <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
         <Stat label={T.floorBoard.statReserved}  value={reserved}     color="text-blue-400" />
 
