@@ -772,11 +772,26 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setTimeout(() => setHighlightId(null), 2000);
   }, [showToast]);
 
+  const operatingHours = auth.user.restaurant?.operatingHours;
+
+  function serviceStartForDate(dateStr: string): string {
+    if (operatingHours?.length) {
+      const dow = new Date(dateStr + 'T00:00:00Z').getUTCDay();
+      const h = operatingHours.find(h => h.dayOfWeek === dow);
+      if (h?.isOpen) return snapTimeStr(h.openTime);
+    }
+    return snapTimeStr(
+      auth.user.restaurant?.settings?.openingHour ?? SERVICE_START_FALLBACK
+    );
+  }
+
   const handleDateChange = useCallback((d: string) => {
     setDate(d);
+    setTime(serviceStartForDate(d));
     setSelectedRes(null);
     setLiveMode(false);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatingHours]);
 
   const handleTimeChange = useCallback((t: string) => {
     setTime(snapTimeStr(t));
@@ -791,23 +806,27 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setRefreshKey(k => k + 1);
   }, []);
 
-  const serviceStart = snapTimeStr(
-    auth.user.restaurant?.settings?.openingHour ?? SERVICE_START_FALLBACK
-  );
-
   const handlePrevDay = useCallback(() => {
-    setDate(d => shiftDate(d, -1));
-    setTime(serviceStart);
+    setDate(d => {
+      const next = shiftDate(d, -1);
+      setTime(serviceStartForDate(next));
+      return next;
+    });
     setSelectedRes(null);
     setLiveMode(false);
-  }, [serviceStart]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatingHours]);
 
   const handleNextDay = useCallback(() => {
-    setDate(d => shiftDate(d, 1));
-    setTime(serviceStart);
+    setDate(d => {
+      const next = shiftDate(d, 1);
+      setTime(serviceStartForDate(next));
+      return next;
+    });
     setSelectedRes(null);
     setLiveMode(false);
-  }, [serviceStart]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatingHours]);
 
   const handlePrev30 = useCallback(() => {
     const { date: nd, time: nt } = shiftTime(date, time, -30);

@@ -95,6 +95,14 @@ export interface FloorTable extends Table {
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'HOST' | 'SERVER';
 
+export interface OperatingHourRecord {
+  dayOfWeek:   number;   // 0 = Sunday … 6 = Saturday
+  isOpen:      boolean;
+  openTime:    string;   // "HH:mm" — service start / first booking slot
+  closeTime:   string;   // "HH:mm" — physical close
+  lastSeating: string;   // "HH:mm" — last reservation slot
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -107,11 +115,12 @@ export interface AuthUser {
     slug: string;
     timezone: string;
     settings?: {
-      openingHour?: string;     // "HH:mm" — service/board start time
+      openingHour?: string;
       closingHour?: string;
       defaultTurnMinutes?: number;
       [key: string]: unknown;
     };
+    operatingHours?: OperatingHourRecord[];
   } | null;
 }
 

@@ -16,6 +16,14 @@ interface WizardSettings {
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
 
+interface ScheduleRow { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string; }
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map(d => ({
+  dayOfWeek: d, isOpen: d !== 0, openTime: '11:00', closeTime: '22:00', lastSeating: '21:00',
+}));
+
 const DEFAULT_BASIC: WizardBasic     = { name: '', slug: '', timezone: 'America/New_York', phone: '', email: '', address: '' };
 const DEFAULT_SETTINGS: WizardSettings = {
   defaultTurnMinutes: 90, slotIntervalMinutes: 15, maxPartySize: 20,
@@ -170,6 +178,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
 
+  // Weekly schedule edit state
+  const [editSchedule,  setEditSchedule]  = useState(false);
+  const [scheduleRows,  setScheduleRows]  = useState<ScheduleRow[]>(DEFAULT_SCHEDULE);
+  const [scheduleBusy,  setScheduleBusy]  = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -208,6 +222,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
       setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '' });
+      if (d.operatingHours?.length === 7) {
+        setScheduleRows(d.operatingHours.map(h => ({
+          dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
+          openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating,
+        })));
+      }
     } catch { /* ignore */ }
     finally { setDetailBusy(false); }
   }, []);
@@ -390,6 +410,25 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   }
 
   // ── Branding ──────────────────────────────────────────────────────────────────
+
+  async function handleSaveSchedule() {
+    if (!selectedId) return;
+    setScheduleBusy(true);
+    setScheduleError(null);
+    try {
+      const updated = await api.admin.restaurants.updateOperatingHours(selectedId, scheduleRows);
+      setScheduleRows(updated.map(h => ({
+        dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
+        openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating,
+      })));
+      setEditSchedule(false);
+      showToast('Schedule saved');
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setScheduleBusy(false);
+    }
+  }
 
   async function handleSaveBranding() {
     if (!selectedId) return;
@@ -806,6 +845,91 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </div>
               ))}
             </dl>
+          </div>
+        )}
+
+        {/* Weekly Schedule */}
+        {editSchedule ? (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
+            <h3 className="font-medium">Weekly Schedule</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-iron-muted border-b border-iron-border">
+                    <th className="pb-2 pr-4 font-normal w-24">Day</th>
+                    <th className="pb-2 pr-4 font-normal w-12">Open</th>
+                    <th className="pb-2 pr-4 font-normal">Service starts</th>
+                    <th className="pb-2 pr-4 font-normal">Closes</th>
+                    <th className="pb-2 font-normal">Last seating</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduleRows.map((row, i) => (
+                    <tr key={row.dayOfWeek} className="border-b border-iron-border/20 last:border-0">
+                      <td className="py-2 pr-4 text-iron-muted text-xs">{DAY_NAMES[row.dayOfWeek]}</td>
+                      <td className="py-2 pr-4">
+                        <input
+                          type="checkbox"
+                          checked={row.isOpen}
+                          onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, isOpen: e.target.checked } : r))}
+                          className="w-4 h-4 cursor-pointer accent-iron-green"
+                        />
+                      </td>
+                      <td className="py-2 pr-4">
+                        <input
+                          type="time"
+                          value={row.openTime}
+                          disabled={!row.isOpen}
+                          onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, openTime: e.target.value } : r))}
+                          className="bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </td>
+                      <td className="py-2 pr-4">
+                        <input
+                          type="time"
+                          value={row.closeTime}
+                          disabled={!row.isOpen}
+                          onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, closeTime: e.target.value } : r))}
+                          className="bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="time"
+                          value={row.lastSeating}
+                          disabled={!row.isOpen}
+                          onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, lastSeating: e.target.value } : r))}
+                          className="bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-iron-muted">Service starts = first booking slot on the public page. Last seating = last reservation allowed.</p>
+            {scheduleError && <p className="text-xs text-red-400">{scheduleError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveSchedule} disabled={scheduleBusy} className={btnPrimary}>{scheduleBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+              <button onClick={() => { setEditSchedule(false); setScheduleError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Weekly Schedule</h3>
+              <button onClick={() => setEditSchedule(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              {scheduleRows.map(row => (
+                <div key={row.dayOfWeek} className="flex items-baseline gap-3">
+                  <span className="text-iron-muted text-xs w-24 shrink-0">{DAY_NAMES[row.dayOfWeek]}</span>
+                  {row.isOpen
+                    ? <span className="text-iron-text">{row.openTime} – {row.closeTime} <span className="text-iron-muted text-xs">last seating {row.lastSeating}</span></span>
+                    : <span className="text-iron-muted italic text-xs">Closed</span>}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

@@ -311,6 +311,62 @@ router.patch('/restaurants/:id/branding', validate(UpdateBrandingSchema), async 
   } catch (err) { next(err); }
 });
 
+const HHmm = /^\d{2}:\d{2}$/;
+const OperatingHoursSchema = z.object({
+  hours: z.array(z.object({
+    dayOfWeek:   z.number().int().min(0).max(6),
+    isOpen:      z.boolean(),
+    openTime:    z.string().regex(HHmm),
+    closeTime:   z.string().regex(HHmm),
+    lastSeating: z.string().regex(HHmm),
+  })).length(7),
+});
+
+// PUT /admin/restaurants/:id/operating-hours — replace all 7 day records
+router.put('/restaurants/:id/operating-hours', validate(OperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    const { hours } = req.body as z.infer<typeof OperatingHoursSchema>;
+
+    // Validate lastSeating ≤ closeTime for open days
+    for (const h of hours) {
+      if (h.isOpen && h.lastSeating > h.closeTime) {
+        throw new BusinessRuleError(`Day ${h.dayOfWeek}: last seating (${h.lastSeating}) cannot be after close time (${h.closeTime})`);
+      }
+    }
+
+    // Bulk upsert all 7 days + keep settings.openingHour in sync (earliest open day)
+    const openDays = hours.filter(h => h.isOpen);
+    const earliestOpen = openDays.length > 0
+      ? openDays.reduce((a, b) => a.openTime <= b.openTime ? a : b).openTime
+      : null;
+
+    await prisma.$transaction([
+      ...hours.map(h =>
+        prisma.operatingHour.upsert({
+          where:  { restaurantId_dayOfWeek: { restaurantId: p(req, 'id'), dayOfWeek: h.dayOfWeek } },
+          update: { isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
+          create: { restaurantId: p(req, 'id'), dayOfWeek: h.dayOfWeek, isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
+        })
+      ),
+      ...(earliestOpen ? [
+        prisma.restaurant.update({
+          where: { id: p(req, 'id') },
+          data:  { settings: { ...(restaurant.settings as object), openingHour: earliestOpen } },
+        }),
+      ] : []),
+    ]);
+
+    const updated = await prisma.operatingHour.findMany({
+      where:   { restaurantId: p(req, 'id') },
+      orderBy: { dayOfWeek: 'asc' },
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
 // POST /admin/restaurants/:id/sample-layout — seeds default sections + tables
 router.post('/restaurants/:id/sample-layout', async (req: Request, res: Response, next: NextFunction) => {
   try {

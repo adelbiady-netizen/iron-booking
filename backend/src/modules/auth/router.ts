@@ -31,7 +31,11 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
 
     const user = await prisma.user.findFirst({
       where: { email, isActive: true },
-      include: { restaurant: true },
+      include: {
+        restaurant: {
+          include: { operatingHours: { orderBy: { dayOfWeek: 'asc' } } },
+        },
+      },
     });
 
     if (!user) throw new UnauthorizedError('Invalid credentials');
@@ -70,6 +74,13 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
           slug: user.restaurant.slug,
           timezone: user.restaurant.timezone,
           settings: user.restaurant.settings,
+          operatingHours: user.restaurant.operatingHours.map(h => ({
+            dayOfWeek:   h.dayOfWeek,
+            isOpen:      h.isOpen,
+            openTime:    h.openTime,
+            closeTime:   h.closeTime,
+            lastSeating: h.lastSeating,
+          })),
         },
       },
     });
@@ -143,6 +154,11 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
       { expiresIn: config.jwtExpiresIn as any }
     );
 
+    const regHours = await prisma.operatingHour.findMany({
+      where: { restaurantId: result.restaurant.id },
+      orderBy: { dayOfWeek: 'asc' },
+    });
+
     res.status(201).json({
       token,
       user: {
@@ -157,6 +173,13 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
           slug: result.restaurant.slug,
           timezone: result.restaurant.timezone,
           settings: result.restaurant.settings,
+          operatingHours: regHours.map(h => ({
+            dayOfWeek:   h.dayOfWeek,
+            isOpen:      h.isOpen,
+            openTime:    h.openTime,
+            closeTime:   h.closeTime,
+            lastSeating: h.lastSeating,
+          })),
         },
       },
     });
@@ -285,6 +308,11 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
         { expiresIn: config.jwtExpiresIn as any }
       );
 
+      const devHours = await prisma.operatingHour.findMany({
+        where: { restaurantId: restaurant.id },
+        orderBy: { dayOfWeek: 'asc' },
+      });
+
       res.json({
         token,
         note: 'DEV TOKEN — not available in production',
@@ -300,6 +328,13 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
             slug: restaurant.slug,
             timezone: restaurant.timezone,
             settings: restaurant.settings,
+            operatingHours: devHours.map(h => ({
+              dayOfWeek:   h.dayOfWeek,
+              isOpen:      h.isOpen,
+              openTime:    h.openTime,
+              closeTime:   h.closeTime,
+              lastSeating: h.lastSeating,
+            })),
           },
         },
       });
