@@ -1057,7 +1057,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && nextRes && (
               <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
-                {nextRes.partySize} · {nextRes.minutesUntil > 0 ? T.floorBoard.inNMin(nextRes.minutesUntil) : nextRes.time}
+                {nextRes.partySize} · {isToday && nextRes.minutesUntil > 0 ? T.floorBoard.inNMin(nextRes.minutesUntil) : nextRes.time}
               </p>
             )}
           </div>

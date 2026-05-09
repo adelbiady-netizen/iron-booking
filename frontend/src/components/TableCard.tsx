@@ -156,10 +156,9 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             {!isSecondary && (
               <p className="text-iron-muted text-[11px]">
                 {T.common.guests(displayRes.partySize)} · {displayRes.time}
-                {nextRes && nextRes.minutesUntil > 0
-                  ? <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>
-                  : null
-                }
+                {isToday && nextRes && nextRes.minutesUntil > 0 && (
+                  <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>
+                )}
               </p>
             )}
           </div>
