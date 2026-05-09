@@ -57,9 +57,21 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function snapTo30(totalMinutes: number): string {
+  const snapped = Math.round(totalMinutes / 30) * 30;
+  const h = Math.floor(snapped / 60) % 24;
+  const m = snapped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 function nowTime() {
   const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return snapTo30(d.getHours() * 60 + d.getMinutes());
+}
+
+function snapTimeStr(timeStr: string): string {
+  const [h, m] = timeStr.split(':').map(Number);
+  return snapTo30(h * 60 + m);
 }
 
 function shiftDate(dateStr: string, days: number): string {
@@ -137,6 +149,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [callPrefillPhone,     setCallPrefillPhone]     = useState('');
   const lastCallRef            = useRef<{ phone: string; at: number } | null>(null);
   const callHighlightTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Waitlist manual table assignment — two-step flow: select table then confirm seat
+  const [waitlistAssignEntry,   setWaitlistAssignEntry]   = useState<WaitlistEntry | null>(null);
+  const [waitlistAssignTableId, setWaitlistAssignTableId] = useState<string | null>(null);
 
   // Floor-map table pick mode — triggered by CreateDrawer or GuestDrawer
   const [tablePickMode,        setTablePickMode]        = useState(false);
@@ -275,7 +291,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   useEffect(() => {
     const floorId = setInterval(() => {
       if (!liveModeRef.current) return;
-      setTime(nowTime());
+      setTime(nowTime()); // nowTime() already snaps to nearest 30-min boundary
       setRefreshKey(k => k + 1);
     }, 60_000);
     const waitlistId = setInterval(() => {
@@ -628,24 +644,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setWaitlist(prev => [...prev, entry]);
   }, [date]);
 
-  const handleWaitlistSeat = useCallback(async (entry: WaitlistEntry) => {
+  const handleWaitlistSeat = useCallback((entry: WaitlistEntry) => {
     if (entry.date.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
-    try {
-      const { reservation } = await api.waitlist.seat(entry.id);
-      setReservations(prev => [...prev, reservation]);
-      setRefreshKey(k => k + 1);
-      setWaitlist(prev => prev.filter(e => e.id !== entry.id));
-      setWaitlistRefreshKey(k => k + 1);
-      setSelectedRes(reservation);
-      setHighlightId(reservation.id);
-      setTimeout(() => setHighlightId(null), 2000);
-      showToast(T.hostDashboard.toastSeated);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
-    }
+    // Enter table assignment mode — host must select a table on the map before seating
+    setWaitlistAssignEntry(entry);
+    setWaitlistAssignTableId(null);
   }, [showToast]);
 
   const handleWaitlistCancel = useCallback(async (entry: WaitlistEntry) => {
@@ -680,11 +686,31 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     }
   }, [showToast]);
 
-  const handleSuggestionSeat = useCallback(async (tableId: string, entry: WaitlistEntry) => {
+  const handleSuggestionSeat = useCallback((tableId: string, entry: WaitlistEntry) => {
     if (entry.date.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
+    // Pre-select table from suggestion — host can change or confirm on the map
+    setWaitlistAssignEntry(entry);
+    setWaitlistAssignTableId(tableId);
+  }, [showToast]);
+
+  const handleWaitlistTablePick = useCallback((tableId: string) => {
+    setWaitlistAssignTableId(prev => (prev === tableId ? null : tableId));
+  }, []);
+
+  const handleWaitlistAssignCancel = useCallback(() => {
+    setWaitlistAssignEntry(null);
+    setWaitlistAssignTableId(null);
+  }, []);
+
+  const handleWaitlistConfirmSeat = useCallback(async () => {
+    if (!waitlistAssignEntry) return;
+    const entry   = waitlistAssignEntry;
+    const tableId = waitlistAssignTableId ?? undefined;
+    setWaitlistAssignEntry(null);
+    setWaitlistAssignTableId(null);
     try {
       const { reservation } = await api.waitlist.seat(entry.id, tableId);
       setReservations(prev => [...prev, reservation]);
@@ -694,12 +720,12 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       setSelectedRes(reservation);
       setHighlightId(reservation.id);
       setTimeout(() => setHighlightId(null), 2000);
-      const tableName = floorTables.find(t => t.id === tableId)?.name ?? 'table';
-      showToast(T.hostDashboard.toastSeatAt(entry.guestName, tableName));
+      const tableName = tableId ? (floorTables.find(t => t.id === tableId)?.name ?? 'table') : '';
+      showToast(tableName ? T.hostDashboard.toastSeatAt(entry.guestName, tableName) : T.hostDashboard.toastSeated);
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     }
-  }, [floorTables, showToast]);
+  }, [waitlistAssignEntry, waitlistAssignTableId, floorTables, showToast]);
 
   // Bidirectional date sync: called by CreateDrawer and GuestDrawer (edit mode)
   // whenever the host changes the reservation date or time inside the drawer.
@@ -750,7 +776,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, []);
 
   const handleTimeChange = useCallback((t: string) => {
-    setTime(t);
+    setTime(snapTimeStr(t));
     setLiveMode(false);
   }, []);
 
@@ -774,15 +800,15 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setLiveMode(false);
   }, []);
 
-  const handlePrev15 = useCallback(() => {
-    const { date: nd, time: nt } = shiftTime(date, time, -15);
+  const handlePrev30 = useCallback(() => {
+    const { date: nd, time: nt } = shiftTime(date, time, -30);
     if (nd !== date) setDate(nd);
     setTime(nt);
     setLiveMode(false);
   }, [date, time]);
 
-  const handleNext15 = useCallback(() => {
-    const { date: nd, time: nt } = shiftTime(date, time, +15);
+  const handleNext30 = useCallback(() => {
+    const { date: nd, time: nt } = shiftTime(date, time, +30);
     if (nd !== date) setDate(nd);
     setTime(nt);
     setLiveMode(false);
@@ -821,8 +847,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         onTimeChange={handleTimeChange}
         onPrevDay={handlePrevDay}
         onNextDay={handleNextDay}
-        onPrev15={handlePrev15}
-        onNext15={handleNext15}
+        onPrev30={handlePrev30}
+        onNext30={handleNext30}
         onNow={handleNow}
         isLive={liveMode}
         restaurantName={auth.user.restaurant?.name ?? ''}
@@ -903,6 +929,11 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           pickSuggestions={tablePickSuggestions}
           onPickDone={handlePickDone}
           onPickCancel={handlePickCancel}
+          waitlistAssignEntry={waitlistAssignEntry}
+          waitlistAssignTableId={waitlistAssignTableId}
+          onWaitlistTablePick={handleWaitlistTablePick}
+          onWaitlistAssignCancel={handleWaitlistAssignCancel}
+          onWaitlistConfirmSeat={handleWaitlistConfirmSeat}
         />
 
         <ReservationPanel

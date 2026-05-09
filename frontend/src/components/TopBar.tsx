@@ -10,8 +10,8 @@ interface Props {
   onTimeChange: (t: string) => void;
   onPrevDay: () => void;
   onNextDay: () => void;
-  onPrev15: () => void;
-  onNext15: () => void;
+  onPrev30: () => void;
+  onNext30: () => void;
   onNow: () => void;
   isLive: boolean;
   restaurantName: string;
@@ -64,7 +64,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
 
 export default function TopBar({
   date, time, onDateChange, onTimeChange,
-  onPrevDay, onNextDay, onPrev15, onNext15, onNow, isLive,
+  onPrevDay, onNextDay, onPrev30, onNext30, onNow, isLive,
   restaurantName, userName, onLogout,
   zoom, zoomStep, onZoomChange,
   theme, onThemeChange,
@@ -115,14 +115,14 @@ export default function TopBar({
 
       {/* Time navigation */}
       <div className="flex items-center gap-1">
-        <NavBtn onClick={onPrev15} title={T.topBar.prev15}>‹</NavBtn>
+        <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
         <input
           type="time"
           value={time}
           onChange={e => onTimeChange(e.target.value)}
           className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer min-w-[7.5rem]"
         />
-        <NavBtn onClick={onNext15} title={T.topBar.next15}>›</NavBtn>
+        <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
       </div>
 
       {/* Now button — highlighted when not live */}

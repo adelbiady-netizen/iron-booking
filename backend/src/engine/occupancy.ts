@@ -63,10 +63,8 @@ export function reservationOverlapsSlotTime(
 }
 
 // ─── RESERVED_SOON_MINUTES ────────────────────────────────────────────────────
-// A non-SEATED reservation marks the floor board as RESERVED_SOON when its
-// scheduled start is within this many minutes of the selected board time.
-// Beyond this window the table appears AVAILABLE on the map (the reservation
-// still shows in the sidebar list which uses the full day's data).
+// Threshold that separates RESERVED_SOON (amber) from RESERVED (blue) on the
+// floor map. A reservation within this many minutes of board time is RESERVED_SOON.
 export const RESERVED_SOON_MINUTES = 15;
 
 // ─── NO_SHOW_AFTER_MINUTES ───────────────────────────────────────────────────
@@ -81,13 +79,14 @@ export const NO_SHOW_AFTER_MINUTES = 30;
 // Should a non-SEATED reservation make the floor board show this table as
 // non-AVAILABLE at the selected board time?
 //
-// Returns true when the reservation:
-//   (a) starts within RESERVED_SOON_MINUTES in the future (imminent), OR
-//       started within NO_SHOW_AFTER_MINUTES in the past (guest may still arrive), AND
-//   (b) hasn't ended yet (turn still relevant).
+// Returns true when:
+//   (a) the reservation hasn't ended yet (turn still in play), AND
+//   (b) it hasn't expired as a no-show (started < NO_SHOW_AFTER_MINUTES ago).
 //
-// Reservations that started more than NO_SHOW_AFTER_MINUTES ago are treated as
-// operationally expired on the floor map — the DB record is untouched.
+// All future same-date reservations are visible — there is no upper cap on how
+// far ahead. This means a table reserved for 20:00 shows as RESERVED (blue) at
+// board time 12:00, giving hosts a full picture of their day. The RESERVED_SOON
+// status (amber) activates once the reservation is within RESERVED_SOON_MINUTES.
 export function reservationIsUpcoming(
   res:      { time: string; duration: number },
   date:     Date,
@@ -96,7 +95,6 @@ export function reservationIsUpcoming(
   const resStart     = parseTimeOnDate(date, res.time);
   const resEnd       = addMinutes(resStart, res.duration);
   const minutesUntil = (resStart.getTime() - slotTime.getTime()) / 60_000;
-  return minutesUntil <= RESERVED_SOON_MINUTES
-    && minutesUntil >= -NO_SHOW_AFTER_MINUTES
+  return minutesUntil >= -NO_SHOW_AFTER_MINUTES
     && resEnd > slotTime;
 }

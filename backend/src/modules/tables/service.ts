@@ -85,11 +85,10 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       };
     }
 
-    // Find upcoming reservations that should visually mark this table on the floor map.
-    // Uses reservationIsUpcoming() — only reservations starting within RESERVED_SOON_MINUTES
-    // (15 min) are included, so a 17:30 reservation does not block the board at 11:55.
-    // The full day's reservation list is still available in the sidebar via the separate
-    // reservations prop; this filter only governs floor-map visual state.
+    // Find all non-SEATED reservations for today that should mark this table on the
+    // floor map. Uses reservationIsUpcoming() — all future same-date reservations are
+    // included (no upper cap). RESERVED (blue) for > 15 min away, RESERVED_SOON (amber)
+    // for ≤ 15 min. The no-show grace period (30 min past start) still applies.
     const upcoming = reservations
       .filter((r) => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;

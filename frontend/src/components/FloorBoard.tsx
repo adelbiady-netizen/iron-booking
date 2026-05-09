@@ -8,7 +8,6 @@ import TableTimeline from './TableTimeline';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
-import { minutesUntilRes } from '../utils/arrival';
 import { minutesUntilEnd } from '../utils/time';
 
 interface SectionGroup {
@@ -70,6 +69,12 @@ interface Props {
   pickSuggestions?: BackendTableSuggestion[];
   onPickDone?: (ids: string[]) => void;
   onPickCancel?: () => void;
+  // Waitlist table assignment mode
+  waitlistAssignEntry?: WaitlistEntry | null;
+  waitlistAssignTableId?: string | null;
+  onWaitlistTablePick?: (tableId: string) => void;
+  onWaitlistAssignCancel?: () => void;
+  onWaitlistConfirmSeat?: () => void;
 }
 
 const CANVAS_W = 1500;
@@ -103,6 +108,8 @@ export default function FloorBoard({
   onGapClick, onGapWaitlistSeat, onQuickAction,
   combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
   pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel,
+  waitlistAssignEntry = null, waitlistAssignTableId = null,
+  onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -303,6 +310,13 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
+    // Waitlist assignment mode: clicking an available table selects it for the entry
+    if (waitlistAssignEntry) {
+      if (t.liveStatus === 'AVAILABLE' && !t.locked) {
+        onWaitlistTablePick?.(t.id);
+      }
+      return;
+    }
     // Pick mode: toggle or warn
     if (pickMode) {
       const ps = getPickStatus(t);
@@ -370,6 +384,22 @@ export default function FloorBoard({
         <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-blue-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
           <span className="text-blue-300 text-xs font-medium flex-1">{T.floorBoard.pickModeHint}</span>
+        </div>
+      )}
+
+      {/* Waitlist assignment mode banner */}
+      {waitlistAssignEntry && !pickMode && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-indigo-900/20 border-b border-indigo-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
+          <span className="text-indigo-300 text-xs font-medium flex-1">
+            {T.waitlistAssign.chooseBanner(waitlistAssignEntry.guestName, waitlistAssignEntry.partySize)}
+          </span>
+          <button
+            onClick={onWaitlistAssignCancel}
+            className="text-indigo-400/60 hover:text-indigo-300 text-xs transition-colors shrink-0"
+          >
+            {T.waitlistAssign.cancelAssign}
+          </button>
         </div>
       )}
 
@@ -494,14 +524,16 @@ export default function FloorBoard({
                 ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                 : undefined;
               const ps = pickMode ? getPickStatus(t) : null;
+              const isWLCanvasTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
               return (
                 <MapTable
                   key={t.id}
                   table={t}
-                  selected={!pickMode && isSelected(t)}
+                  selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
                   combinedSelected={!pickMode && combinedSelection.includes(t.id)}
                   dimmed={dimmed}
-                  bestSuggestion={!pickMode && !isSelected(t) && t.id === bestSuggestionTableId}
+                  bestSuggestion={!pickMode && !isSelected(t) && !waitlistAssignEntry && t.id === bestSuggestionTableId}
+                  waitlistAssignTarget={isWLCanvasTarget}
                   softHold={!pickMode ? softHoldMap[t.id] : undefined}
                   onClick={() => handleClick(t)}
                   onContextMenu={e => !pickMode && handleContextMenu(e, t)}
@@ -511,8 +543,8 @@ export default function FloorBoard({
                       ? () => onInsightAction?.(t.id, insight.reservationId!)
                       : undefined
                   }
-                  waitlistMatch={!pickMode ? wMatch : undefined}
-                  onWaitlistAction={!pickMode && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
+                  waitlistMatch={!pickMode && !waitlistAssignEntry ? wMatch : undefined}
+                  onWaitlistAction={!pickMode && !waitlistAssignEntry && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                   nowTime={nowTime}
                   operationalNow={operationalNow}
                   date={date}
@@ -563,19 +595,22 @@ export default function FloorBoard({
                     ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                     : undefined;
                   const isPickSelected = pickMode && pickSelection.includes(t.id);
+                  const isWLTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
                   return (
                     <div
                       key={t.id}
                       className={
-                        isPickSelected || combinedSelection.includes(t.id)
+                        isWLTarget
+                          ? 'ring-2 ring-indigo-500/60 rounded-lg'
+                          : isPickSelected || combinedSelection.includes(t.id)
                           ? 'ring-2 ring-blue-500/50 rounded-lg'
                           : ''
                       }
                     >
                       <TableCard
                         table={t}
-                        selected={!pickMode && isSelected(t)}
-                        isBestSuggestion={!pickMode && !isSelected(t) && t.id === bestSuggestionTableId}
+                        selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
+                        isBestSuggestion={!pickMode && !isSelected(t) && !waitlistAssignEntry && t.id === bestSuggestionTableId}
                         softHold={!pickMode ? softHoldMap[t.id] : undefined}
                         onClick={() => handleClick(t)}
                         onContextMenu={e => !pickMode && handleContextMenu(e, t)}
@@ -585,8 +620,8 @@ export default function FloorBoard({
                             ? () => onInsightAction?.(t.id, insight.reservationId!)
                             : undefined
                         }
-                        waitlistMatch={!pickMode ? wMatch : undefined}
-                        onWaitlistAction={!pickMode && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
+                        waitlistMatch={!pickMode && !waitlistAssignEntry ? wMatch : undefined}
+                        onWaitlistAction={!pickMode && !waitlistAssignEntry && wMatch ? () => onWaitlistSuggestion?.(t.id, wMatch) : undefined}
                         nowTime={nowTime}
                         operationalNow={operationalNow}
                         date={date}
@@ -749,6 +784,40 @@ export default function FloorBoard({
         </div>
       )}
 
+      {/* Waitlist assign confirmation bar */}
+      {waitlistAssignEntry && !pickMode && (
+        <div className="shrink-0 border-t border-indigo-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            {waitlistAssignTableId ? (
+              <span className="text-iron-text text-sm font-semibold truncate">
+                {T.waitlistAssign.confirmSeat(
+                  waitlistAssignEntry.guestName,
+                  tables.find(t => t.id === waitlistAssignTableId)?.name ?? waitlistAssignTableId,
+                )}
+              </span>
+            ) : (
+              <span className="text-indigo-300 text-sm">
+                {T.waitlistAssign.chooseBanner(waitlistAssignEntry.guestName, waitlistAssignEntry.partySize)}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onWaitlistAssignCancel}
+            className="text-iron-muted text-xs hover:text-iron-text transition-colors shrink-0 border border-iron-border/40 px-3 py-2 rounded-lg hover:border-iron-border"
+          >
+            {T.waitlistAssign.cancelAssign}
+          </button>
+          <button
+            type="button"
+            onClick={onWaitlistConfirmSeat}
+            className="bg-iron-green/80 hover:bg-iron-green text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+          >
+            {T.waitlistAssign.seatNow}
+          </button>
+        </div>
+      )}
+
       {/* Combine-tables action bar */}
       {!pickMode && combineMode && (
         <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
@@ -788,7 +857,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, date }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, date: _date }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -808,30 +877,20 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickMode?: boolean;
   pickSelected?: boolean;
   pickStatus?: PickStatus;
-  date?: string;
+  waitlistAssignTarget?: boolean;
+  date?: string; // kept for potential future use; not currently consumed
 }) {
   const T = useT();
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isFutureDate = !!date && date > todayStr;
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
-  const arrMins = nowTime && nextRes
-    ? minutesUntilRes(nextRes.time, nowTime)
-    : nextRes?.minutesUntil ?? null;
-  const isNoShowRisk = !isFutureDate && arrMins !== null && arrMins <= -15;
-  const isLate       = !isFutureDate && arrMins !== null && arrMins < -5 && !isNoShowRisk;
 
   const sectionColor = table.section?.color ?? '#3f3f46';
 
   // Base (non-pick) colors
-  let bg = isNoShowRisk ? 'rgba(239,68,68,0.15)'
-    : isLate       ? 'rgba(249,115,22,0.15)'
-    : softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
+  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
 
   let borderColor = selected        ? '#22c55e'
     : combinedSelected ? '#3b82f6'
-    : isNoShowRisk   ? '#ef4444'
-    : isLate         ? '#f97316'
     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
     : table.locked   ? '#f59e0b'
     : sectionColor;
@@ -850,6 +909,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
   let cursor = 'pointer';
+
+  // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
+  if (waitlistAssignTarget) {
+    bg          = 'rgba(99,102,241,0.18)';
+    borderColor = '#6366f1';
+    borderWidth = 2;
+    boxShadow   = '0 0 0 3px rgba(99,102,241,0.35)';
+    opacity     = 1;
+  }
 
   // Pick mode overrides
   if (pickMode) {

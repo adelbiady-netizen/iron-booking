@@ -51,8 +51,8 @@ export const T = {
     signOut:        'Sign out',
     prevDay:        'Previous day',
     nextDay:        'Next day',
-    prev15:         '−15m',
-    next15:         '+15m',
+    prev30:         '−30m',
+    next30:         '+30m',
     nowBtn:         'Now',
     backToToday:    'Back to today',
     guestsButton:   'Guests',
@@ -174,6 +174,15 @@ export const T = {
     smsSent:          'SMS sent',
     ctxSeat:          'Seat',
     ctxClose:         'Close',
+  },
+
+  // ── Waitlist assign mode ───────────────────────────────────────────────────
+  waitlistAssign: {
+    chooseBanner:  (name: string, party: number) => `Choose a table for ${name} (${party}p)`,
+    confirmSeat:   (name: string, table: string) => `Seat ${name} at ${table}`,
+    noTableSeat:   (name: string) => `Seat ${name} (no table)`,
+    cancelAssign:  'Cancel',
+    seatNow:       'Seat Now',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────

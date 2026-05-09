@@ -51,8 +51,8 @@ export const THe = {
     signOut:        'יציאה',
     prevDay:        'יום קודם',
     nextDay:        'יום הבא',
-    prev15:         '−15 דק׳',
-    next15:         '+15 דק׳',
+    prev30:         '−30 דק׳',
+    next30:         '+30 דק׳',
     nowBtn:         'עכשיו',
     backToToday:    'חזרה להיום',
     guestsButton:   'אורחים',
@@ -174,6 +174,15 @@ export const THe = {
     smsSent:          'SMS נשלח',
     ctxSeat:          'הושבה',
     ctxClose:         'סגור',
+  },
+
+  // ── Waitlist assign mode ───────────────────────────────────────────────────
+  waitlistAssign: {
+    chooseBanner:  (name: string, party: number) => `בחר שולחן עבור ${name} (${party} סועדים)`,
+    confirmSeat:   (name: string, table: string) => `הושב את ${name} בשולחן ${table}`,
+    noTableSeat:   (name: string) => `הושב את ${name} (ללא שולחן)`,
+    cancelAssign:  'ביטול',
+    seatNow:       'הושב עכשיו',
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────

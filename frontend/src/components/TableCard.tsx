@@ -3,7 +3,6 @@ import type { FloorInsight, FloorTable, Reservation, WaitlistEntry } from '../ty
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
-import { minutesUntilRes } from '../utils/arrival';
 import { minutesUntilEnd } from '../utils/time';
 
 function waitMins(addedAt: string, opNow: number): number {
@@ -38,7 +37,7 @@ interface Props {
   date?: string;
 }
 
-export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow, extraTurns = 0, turnTooltip, date }: Props) {
+export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_STYLE: Record<string, StatusStyle> = {
@@ -53,24 +52,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
-  // Late/no-show warnings only make sense when viewing today's service.
-  // On future dates every reservation would appear "late" relative to the
-  // board's operational time even though the day hasn't arrived yet.
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isFutureDate = !!date && date > todayStr;
-
-  // Detect late/no-show risk for RESERVED_SOON tables
-  const arrMins = nowTime && nextRes
-    ? minutesUntilRes(nextRes.time, nowTime)
-    : nextRes?.minutesUntil ?? null;
-  const isNoShowRisk = !isFutureDate && arrMins !== null && arrMins <= -15;
-  const isLate       = !isFutureDate && arrMins !== null && arrMins < -5 && !isNoShowRisk;
-
-  const style = isNoShowRisk
-    ? { ...STATUS_STYLE['RESERVED_SOON'], border: 'border-red-500/60',    bg: 'bg-red-900/15',    dot: 'bg-red-500',    label: T.arrival.noShowRisk,                              labelColor: 'text-red-400'    }
-    : isLate
-    ? { ...STATUS_STYLE['RESERVED_SOON'], border: 'border-orange-500/60', bg: 'bg-orange-900/15', dot: 'bg-orange-500', label: T.arrival.lateMin(Math.abs(arrMins as number)), labelColor: 'text-orange-400' }
-    : (STATUS_STYLE[table.liveStatus] ?? STATUS_STYLE['AVAILABLE']);
+  const style = STATUS_STYLE[table.liveStatus] ?? STATUS_STYLE['AVAILABLE'];
 
   return (
     <button
@@ -173,9 +155,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             {!isSecondary && (
               <p className="text-iron-muted text-[11px]">
                 {T.common.guests(displayRes.partySize)} · {displayRes.time}
-                {!isFutureDate && insight?.type === 'LATE_GUEST' && nextRes && nextRes.minutesUntil < 0
-                  ? <span className="text-red-400"> · {T.tableCard.lateBy(Math.abs(nextRes.minutesUntil))}</span>
-                  : nextRes && nextRes.minutesUntil > 0
+                {nextRes && nextRes.minutesUntil > 0
                   ? <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>
                   : null
                 }
