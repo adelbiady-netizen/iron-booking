@@ -144,6 +144,7 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   publicThemePreset:  string | null;
   logoUrl:            string | null;
   coverImageUrl:      string | null;
+  heroVideoUrl:       string | null;
 }
 
 export interface AdminUser {
@@ -361,6 +362,7 @@ export interface PublicRestaurantProfile {
   primaryColor: string | null;
   accentColor: string | null;
   publicThemePreset: string | null;
+  heroVideoUrl: string | null;
   maxPartySize: number;
   slotIntervalMinutes: number;
   maxAdvanceBookingDays: number;

@@ -1,47 +1,51 @@
 import { useEffect } from 'react';
 
-type PresetKey = 'luxury' | 'casual' | 'family' | 'nightlife' | 'minimal' | 'fineDining';
+type PresetKey = 'luxury' | 'casual' | 'family' | 'nightlife' | 'minimal' | 'fineDining' | 'mediterranean';
 
 // Space-separated RGB channels for use with `rgb(var(--pub-rgb) / alpha)` syntax
 const PRESET_RGB: Record<PresetKey | 'default', string> = {
-  default:    '34 197 94',   // Iron green
-  family:     '34 197 94',   // same as default
-  luxury:     '201 168 76',  // gold
-  casual:     '245 158 11',  // amber
-  nightlife:  '168 85 247',  // purple
-  minimal:    '148 163 184', // slate grey
-  fineDining: '220 38 38',   // crimson
+  default:       '34 197 94',   // Iron green
+  family:        '34 197 94',   // casual green
+  luxury:        '201 168 76',  // Modern Luxury — champagne gold
+  casual:        '245 158 11',  // Casual Warm — amber
+  nightlife:     '168 85 247',  // nightlife purple (unchanged)
+  minimal:       '113 113 122', // Japanese Minimal — warm zinc
+  fineDining:    '212 175 55',  // Elegant Dark — rich gold
+  mediterranean: '203 125 87',  // Mediterranean — terracotta
 };
 
 // Per-preset typography + feel tokens
 const PRESET_RADIUS: Record<PresetKey | 'default', string> = {
-  default:    '12px',
-  family:     '20px',
-  luxury:     '4px',
-  casual:     '14px',
-  nightlife:  '6px',
-  minimal:    '2px',
-  fineDining: '0px',
+  default:       '12px',
+  family:        '20px',
+  luxury:        '6px',   // Modern Luxury — slightly softened
+  casual:        '16px',  // Casual Warm — friendly rounded
+  nightlife:     '6px',
+  minimal:       '2px',   // Japanese Minimal — sharp
+  fineDining:    '2px',   // Elegant Dark — sharp, refined
+  mediterranean: '12px',  // Mediterranean — natural curves
 };
 
 const PRESET_TRACKING: Record<PresetKey | 'default', string> = {
-  default:    '0.01em',
-  family:     '0.01em',
-  luxury:     '0.09em',
-  casual:     '0.02em',
-  nightlife:  '0.04em',
-  minimal:    '0.07em',
-  fineDining: '0.12em',
+  default:       '0.01em',
+  family:        '0.01em',
+  luxury:        '0.09em',  // Modern Luxury — wide spaced
+  casual:        '0.01em',  // Casual Warm — natural
+  nightlife:     '0.04em',
+  minimal:       '0.08em',  // Japanese Minimal — airy
+  fineDining:    '0.12em',  // Elegant Dark — very wide
+  mediterranean: '0.03em',  // Mediterranean — natural
 };
 
 const PRESET_GLOW: Record<PresetKey | 'default', string> = {
-  default:    '0.28',
-  family:     '0.28',
-  luxury:     '0.22',
-  casual:     '0.30',
-  nightlife:  '0.50',
-  minimal:    '0.12',
-  fineDining: '0.18',
+  default:       '0.28',
+  family:        '0.28',
+  luxury:        '0.22',  // Modern Luxury — subtle
+  casual:        '0.32',  // Casual Warm — warm glow
+  nightlife:     '0.50',
+  minimal:       '0.10',  // Japanese Minimal — barely there
+  fineDining:    '0.15',  // Elegant Dark — understated
+  mediterranean: '0.30',  // Mediterranean — warm sun
 };
 
 interface BrandingInput {

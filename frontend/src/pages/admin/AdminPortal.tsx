@@ -166,7 +166,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
-  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '' });
+  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '' });
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
 
@@ -207,7 +207,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
-      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '' });
+      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '' });
     } catch { /* ignore */ }
     finally { setDetailBusy(false); }
   }, []);
@@ -402,6 +402,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         publicThemePreset: brandingForm.publicThemePreset || null,
         logoUrl:           brandingForm.logoUrl           || null,
         coverImageUrl:     brandingForm.coverImageUrl     || null,
+        heroVideoUrl:      brandingForm.heroVideoUrl      || null,
       });
       setDetail(d => d ? {
         ...d,
@@ -410,6 +411,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         publicThemePreset: result.publicThemePreset,
         logoUrl:           result.logoUrl,
         coverImageUrl:     result.coverImageUrl,
+        heroVideoUrl:      result.heroVideoUrl,
       } : d);
       setEditBranding(false);
       showToast('Branding saved');
@@ -929,12 +931,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 className="w-full bg-iron-bg border border-iron-border rounded-md px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
               >
                 <option value="">— No preset (Iron default) —</option>
-                <option value="luxury">Luxury (gold)</option>
-                <option value="casual">Casual (amber)</option>
+                <option value="fineDining">Elegant Dark</option>
+                <option value="luxury">Modern Luxury</option>
+                <option value="mediterranean">Mediterranean</option>
+                <option value="minimal">Japanese Minimal</option>
+                <option value="casual">Casual Warm</option>
                 <option value="family">Family (green)</option>
                 <option value="nightlife">Nightlife (purple)</option>
-                <option value="minimal">Minimal (grey)</option>
-                <option value="fineDining">Fine Dining (crimson)</option>
               </select>
             </Field>
 
@@ -979,6 +982,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               )}
             </Field>
 
+            {/* Hero video URL */}
+            <Field label="Hero video URL (muted autoplay over cover image; MP4 recommended)">
+              <Input
+                value={brandingForm.heroVideoUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, heroVideoUrl: e.target.value }))}
+                placeholder="https://cdn.example.com/hero.mp4"
+              />
+              <p className="text-[11px] text-iron-muted mt-1">Plays silently on the public booking page. Falls back to cover image if unavailable or on reduced-motion devices.</p>
+            </Field>
+
             {/* Live preview */}
             <div>
               <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">Live preview</p>
@@ -994,7 +1007,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
                 onClick={() => {
-                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '' });
+                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '' });
                   setBrandingError(null);
                 }}
                 className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text"

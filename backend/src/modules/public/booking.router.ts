@@ -468,6 +468,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
       primaryColor:         restaurant.primaryColor,
       accentColor:          restaurant.accentColor,
       publicThemePreset:    restaurant.publicThemePreset,
+      heroVideoUrl:         restaurant.heroVideoUrl,
       maxPartySize:         Math.min(s.maxPartySize, config.maxPartySizeAbsolute),
       slotIntervalMinutes:  s.slotIntervalMinutes,
       maxAdvanceBookingDays: s.maxAdvanceBookingDays,

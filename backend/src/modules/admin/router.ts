@@ -277,9 +277,10 @@ router.post('/restaurants/:id/whatsapp/test', async (req: Request, res: Response
 const UpdateBrandingSchema = z.object({
   primaryColor:      z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   accentColor:       z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
-  publicThemePreset: z.enum(['luxury','casual','family','nightlife','minimal','fineDining']).nullable().optional(),
+  publicThemePreset: z.enum(['luxury','casual','family','nightlife','minimal','fineDining','mediterranean']).nullable().optional(),
   logoUrl:           z.string().url().nullable().optional(),
   coverImageUrl:     z.string().url().nullable().optional(),
+  heroVideoUrl:      z.string().url().nullable().optional(),
 });
 
 // PATCH /admin/restaurants/:id/branding
@@ -295,6 +296,7 @@ router.patch('/restaurants/:id/branding', validate(UpdateBrandingSchema), async 
         publicThemePreset: req.body.publicThemePreset ?? null,
         logoUrl:           req.body.logoUrl           ?? null,
         coverImageUrl:     req.body.coverImageUrl     ?? null,
+        heroVideoUrl:      req.body.heroVideoUrl      ?? null,
       },
     });
     res.json({
@@ -304,6 +306,7 @@ router.patch('/restaurants/:id/branding', validate(UpdateBrandingSchema), async 
       publicThemePreset: updated.publicThemePreset,
       logoUrl:          updated.logoUrl,
       coverImageUrl:    updated.coverImageUrl,
+      heroVideoUrl:     updated.heroVideoUrl,
     });
   } catch (err) { next(err); }
 });

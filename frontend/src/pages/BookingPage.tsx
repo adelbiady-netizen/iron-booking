@@ -517,6 +517,8 @@ function AtmosphericBg() {
 function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
   const displayName = profile.name;
   const initial = displayName.charAt(0).toUpperCase();
+  const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const showVideo = !!profile.heroVideoUrl && !reducedMotion;
 
   const heroH     = 'min(320px, 44vh)';
   const bottomPos = 'min(72px, 10.5vh)';
@@ -530,6 +532,17 @@ function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
           className="w-full h-full object-cover"
           style={{ transform: 'scale(1.04)', transformOrigin: 'center 40%' }}
         />
+        {showVideo && (
+          <video
+            src={profile.heroVideoUrl!}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={e => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
+          />
+        )}
       </div>
       <div
         className="absolute inset-0"
