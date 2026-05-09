@@ -211,7 +211,15 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       const floorOk = floorResult.status === 'fulfilled';
       const resOk   = resResult.status   === 'fulfilled';
       if (floorOk) {
-        setFloorTables(floorResult.value);
+        const ft = floorResult.value;
+        const ids = ft.map((t: FloorTable) => t.id);
+        const dupeIds = ids.filter((id: string, i: number, a: string[]) => a.indexOf(id) !== i);
+        if (dupeIds.length > 0) {
+          console.error('[HostDashboard] API returned duplicate table IDs:', dupeIds, 'total:', ids.length, 'unique:', new Set(ids).size);
+        } else {
+          console.log('[HostDashboard] floor refresh ok — tables:', ids.length, 'date:', date, 'time:', time, 'key:', refreshKey);
+        }
+        setFloorTables(ft);
         setLoadError(false);
       }
       if (resOk) {
@@ -478,9 +486,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [showToast]);
 
   const handleTableLockChange = useCallback(() => {
-    api.tables.floor(date, time).then(setFloorTables).catch(() => {});
-    api.tables.list().then(setAllTables).catch(() => {});
-  }, [date, time]);
+    setRefreshKey(k => k + 1);
+  }, []);
 
   // Match each available non-locked table to the highest-scoring waitlist guest
   const waitlistMatches = useMemo(() => {

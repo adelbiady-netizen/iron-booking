@@ -251,12 +251,25 @@ export default function FloorBoard({
     );
   }
 
+  // Defensive deduplication: guard against duplicate table IDs from any source.
+  // Uses a Map so the last occurrence wins (same behavior as before, deterministic).
+  const dedupedTables = (() => {
+    const seen = new Map<string, FloorTable>();
+    for (const t of tables) seen.set(t.id, t);
+    const result = Array.from(seen.values());
+    if (result.length < tables.length) {
+      const dupeIds = tables.map(t => t.id).filter((id, i, a) => a.indexOf(id) !== i);
+      console.warn('[FloorBoard] duplicate table IDs detected — deduped:', dupeIds);
+    }
+    return result;
+  })();
+
   // Only explicitly-placed tables render on canvas / grid. Seed tables at the
   // default origin (posX ≤ 5 AND posY ≤ 5) are excluded so they cannot ghost.
-  const canvasTables = tables.filter(t => t.posX > 5 && t.posY > 5);
+  const canvasTables = dedupedTables.filter(t => t.posX > 5 && t.posY > 5);
   // Use positioned-only set when any table has been placed; fall back to all
   // tables only when no layout exists yet (brand-new restaurant).
-  const visibleTables = canvasTables.length > 0 ? canvasTables : tables;
+  const visibleTables = canvasTables.length > 0 ? canvasTables : dedupedTables;
 
   // ── Section groups (grid fallback) ──────────────────────────────────────────
   const sectionMap = new Map<string, SectionGroup>();
@@ -338,13 +351,13 @@ export default function FloorBoard({
   }
   for (const arr of turnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
 
-  // ── Stats ─────────────────────────────────────────────────────────────────────
-  const available    = tables.filter(t => t.liveStatus === 'AVAILABLE').length;
-  const occupied     = tables.filter(t => t.liveStatus === 'OCCUPIED').length;
-  const reservedSoon = tables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
-  const reserved     = tables.filter(t => t.liveStatus === 'RESERVED').length;
+  // ── Stats (derived from deduplicated set for accurate counters) ──────────────
+  const available    = dedupedTables.filter(t => t.liveStatus === 'AVAILABLE').length;
+  const occupied     = dedupedTables.filter(t => t.liveStatus === 'OCCUPIED').length;
+  const reservedSoon = dedupedTables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
+  const reserved     = dedupedTables.filter(t => t.liveStatus === 'RESERVED').length;
 
-  const positioned = hasPositions(tables);
+  const positioned = hasPositions(dedupedTables);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -394,7 +407,7 @@ export default function FloorBoard({
           </div>
         )}
 
-        <span className="ml-auto text-xs text-iron-muted">{T.floorBoard.tableCount(tables.length)}</span>
+        <span className="ml-auto text-xs text-iron-muted">{T.floorBoard.tableCount(dedupedTables.length)}</span>
 
         <div className="flex items-center gap-px ml-3 rounded border border-iron-border overflow-hidden shrink-0">
           {(['floor', 'timeline'] as View[]).map(v => (

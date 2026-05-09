@@ -213,8 +213,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [res, setRes] = useState<Reservation>(init);
   const [mode, setMode] = useState<Mode>('view');
 
-  // Seating is only allowed for today's service — block future-date reservations.
-  const isFutureReservation = res.date > new Date().toISOString().slice(0, 10);
+  // Seating is only allowed for today's service and within 2 hours of scheduled time.
+  // Block future-date reservations and same-day reservations more than 2h away.
+  const _todayStr = new Date().toISOString().slice(0, 10);
+  const _timeMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const _sameDayFuture = res.date === _todayStr &&
+    (_timeMins(res.time) - _timeMins(nowTime ?? '00:00')) > 120;
+  const isFutureReservation = res.date > _todayStr || _sameDayFuture;
   const [cancelReason,  setCancelReason]  = useState('');
   const [unseatConfirm, setUnseatConfirm] = useState(false);
   const [lockReason,   setLockReason]   = useState('');

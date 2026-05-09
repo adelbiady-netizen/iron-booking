@@ -6,7 +6,7 @@ import {
   BusinessRuleError,
   ValidationError,
 } from '../../lib/errors';
-import { getTableAvailability } from '../../engine/availability';
+import { getTableAvailability, parseTimeOnDate } from '../../engine/availability';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -392,13 +392,24 @@ export async function seatReservation(
   }
 
   // Seating is an operational action that only makes sense for today's service.
-  // Block future-date reservations to prevent accidental early seating.
+  // Block future-date reservations and same-day reservations more than 2 hours
+  // in the future to prevent accidental early seating.
   const todayUtc = new Date().toISOString().slice(0, 10);
   const resDateUtc = r.date instanceof Date
     ? r.date.toISOString().slice(0, 10)
     : String(r.date).slice(0, 10);
   if (resDateUtc > todayUtc) {
     throw new BusinessRuleError('Cannot seat a reservation scheduled for a future date');
+  }
+  if (resDateUtc === todayUtc) {
+    const resDateTime = parseTimeOnDate(r.date instanceof Date ? r.date : new Date(r.date), r.time);
+    const diffMs = resDateTime.getTime() - Date.now();
+    const EARLY_SEAT_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
+    if (diffMs > EARLY_SEAT_WINDOW_MS) {
+      throw new BusinessRuleError(
+        'Cannot seat a reservation more than 2 hours before its scheduled time'
+      );
+    }
   }
 
   const settings = await getRestaurantSettings(restaurantId);

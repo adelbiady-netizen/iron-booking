@@ -197,14 +197,18 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       api.tables.listFloorObjects(),
     ])
       .then(([ts, secs, fobjs]) => {
-        // Tables with posX≤5 and posY≤5 were never positioned (DB default 0,0).
-        // Auto-assign them a stacking grid position and mark dirty so the next
-        // Save persists the corrected coordinates — no valid positions are overwritten.
+        // Tables with posX≤5 AND posY≤5 were never positioned (DB default 0,0).
+        // Auto-assign a display grid position so they are visible in the editor —
+        // but do NOT mark dirty. The position is only saved when the user explicitly
+        // drags the table, preventing ghost tiles from appearing on the floor board.
+        // Uses AND (not OR) to match FloorBoard/backend positioning semantics:
+        // a table dragged along one axis only (e.g. posX=100, posY=0) is still
+        // considered unpositioned and must be fully placed before it renders on canvas.
         let unposIdx = 0;
         setTables(ts.map(t => {
-          const hasPos = (t.posX ?? 0) > 5 || (t.posY ?? 0) > 5;
-          const posX = hasPos ? (t.posX ?? 0) : 40 + (unposIdx % 7) * 168;
-          const posY = hasPos ? (t.posY ?? 0) : 40 + Math.floor(unposIdx / 7) * 112;
+          const hasPos = (t.posX ?? 0) > 5 && (t.posY ?? 0) > 5;
+          const posX = hasPos ? (t.posX ?? 0) : 40 + (unposIdx % 5) * 160;
+          const posY = hasPos ? (t.posY ?? 0) : 40 + Math.floor(unposIdx / 5) * 110;
           if (!hasPos) unposIdx++;
           return {
             id: t.id, name: t.name,
@@ -216,7 +220,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
             posX, posY,
             width: t.width ?? SHAPE_DIMS['RECTANGLE'][0],
             height: t.height ?? SHAPE_DIMS['RECTANGLE'][1],
-            isNew: false, deleted: false, dirty: !hasPos,
+            isNew: false, deleted: false, dirty: false,
           };
         }));
         setSections(secs);
@@ -412,12 +416,14 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     const id = newId();
     const [w, h] = SHAPE_DIMS['RECTANGLE'];
     const idx = visible.length;
+    // Keep new tables within a central 640×440 px area so they don't ghost
+    // into the far top-right corner on restaurants with many tables.
     setTables(prev => [...prev, {
       id, name: `T${idx + 1}`,
       minCovers: 2, maxCovers: 4,
       shape: 'RECTANGLE', sectionId: null, section: null, isActive: true, locked: false,
-      posX: 40 + (idx % 7) * 168,
-      posY: 40 + Math.floor(idx / 7) * 112,
+      posX: 40 + (idx % 5) * 160,
+      posY: 40 + Math.floor(idx / 5) * 110,
       width: w, height: h,
       isNew: true, deleted: false, dirty: false,
     }]);
