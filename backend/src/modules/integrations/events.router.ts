@@ -48,8 +48,8 @@ router.get('/', (req, res) => {
   // Ping every 25 s — most proxies drop idle connections at 30 s
   const ping = setInterval(() => res.write(':ping\n\n'), 25_000);
 
-  function relay(data: object) {
-    console.log('[events/sse] Sending event to client:', data);
+  function relay(data: Record<string, unknown>) {
+    if (data.restaurantId !== undefined && data.restaurantId !== payload.restaurantId) return;
     res.write(`event: incoming_call\ndata: ${JSON.stringify(data)}\n\n`);
   }
 

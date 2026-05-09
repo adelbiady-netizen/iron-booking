@@ -20,8 +20,11 @@ const app = express();
 console.log('APP MODULE LOADED — build includes /api/test route');
 
 // ─── Request trace (before everything else) ───────────────────────────────────
+// SSE paths are excluded — their URLs carry JWT tokens in the query string.
 app.use((req, _res, next) => {
-  console.log(`[REQ] ${req.method} ${req.path} — origin: ${req.headers.origin ?? '(none)'}`);
+  if (!req.path.startsWith('/api/integrations/events')) {
+    console.log(`[REQ] ${req.method} ${req.path} — origin: ${req.headers.origin ?? '(none)'}`);
+  }
   next();
 });
 
@@ -55,7 +58,10 @@ app.use(
   })
 );
 
-app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
+// Skip Morgan access logging for the SSE endpoint — its URL carries a JWT in the query string.
+app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined', {
+  skip: (req) => req.path.startsWith('/api/integrations/events'),
+}));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {

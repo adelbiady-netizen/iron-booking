@@ -201,12 +201,10 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
     const token      = crypto.randomUUID();
     const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
-    // Save token to DB FIRST so the link is valid before the SMS arrives
-    await prisma.reservation.update({
-      where: { id: reservation.id },
-      data:  { confirmationToken: token },
-    });
-
+    // Send SMS first — only persist token + sentAt together if send succeeds.
+    // This prevents a state where the token is saved but confirmationSentAt is
+    // never stamped, which would cause a future retry to overwrite the token and
+    // silently invalidate any link the guest already received.
     await sendConfirmationSms(
       req.auth.restaurantId,
       reservation.guestPhone,
@@ -221,7 +219,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
 
     const updated = await prisma.reservation.update({
       where: { id: reservation.id },
-      data:  { confirmationSentAt: new Date() },
+      data:  { confirmationToken: token, confirmationSentAt: new Date() },
     });
 
     res.json(updated);
@@ -249,6 +247,7 @@ router.post('/:id/mark-confirmed', async (req: Request, res: Response, next: Nex
     });
 
     res.json(updated);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -292,17 +291,12 @@ router.post('/send-confirmations', validate(BulkConfirmSchema), async (req: Requ
         const token      = crypto.randomUUID();
         const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
 
-        // Save token first — link is valid before SMS arrives
-        await prisma.reservation.update({
-          where: { id: r.id },
-          data:  { confirmationToken: token },
-        });
-
+        // Send first — only write token + sentAt together if send succeeds.
         await sendConfirmationSms(req.auth.restaurantId, r.guestPhone!, r.guestName, restaurantName, date, r.time, r.partySize, confirmUrl, lang);
 
         await prisma.reservation.update({
           where: { id: r.id },
-          data:  { confirmationSentAt: new Date() },
+          data:  { confirmationToken: token, confirmationSentAt: new Date() },
         });
         sent++;
       } catch (err) {
