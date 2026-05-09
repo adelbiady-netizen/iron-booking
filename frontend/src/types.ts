@@ -106,6 +106,12 @@ export interface AuthUser {
     name: string;
     slug: string;
     timezone: string;
+    settings?: {
+      openingHour?: string;     // "HH:mm" — service/board start time
+      closingHour?: string;
+      defaultTurnMinutes?: number;
+      [key: string]: unknown;
+    };
   } | null;
 }
 

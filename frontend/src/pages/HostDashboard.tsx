@@ -74,6 +74,9 @@ function snapTimeStr(timeStr: string): string {
   return snapTo30(h * 60 + m);
 }
 
+// Fallback used when restaurant settings don't specify an openingHour.
+const SERVICE_START_FALLBACK = '11:30';
+
 function shiftDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(y, m - 1, d + days);
@@ -788,17 +791,23 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setRefreshKey(k => k + 1);
   }, []);
 
+  const serviceStart = snapTimeStr(
+    auth.user.restaurant?.settings?.openingHour ?? SERVICE_START_FALLBACK
+  );
+
   const handlePrevDay = useCallback(() => {
     setDate(d => shiftDate(d, -1));
+    setTime(serviceStart);
     setSelectedRes(null);
     setLiveMode(false);
-  }, []);
+  }, [serviceStart]);
 
   const handleNextDay = useCallback(() => {
     setDate(d => shiftDate(d, 1));
+    setTime(serviceStart);
     setSelectedRes(null);
     setLiveMode(false);
-  }, []);
+  }, [serviceStart]);
 
   const handlePrev30 = useCallback(() => {
     const { date: nd, time: nt } = shiftTime(date, time, -30);
