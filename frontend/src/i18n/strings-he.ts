@@ -180,7 +180,7 @@ export const THe = {
   waitlistPanel: {
     readyToSeat:      'מוכן להושבה',
     seatButton:       'הושב',
-    seatFutureDisabled: 'לא ניתן להושיב עבור תאריך עתידי. הושבה מותרת רק בזמן השירות הנוכחי.',
+    seatFutureDisabled: 'ההזמנה שייכת לתאריך שירות אחר ולא ניתן להושיב אותה היום.',
     namePlaceholder:  'שם האורח *',
     partyPlaceholder: 'מספר אורחים *',
     phonePlaceholder: 'טלפון (אופציונלי)',
@@ -299,7 +299,7 @@ export const THe = {
     rowDate:              'תאריך',
     rowTime:              'שעה',
     rowSeatedAt:          'הושב בשעה',
-    seatFutureDisabled:   'הושבה זמינה רק ביום ההזמנה',
+    seatFutureDisabled:   'ההזמנה שייכת לתאריך שירות אחר ולא ניתן להושיב אותה היום.',
     rowDuration:          'משך',
     rowTable:             'שולחן',
     rowSource:            'מקור',

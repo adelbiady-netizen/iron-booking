@@ -180,7 +180,7 @@ export const T = {
   waitlistPanel: {
     readyToSeat:      'Ready to seat',
     seatButton:       'Seat',
-    seatFutureDisabled: 'Cannot seat for a future date. Seating is allowed only for the current service time.',
+    seatFutureDisabled: 'This reservation belongs to another service date and cannot be seated today.',
     namePlaceholder:  'Guest name *',
     partyPlaceholder: 'Party *',
     phonePlaceholder: 'Phone (optional)',
@@ -302,7 +302,7 @@ export const T = {
     rowDate:              'Date',
     rowTime:              'Time',
     rowSeatedAt:          'Seated at',
-    seatFutureDisabled:   'Seating is only available on the day of the reservation',
+    seatFutureDisabled:   'This reservation belongs to another service date and cannot be seated today.',
     rowDuration:          'Duration',
     rowTable:             'Table',
     rowSource:            'Source',

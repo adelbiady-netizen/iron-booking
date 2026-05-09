@@ -48,8 +48,8 @@ export default function CallDrawer({
 
   const today      = todayStr();
   const recentRes  = guest && guest !== 'loading' ? (guest.recentReservations ?? []) : [];
-  const todayRes   = recentRes.find(r => r.date === today && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
-  const lastRes    = recentRes.find(r => r.date < today  && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
+  const todayRes   = recentRes.find(r => r.date.slice(0, 10) === today && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
+  const lastRes    = recentRes.find(r => r.date.slice(0, 10) < today  && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
   const isFrequent = guest && guest !== 'loading' && !guest.isVip && guest.visitCount >= FREQUENT_THRESHOLD;
 
   return (

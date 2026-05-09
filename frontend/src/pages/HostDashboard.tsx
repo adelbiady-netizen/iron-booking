@@ -629,7 +629,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [date]);
 
   const handleWaitlistSeat = useCallback(async (entry: WaitlistEntry) => {
-    if (entry.date > new Date().toISOString().slice(0, 10)) {
+    if (entry.date.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
@@ -681,7 +681,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, [showToast]);
 
   const handleSuggestionSeat = useCallback(async (tableId: string, entry: WaitlistEntry) => {
-    if (entry.date > new Date().toISOString().slice(0, 10)) {
+    if (entry.date.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }

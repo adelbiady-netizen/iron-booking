@@ -147,8 +147,8 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                 </div>
                 <button
                   onClick={() => onSeatAtTable?.(tableId, entry)}
-                  disabled={entry.date > todayStr}
-                  title={entry.date > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
+                  disabled={entry.date.slice(0, 10) > todayStr}
+                  title={entry.date.slice(0, 10) > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
                   className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {T.waitlistPanel.seatButton}
@@ -340,8 +340,8 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
               <div className="flex flex-wrap gap-1.5 pl-6">
                 <button
                   onClick={() => onSeat(entry)}
-                  disabled={entry.date > todayStr}
-                  title={entry.date > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
+                  disabled={entry.date.slice(0, 10) > todayStr}
+                  title={entry.date.slice(0, 10) > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
                   className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {T.waitlistPanel.seatButton}
@@ -387,7 +387,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
 
               {/* Smart seat suggestion chips */}
               {(() => {
-                if (entry.date > todayStr) return null;
+                if (entry.date.slice(0, 10) > todayStr) return null;
                 const sugs = entrySuggestions?.get(entry.id) ?? [];
                 if (sugs.length === 0) return null;
 
