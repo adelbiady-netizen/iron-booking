@@ -1,13 +1,15 @@
 import { prisma } from '../../lib/prisma';
 import { WaitlistStatus, Prisma } from '@prisma/client';
-import { NotFoundError, BusinessRuleError } from '../../lib/errors';
+import { NotFoundError, BusinessRuleError, ValidationError } from '../../lib/errors';
 import { getFloorState } from '../tables/service';
 import { sendWhatsApp } from '../../lib/sms';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { validateTableAssignment } from '../reservations/service';
 
 function parseDateArg(dateStr: string): Date {
-  return new Date(dateStr + 'T00:00:00.000Z');
+  const d = new Date(dateStr + 'T00:00:00.000Z');
+  if (isNaN(d.getTime())) throw new ValidationError(`Invalid date: ${dateStr}`);
+  return d;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

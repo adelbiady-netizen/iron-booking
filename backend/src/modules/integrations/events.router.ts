@@ -35,15 +35,12 @@ router.get('/', (req, res) => {
   }
 
   req.auth = payload;
-  console.log('[events/sse] Authenticated via query token — userId:', payload.userId);
 
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection',    'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // disable nginx response buffering
   res.flushHeaders();
-
-  console.log('[events/sse] Client connected — userId:', payload.userId, '| restaurantId:', payload.restaurantId);
 
   // Ping every 25 s — most proxies drop idle connections at 30 s
   const ping = setInterval(() => res.write(':ping\n\n'), 25_000);
@@ -65,7 +62,6 @@ router.get('/', (req, res) => {
   eventBus.on('floor_updated', relayFloorUpdate);
 
   req.on('close', () => {
-    console.log('[events/sse] Client disconnected — userId:', payload.userId);
     clearInterval(ping);
     eventBus.off('incoming_call', relay);
     eventBus.off('floor_updated', relayFloorUpdate);

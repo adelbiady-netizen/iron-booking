@@ -17,7 +17,6 @@ import linkRouter   from './modules/integrations/link.router';
 import eventsRouter from './modules/integrations/events.router';
 
 const app = express();
-console.log('APP MODULE LOADED — build includes /api/test route');
 
 // ─── Request trace (before everything else) ───────────────────────────────────
 // SSE paths are excluded — their URLs carry JWT tokens in the query string.
