@@ -223,6 +223,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
     });
 
     res.json(updated);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -306,6 +307,7 @@ router.post('/send-confirmations', validate(BulkConfirmSchema), async (req: Requ
     }
 
     res.json({ sent, failed, total: reservations.length });
+    if (sent > 0) notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -356,6 +358,7 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
     });
 
     res.json(updated);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 
@@ -370,6 +373,7 @@ router.post('/send-reminders', validate(SendRemindersSchema), async (req: Reques
     const { date, withinMinutes } = req.body as z.infer<typeof SendRemindersSchema>;
     const result = await sendReservationReminders(req.auth.restaurantId, date, withinMinutes);
     res.json(result);
+    if (result.sent > 0) notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 

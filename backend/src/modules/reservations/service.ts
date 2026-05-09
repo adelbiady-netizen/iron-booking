@@ -21,10 +21,11 @@ import { findOrCreateGuest, splitName } from '../guests/service';
 async function getRestaurantSettings(restaurantId: string) {
   const r = await prisma.restaurant.findUniqueOrThrow({
     where: { id: restaurantId },
-    select: { settings: true },
+    select: { settings: true, timezone: true },
   });
   const s = r.settings as Record<string, any>;
   return {
+    timezone: r.timezone,
     defaultTurnMinutes: (s.defaultTurnMinutes as number) ?? 90,
     bufferBetweenTurnsMinutes: (s.bufferBetweenTurnsMinutes as number) ?? 15,
     autoConfirm: (s.autoConfirm as boolean) ?? false,
@@ -391,19 +392,20 @@ export async function seatReservation(
     throw new BusinessRuleError(`Cannot seat a reservation with status ${r.status}`);
   }
 
+  const settings = await getRestaurantSettings(restaurantId);
+
   // Seating is only allowed on the reservation's own service date.
-  // Early same-day seating is permitted — the guest may arrive before their scheduled time.
-  const todayUtc = new Date().toISOString().slice(0, 10);
-  const resDateUtc = r.date instanceof Date
+  // Use the restaurant's configured timezone so late-night service (past UTC midnight)
+  // in UTC+ restaurants doesn't block valid same-day seats.
+  const todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: settings.timezone }).format(new Date());
+  const resDate = r.date instanceof Date
     ? r.date.toISOString().slice(0, 10)
     : String(r.date).slice(0, 10);
-  if (resDateUtc !== todayUtc) {
+  if (resDate !== todayLocal) {
     throw new BusinessRuleError(
       'This reservation belongs to another service date and cannot be seated today.'
     );
   }
-
-  const settings = await getRestaurantSettings(restaurantId);
   // Never fall back to the DB's existing combinedTableIds — doing so would
   // preserve stale IDs from a previous combined-table seat and cause ghost
   // occupancy on unrelated tables.  Always use what the caller provides,

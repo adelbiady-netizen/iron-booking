@@ -217,21 +217,21 @@ export async function seatWaitlistGuest(
     throw new BusinessRuleError(`Cannot seat a guest with status ${entry.status}`);
   }
 
-  const todayUtc     = new Date().toISOString().slice(0, 10);
+  const restaurant = await prisma.restaurant.findUniqueOrThrow({
+    where: { id: restaurantId },
+    select: { settings: true, timezone: true },
+  });
+  const s = restaurant.settings as Record<string, any>;
+
+  const todayLocal   = new Intl.DateTimeFormat('en-CA', { timeZone: restaurant.timezone }).format(new Date());
   const entryDateStr = entry.date instanceof Date
     ? entry.date.toISOString().slice(0, 10)
     : String(entry.date).slice(0, 10);
-  if (entryDateStr > todayUtc) {
+  if (entryDateStr > todayLocal) {
     throw new BusinessRuleError(
       'Cannot seat a waitlist reservation in the future. Seating is allowed only for the current service time.'
     );
   }
-
-  const settings = await prisma.restaurant.findUniqueOrThrow({
-    where: { id: restaurantId },
-    select: { settings: true },
-  });
-  const s = settings.settings as Record<string, any>;
   const seatTime = new Date().toTimeString().slice(0, 5);
   const duration = (s.defaultTurnMinutes as number) ?? 90;
   const bufferMinutes = (s.bufferBetweenTurnsMinutes as number) ?? 15;
