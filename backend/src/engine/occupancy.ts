@@ -75,18 +75,32 @@ export const RESERVED_SOON_MINUTES = 15;
 // Hosts can still manually mark it NO_SHOW at any time.
 export const NO_SHOW_AFTER_MINUTES = 30;
 
+// ─── MAP_VISIBILITY_MINUTES ───────────────────────────────────────────────────
+// Upper bound: how far into the future a non-SEATED reservation is allowed to
+// visually occupy a table on the floor map. Reservations beyond this window
+// appear AVAILABLE on the map (operational clarity) but remain in the right-panel
+// reservation list (full daily schedule). SEATED tables are always OCCUPIED
+// regardless of this cap — they are anchored to seatedAt, not board time.
+//
+// Window  | Map status
+// --------+------------------------------------------
+//  > 90m  | AVAILABLE  (list only — far future)
+// 15–90m  | RESERVED   (blue — near-term committed)
+//  0–15m  | RESERVED_SOON (amber — arriving soon)
+// past    | RESERVED_SOON until NO_SHOW_AFTER_MINUTES, then AVAILABLE
+export const MAP_VISIBILITY_MINUTES = 90;
+
 // ─── reservationIsUpcoming ────────────────────────────────────────────────────
 // Should a non-SEATED reservation make the floor board show this table as
 // non-AVAILABLE at the selected board time?
 //
-// Returns true when:
-//   (a) the reservation hasn't ended yet (turn still in play), AND
-//   (b) it hasn't expired as a no-show (started < NO_SHOW_AFTER_MINUTES ago).
+// Returns true when ALL of:
+//   (a) the reservation is within MAP_VISIBILITY_MINUTES in the future, AND
+//   (b) it hasn't expired as a no-show (started < NO_SHOW_AFTER_MINUTES ago), AND
+//   (c) the turn hasn't ended yet (resEnd > slotTime).
 //
-// All future same-date reservations are visible — there is no upper cap on how
-// far ahead. This means a table reserved for 20:00 shows as RESERVED (blue) at
-// board time 12:00, giving hosts a full picture of their day. The RESERVED_SOON
-// status (amber) activates once the reservation is within RESERVED_SOON_MINUTES.
+// Reservations further than MAP_VISIBILITY_MINUTES away are list-only — they do
+// not visually occupy the table on the floor map.
 export function reservationIsUpcoming(
   res:      { time: string; duration: number },
   date:     Date,
@@ -96,5 +110,6 @@ export function reservationIsUpcoming(
   const resEnd       = addMinutes(resStart, res.duration);
   const minutesUntil = (resStart.getTime() - slotTime.getTime()) / 60_000;
   return minutesUntil >= -NO_SHOW_AFTER_MINUTES
+    && minutesUntil <= MAP_VISIBILITY_MINUTES
     && resEnd > slotTime;
 }
