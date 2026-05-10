@@ -780,13 +780,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           conflicts={reorganizeModal.conflicts}
           busy={busy}
           onCancel={() => setReorganizeModal(null)}
-          onConfirm={async () => {
+          onConfirm={async (selectedIds) => {
             const { pendingTableId, pendingCombinedIds, pendingToast } = reorganizeModal;
             setReorganizeModal(null);
             setError(null);
             setBusy(true);
             try {
-              const updated = await api.reservations.seat(res.id, pendingTableId, false, pendingCombinedIds, true);
+              const updated = await api.reservations.seat(res.id, pendingTableId, true, pendingCombinedIds, selectedIds);
               setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
               onSuccess?.(pendingToast);
             } catch (err: unknown) {

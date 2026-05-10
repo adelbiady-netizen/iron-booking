@@ -396,7 +396,7 @@ export async function seatReservation(
   actorName: string,
   overrideConflicts = false,
   combinedTableIds?: string[],
-  reorganize = false
+  reorganizeIds: string[] = []
 ) {
   const r = await assertReservationBelongsToRestaurant(id, restaurantId);
 
@@ -424,12 +424,24 @@ export async function seatReservation(
   // defaulting to [] (single-table seat) when the argument is omitted.
   const resolvedCombinedIds = combinedTableIds ?? [];
 
-  // Check for future reservations on the target table. If any exist and the
-  // caller hasn't confirmed reorganize, surface them so the frontend can show
-  // the confirmation modal.
-  if (!reorganize) {
+  // Check for near-term reservations on the target table. Only flag reservations
+  // within a 120-minute window from now — far-future bookings don't block seating.
+  // Skip this check when the caller has already selected IDs to reorganize.
+  if (reorganizeIds.length === 0) {
     const todayDateObj = parseDateArg(todayLocal);
-    const futureOnTable = await prisma.reservation.findMany({
+
+    // Current time in the restaurant's local timezone as minutes from midnight.
+    const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
+      timeZone: settings.timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+    const [nowH, nowM] = nowTimeStr.split(':').map(Number);
+    const nowMins = nowH * 60 + nowM;
+    const windowEndMins = nowMins + 120;
+
+    const allOnTable = await prisma.reservation.findMany({
       where: {
         restaurantId,
         date: todayDateObj,
@@ -440,18 +452,22 @@ export async function seatReservation(
       select: { id: true, guestName: true, time: true, partySize: true },
       orderBy: { time: 'asc' },
     });
-    if (futureOnTable.length > 0) {
-      const nowMs = Date.now();
-      const [todayY, todayM, todayD] = todayLocal.split('-').map(Number);
-      const conflicts = futureOnTable.map(f => {
+
+    const withinWindow = allOnTable.filter(f => {
+      const [fH, fM] = f.time.split(':').map(Number);
+      const resMins = fH * 60 + fM;
+      return resMins > nowMins && resMins <= windowEndMins;
+    });
+
+    if (withinWindow.length > 0) {
+      const conflicts = withinWindow.map(f => {
         const [fH, fM] = f.time.split(':').map(Number);
-        const resTimeMs = Date.UTC(todayY, todayM - 1, todayD, fH, fM, 0);
         return {
           id: f.id,
           guestName: f.guestName,
           time: f.time,
           partySize: f.partySize,
-          minutesUntil: Math.round((resTimeMs - nowMs) / 60_000),
+          minutesUntil: (fH * 60 + fM) - nowMins,
         };
       });
       throw new ConflictError('This table has upcoming reservations', {
@@ -476,19 +492,20 @@ export async function seatReservation(
   }
 
   return prisma.$transaction(async (tx) => {
-    // Displace any future reservations on this table into the reorganize queue.
-    if (reorganize) {
-      const futureOnTable = await tx.reservation.findMany({
+    // Displace only the reservations the host explicitly selected.
+    // Validate each: must belong to this restaurant, table, date, and be seateable.
+    if (reorganizeIds.length > 0) {
+      const toDisplace = await tx.reservation.findMany({
         where: {
+          id: { in: reorganizeIds },
           restaurantId,
           tableId,
           date: r.date,
           status: { in: ['CONFIRMED', 'PENDING'] },
-          id: { not: id },
         },
         select: { id: true, guestName: true },
       });
-      for (const displaced of futureOnTable) {
+      for (const displaced of toDisplace) {
         await tx.reservation.update({
           where: { id: displaced.id },
           data: {

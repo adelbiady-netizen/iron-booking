@@ -1130,11 +1130,11 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           conflicts={reorganizeConflict.conflicts}
           busy={reorganizeConflict.busy}
           onCancel={() => setReorganizeConflict(null)}
-          onConfirm={async () => {
+          onConfirm={async (selectedIds) => {
             const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName } = reorganizeConflict;
             setReorganizeConflict(prev => prev ? { ...prev, busy: true } : null);
             try {
-              const updated = await api.reservations.seat(pendingReservationId, pendingTableId, false, pendingCombinedIds, true);
+              const updated = await api.reservations.seat(pendingReservationId, pendingTableId, true, pendingCombinedIds, selectedIds);
               setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
               setRefreshKey(k => k + 1);
               setInsights(prev => prev.filter(i => i.tableId !== pendingTableId && i.reservationId !== pendingReservationId));

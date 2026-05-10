@@ -46,7 +46,7 @@ export const AssignTableSchema = z.object({
   tableId: z.string().uuid(),
   overrideConflicts: z.boolean().default(false),
   combinedTableIds: z.array(z.string().uuid()).default([]),
-  reorganize: z.boolean().default(false),
+  reorganizeIds: z.array(z.string().uuid()).default([]),
 });
 
 export const MoveTableSchema = z.object({

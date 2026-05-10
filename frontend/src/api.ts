@@ -204,10 +204,10 @@ export const api = {
     },
     confirm: (id: string) =>
       request<Reservation>(`/reservations/${id}/confirm`, { method: 'POST' }),
-    seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = [], reorganize = false) =>
+    seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = [], reorganizeIds: string[] = []) =>
       request<Reservation>(`/reservations/${id}/seat`, {
         method: 'POST',
-        body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganize }),
+        body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganizeIds }),
       }),
     move: (id: string, tableId: string, reason?: string, combinedTableIds: string[] = []) =>
       request<Reservation>(`/reservations/${id}/move`, {

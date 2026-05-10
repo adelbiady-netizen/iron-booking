@@ -101,7 +101,7 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
       actorName(req),
       req.body.overrideConflicts,
       req.body.combinedTableIds,
-      req.body.reorganize
+      req.body.reorganizeIds
     );
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);

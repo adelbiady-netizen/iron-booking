@@ -1083,11 +1083,11 @@ export default function CreateDrawer({
           conflicts={wiReorganize.conflicts}
           busy={wiReorganize.busy}
           onCancel={() => setWiReorganize(null)}
-          onConfirm={async () => {
+          onConfirm={async (selectedIds) => {
             const { reservationId, tableId } = wiReorganize;
             setWiReorganize(prev => prev ? { ...prev, busy: true } : null);
             try {
-              const seated = await api.reservations.seat(reservationId, tableId, false, [], true);
+              const seated = await api.reservations.seat(reservationId, tableId, true, [], selectedIds);
               setWiReorganize(null);
               onCreated(seated);
             } catch (err: unknown) {

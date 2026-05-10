@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useT } from '../i18n/useT';
 
 export interface ReorganizeConflict {
@@ -11,12 +12,20 @@ export interface ReorganizeConflict {
 interface Props {
   conflicts: ReorganizeConflict[];
   onCancel: () => void;
-  onConfirm: () => void | Promise<void>;
+  onConfirm: (selectedIds: string[]) => void | Promise<void>;
   busy?: boolean;
 }
 
 export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm, busy }: Props) {
   const T = useT();
+  const [selectedIds, setSelectedIds] = useState<string[]>(conflicts.map(c => c.id));
+
+  function toggle(id: string) {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
@@ -32,14 +41,24 @@ export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm
         </div>
         <div className="space-y-1.5 bg-iron-bg rounded-lg border border-iron-border p-3">
           {conflicts.map(c => (
-            <div key={c.id} className="flex items-center justify-between gap-2">
-              <span className="text-iron-text text-xs truncate">
+            <label
+              key={c.id}
+              className="flex items-center gap-2.5 cursor-pointer group"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(c.id)}
+                onChange={() => toggle(c.id)}
+                disabled={busy}
+                className="w-3.5 h-3.5 rounded border-iron-border accent-amber-400 shrink-0"
+              />
+              <span className="flex-1 text-iron-text text-xs truncate group-has-[:checked]:text-iron-text text-iron-muted">
                 {T.guestDrawer.reorganizeModalGuest(c.guestName, c.time, c.partySize)}
               </span>
               <span className="text-amber-400 text-xs shrink-0 tabular-nums">
                 {T.guestDrawer.reorganizeModalEta(c.minutesUntil)}
               </span>
-            </div>
+            </label>
           ))}
         </div>
         <div className="flex gap-2 pt-1">
@@ -51,8 +70,8 @@ export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm
             {T.common.cancel}
           </button>
           <button
-            onClick={onConfirm}
-            disabled={busy}
+            onClick={() => onConfirm(selectedIds)}
+            disabled={busy || selectedIds.length === 0}
             className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-40"
           >
             {busy ? T.common.processing : T.guestDrawer.reorganizeConfirm}
