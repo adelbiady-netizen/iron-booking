@@ -94,6 +94,7 @@ export const THe = {
     pickModeMoveHint:         (name: string) => `בחר שולחן חדש עבור ${name}`,
     pickModeCurrentTable:     'שולחן נוכחי',
     pickModeCurrentTableWarn: 'זהו השולחן הנוכחי — בחר שולחן אחר',
+    reorganizeBanner: 'מצב סידור מחדש — לחץ על שולחן להעברת הזמנותיו לתור הסידור',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -672,5 +673,14 @@ export const THe = {
     toastQuickUndone:    'הפעולה בוטלה',
     toastUndoFail:       'הביטול נכשל',
     quickSeatUndo:       'בטל',
+    reorganizeFloor:     'סידור מחדש',
+    exitReorganize:      'יציאה מסידור',
+    rebuildDayTitle:     (table: string) => `העברת הזמנות משולחן ${table}`,
+    rebuildDayBody:      (n: number) => `${n} ${n === 1 ? 'הזמנה' : 'הזמנות'} עתידיות יועברו לתור הסידור מחדש לשיבוץ שולחן חלופי.`,
+    rebuildDayNoRes:     'אין הזמנות עתידיות להעברה משולחן זה.',
+    rebuildDayReason:    'סיבה (אופציונלי)',
+    rebuildDayConfirm:   'העבר הזמנות',
+    toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'הזמנה' : 'הזמנות'} הועברו משולחן ${table}`,
+    toastRebuildFail:    'ההעברה נכשלה',
   },
 };

@@ -3,6 +3,7 @@ import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { z } from 'zod';
 import * as service from './service';
+import { eventBus } from '../../lib/eventBus';
 
 const router = Router();
 router.use(authenticate);
@@ -242,6 +243,24 @@ router.patch('/:id/unlock', async (req: Request, res: Response, next: NextFuncti
   try {
     const table = await service.unlockTable(req.auth.restaurantId, p(req, 'id'));
     res.json(table);
+  } catch (err) { next(err); }
+});
+
+// POST /tables/:id/rebuild-day — lift future reservations to reorganize queue
+const RebuildDaySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+  reason: z.string().max(200).optional(),
+  rebuildSessionId: z.string().uuid(),
+});
+
+router.post('/:id/rebuild-day', validate(RebuildDaySchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await service.rebuildDay(req.auth.restaurantId, p(req, 'id'), {
+      ...req.body,
+      actor: req.auth.email,
+    });
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
+    res.json(result);
   } catch (err) { next(err); }
 });
 

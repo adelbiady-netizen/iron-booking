@@ -168,6 +168,13 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [waitlistAssignEntry,   setWaitlistAssignEntry]   = useState<WaitlistEntry | null>(null);
   const [waitlistAssignTableId, setWaitlistAssignTableId] = useState<string | null>(null);
 
+  // Management Reorganize Mode
+  const [reorganizeMode, setReorganizeMode] = useState(false);
+  const [rebuildDayTarget, setRebuildDayTarget] = useState<{ table: FloorTable; resv: Reservation[] } | null>(null);
+  const [rebuildDayReason, setRebuildDayReason] = useState('');
+  const [rebuildDayBusy, setRebuildDayBusy] = useState(false);
+  const rebuildSessionIdRef = useRef('');
+
   // Floor-map table pick mode — triggered by CreateDrawer or GuestDrawer
   const [tablePickMode,        setTablePickMode]        = useState(false);
   const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
@@ -441,6 +448,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setCombineMode(false);
     setCombinedSelection([]);
   }, [combinedSelection]);
+
+  const handleReorganizeTableClick = useCallback((table: FloorTable) => {
+    const tableResv = reservations.filter(
+      r => r.tableId === table.id && ['CONFIRMED', 'PENDING'].includes(r.status) && !r.reorganizeAt
+    );
+    setRebuildDayTarget({ table, resv: tableResv });
+    setRebuildDayReason('');
+  }, [reservations]);
 
   const handleLockTable = useCallback((table: FloorTable) => {
     setLockTarget(table);
@@ -943,25 +958,49 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
 
       {/* Secondary toolbar */}
       <div className="flex items-center justify-between px-4 py-1.5 border-b border-iron-border bg-iron-card/30 shrink-0">
-        <button
-          onClick={() => {
-            if (combineMode) {
-              setCombineMode(false);
-              setCombinedSelection([]);
-            } else {
-              setSelectedRes(null);
-              setCreateMode(null);
-              setCombineMode(true);
-            }
-          }}
-          className={`text-xs border rounded px-2.5 py-1 transition-colors ${
-            combineMode
-              ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 hover:bg-blue-600/30'
-              : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
-          }`}
-        >
-          {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (combineMode) {
+                setCombineMode(false);
+                setCombinedSelection([]);
+              } else {
+                setSelectedRes(null);
+                setCreateMode(null);
+                setCombineMode(true);
+              }
+            }}
+            className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+              combineMode
+                ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 hover:bg-blue-600/30'
+                : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+            }`}
+          >
+            {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
+          </button>
+          <button
+            onClick={() => {
+              if (reorganizeMode) {
+                setReorganizeMode(false);
+                setRebuildDayTarget(null);
+              } else {
+                setSelectedRes(null);
+                setCreateMode(null);
+                setCombineMode(false);
+                setCombinedSelection([]);
+                setReorganizeMode(true);
+                rebuildSessionIdRef.current = crypto.randomUUID();
+              }
+            }}
+            className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+              reorganizeMode
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30'
+                : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+            }`}
+          >
+            {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor}
+          </button>
+        </div>
         <button
           onClick={() => setLayoutMode(true)}
           className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
@@ -1014,6 +1053,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onWaitlistTablePick={handleWaitlistTablePick}
           onWaitlistAssignCancel={handleWaitlistAssignCancel}
           onWaitlistConfirmSeat={handleWaitlistConfirmSeat}
+          reorganizeMode={reorganizeMode}
+          onReorganizeTableClick={handleReorganizeTableClick}
         />
 
         <ReservationPanel
@@ -1126,6 +1167,72 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onClose={() => setLockTarget(null)}
           onLocked={handleTableLocked}
         />
+      )}
+
+      {rebuildDayTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-80 space-y-3">
+            <h3 className="text-iron-text font-semibold text-sm">
+              {T.hostDashboard.rebuildDayTitle(rebuildDayTarget.table.name)}
+            </h3>
+            {rebuildDayTarget.resv.length === 0 ? (
+              <p className="text-iron-muted text-xs">{T.hostDashboard.rebuildDayNoRes}</p>
+            ) : (
+              <>
+                <p className="text-iron-muted text-xs">{T.hostDashboard.rebuildDayBody(rebuildDayTarget.resv.length)}</p>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {rebuildDayTarget.resv.map(r => (
+                    <div key={r.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-iron-bg border border-iron-border">
+                      <span className="text-iron-text text-xs font-medium flex-1 truncate">{r.guestName}</span>
+                      <span className="text-iron-muted text-[11px]">{T.common.guests(r.partySize)}</span>
+                      <span className="text-amber-400 text-[11px]">{r.time}</span>
+                    </div>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  placeholder={T.hostDashboard.rebuildDayReason}
+                  value={rebuildDayReason}
+                  onChange={e => setRebuildDayReason(e.target.value)}
+                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-1.5 text-xs text-iron-text placeholder-iron-muted focus:outline-none focus:border-amber-500/50"
+                />
+              </>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setRebuildDayTarget(null)}
+                disabled={rebuildDayBusy}
+                className="flex-1 text-xs border border-iron-border rounded-lg px-3 py-2 text-iron-muted hover:text-iron-text hover:border-iron-text/30 transition-colors disabled:opacity-50"
+              >
+                {T.common.cancel}
+              </button>
+              {rebuildDayTarget.resv.length > 0 && (
+                <button
+                  disabled={rebuildDayBusy}
+                  onClick={async () => {
+                    setRebuildDayBusy(true);
+                    try {
+                      const result = await api.tables.rebuildDay(rebuildDayTarget.table.id, {
+                        date,
+                        reason: rebuildDayReason.trim() || undefined,
+                        rebuildSessionId: rebuildSessionIdRef.current,
+                      });
+                      setRebuildDayTarget(null);
+                      showToast(T.hostDashboard.toastRebuildDone(result.lifted, result.tableName));
+                    } catch (err) {
+                      showToast(err instanceof Error ? err.message : T.hostDashboard.toastRebuildFail, 'error');
+                    } finally {
+                      setRebuildDayBusy(false);
+                    }
+                  }}
+                  className="flex-1 text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 rounded-lg px-3 py-2 font-semibold transition-colors disabled:opacity-50"
+                >
+                  {rebuildDayBusy ? T.common.processing : T.hostDashboard.rebuildDayConfirm}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {reorganizeConflict && (

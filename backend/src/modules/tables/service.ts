@@ -786,3 +786,63 @@ export async function batchSaveFloorObjects(
     return tx.floorObject.findMany({ where: { restaurantId }, orderBy: { createdAt: 'asc' } });
   });
 }
+
+// ─── Rebuild Day ──────────────────────────────────────────────────────────────
+// Lifts all CONFIRMED/PENDING reservations off a table for a given date into
+// the reorganize queue. Used by Management Reorganize Mode. Never touches
+// SEATED reservations — those must be completed or unseated by the host first.
+
+export async function rebuildDay(
+  restaurantId: string,
+  tableId: string,
+  input: { date: string; reason?: string; rebuildSessionId: string; actor: string }
+) {
+  const table = await prisma.table.findUnique({ where: { id: tableId } });
+  if (!table || table.restaurantId !== restaurantId) throw new NotFoundError('Table', tableId);
+
+  const dateObj = new Date(input.date + 'T00:00:00.000Z');
+
+  const toList = await prisma.reservation.findMany({
+    where: {
+      restaurantId,
+      tableId,
+      date: dateObj,
+      status: { in: ['CONFIRMED', 'PENDING'] as ReservationStatus[] },
+      reorganizeAt: null,
+    },
+  });
+
+  if (toList.length === 0) return { lifted: 0, tableName: table.name };
+
+  const now = new Date();
+  const detailsJson = JSON.stringify({
+    tableId,
+    tableName: table.name,
+    reason: input.reason ?? null,
+    rebuildSessionId: input.rebuildSessionId,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    for (const r of toList) {
+      await tx.reservation.update({
+        where: { id: r.id },
+        data: {
+          reorganizeAt: now,
+          reorganizeFromTableId: tableId,
+          reorganizeBySeatingId: input.rebuildSessionId,
+        },
+      });
+      const act = await tx.reservationActivity.create({
+        data: { reservationId: r.id, action: 'REBUILD_TRIGGERED', actor: input.actor },
+        select: { id: true },
+      });
+      await tx.$executeRaw`
+        UPDATE reservation_activity
+        SET details = ${detailsJson}::jsonb
+        WHERE id = ${act.id}
+      `;
+    }
+  });
+
+  return { lifted: toList.length, tableName: table.name };
+}

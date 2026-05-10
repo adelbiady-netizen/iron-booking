@@ -94,6 +94,7 @@ export const T = {
     pickModeMoveHint:         (name: string) => `Choose a new table for ${name}`,
     pickModeCurrentTable:     'Current table',
     pickModeCurrentTableWarn: 'That\'s the current table — choose a different one',
+    reorganizeBanner: 'Reorganize Mode — click any table to lift its upcoming reservations to the queue',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -696,5 +697,14 @@ export const T = {
     toastQuickUndone:    'Reservation reverted',
     toastUndoFail:       'Failed to undo',
     quickSeatUndo:       'Undo',
+    reorganizeFloor:     'Reorganize Floor',
+    exitReorganize:      'Exit Reorganize',
+    rebuildDayTitle:     (table: string) => `Lift reservations from ${table}`,
+    rebuildDayBody:      (n: number) => `${n} upcoming ${n === 1 ? 'reservation' : 'reservations'} will be moved to the Reorganize queue for re-assignment.`,
+    rebuildDayNoRes:     'No upcoming reservations to lift from this table.',
+    rebuildDayReason:    'Reason (optional)',
+    rebuildDayConfirm:   'Lift Reservations',
+    toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'reservation' : 'reservations'} lifted from ${table}`,
+    toastRebuildFail:    'Failed to lift reservations',
   },
 };

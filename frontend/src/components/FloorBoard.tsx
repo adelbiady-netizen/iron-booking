@@ -77,6 +77,9 @@ interface Props {
   onWaitlistTablePick?: (tableId: string) => void;
   onWaitlistAssignCancel?: () => void;
   onWaitlistConfirmSeat?: () => void;
+  // Management Reorganize Mode
+  reorganizeMode?: boolean;
+  onReorganizeTableClick?: (table: FloorTable) => void;
 }
 
 const CANVAS_W = 1500;
@@ -112,6 +115,7 @@ export default function FloorBoard({
   pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
+  reorganizeMode = false, onReorganizeTableClick,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -325,6 +329,11 @@ export default function FloorBoard({
       }
       return;
     }
+    // Reorganize mode: any table click is forwarded to the manager's lift flow
+    if (reorganizeMode) {
+      onReorganizeTableClick?.(t);
+      return;
+    }
     // Pick mode: toggle or warn
     if (pickMode) {
       const ps = getPickStatus(t);
@@ -400,6 +409,16 @@ export default function FloorBoard({
             {pickAction === 'move' && pickGuestName
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
               : T.floorBoard.pickModeHint}
+          </span>
+        </div>
+      )}
+
+      {/* Reorganize mode banner */}
+      {reorganizeMode && !pickMode && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-amber-900/20 border-b border-amber-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          <span className="text-amber-300 text-xs font-medium flex-1">
+            {T.floorBoard.reorganizeBanner}
           </span>
         </div>
       )}
