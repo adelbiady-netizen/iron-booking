@@ -315,6 +315,7 @@ model Reservation {
   completedAt  DateTime?
   cancelledAt  DateTime?
   noShowAt     DateTime?
+  returnedToListAt DateTime?  // set on unseat; cleared when host acts again
 
   // For move history — which table was previously assigned
   previousTableId String?

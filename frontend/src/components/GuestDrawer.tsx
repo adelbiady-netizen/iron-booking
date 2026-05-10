@@ -243,7 +243,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [smartLoading, setSmartLoading] = useState(false);
 
   useEffect(() => {
-    if (!['PENDING', 'CONFIRMED'].includes(res.status)) {
+    if (!['PENDING', 'CONFIRMED'].includes(res.status) || res.returnedToListAt) {
       setSmartSuggestion(null);
       return;
     }
@@ -772,6 +772,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
+                {res.returnedToListAt && (
+                  <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
+                    {T.guestDrawer.returnedToList}
+                  </span>
+                )}
                 {res.isConfirmedByGuest && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
                     {T.guestDrawer.guestConfirmed}

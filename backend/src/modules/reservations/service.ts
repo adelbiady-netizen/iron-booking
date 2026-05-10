@@ -435,6 +435,7 @@ export async function seatReservation(
         combinedTableIds: resolvedCombinedIds,
         seatedAt: new Date(),
         confirmedAt: r.confirmedAt ?? new Date(),
+        returnedToListAt: null,
       },
       include: { table: true },
     });
@@ -542,7 +543,7 @@ export async function markNoShow(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'NO_SHOW', noShowAt: new Date() },
+      data: { status: 'NO_SHOW', noShowAt: new Date(), returnedToListAt: null },
     });
     await logActivity(tx, id, 'NO_SHOW', actorName, {
       fromStatus: r.status,
@@ -574,7 +575,7 @@ export async function cancelReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'CANCELLED', cancelledAt: new Date() },
+      data: { status: 'CANCELLED', cancelledAt: new Date(), returnedToListAt: null },
     });
     await logActivity(tx, id, 'CANCELLED', actorName, {
       fromStatus: r.status,
@@ -606,7 +607,7 @@ export async function unseatReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'CONFIRMED', tableId: null, combinedTableIds: [], seatedAt: null },
+      data: { status: 'CONFIRMED', tableId: null, combinedTableIds: [], seatedAt: null, returnedToListAt: new Date() },
       include: { table: true },
     });
     await logActivity(tx, id, 'RETURN_TO_LIST', actorName, {
@@ -639,7 +640,7 @@ export async function unconfirmReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'PENDING', confirmedAt: null },
+      data: { status: 'PENDING', confirmedAt: null, returnedToListAt: null },
       include: { table: true },
     });
     await logActivity(tx, id, 'REVERTED_TO_PENDING', actorName, {

@@ -330,6 +330,7 @@ export const THe = {
     actionMoveTable:      'העבר שולחן',
     actionUnseat:         'החזר לרשימה',
     unseatConfirmText:    'פעולה זו תסיר את האורח מהשולחן ותחזיר את ההזמנה לרשימה. להמשיך?',
+    returnedToList:       'הוחזר לרשימה',
     actionUnconfirm:      'החזר לממתין',
     actionChangeTable:    'שנה שולחן',
     actionSendSms:        'שלח SMS',

@@ -604,6 +604,7 @@ export async function getFloorInsights(
         date: dateObj,
         status: { in: ['PENDING', 'CONFIRMED'] as ReservationStatus[] },
         tableId: null,
+        returnedToListAt: null,
       },
       select: { id: true, guestName: true, partySize: true, time: true, status: true },
     }),
