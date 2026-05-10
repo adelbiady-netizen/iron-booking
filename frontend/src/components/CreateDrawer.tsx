@@ -201,11 +201,13 @@ export default function CreateDrawer({
 
   const [error,        setError]        = useState<string | null>(null);
   const [busy,         setBusy]         = useState(false);
+  const wiReorganizeKeyRef = useRef(0);
   const [wiReorganize, setWiReorganize] = useState<{
     conflicts: ReorganizeConflict[];
     reservationId: string;
     tableId: string;
     busy: boolean;
+    _key: number;
   } | null>(null);
   const [phoneWarning, setPhoneWarning] = useState(false);
   const [pendingSeat,  setPendingSeat]  = useState(false);
@@ -402,7 +404,7 @@ export default function CreateDrawer({
             const det = seatErr.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
             if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
               // Walk-in created but not seated — show reorganize modal before proceeding
-              setWiReorganize({ conflicts: det.conflicts, reservationId: r.id, tableId: wiTable, busy: false });
+              setWiReorganize({ conflicts: det.conflicts, reservationId: r.id, tableId: wiTable, busy: false, _key: ++wiReorganizeKeyRef.current });
               onCreated(r);
               return;
             }
@@ -1080,6 +1082,7 @@ export default function CreateDrawer({
 
       {wiReorganize && (
         <ReorganizeConflictModal
+          key={wiReorganize._key}
           conflicts={wiReorganize.conflicts}
           busy={wiReorganize.busy}
           onCancel={() => setWiReorganize(null)}

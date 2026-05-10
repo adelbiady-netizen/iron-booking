@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useT } from '../i18n/useT';
 
 export interface ReorganizeConflict {
@@ -18,7 +18,16 @@ interface Props {
 
 export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm, busy }: Props) {
   const T = useT();
-  const [selectedIds, setSelectedIds] = useState<string[]>(conflicts.map(c => c.id));
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => conflicts.map(c => c.id));
+
+  // Sync selection state when the conflict list is replaced without a remount.
+  // Serialise IDs so the effect only fires when the actual conflict set changes.
+  const conflictKey = conflicts.map(c => c.id).join(',');
+  const prevConflictKeyRef = useRef(conflictKey);
+  if (prevConflictKeyRef.current !== conflictKey) {
+    prevConflictKeyRef.current = conflictKey;
+    setSelectedIds(conflicts.map(c => c.id));
+  }
 
   function toggle(id: string) {
     setSelectedIds(prev =>

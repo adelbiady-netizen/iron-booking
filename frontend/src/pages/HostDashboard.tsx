@@ -126,6 +126,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [allTables,    setAllTables]    = useState<Table[]>([]);
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
   const [highlightId,       setHighlightId]       = useState<string | null>(null);
+  const reorganizeKeyRef = useRef(0);
   const [reorganizeConflict, setReorganizeConflict] = useState<{
     conflicts: ReorganizeConflict[];
     pendingReservationId: string;
@@ -133,6 +134,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     pendingCombinedIds: string[];
     tableName: string;
     busy: boolean;
+    _key: number;
   } | null>(null);
   const [resLoading,        setResLoading]        = useState(false);
   const [loadError,         setLoadError]         = useState(false);
@@ -386,6 +388,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             pendingCombinedIds: combinedTableIds,
             tableName: tName,
             busy: false,
+            _key: ++reorganizeKeyRef.current,
           });
           return;
         }
@@ -1127,6 +1130,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
 
       {reorganizeConflict && (
         <ReorganizeConflictModal
+          key={reorganizeConflict._key}
           conflicts={reorganizeConflict.conflicts}
           busy={reorganizeConflict.busy}
           onCancel={() => setReorganizeConflict(null)}

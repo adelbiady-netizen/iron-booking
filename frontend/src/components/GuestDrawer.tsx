@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal from './ReorganizeConflictModal';
@@ -222,11 +222,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [lockReason,   setLockReason]   = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const reorganizeKeyRef = useRef(0);
   const [reorganizeModal, setReorganizeModal] = useState<{
     conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
     pendingTableId: string;
     pendingCombinedIds: string[];
     pendingToast: string;
+    _key: number;
   } | null>(null);
 
   // Edit form state — initialised when entering edit mode
@@ -452,7 +454,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       if (err instanceof ApiError && err.code === 'CONFLICT') {
         const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }> } | null;
         if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
-          setReorganizeModal({ conflicts: det.conflicts, pendingTableId: tableId, pendingCombinedIds: combinedIds, pendingToast: toastMsg });
+          setReorganizeModal({ conflicts: det.conflicts, pendingTableId: tableId, pendingCombinedIds: combinedIds, pendingToast: toastMsg, _key: ++reorganizeKeyRef.current });
           return;
         }
       }
@@ -777,6 +779,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       {/* Reorganize confirmation modal */}
       {reorganizeModal && (
         <ReorganizeConflictModal
+          key={reorganizeModal._key}
           conflicts={reorganizeModal.conflicts}
           busy={busy}
           onCancel={() => setReorganizeModal(null)}
