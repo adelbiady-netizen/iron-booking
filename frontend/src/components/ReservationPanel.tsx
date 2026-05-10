@@ -45,6 +45,8 @@ interface Props {
   date?: string;
   reorganizeQueue?: Reservation[];
   onReorganizeSelect?: (r: Reservation) => void;
+  reflowQueue?: Reservation[];
+  onReflowSelect?: (r: Reservation) => void;
   allTables?: { id: string; name: string }[];
 }
 
@@ -53,7 +55,7 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
-  onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
+  onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, reflowQueue, onReflowSelect, allTables,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
@@ -208,6 +210,53 @@ export default function ReservationPanel({
       ) : (
         <>
           <div className="flex-1 overflow-y-auto">
+            {/* Reflow queue — SEATED guests flagged for a table move */}
+            {reflowQueue && reflowQueue.length > 0 && (
+              <div className="border-b border-amber-500/20 bg-amber-500/5">
+                <div className="px-3.5 py-2 flex items-center gap-2">
+                  <span className="text-amber-400 text-[10px] font-semibold uppercase tracking-widest flex-1">
+                    ↔ {T.guestDrawer.reflowQueueHeader} ({reflowQueue.length})
+                  </span>
+                </div>
+                {reflowQueue.map(r => {
+                  const minutesWaiting = r.reflowAt
+                    ? Math.round((Date.now() - new Date(r.reflowAt).getTime()) / 60_000)
+                    : 0;
+                  const isStale = minutesWaiting >= 30;
+                  return (
+                    <div
+                      key={r.id}
+                      className="px-3.5 py-3 border-t border-amber-500/15 flex items-center gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-iron-text text-sm font-semibold truncate">{r.guestName}</span>
+                          <span className="text-iron-muted text-xs shrink-0">{T.common.guests(r.partySize)}</span>
+                          {r.table && (
+                            <span className="text-iron-muted text-xs shrink-0">· {r.table.name}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[10px] ${isStale ? 'text-red-400' : 'text-amber-400/70'}`}>
+                            {T.guestDrawer.reflowStaleBadge(minutesWaiting)}
+                          </span>
+                          {r.reflowReason && (
+                            <span className="text-iron-muted text-[10px] truncate">· {r.reflowReason}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onReflowSelect?.(r)}
+                        className="text-xs font-medium px-2.5 py-1 rounded-md border border-amber-500/40 text-amber-400 hover:bg-amber-500/15 transition-colors shrink-0"
+                      >
+                        {T.reservationPanel.reorganizeOpen}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Reorganize queue — shown above normal list when reservations need reassignment */}
             {reorganizeQueue && reorganizeQueue.length > 0 && (
               <div className="border-b border-amber-500/20 bg-amber-500/5">

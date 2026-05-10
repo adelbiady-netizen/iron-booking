@@ -411,6 +411,9 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
       const ft = floorTables.find(t => t.id === insight.tableId);
       const res = ft?.currentReservation as Reservation | null | undefined;
       if (res) setSelectedRes(res);
+    } else if (insight.type === 'REFLOW_PENDING' && insight.reservationId) {
+      const res = reservations.find(r => r.id === insight.reservationId);
+      if (res) setSelectedRes(res);
     }
   }, [handleInsightAction, reservations, floorTables]);
 
@@ -1041,6 +1044,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           date={date}
           reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
           onReorganizeSelect={r => setSelectedRes(r)}
+          reflowQueue={reservations.filter(r => r.reflowAt != null && r.status === 'SEATED')}
+          onReflowSelect={r => setSelectedRes(r)}
           allTables={allTables}
         />
       </div>

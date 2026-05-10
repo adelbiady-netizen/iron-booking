@@ -250,6 +250,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [smartSuggestion, setSmartSuggestion] = useState<SmartSuggestion>(null);
   const [smartLoading, setSmartLoading] = useState(false);
+  const [showReflowForm, setShowReflowForm] = useState(false);
+  const [reflowReason, setReflowReason] = useState('');
 
   useEffect(() => {
     if (!['PENDING', 'CONFIRMED'].includes(res.status) || res.returnedToListAt) {
@@ -728,6 +730,48 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           onClick={() => onPickTables ? openActionMapPicker('move') : setMode('move')}
           disabled={busy}
         />
+        {/* Reflow — request move or cancel pending request */}
+        {res.reflowAt ? (
+          <ActionBtn
+            label={T.guestDrawer.actionCancelReflow}
+            cls={btnAmber}
+            onClick={() => run(() => api.reservations.cancelReflow(res.id), T.guestDrawer.toastReflowCancelled)}
+            disabled={busy}
+          />
+        ) : showReflowForm ? (
+          <div className="flex flex-col gap-1.5">
+            <textarea
+              value={reflowReason}
+              onChange={e => setReflowReason(e.target.value)}
+              placeholder={T.guestDrawer.reflowReasonPh}
+              rows={2}
+              disabled={busy}
+              className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none disabled:opacity-40"
+            />
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setShowReflowForm(false);
+                  run(() => api.reservations.reflow(res.id, reflowReason.trim() || undefined), T.guestDrawer.toastReflowRequested);
+                  setReflowReason('');
+                }}
+                disabled={busy}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors disabled:opacity-40"
+              >
+                {T.guestDrawer.reflowConfirmBtn}
+              </button>
+              <button
+                onClick={() => { setShowReflowForm(false); setReflowReason(''); }}
+                disabled={busy}
+                className="text-xs text-iron-muted hover:text-iron-text transition-colors"
+              >
+                {T.guestDrawer.backLink}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <ActionBtn label={T.guestDrawer.actionRequestMove} cls={btnAmber} onClick={() => setShowReflowForm(true)} disabled={busy} />
+        )}
         {unseatConfirm ? (
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-iron-muted">{T.guestDrawer.unseatConfirmText}</span>
@@ -828,6 +872,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 {res.reorganizeAt && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
                     {T.guestDrawer.reorganizeBadge}
+                  </span>
+                )}
+                {res.reflowAt && (
+                  <span className="text-xs px-1.5 py-0.5 rounded border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
+                    ↔ {T.guestDrawer.reflowBadge}
                   </span>
                 )}
                 {res.isConfirmedByGuest && (

@@ -452,6 +452,17 @@ export const THe = {
     suggestReasonNoConflicts:  'ללא התנגשויות',
     suggestCapacity:           (min: number, max: number) => `${min}–${max} אורחים`,
     toastTableReassigned:      (table: string) => `שולחן הוחלף ל${table}`,
+    // Reflow
+    reflowBadge:              'בקשת העברה',
+    reflowQueueHeader:        'בקשות העברה',
+    actionRequestMove:        'בקש העברה',
+    actionCancelReflow:       'בטל בקשת העברה',
+    reflowReasonPh:           'סיבה (אופציונלי)…',
+    reflowConfirmBtn:         'סמן להעברה',
+    reflowTargetLabel:        'שולחן מועדף (אופציונלי)',
+    reflowStaleBadge:         (n: number) => `ממתין ${n}ד׳`,
+    toastReflowRequested:     'בקשת העברה נשלחה',
+    toastReflowCancelled:     'בקשת העברה בוטלה',
   },
 
   // ── CallDrawer ─────────────────────────────────────────────────────────────

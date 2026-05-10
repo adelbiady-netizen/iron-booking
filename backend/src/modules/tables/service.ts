@@ -579,7 +579,7 @@ export async function getFloorSuggestions(
 // list of insights the host should act on.
 
 export interface FloorInsight {
-  type: 'SEAT_NOW' | 'LATE_GUEST' | 'ENDING_SOON';
+  type: 'SEAT_NOW' | 'LATE_GUEST' | 'ENDING_SOON' | 'REFLOW_PENDING';
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   tableId: string;
   reservationId?: string;
@@ -645,6 +645,21 @@ export async function getFloorInsights(
           message: mr > 0
             ? `Table ${table.name} ends in ${mr}m`
             : `Table ${table.name} — over by ${Math.abs(mr)}m`,
+        });
+      }
+    }
+
+    // ── REFLOW_PENDING: seated guest flagged for an intentional table move ────
+    if (table.liveStatus === 'OCCUPIED' && table.currentReservation) {
+      const cur = table.currentReservation as { id: string; guestName: string; reflowAt?: string | null };
+      if (cur.reflowAt) {
+        const minutesWaiting = Math.round((Date.now() - new Date(cur.reflowAt).getTime()) / 60_000);
+        insights.push({
+          type: 'REFLOW_PENDING',
+          priority: minutesWaiting >= 30 ? 'HIGH' : 'MEDIUM',
+          tableId: table.id,
+          reservationId: cur.id,
+          message: `${cur.guestName} needs a table move (${minutesWaiting}m ago)`,
         });
       }
     }

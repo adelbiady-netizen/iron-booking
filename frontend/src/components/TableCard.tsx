@@ -54,6 +54,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
   const style = STATUS_STYLE[table.liveStatus] ?? STATUS_STYLE['AVAILABLE'];
+  const hasReflow = !!(currentRes as (typeof currentRes & { reflowAt?: string | null }))?.reflowAt;
 
   return (
     <button
@@ -69,6 +70,8 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           ? 'border-indigo-500/60 ring-2 ring-indigo-500/20 ring-offset-1 ring-offset-iron-bg'
           : isBestSuggestion && !table.locked
           ? `${style.border} ring-2 ring-iron-green/20 ring-offset-1 ring-offset-iron-bg`
+          : hasReflow
+          ? 'border-amber-500 ring-2 ring-amber-500/30 ring-offset-1 ring-offset-iron-bg animate-pulse'
           : table.locked ? LOCKED_STYLE : style.border}
       `}
     >
@@ -116,6 +119,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined   = currentRes.combinedTableIds.length > 0;
         const isSecondary  = isCombined && currentRes.combinedTableIds.includes(table.id);
+        const resWithReflow = currentRes as typeof currentRes & { reflowAt?: string | null };
         return (
           <div>
             <div className="flex items-center gap-1 min-w-0">
@@ -131,6 +135,11 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
                 {isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
                 {isToday && mr < -5 && <span className="text-orange-400"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
               </p>
+            )}
+            {resWithReflow.reflowAt && (
+              <span className="mt-1 inline-block text-[9px] font-bold px-1.5 py-px rounded border bg-amber-500/15 border-amber-500/40 text-amber-400">
+                ↔ {T.guestDrawer.reflowBadge}
+              </span>
             )}
           </div>
         );

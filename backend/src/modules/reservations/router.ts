@@ -7,6 +7,7 @@ import {
   UpdateReservationSchema,
   AssignTableSchema,
   MoveTableSchema,
+  ReflowSchema,
   ListReservationsQuerySchema,
   ListReservationsQuery,
 } from './schema';
@@ -149,6 +150,24 @@ router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunctio
 router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const r = await service.unseatReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
+    res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
+// POST /reservations/:id/reflow — flag a SEATED guest for an intentional table move
+router.post('/:id/reflow', validate(ReflowSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.reflowReservation(req.auth.restaurantId, p(req, 'id'), req.body, actorName(req));
+    res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
+// POST /reservations/:id/cancel-reflow — remove the reflow flag
+router.post('/:id/cancel-reflow', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.cancelReflow(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }

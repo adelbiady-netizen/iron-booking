@@ -322,6 +322,13 @@ model Reservation {
   reorganizeFromTableId String?    // audit: which table was cleared
   reorganizeBySeatingId String?    // audit: which reservation triggered displacement
 
+  // Reflow — set when a SEATED guest is flagged for an intentional table move
+  reflowAt            DateTime?  // when reflow was requested; null = not in reflow
+  reflowReason        String?    // optional host note
+  reflowTargetTableId String?    // pre-selected target table, if any
+  reflowCompletedAt   DateTime?  // when the move was confirmed and executed
+  reflowByActorName   String?    // who initiated the reflow
+
   // For move history — which table was previously assigned
   previousTableId String?
 
