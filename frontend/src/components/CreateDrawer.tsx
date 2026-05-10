@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, GuestSearchResult, Reservation, Table } from '../types';
-import { api } from '../api';
+import { api, ApiError } from '../api';
+import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeConflictModal';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
@@ -200,6 +201,12 @@ export default function CreateDrawer({
 
   const [error,        setError]        = useState<string | null>(null);
   const [busy,         setBusy]         = useState(false);
+  const [wiReorganize, setWiReorganize] = useState<{
+    conflicts: ReorganizeConflict[];
+    reservationId: string;
+    tableId: string;
+    busy: boolean;
+  } | null>(null);
   const [phoneWarning, setPhoneWarning] = useState(false);
   const [pendingSeat,  setPendingSeat]  = useState(false);
 
@@ -388,7 +395,20 @@ export default function CreateDrawer({
         source:     'WALK_IN',
       });
       if (seatNow && wiTable) {
-        r = await api.reservations.seat(r.id, wiTable);
+        try {
+          r = await api.reservations.seat(r.id, wiTable);
+        } catch (seatErr: unknown) {
+          if (seatErr instanceof ApiError && seatErr.code === 'CONFLICT') {
+            const det = seatErr.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+              // Walk-in created but not seated — show reorganize modal before proceeding
+              setWiReorganize({ conflicts: det.conflicts, reservationId: r.id, tableId: wiTable, busy: false });
+              onCreated(r);
+              return;
+            }
+          }
+          throw seatErr;
+        }
       } else if (r.status === 'PENDING') {
         r = await api.reservations.confirm(r.id);
       }
@@ -1057,6 +1077,26 @@ export default function CreateDrawer({
           </div>
         )}
       </aside>
+
+      {wiReorganize && (
+        <ReorganizeConflictModal
+          conflicts={wiReorganize.conflicts}
+          busy={wiReorganize.busy}
+          onCancel={() => setWiReorganize(null)}
+          onConfirm={async () => {
+            const { reservationId, tableId } = wiReorganize;
+            setWiReorganize(prev => prev ? { ...prev, busy: true } : null);
+            try {
+              const seated = await api.reservations.seat(reservationId, tableId, false, [], true);
+              setWiReorganize(null);
+              onCreated(seated);
+            } catch (err: unknown) {
+              setWiReorganize(null);
+              setError(err instanceof Error ? err.message : 'Failed to seat walk-in');
+            }
+          }}
+        />
+      )}
     </>
   );
 }

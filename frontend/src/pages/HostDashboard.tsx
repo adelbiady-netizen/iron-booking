@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { AuthState, BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
-import { api } from '../api';
+import { api, ApiError } from '../api';
+import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
@@ -125,6 +126,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [allTables,    setAllTables]    = useState<Table[]>([]);
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
   const [highlightId,       setHighlightId]       = useState<string | null>(null);
+  const [reorganizeConflict, setReorganizeConflict] = useState<{
+    conflicts: ReorganizeConflict[];
+    pendingReservationId: string;
+    pendingTableId: string;
+    pendingCombinedIds: string[];
+    tableName: string;
+    busy: boolean;
+  } | null>(null);
   const [resLoading,        setResLoading]        = useState(false);
   const [loadError,         setLoadError]         = useState(false);
   const [errorPhase,        setErrorPhase]        = useState<'none' | 'reconnecting' | 'failed'>('none');
@@ -346,8 +355,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }, []);
 
   const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
+    const combinedTableIds = reservations.find(r => r.id === reservationId)?.combinedTableIds ?? [];
     try {
-      const combinedTableIds = reservations.find(r => r.id === reservationId)?.combinedTableIds ?? [];
       const updated = await api.reservations.seat(reservationId, tableId, false, combinedTableIds);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       setRefreshKey(k => k + 1);
@@ -366,6 +375,21 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         },
       });
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'CONFLICT') {
+        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+          const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
+          setReorganizeConflict({
+            conflicts: det.conflicts,
+            pendingReservationId: reservationId,
+            pendingTableId: tableId,
+            pendingCombinedIds: combinedTableIds,
+            tableName: tName,
+            busy: false,
+          });
+          return;
+        }
+      }
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     }
   }, [floorTables, reservations, showToast]);
@@ -1098,6 +1122,29 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           table={lockTarget}
           onClose={() => setLockTarget(null)}
           onLocked={handleTableLocked}
+        />
+      )}
+
+      {reorganizeConflict && (
+        <ReorganizeConflictModal
+          conflicts={reorganizeConflict.conflicts}
+          busy={reorganizeConflict.busy}
+          onCancel={() => setReorganizeConflict(null)}
+          onConfirm={async () => {
+            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName } = reorganizeConflict;
+            setReorganizeConflict(prev => prev ? { ...prev, busy: true } : null);
+            try {
+              const updated = await api.reservations.seat(pendingReservationId, pendingTableId, false, pendingCombinedIds, true);
+              setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+              setRefreshKey(k => k + 1);
+              setInsights(prev => prev.filter(i => i.tableId !== pendingTableId && i.reservationId !== pendingReservationId));
+              setReorganizeConflict(null);
+              showToast(T.hostDashboard.toastQuickSeated(tableName), 'success');
+            } catch (err) {
+              setReorganizeConflict(null);
+              showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+            }
+          }}
         />
       )}
 
