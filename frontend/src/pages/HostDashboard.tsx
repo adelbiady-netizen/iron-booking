@@ -800,6 +800,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   }
 
   const handleDateChange = useCallback((d: string) => {
+    if (!d) return; // ignore transient empty values from date picker
     setDate(d);
     setTime(serviceStartForDate(d));
     setSelectedRes(null);

@@ -40,7 +40,7 @@ interface Props {
 export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip, date }: Props) {
   const T = useT();
   const { locale } = useLocale();
-  const isToday = !date || date === new Date().toISOString().slice(0, 10);
+  const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
   const STATUS_STYLE: Record<string, StatusStyle> = {
     AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
     OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },

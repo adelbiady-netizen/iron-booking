@@ -881,7 +881,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   date?: string;
 }) {
   const T = useT();
-  const isToday = !date || date === new Date().toISOString().slice(0, 10);
+  const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
 
   const sectionColor = table.section?.color ?? '#3f3f46';
@@ -1057,7 +1057,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && nextRes && (
               <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
-                {nextRes.partySize} · {isToday && nextRes.minutesUntil > 0 ? T.floorBoard.inNMin(nextRes.minutesUntil) : nextRes.time}
+                {nextRes.partySize} · {nextRes.time}{isToday && nextRes.minutesUntil > 0 ? ` · ${T.floorBoard.inNMin(nextRes.minutesUntil)}` : ''}
               </p>
             )}
           </div>
