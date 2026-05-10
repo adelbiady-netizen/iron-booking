@@ -161,6 +161,8 @@ export const T = {
     filterConfirmed:  'Confirmed',
     filterSeated:     'Seated',
     filterDone:       'Done',
+    filterNoTable:    'No Table',
+    noTableBadge:     'No table',
     emptyTitle:       'No reservations today',
     emptyHintNew:     '+ New',
     emptyHintWalkIn:  'Walk-in',

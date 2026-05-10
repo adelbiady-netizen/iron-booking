@@ -827,6 +827,8 @@ export async function rebuildDay(
       await tx.reservation.update({
         where: { id: r.id },
         data: {
+          tableId: null,
+          combinedTableIds: [],
           reorganizeAt: now,
           reorganizeFromTableId: tableId,
           reorganizeBySeatingId: input.rebuildSessionId,

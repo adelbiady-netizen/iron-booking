@@ -16,7 +16,7 @@ const STATUS_BADGE: Record<ReservationStatus, string> = {
   NO_SHOW:   'bg-orange-900/15 text-orange-400 border-orange-900/20',
 };
 
-type FilterValue = 'ALL' | 'PENDING' | 'CONFIRMED' | 'SEATED' | 'DONE';
+type FilterValue = 'ALL' | 'PENDING' | 'CONFIRMED' | 'SEATED' | 'DONE' | 'NO_TABLE';
 type Tab = 'reservations' | 'waitlist';
 
 interface Props {
@@ -82,20 +82,26 @@ export default function ReservationPanel({
     CANCELLED: T.reservationStatus.CANCELLED,
     NO_SHOW:   T.reservationStatus.NO_SHOW,
   };
-  const FILTERS = [
-    { label: T.reservationPanel.filterAll,       value: 'ALL' as FilterValue },
-    { label: T.reservationPanel.filterPending,   value: 'PENDING' as FilterValue },
-    { label: T.reservationPanel.filterConfirmed, value: 'CONFIRMED' as FilterValue },
-    { label: T.reservationPanel.filterSeated,    value: 'SEATED' as FilterValue },
-    { label: T.reservationPanel.filterDone,      value: 'DONE' as FilterValue },
+  const noTableCount = reservations.filter(
+    r => ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table
+  ).length;
+
+  const FILTERS: { label: string; value: FilterValue; count?: number }[] = [
+    { label: T.reservationPanel.filterAll,       value: 'ALL' },
+    { label: T.reservationPanel.filterPending,   value: 'PENDING' },
+    { label: T.reservationPanel.filterConfirmed, value: 'CONFIRMED' },
+    { label: T.reservationPanel.filterSeated,    value: 'SEATED' },
+    { label: T.reservationPanel.filterDone,      value: 'DONE' },
+    { label: T.reservationPanel.filterNoTable,   value: 'NO_TABLE', count: noTableCount || undefined },
   ];
 
   const waitingCount = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED').length;
 
   const visible = reservations
     .filter(r => {
-      if (filter === 'DONE') return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
-      if (filter === 'ALL')  return ['PENDING', 'CONFIRMED', 'SEATED'].includes(r.status);
+      if (filter === 'DONE')     return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
+      if (filter === 'ALL')      return ['PENDING', 'CONFIRMED', 'SEATED'].includes(r.status);
+      if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
       return r.status === filter;
     })
     .filter(r => {
@@ -174,13 +180,20 @@ export default function ReservationPanel({
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
-                  className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition-colors ${
                     filter === f.value
                       ? 'bg-iron-green text-white font-semibold'
                       : 'text-iron-muted hover:text-iron-text'
                   }`}
                 >
                   {f.label}
+                  {f.count !== undefined && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                      filter === f.value ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
+                    }`}>
+                      {f.count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -357,7 +370,9 @@ export default function ReservationPanel({
                       {!r.table && (
                         <>
                           <span className="text-iron-muted/50">·</span>
-                          <span className="text-iron-muted/50 italic text-xs">no table</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-iron-border/20 border-iron-border/40 text-iron-muted font-medium">
+                            {T.reservationPanel.noTableBadge}
+                          </span>
                         </>
                       )}
                     </div>

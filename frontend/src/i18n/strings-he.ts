@@ -161,6 +161,8 @@ export const THe = {
     filterConfirmed:  'מאושר',
     filterSeated:     'יושב',
     filterDone:       'הסתיים',
+    filterNoTable:    'ללא שולחן',
+    noTableBadge:     'ללא שולחן',
     emptyTitle:       'אין הזמנות היום',
     emptyHintNew:     '+ חדש',
     emptyHintWalkIn:  'Walk-in',
