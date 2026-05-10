@@ -706,22 +706,24 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           disabled={busy}
         />
         {unseatConfirm ? (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-iron-muted">להחזיר לממתין?</span>
-            <button
-              onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
-              disabled={busy}
-              className="text-xs font-medium px-2.5 py-1 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40"
-            >
-              {T.guestDrawer.actionUnseat}
-            </button>
-            <button
-              onClick={() => setUnseatConfirm(false)}
-              disabled={busy}
-              className="text-xs text-iron-muted hover:text-iron-text transition-colors"
-            >
-              {T.guestDrawer.backLink}
-            </button>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-iron-muted">{T.guestDrawer.unseatConfirmText}</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
+                disabled={busy}
+                className="text-xs font-medium px-2.5 py-1 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40"
+              >
+                {T.guestDrawer.actionUnseat}
+              </button>
+              <button
+                onClick={() => setUnseatConfirm(false)}
+                disabled={busy}
+                className="text-xs text-iron-muted hover:text-iron-text transition-colors"
+              >
+                {T.guestDrawer.backLink}
+              </button>
+            </div>
           </div>
         ) : (
           <ActionBtn label={T.guestDrawer.actionUnseat} cls={btnNeutral} onClick={() => setUnseatConfirm(true)} disabled={busy} />

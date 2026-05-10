@@ -609,12 +609,20 @@ export async function unseatReservation(
       data: { status: 'CONFIRMED', tableId: null, combinedTableIds: [], seatedAt: null },
       include: { table: true },
     });
-    await logActivity(tx, id, 'CONFIRMED', actorName, {
+    await logActivity(tx, id, 'RETURN_TO_LIST', actorName, {
+      note: 'Returned to list / seating reversed',
       fromStatus: 'SEATED',
       toStatus: 'CONFIRMED',
-      tableId: null,
       previousTableId: r.tableId ?? null,
     });
+    // Revert any linked waitlist entry back to WAITING so it re-appears on the list.
+    const linked = await tx.waitlistEntry.findFirst({ where: { reservationId: id } });
+    if (linked && linked.status === 'SEATED') {
+      await tx.waitlistEntry.update({
+        where: { id: linked.id },
+        data: { status: 'WAITING', seatedAt: null },
+      });
+    }
     return updated;
   });
 }
