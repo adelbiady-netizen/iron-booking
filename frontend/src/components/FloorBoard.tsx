@@ -69,6 +69,8 @@ interface Props {
   pickSuggestions?: BackendTableSuggestion[];
   onPickDone?: (ids: string[]) => void;
   onPickCancel?: () => void;
+  pickAction?: 'seat' | 'move' | 'change-table';
+  pickGuestName?: string;
   // Waitlist table assignment mode
   waitlistAssignEntry?: WaitlistEntry | null;
   waitlistAssignTableId?: string | null;
@@ -95,7 +97,7 @@ function hasPositions(tables: FloorTable[]): boolean {
 
 type View = 'floor' | 'timeline';
 
-type PickStatus = 'recommended' | 'possible' | 'tight' | 'unavailable' | null;
+type PickStatus = 'recommended' | 'possible' | 'tight' | 'unavailable' | 'current' | null;
 
 export default function FloorBoard({
   tables, floorObjs = [], selectedId, onSelect, onAvailableClick,
@@ -107,7 +109,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
-  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel,
+  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
 }: Props) {
@@ -121,19 +123,22 @@ export default function FloorBoard({
   const [view,             setView]             = useState<View>('floor');
 
   // Pick mode state
-  const [pickSelection, setPickSelection]     = useState<string[]>([]);
-  const [pickWarn,      setPickWarn]          = useState<string | null>(null);
+  const [pickSelection,    setPickSelection]    = useState<string[]>([]);
+  const [pickWarn,         setPickWarn]         = useState<string | null>(null);
+  const [pickCurrentWarn,  setPickCurrentWarn]  = useState(false);
   const dragStartRef   = useRef<{ cx: number; cy: number } | null>(null);
   const isDraggingRef  = useRef(false);
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
 
-  // Force floor view and sync selection when entering pick mode
+  // Force floor view and sync selection when entering pick mode.
+  // Move mode starts with empty selection — the host must explicitly choose a new table.
   useEffect(() => {
     if (pickMode) {
       setView('floor');
-      setPickSelection(pickIds);
+      setPickSelection(pickAction === 'move' ? [] : pickIds);
       setPickWarn(null);
+      setPickCurrentWarn(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickMode]);
@@ -173,6 +178,7 @@ export default function FloorBoard({
           setPickSelection(() => {
             const newIds = tables.filter(t => {
               if (!t.isActive) return false;
+              if (pickAction === 'move' && pickIds.includes(t.id)) return false;
               const sug = pickSuggestions.find(s => s.tableId === t.id);
               const unavail = sug
                 ? sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')
@@ -214,6 +220,8 @@ export default function FloorBoard({
   }
 
   function getPickStatus(t: FloorTable): PickStatus {
+    // In move mode, the guest's current table is shown as 'current' — not a valid target.
+    if (pickAction === 'move' && pickIds.includes(t.id)) return 'current';
     const sug = pickSuggestions.find(s => s.tableId === t.id);
     if (!sug) return null;
     // Only genuine conflicts/locks are hard-unavailable; capacity mismatches (TOO_SMALL) are advisory.
@@ -320,9 +328,14 @@ export default function FloorBoard({
     // Pick mode: toggle or warn
     if (pickMode) {
       const ps = getPickStatus(t);
+      if (ps === 'current') {
+        setPickCurrentWarn(true);
+        setTimeout(() => setPickCurrentWarn(false), 2500);
+        return;
+      }
       if (ps === 'unavailable') {
-        setPickWarn(t.name);
-        setTimeout(() => setPickWarn(w => (w === t.name ? null : w)), 2500);
+        setPickWarn(t.id);
+        setTimeout(() => setPickWarn(w => (w === t.id ? null : w)), 2500);
         return;
       }
       setPickSelection(prev =>
@@ -383,7 +396,11 @@ export default function FloorBoard({
       {pickMode && (
         <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-blue-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-          <span className="text-blue-300 text-xs font-medium flex-1">{T.floorBoard.pickModeHint}</span>
+          <span className="text-blue-300 text-xs font-medium flex-1">
+            {pickAction === 'move' && pickGuestName
+              ? T.floorBoard.pickModeMoveHint(pickGuestName)
+              : T.floorBoard.pickModeHint}
+          </span>
         </div>
       )}
 
@@ -754,10 +771,20 @@ export default function FloorBoard({
       {pickMode && (
         <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            {pickWarn ? (
-              <span className="text-red-400 text-xs font-medium">{T.floorBoard.pickModeUnavailable(pickWarn)}</span>
+            {pickCurrentWarn ? (
+              <span className="text-amber-400 text-xs font-medium">{T.floorBoard.pickModeCurrentTableWarn}</span>
+            ) : pickWarn ? (
+              (() => {
+                const wt = tables.find(t => t.id === pickWarn);
+                const reason = wt ? ` — ${T.tableStatus[wt.liveStatus] ?? ''}` : '';
+                return <span className="text-red-400 text-xs font-medium">{T.floorBoard.pickModeUnavailable(wt?.name ?? pickWarn)}{reason}</span>;
+              })()
             ) : pickSelection.length === 0 ? (
-              <span className="text-blue-400 text-sm">{T.floorBoard.pickModeHint}</span>
+              <span className="text-blue-400 text-sm">
+                {pickAction === 'move' && pickGuestName
+                  ? T.floorBoard.pickModeMoveHint(pickGuestName)
+                  : T.floorBoard.pickModeHint}
+              </span>
             ) : (
               <span className="text-iron-text text-sm font-semibold truncate">
                 {pickSelection.map(id => tables.find(t => t.id === id)?.name ?? id).join(' + ')}
@@ -922,7 +949,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Pick mode overrides
   if (pickMode) {
-    if (pickSelected) {
+    if (pickStatus === 'current') {
+      // Guest's current table: amber ring, not selectable
+      bg          = 'rgba(245,158,11,0.18)';
+      borderColor = '#f59e0b';
+      borderWidth = 2;
+      boxShadow   = '0 0 0 3px rgba(245,158,11,0.25)';
+      opacity     = 1;
+      cursor      = 'default';
+    } else if (pickSelected) {
       bg          = 'rgba(59,130,246,0.22)';
       borderColor = '#3b82f6';
       borderWidth = 2;
@@ -954,7 +989,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           borderColor = '#52525b';
           borderWidth = 1;
           boxShadow   = undefined;
-          opacity     = 0.4;
+          opacity     = 0.55;
           cursor      = 'not-allowed';
           break;
         default:
@@ -999,6 +1034,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </span>
         {!pickMode && insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
         {!pickMode && insight?.priority === 'MEDIUM' && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />}
+        {pickMode && pickStatus === 'current' && (
+          <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700, flexShrink: 0 }}>◉</span>
+        )}
         {pickMode && pickSelected && (
           <span style={{ fontSize: 9, color: '#93c5fd', fontWeight: 700, flexShrink: 0 }}>✓</span>
         )}
@@ -1012,8 +1050,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
       </span>
 
-      {/* OCCUPIED — only show detail when not in pick mode */}
-      {!pickMode && table.liveStatus === 'OCCUPIED' && currentRes && (() => {
+      {/* Pick mode: current-table label */}
+      {pickMode && pickStatus === 'current' && (
+        <div style={{ marginTop: 2, width: '100%' }}>
+          <span style={{ fontSize: 8, color: '#f59e0b', fontWeight: 700, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 3, padding: '1px 4px', letterSpacing: '0.04em', userSelect: 'none' }}>
+            {T.floorBoard.pickModeCurrentTable}
+          </span>
+        </div>
+      )}
+
+      {/* OCCUPIED — show detail when not in pick mode, OR when in pick mode for current/unavailable tables */}
+      {(!pickMode || pickStatus === 'unavailable' || pickStatus === 'current') && table.liveStatus === 'OCCUPIED' && currentRes && (() => {
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
@@ -1039,8 +1086,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* RESERVED / RESERVED_SOON — only show detail when not in pick mode */}
-      {!pickMode && (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+      {/* RESERVED / RESERVED_SOON — show detail when not in pick mode, OR for unavailable tables in pick mode */}
+      {(!pickMode || pickStatus === 'unavailable') && (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         return (
@@ -1064,8 +1111,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* BLOCKED */}
-      {!pickMode && table.liveStatus === 'BLOCKED' && (
+      {/* BLOCKED — show detail when not in pick mode, OR for unavailable tables in pick mode */}
+      {(!pickMode || pickStatus === 'unavailable') && table.liveStatus === 'BLOCKED' && (
         <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
           {table.blockReason ?? 'Blocked'}
         </p>

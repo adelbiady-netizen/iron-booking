@@ -191,7 +191,7 @@ interface Props {
   onSuccess?: (message: string) => void;
   onTableLockChange?: () => void;
   nowTime?: string;
-  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string) => void;
   onPickTablesCancel?: () => void;
   /** Called when the host changes the date/time in edit mode so the floor board
    *  can reload for the same date and stay in sync with the drawer. */
@@ -385,6 +385,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           );
         }
       },
+      action,
+      res.guestName,
     );
   }
 

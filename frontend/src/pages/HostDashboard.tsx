@@ -161,6 +161,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [tablePickMode,        setTablePickMode]        = useState(false);
   const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
+  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | undefined>(undefined);
+  const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
 
   useServerEvents({
@@ -754,10 +756,12 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setLiveMode(false);
   }, []);
 
-  const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => {
+  const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string) => {
     tablePickCallbackRef.current = callback;
     setTablePickIds(currentIds);
     setTablePickSuggestions(suggestions);
+    setTablePickAction(action);
+    setTablePickGuestName(guestName);
     setTablePickMode(true);
   }, []);
 
@@ -765,12 +769,16 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
     setTablePickMode(false);
+    setTablePickAction(undefined);
+    setTablePickGuestName(undefined);
   }, []);
 
   const handlePickCancel = useCallback(() => {
     tablePickCallbackRef.current?.(null);
     tablePickCallbackRef.current = null;
     setTablePickMode(false);
+    setTablePickAction(undefined);
+    setTablePickGuestName(undefined);
   }, []);
 
   // Called after a reservation is created — refresh everything and open it in the drawer
@@ -972,6 +980,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           pickSuggestions={tablePickSuggestions}
           onPickDone={handlePickDone}
           onPickCancel={handlePickCancel}
+          pickAction={tablePickAction}
+          pickGuestName={tablePickGuestName}
           waitlistAssignEntry={waitlistAssignEntry}
           waitlistAssignTableId={waitlistAssignTableId}
           onWaitlistTablePick={handleWaitlistTablePick}
