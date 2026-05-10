@@ -465,17 +465,6 @@ export const T = {
     suggestReasonNoConflicts:  'No conflicts',
     suggestCapacity:           (min: number, max: number) => `${min}–${max} guests`,
     toastTableReassigned:      (table: string) => `Table changed to ${table}`,
-    // Reflow
-    reflowBadge:              'Move Requested',
-    reflowQueueHeader:        'Move Requests',
-    actionRequestMove:        'Request move',
-    actionCancelReflow:       'Cancel move request',
-    reflowReasonPh:           'Reason (optional)…',
-    reflowConfirmBtn:         'Flag for Move',
-    reflowTargetLabel:        'Preferred table (optional)',
-    reflowStaleBadge:         (n: number) => `Waiting ${n}m`,
-    toastReflowRequested:     'Move requested',
-    toastReflowCancelled:     'Move request cancelled',
   },
 
   // ── CallDrawer ─────────────────────────────────────────────────────────────

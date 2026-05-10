@@ -239,13 +239,6 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
-    reflow: (id: string, reason?: string, targetTableId?: string) =>
-      request<Reservation>(`/reservations/${id}/reflow`, {
-        method: 'POST',
-        body: JSON.stringify({ reason, targetTableId }),
-      }),
-    cancelReflow: (id: string) =>
-      request<Reservation>(`/reservations/${id}/cancel-reflow`, { method: 'POST' }),
     unseat: (id: string) =>
       request<Reservation>(`/reservations/${id}/unseat`, { method: 'POST' }),
     unconfirm: (id: string) =>

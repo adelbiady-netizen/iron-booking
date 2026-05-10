@@ -82,11 +82,6 @@ export interface Reservation {
   reorganizeAt: string | null;
   reorganizeFromTableId: string | null;
   reorganizeBySeatingId: string | null;
-  reflowAt: string | null;
-  reflowReason: string | null;
-  reflowTargetTableId: string | null;
-  reflowCompletedAt: string | null;
-  reflowByActorName: string | null;
   minutesRemaining?: number;
   minutesUntil?: number;
 }
@@ -182,7 +177,7 @@ export interface AuthState {
 }
 
 export interface FloorInsight {
-  type: 'SEAT_NOW' | 'LATE_GUEST' | 'ENDING_SOON' | 'ARRIVING_SOON' | 'DUE_NOW' | 'LATE' | 'NO_SHOW_RISK' | 'REFLOW_PENDING';
+  type: 'SEAT_NOW' | 'LATE_GUEST' | 'ENDING_SOON' | 'ARRIVING_SOON' | 'DUE_NOW' | 'LATE' | 'NO_SHOW_RISK';
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   tableId: string;
   reservationId?: string;

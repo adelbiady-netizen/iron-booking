@@ -12,7 +12,6 @@ import {
   UpdateReservationInput,
   AssignTableInput,
   MoveTableInput,
-  ReflowInput,
   ListReservationsQuery,
 } from './schema';
 import { findOrCreateGuest, splitName } from '../guests/service';
@@ -576,8 +575,6 @@ export async function moveReservation(
     );
   }
 
-  const wasInReflow = !!(r as any).reflowAt;
-
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
@@ -585,11 +582,6 @@ export async function moveReservation(
         tableId: input.tableId,
         previousTableId: r.tableId,
         combinedTableIds: input.combinedTableIds ?? [],
-        reflowAt: null,
-        reflowReason: null,
-        reflowTargetTableId: null,
-        reflowCompletedAt: wasInReflow ? new Date() : undefined,
-        reflowByActorName: wasInReflow ? (r as any).reflowByActorName : undefined,
       },
       include: { table: true },
     });
@@ -601,12 +593,6 @@ export async function moveReservation(
       toTableId: input.tableId,
       reason: input.reason ?? null,
     });
-    if (wasInReflow) {
-      await logActivity(tx, id, 'REFLOW_COMPLETED', actorName, {
-        fromTableId: r.tableId ?? null,
-        toTableId: input.tableId,
-      });
-    }
     return updated;
   });
 }
@@ -623,7 +609,7 @@ export async function completeReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'COMPLETED', completedAt: new Date(), reflowAt: null, reflowReason: null, reflowTargetTableId: null },
+      data: { status: 'COMPLETED', completedAt: new Date() },
     });
     await logActivity(tx, id, 'COMPLETED', actorName, {
       fromStatus: 'SEATED',
@@ -655,7 +641,7 @@ export async function markNoShow(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'NO_SHOW', noShowAt: new Date(), returnedToListAt: null, reflowAt: null, reflowReason: null, reflowTargetTableId: null },
+      data: { status: 'NO_SHOW', noShowAt: new Date(), returnedToListAt: null },
     });
     await logActivity(tx, id, 'NO_SHOW', actorName, {
       fromStatus: r.status,
@@ -687,7 +673,7 @@ export async function cancelReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'CANCELLED', cancelledAt: new Date(), returnedToListAt: null, reflowAt: null, reflowReason: null, reflowTargetTableId: null },
+      data: { status: 'CANCELLED', cancelledAt: new Date(), returnedToListAt: null },
     });
     await logActivity(tx, id, 'CANCELLED', actorName, {
       fromStatus: r.status,
@@ -719,7 +705,7 @@ export async function unseatReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'CONFIRMED', tableId: null, combinedTableIds: [], seatedAt: null, returnedToListAt: new Date(), reflowAt: null, reflowReason: null, reflowTargetTableId: null },
+      data: { status: 'CONFIRMED', tableId: null, combinedTableIds: [], seatedAt: null, returnedToListAt: new Date() },
       include: { table: true },
     });
     await logActivity(tx, id, 'RETURN_TO_LIST', actorName, {
@@ -736,67 +722,6 @@ export async function unseatReservation(
         data: { status: 'WAITING', seatedAt: null },
       });
     }
-    return updated;
-  });
-}
-
-export async function reflowReservation(
-  restaurantId: string,
-  id: string,
-  input: ReflowInput,
-  actorName: string
-) {
-  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
-  if (r.status !== 'SEATED') {
-    throw new BusinessRuleError('Can only request a move for a seated reservation');
-  }
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.reservation.update({
-      where: { id },
-      data: {
-        reflowAt: new Date(),
-        reflowReason: input.reason ?? null,
-        reflowTargetTableId: input.targetTableId ?? null,
-        reflowByActorName: actorName,
-        reflowCompletedAt: null,
-      },
-      include: { table: true },
-    });
-    await logActivity(tx, id, 'REFLOW_REQUESTED', actorName, {
-      tableId: r.tableId ?? null,
-      reason: input.reason ?? null,
-      targetTableId: input.targetTableId ?? null,
-    });
-    return updated;
-  });
-}
-
-export async function cancelReflow(
-  restaurantId: string,
-  id: string,
-  actorName: string
-) {
-  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
-  if (r.status !== 'SEATED') {
-    throw new BusinessRuleError('Can only cancel reflow for a seated reservation');
-  }
-  if (!(r as any).reflowAt) {
-    throw new BusinessRuleError('This reservation is not in reflow');
-  }
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.reservation.update({
-      where: { id },
-      data: {
-        reflowAt: null,
-        reflowReason: null,
-        reflowTargetTableId: null,
-        reflowByActorName: null,
-      },
-      include: { table: true },
-    });
-    await logActivity(tx, id, 'REFLOW_CANCELLED', actorName, {
-      tableId: r.tableId ?? null,
-    });
     return updated;
   });
 }
