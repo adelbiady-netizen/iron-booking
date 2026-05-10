@@ -312,6 +312,8 @@ export async function updateReservation(
   if (input.hostNotes !== undefined && input.hostNotes !== existing.hostNotes)
     changes.hostNotes = { from: existing.hostNotes, to: input.hostNotes };
 
+  const resolvingReorganize = !!existing.reorganizeAt && !!input.tableId;
+
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
@@ -329,6 +331,8 @@ export async function updateReservation(
         ...(input.tableId !== undefined && { tableId: input.tableId }),
         ...(input.combinedTableIds !== undefined && { combinedTableIds: input.combinedTableIds }),
         ...(input.tags && { tags: input.tags }),
+        // Assigning a table to a reorganized reservation resolves it
+        ...(resolvingReorganize && { reorganizeAt: null }),
       },
       include: { table: true, guest: true },
     });
@@ -346,6 +350,13 @@ export async function updateReservation(
       await logActivity(tx, id, tableAction, actorName, {
         fromTableId: existing.tableId ?? null,
         toTableId:   input.tableId,
+      });
+    }
+
+    if (resolvingReorganize) {
+      await logActivity(tx, id, 'REORGANIZE_RESOLVED', actorName, {
+        assignedTableId: input.tableId,
+        previouslyFrom: existing.reorganizeFromTableId ?? null,
       });
     }
 
@@ -384,7 +395,8 @@ export async function seatReservation(
   tableId: string,
   actorName: string,
   overrideConflicts = false,
-  combinedTableIds?: string[]
+  combinedTableIds?: string[],
+  reorganize = false
 ) {
   const r = await assertReservationBelongsToRestaurant(id, restaurantId);
 
@@ -412,6 +424,43 @@ export async function seatReservation(
   // defaulting to [] (single-table seat) when the argument is omitted.
   const resolvedCombinedIds = combinedTableIds ?? [];
 
+  // Check for future reservations on the target table. If any exist and the
+  // caller hasn't confirmed reorganize, surface them so the frontend can show
+  // the confirmation modal.
+  if (!reorganize) {
+    const todayDateObj = parseDateArg(todayLocal);
+    const futureOnTable = await prisma.reservation.findMany({
+      where: {
+        restaurantId,
+        date: todayDateObj,
+        tableId,
+        status: { in: ['CONFIRMED', 'PENDING'] },
+        id: { not: id },
+      },
+      select: { id: true, guestName: true, time: true, partySize: true },
+      orderBy: { time: 'asc' },
+    });
+    if (futureOnTable.length > 0) {
+      const nowMs = Date.now();
+      const [todayY, todayM, todayD] = todayLocal.split('-').map(Number);
+      const conflicts = futureOnTable.map(f => {
+        const [fH, fM] = f.time.split(':').map(Number);
+        const resTimeMs = Date.UTC(todayY, todayM - 1, todayD, fH, fM, 0);
+        return {
+          id: f.id,
+          guestName: f.guestName,
+          time: f.time,
+          partySize: f.partySize,
+          minutesUntil: Math.round((resTimeMs - nowMs) / 60_000),
+        };
+      });
+      throw new ConflictError('This table has upcoming reservations', {
+        code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+        conflicts,
+      });
+    }
+  }
+
   if (!overrideConflicts) {
     await validateTableAssignment(
       restaurantId,
@@ -427,6 +476,37 @@ export async function seatReservation(
   }
 
   return prisma.$transaction(async (tx) => {
+    // Displace any future reservations on this table into the reorganize queue.
+    if (reorganize) {
+      const futureOnTable = await tx.reservation.findMany({
+        where: {
+          restaurantId,
+          tableId,
+          date: r.date,
+          status: { in: ['CONFIRMED', 'PENDING'] },
+          id: { not: id },
+        },
+        select: { id: true, guestName: true },
+      });
+      for (const displaced of futureOnTable) {
+        await tx.reservation.update({
+          where: { id: displaced.id },
+          data: {
+            tableId: null,
+            combinedTableIds: [],
+            reorganizeAt: new Date(),
+            reorganizeFromTableId: tableId,
+            reorganizeBySeatingId: id,
+          },
+        });
+        await logActivity(tx, displaced.id, 'REORGANIZE_TRIGGERED', actorName, {
+          displacedFrom: tableId,
+          byReservation: id,
+          byGuestName: r.guestName,
+        });
+      }
+    }
+
     const updated = await tx.reservation.update({
       where: { id },
       data: {
@@ -436,6 +516,7 @@ export async function seatReservation(
         seatedAt: new Date(),
         confirmedAt: r.confirmedAt ?? new Date(),
         returnedToListAt: null,
+        reorganizeAt: null,
       },
       include: { table: true },
     });

@@ -79,6 +79,9 @@ export interface Reservation {
   cancelledAt: string | null;
   noShowAt: string | null;
   returnedToListAt: string | null;
+  reorganizeAt: string | null;
+  reorganizeFromTableId: string | null;
+  reorganizeBySeatingId: string | null;
   minutesRemaining?: number;
   minutesUntil?: number;
 }

@@ -177,6 +177,10 @@ export const THe = {
     smsSent:          'SMS נשלח',
     ctxSeat:          'הושבה',
     ctxClose:         'סגור',
+    reorganizeHeader: (n: number) => `סידור מחדש · ${n}`,
+    reorganizeRemovedFrom: (table: string) => `הוסר משולחן ${table}`,
+    reorganizeAssign:    'שייך שולחן',
+    reorganizeOpen:      'פתח',
   },
 
   // ── Waitlist assign mode ───────────────────────────────────────────────────
@@ -403,6 +407,13 @@ export const THe = {
     toastMoved:           (table: string) => `הועבר לשולחן ${table}`,
     toastLocked:          (name: string) => `${name} נעול`,
     toastUnlocked:        (name: string) => `${name} שוחרר`,
+    // Reorganize
+    reorganizeBadge:      'סידור מחדש',
+    reorganizeModalTitle: 'לשולחן יש הזמנות עתידיות',
+    reorganizeModalBody:  (n: number) => `לשולחן יש ${n === 1 ? 'הזמנה עתידית אחת' : `${n} הזמנות עתידיות`}. ישיבה כאן תעביר אותן לתור סידור מחדש לשיבוץ שולחן חלופי.`,
+    reorganizeModalGuest: (name: string, time: string, party: number) => `${name} · ${time} · ${party} סועדים`,
+    reorganizeModalEta:   (n: number) => n <= 0 ? 'עכשיו' : `בעוד ${n}ד׳`,
+    reorganizeConfirm:    'הושב וסדר מחדש',
     actionFailed:         'הפעולה נכשלה',
     // Confirmation section
     confirmationSection:  'אישור הגעה',

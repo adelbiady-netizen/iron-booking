@@ -103,7 +103,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       error?: { message?: string; code?: string; details?: { fieldErrors?: Record<string, string[]> } };
     } | null;
     const fieldErrors = body?.error?.details?.fieldErrors ?? {};
-    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`, fieldErrors, body?.error?.code ?? '');
+    const details = body?.error?.details as unknown;
+    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`, fieldErrors, body?.error?.code ?? '', details);
   }
 
   if (res.status === 204) return undefined as unknown as T;
@@ -203,10 +204,10 @@ export const api = {
     },
     confirm: (id: string) =>
       request<Reservation>(`/reservations/${id}/confirm`, { method: 'POST' }),
-    seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = []) =>
+    seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = [], reorganize = false) =>
       request<Reservation>(`/reservations/${id}/seat`, {
         method: 'POST',
-        body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds }),
+        body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganize }),
       }),
     move: (id: string, tableId: string, reason?: string, combinedTableIds: string[] = []) =>
       request<Reservation>(`/reservations/${id}/move`, {

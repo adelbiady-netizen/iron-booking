@@ -1012,6 +1012,9 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           operationalNow={operationalNow}
           onContextMenuSeat={handleContextMenuSeat}
           date={date}
+          reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
+          onReorganizeSelect={r => setSelectedRes(r)}
+          allTables={allTables}
         />
       </div>
       </BoardErrorBoundary>

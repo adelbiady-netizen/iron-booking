@@ -43,6 +43,9 @@ interface Props {
   operationalNow?: number;
   onContextMenuSeat?: (res: Reservation) => void;
   date?: string;
+  reorganizeQueue?: Reservation[];
+  onReorganizeSelect?: (r: Reservation) => void;
+  allTables?: { id: string; name: string }[];
 }
 
 export default function ReservationPanel({
@@ -50,7 +53,7 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
-  onContextMenuSeat, date,
+  onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
@@ -205,6 +208,48 @@ export default function ReservationPanel({
       ) : (
         <>
           <div className="flex-1 overflow-y-auto">
+            {/* Reorganize queue — shown above normal list when reservations need reassignment */}
+            {reorganizeQueue && reorganizeQueue.length > 0 && (
+              <div className="border-b border-amber-500/20 bg-amber-500/5">
+                <div className="px-3.5 py-2 flex items-center gap-2">
+                  <span className="text-amber-400 text-[10px] font-semibold uppercase tracking-widest flex-1">
+                    {T.reservationPanel.reorganizeHeader(reorganizeQueue.length)}
+                  </span>
+                </div>
+                {reorganizeQueue.map(r => {
+                  const fromTableName = r.reorganizeFromTableId
+                    ? (allTables?.find(t => t.id === r.reorganizeFromTableId)?.name ?? r.reorganizeFromTableId)
+                    : null;
+                  const fromTable = fromTableName
+                    ? T.reservationPanel.reorganizeRemovedFrom(fromTableName)
+                    : null;
+                  return (
+                    <div
+                      key={r.id}
+                      className="px-3.5 py-3 border-t border-amber-500/15 flex items-center gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-iron-text text-sm font-semibold truncate">{r.guestName}</span>
+                          <span className="text-iron-muted text-xs shrink-0 tabular-nums">{r.time}</span>
+                          <span className="text-iron-muted text-xs shrink-0">{T.common.guests(r.partySize)}</span>
+                        </div>
+                        {fromTable && (
+                          <p className="text-amber-400/70 text-[10px] mt-0.5">{fromTable}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => onReorganizeSelect?.(r)}
+                        className="text-xs font-medium px-2.5 py-1 rounded-md border border-amber-500/40 text-amber-400 hover:bg-amber-500/15 transition-colors shrink-0"
+                      >
+                        {T.reservationPanel.reorganizeOpen}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {loading && (
               <div className="flex items-center justify-center py-10">
                 <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />

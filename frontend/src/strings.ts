@@ -177,6 +177,10 @@ export const T = {
     smsSent:          'SMS sent',
     ctxSeat:          'Seat',
     ctxClose:         'Close',
+    reorganizeHeader: (n: number) => `Reorganize · ${n}`,
+    reorganizeRemovedFrom: (table: string) => `Removed from ${table}`,
+    reorganizeAssign:    'Assign table',
+    reorganizeOpen:      'Open',
   },
 
   // ── Waitlist assign mode ───────────────────────────────────────────────────
@@ -415,6 +419,13 @@ export const T = {
     toastMoved:           (table: string) => `Moved to ${table}`,
     toastLocked:          (name: string) => `${name} locked`,
     toastUnlocked:        (name: string) => `${name} unlocked`,
+    // Reorganize
+    reorganizeBadge:      'Reorganize',
+    reorganizeModalTitle: 'Table has upcoming reservations',
+    reorganizeModalBody:  (n: number) => `This table has ${n === 1 ? '1 upcoming reservation' : `${n} upcoming reservations`}. Seating here will move them to the Reorganize queue so you can assign them new tables.`,
+    reorganizeModalGuest: (name: string, time: string, party: number) => `${name} · ${time} · ${party}p`,
+    reorganizeModalEta:   (n: number) => n <= 0 ? 'now' : `in ${n}m`,
+    reorganizeConfirm:    'Seat & Reorganize',
     // Fallback error
     actionFailed:         'Action failed',
     // Confirmation section

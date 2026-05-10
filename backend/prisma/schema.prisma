@@ -317,6 +317,11 @@ model Reservation {
   noShowAt     DateTime?
   returnedToListAt DateTime?  // set on unseat; cleared when host acts again
 
+  // Reorganize — set when a future reservation is displaced from its table during seating
+  reorganizeAt          DateTime?  // set when displaced; cleared on resolution
+  reorganizeFromTableId String?    // audit: which table was cleared
+  reorganizeBySeatingId String?    // audit: which reservation triggered displacement
+
   // For move history — which table was previously assigned
   previousTableId String?
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import SmartTablePicker from './SmartTablePicker';
 import type React from 'react';
 import { useT } from '../i18n/useT';
@@ -221,6 +221,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [lockReason,   setLockReason]   = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reorganizeModal, setReorganizeModal] = useState<{
+    conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
+    pendingTableId: string;
+    pendingCombinedIds: string[];
+    pendingToast: string;
+  } | null>(null);
 
   // Edit form state — initialised when entering edit mode
   const [editName,       setEditName]       = useState('');
@@ -369,10 +375,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         if (ids === null || ids.length === 0) return;
         const [primaryId, ...secondaryIds] = ids;
         if (action === 'seat') {
-          run(
-            () => api.reservations.seat(res.id, primaryId, false, secondaryIds),
-            T.guestDrawer.toastSeated(tableName(primaryId)),
-          );
+          seatWithReorganizeCheck(primaryId, secondaryIds, T.guestDrawer.toastSeated(tableName(primaryId)));
         } else if (action === 'move') {
           run(
             () => api.reservations.move(res.id, primaryId, undefined, secondaryIds),
@@ -431,6 +434,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       setUnseatConfirm(false);
       if (successMsg) onSuccess?.(successMsg);
     } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function seatWithReorganizeCheck(tableId: string, combinedIds: string[], toastMsg: string) {
+    setError(null);
+    setBusy(true);
+    try {
+      const updated = await api.reservations.seat(res.id, tableId, false, combinedIds);
+      setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
+      onSuccess?.(toastMsg);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'CONFLICT') {
+        const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }> } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+          setReorganizeModal({ conflicts: det.conflicts, pendingTableId: tableId, pendingCombinedIds: combinedIds, pendingToast: toastMsg });
+          return;
+        }
+      }
       setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
     } finally {
       setBusy(false);
@@ -622,10 +646,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (onPickTables) {
               openActionMapPicker('seat');
             } else if (res.tableId) {
-              run(
-                () => api.reservations.seat(res.id, res.tableId!, false, res.combinedTableIds ?? []),
-                T.guestDrawer.toastSeated(tableName(res.tableId!)),
-              );
+              seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
             } else {
               setMode('seat');
             }
@@ -664,10 +685,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (onPickTables) {
               openActionMapPicker('seat');
             } else if (res.tableId) {
-              run(
-                () => api.reservations.seat(res.id, res.tableId!, false, res.combinedTableIds ?? []),
-                T.guestDrawer.toastSeated(tableName(res.tableId!)),
-              );
+              seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
             } else {
               setMode('seat');
             }
@@ -755,6 +773,64 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         />
       )}
 
+      {/* Reorganize confirmation modal */}
+      {reorganizeModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setReorganizeModal(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-iron-card border border-amber-500/30 rounded-2xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="text-amber-400 text-xl mt-0.5 shrink-0">⚠</span>
+              <div>
+                <h3 className="text-iron-text font-semibold text-sm">{T.guestDrawer.reorganizeModalTitle}</h3>
+                <p className="text-iron-muted text-xs mt-1">
+                  {T.guestDrawer.reorganizeModalBody(reorganizeModal.conflicts.length)}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1.5 bg-iron-bg rounded-lg border border-iron-border p-3">
+              {reorganizeModal.conflicts.map(c => (
+                <div key={c.id} className="flex items-center justify-between gap-2">
+                  <span className="text-iron-text text-xs truncate">
+                    {T.guestDrawer.reorganizeModalGuest(c.guestName, c.time, c.partySize)}
+                  </span>
+                  <span className="text-amber-400 text-xs shrink-0 tabular-nums">
+                    {T.guestDrawer.reorganizeModalEta(c.minutesUntil)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setReorganizeModal(null)}
+                className="flex-1 text-xs py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text hover:border-iron-border/70 transition-colors"
+              >
+                {T.common.cancel}
+              </button>
+              <button
+                onClick={async () => {
+                  const { pendingTableId, pendingCombinedIds, pendingToast } = reorganizeModal;
+                  setReorganizeModal(null);
+                  setError(null);
+                  setBusy(true);
+                  try {
+                    const updated = await api.reservations.seat(res.id, pendingTableId, false, pendingCombinedIds, true);
+                    setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
+                    onSuccess?.(pendingToast);
+                  } catch (err: unknown) {
+                    setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-colors"
+              >
+                {T.guestDrawer.reorganizeConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
       <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`}>
 
@@ -777,6 +853,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 {res.returnedToListAt && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
                     {T.guestDrawer.returnedToList}
+                  </span>
+                )}
+                {res.reorganizeAt && (
+                  <span className="text-xs px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
+                    {T.guestDrawer.reorganizeBadge}
                   </span>
                 )}
                 {res.isConfirmedByGuest && (
@@ -878,10 +959,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => run(
-                        () => api.reservations.seat(res.id, smartSuggestion.suggestion.tableId!, false, []),
-                        T.guestDrawer.toastSeated(smartSuggestion.suggestion.tableName),
-                      )}
+                      onClick={() => seatWithReorganizeCheck(smartSuggestion.suggestion.tableId!, [], T.guestDrawer.toastSeated(smartSuggestion.suggestion.tableName))}
                       disabled={busy}
                       className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/25 border border-iron-green/50 text-iron-green-light hover:bg-iron-green/35 transition-colors disabled:opacity-40"
                     >
@@ -1318,7 +1396,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 excludeId={null}
                 label={T.guestDrawer.seatPickerLabel}
                 busy={busy}
-                onPick={tableId => run(() => api.reservations.seat(res.id, tableId, false, []), T.guestDrawer.toastSeated(tableName(tableId)))}
+                onPick={tableId => seatWithReorganizeCheck(tableId, [], T.guestDrawer.toastSeated(tableName(tableId)))}
                 onBack={() => setMode('view')}
               />
             )}
