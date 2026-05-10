@@ -163,6 +163,7 @@ export const THe = {
     filterDone:       'הסתיים',
     filterNoTable:    'ללא שולחן',
     noTableBadge:     'ללא שולחן',
+    chooseTable:      'בחר שולחן',
     emptyTitle:       'אין הזמנות היום',
     emptyHintNew:     '+ חדש',
     emptyHintWalkIn:  'Walk-in',

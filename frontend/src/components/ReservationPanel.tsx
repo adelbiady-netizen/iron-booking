@@ -46,6 +46,7 @@ interface Props {
   reorganizeQueue?: Reservation[];
   onReorganizeSelect?: (r: Reservation) => void;
   allTables?: { id: string; name: string }[];
+  onChooseTable?: (r: Reservation) => void;
 }
 
 export default function ReservationPanel({
@@ -54,6 +55,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
+  onChooseTable,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
@@ -335,6 +337,7 @@ export default function ReservationPanel({
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     className="flex-1 text-left px-3.5 py-4 min-w-0"
                   >
+
                     {/* Row 1 — name + badge */}
                     <div className="flex items-center gap-3 mb-1.5">
                       <span className="text-iron-text text-lg font-bold truncate flex-1 leading-snug">
@@ -398,6 +401,17 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
+                  {!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable && (
+                    <div className="flex items-center pr-3.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                        className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors whitespace-nowrap"
+                      >
+                        {T.reservationPanel.chooseTable}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

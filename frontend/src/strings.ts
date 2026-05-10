@@ -163,6 +163,7 @@ export const T = {
     filterDone:       'Done',
     filterNoTable:    'No Table',
     noTableBadge:     'No table',
+    chooseTable:      'Choose Table',
     emptyTitle:       'No reservations today',
     emptyHintNew:     '+ New',
     emptyHintWalkIn:  'Walk-in',

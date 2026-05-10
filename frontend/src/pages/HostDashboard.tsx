@@ -823,6 +823,44 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setTablePickGuestName(undefined);
   }, []);
 
+  const handleChooseTable = useCallback(async (r: Reservation) => {
+    let sug: BackendTableSuggestion[] = [];
+    try {
+      sug = await api.tables.suggest({
+        date: r.date,
+        time: r.time,
+        partySize: r.partySize,
+        duration: r.duration,
+        excludeReservationId: r.id,
+      });
+    } catch { /* proceed with no suggestions — tables still selectable */ }
+
+    handlePickTables(
+      [],
+      sug,
+      async (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [primaryId, ...secondaryIds] = ids;
+        const name = floorTables.find(t => t.id === primaryId)?.name
+          ?? allTables.find(t => t.id === primaryId)?.name
+          ?? primaryId;
+        try {
+          const updated = await api.reservations.update(r.id, {
+            tableId: primaryId,
+            combinedTableIds: secondaryIds,
+          });
+          setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+          setRefreshKey(k => k + 1);
+          showToast(T.guestDrawer.toastTableAssigned(name));
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+        }
+      },
+      'change-table',
+      r.guestName,
+    );
+  }, [handlePickTables, floorTables, allTables, showToast]);
+
   // Called after a reservation is created — refresh everything and open it in the drawer
   const handleCreated = useCallback((created: Reservation) => {
     setCreateMode(null);
@@ -1083,6 +1121,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
           onReorganizeSelect={r => setSelectedRes(r)}
           allTables={allTables}
+          onChooseTable={handleChooseTable}
         />
       </div>
       </BoardErrorBoundary>
