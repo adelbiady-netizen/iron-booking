@@ -300,19 +300,19 @@ export default function ReservationPanel({
 
                     {/* Row 2 — time · guests · table */}
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-white font-semibold tabular-nums">{r.time}</span>
-                      <span className="text-iron-border">·</span>
+                      <span className="text-iron-text font-semibold tabular-nums">{r.time}</span>
+                      <span className="text-iron-muted/50">·</span>
                       <span className="text-iron-muted">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-border">·</span>
+                          <span className="text-iron-muted/50">·</span>
                           <span className="text-iron-text font-medium">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-border">·</span>
-                          <span className="text-iron-border/60 italic text-xs">no table</span>
+                          <span className="text-iron-muted/50">·</span>
+                          <span className="text-iron-muted/50 italic text-xs">no table</span>
                         </>
                       )}
                     </div>
