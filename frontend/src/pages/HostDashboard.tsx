@@ -328,6 +328,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     setSelectedRes(enriched);
   }, [reservations]);
 
+  const handlePanelSelect = useCallback((r: Reservation) => {
+    const enriched = reservations.find(x => x.id === r.id) ?? r;
+    setSelectedRes(enriched);
+    const [h, m] = r.time.split(':').map(Number);
+    setTime(snapTo30(h * 60 + m));
+    setLiveMode(false);
+  }, [reservations]);
+
   const handleUpdated = useCallback((updated: Reservation) => {
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setSelectedRes(updated);
@@ -974,7 +982,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           reservations={reservations}
           selectedId={selectedRes?.id ?? null}
           highlightId={highlightId}
-          onSelect={setSelectedRes}
+          onSelect={handlePanelSelect}
           loading={resLoading}
           onNewReservation={() => { setPreselectedTableId(null); setCreateMode('reservation'); }}
           onWalkIn={() => setCreateMode('walkin')}
