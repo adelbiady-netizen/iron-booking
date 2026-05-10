@@ -385,7 +385,7 @@ export default function FloorBoard({
   const available    = dedupedTables.filter(t => t.liveStatus === 'AVAILABLE').length;
   const seatedParties = (reservations ?? []).filter(r => r.status === 'SEATED').length;
   const reservedSoon = dedupedTables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
-  const reserved     = dedupedTables.filter(t => t.liveStatus === 'RESERVED').length;
+  const reserved     = (reservations ?? []).filter(r => r.status === 'CONFIRMED' || r.status === 'PENDING').length;
 
   const positioned = hasPositions(dedupedTables);
 
