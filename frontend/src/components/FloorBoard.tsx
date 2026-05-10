@@ -981,11 +981,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           opacity     = 1;
           break;
         case 'unavailable':
-          opacity = 0.60;
+          opacity = 0.55;
           cursor  = 'not-allowed';
           break;
         default:
-          opacity = 0.75;
+          opacity = 1;
           break;
       }
     }
@@ -1048,8 +1048,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </div>
       )}
 
-      {/* OCCUPIED — show detail when not in pick mode, OR when in pick mode for current/unavailable tables */}
-      {(!pickMode || pickStatus === 'unavailable' || pickStatus === 'current') && table.liveStatus === 'OCCUPIED' && currentRes && (() => {
+      {/* OCCUPIED */}
+      {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
@@ -1075,8 +1075,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* RESERVED / RESERVED_SOON — show detail when not in pick mode, OR for unavailable tables in pick mode */}
-      {(!pickMode || pickStatus === 'unavailable') && (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+      {/* RESERVED / RESERVED_SOON */}
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         return (
@@ -1100,8 +1100,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* BLOCKED — show detail when not in pick mode, OR for unavailable tables in pick mode */}
-      {(!pickMode || pickStatus === 'unavailable') && table.liveStatus === 'BLOCKED' && (
+      {/* BLOCKED */}
+      {table.liveStatus === 'BLOCKED' && (
         <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
           {table.blockReason ?? 'Blocked'}
         </p>
