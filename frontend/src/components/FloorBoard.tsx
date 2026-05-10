@@ -947,14 +947,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     opacity     = 1;
   }
 
-  // Pick mode overrides
+  // Pick mode — express selection state through border rings only.
+  // Live background colors are intentionally preserved.
   if (pickMode) {
     if (pickStatus === 'current') {
-      // Guest's current table: amber ring, not selectable
-      bg          = 'rgba(245,158,11,0.18)';
       borderColor = '#f59e0b';
-      borderWidth = 2;
-      boxShadow   = '0 0 0 3px rgba(245,158,11,0.25)';
+      borderWidth = 2.5;
+      boxShadow   = '0 0 0 3px rgba(245,158,11,0.30)';
       opacity     = 1;
       cursor      = 'default';
     } else if (pickSelected) {
@@ -966,37 +965,27 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     } else {
       switch (pickStatus) {
         case 'recommended':
-          bg          = 'rgba(22,163,74,0.12)';
           borderColor = '#22c55e';
-          borderWidth = 1.5;
-          boxShadow   = '0 0 0 2px rgba(34,197,94,0.15)';
+          borderWidth = 2;
+          boxShadow   = '0 0 0 2px rgba(34,197,94,0.25)';
           opacity     = 1;
           break;
         case 'possible':
-          bg          = 'rgba(37,99,235,0.10)';
           borderColor = '#3b82f6';
           borderWidth = 1.5;
           opacity     = 1;
           break;
         case 'tight':
-          bg          = 'rgba(217,119,6,0.10)';
           borderColor = '#d97706';
           borderWidth = 1.5;
           opacity     = 1;
           break;
         case 'unavailable':
-          bg          = 'rgba(82,82,91,0.08)';
-          borderColor = '#52525b';
-          borderWidth = 1;
-          boxShadow   = undefined;
-          opacity     = 0.55;
-          cursor      = 'not-allowed';
+          opacity = 0.60;
+          cursor  = 'not-allowed';
           break;
         default:
-          bg          = 'rgba(82,82,91,0.08)';
-          borderColor = '#52525b';
-          borderWidth = 1;
-          opacity     = 0.85;
+          opacity = 0.75;
           break;
       }
     }
