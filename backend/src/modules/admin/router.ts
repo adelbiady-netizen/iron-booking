@@ -607,8 +607,11 @@ router.get('/groups/:id/tonight', async (req: Request, res: Response, next: Next
       const cutoffMins = hh * 60 + mm + 90;
       const upcomingCutoff = `${String(Math.floor(cutoffMins / 60) % 24).padStart(2, '0')}:${String(cutoffMins % 60).padStart(2, '0')}`;
 
+      // date is DateTime @db.Date — must use Date objects, not strings
+      const dayStart = new Date(todayStr + 'T00:00:00.000Z');
+      const dayEnd   = new Date(todayStr + 'T23:59:59.999Z');
       const rows = await prisma.reservation.findMany({
-        where: { restaurantId: restaurant.id, date: todayStr, status: { in: ['PENDING', 'CONFIRMED', 'SEATED'] } },
+        where: { restaurantId: restaurant.id, date: { gte: dayStart, lte: dayEnd }, status: { in: ['PENDING', 'CONFIRMED', 'SEATED'] } },
         select: { status: true, time: true },
       });
 
