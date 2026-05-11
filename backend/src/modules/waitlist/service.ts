@@ -234,7 +234,14 @@ export async function seatWaitlistGuest(
       'Cannot seat a waitlist reservation in the future. Seating is allowed only for the current service time.'
     );
   }
-  const seatTime = new Date().toTimeString().slice(0, 5);
+  // Use restaurant timezone — toTimeString() returns server local (UTC on Render),
+  // which is offset from restaurant local time and causes false availability conflicts.
+  const seatTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: restaurant.timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date());
   const duration = (s.defaultTurnMinutes as number) ?? 90;
   const bufferMinutes = (s.bufferBetweenTurnsMinutes as number) ?? 15;
 
