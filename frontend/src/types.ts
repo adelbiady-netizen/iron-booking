@@ -222,6 +222,14 @@ export interface AuthState {
   user: AuthUser;
 }
 
+export interface LocationTonightStats {
+  restaurantId: string;
+  booked: number;
+  seated: number;
+  late: number;
+  upcoming: number;
+}
+
 export interface FloorInsight {
   type: 'SEAT_NOW' | 'LATE_GUEST' | 'ENDING_SOON' | 'ARRIVING_SOON' | 'DUE_NOW' | 'LATE' | 'NO_SHOW_RISK';
   priority: 'HIGH' | 'MEDIUM' | 'LOW';

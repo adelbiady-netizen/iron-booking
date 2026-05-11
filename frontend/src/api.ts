@@ -1,4 +1,4 @@
-import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, LocationTonightStats, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -392,6 +392,8 @@ export const api = {
         request<AdminRestaurant>(`/admin/groups/${groupId}/restaurants/${restaurantId}`, { method: 'DELETE' }),
       createHqUser: (groupId: string, body: { email: string; password: string; firstName: string; lastName: string }) =>
         request<AdminUser>(`/admin/groups/${groupId}/users`, { method: 'POST', body: JSON.stringify(body) }),
+      tonight: (id: string) =>
+        request<LocationTonightStats[]>(`/admin/groups/${id}/tonight`),
     },
     users: {
       list: (restaurantId: string) =>

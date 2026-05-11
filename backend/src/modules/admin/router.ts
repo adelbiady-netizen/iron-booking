@@ -583,6 +583,48 @@ router.get('/groups/:id', async (req: Request, res: Response, next: NextFunction
   } catch (err) { next(err); }
 });
 
+// GET /admin/groups/:id/tonight — live operational stats per location (group owner or SUPER_ADMIN)
+router.get('/groups/:id/tonight', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const group = await prisma.restaurantGroup.findUnique({
+      where: { id: p(req, 'id') },
+      include: { restaurants: { where: { isSystem: false }, select: { id: true, timezone: true } } },
+    });
+    if (!group) throw new NotFoundError('Group', p(req, 'id'));
+    if (req.auth.role !== 'SUPER_ADMIN' && req.auth.groupId !== group.id) {
+      throw new ForbiddenError('Access denied');
+    }
+
+    const stats = await Promise.all(group.restaurants.map(async (restaurant) => {
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('en-CA', { timeZone: restaurant.timezone });
+      const timeParts = now.toLocaleTimeString('en-GB', {
+        timeZone: restaurant.timezone, hour: '2-digit', minute: '2-digit', hour12: false,
+      }).split(':');
+      const hh = parseInt(timeParts[0], 10);
+      const mm = parseInt(timeParts[1], 10);
+      const nowTime = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      const cutoffMins = hh * 60 + mm + 90;
+      const upcomingCutoff = `${String(Math.floor(cutoffMins / 60) % 24).padStart(2, '0')}:${String(cutoffMins % 60).padStart(2, '0')}`;
+
+      const rows = await prisma.reservation.findMany({
+        where: { restaurantId: restaurant.id, date: todayStr, status: { in: ['PENDING', 'CONFIRMED', 'SEATED'] } },
+        select: { status: true, time: true },
+      });
+
+      return {
+        restaurantId: restaurant.id,
+        booked:   rows.filter(r => r.status !== 'SEATED').length,
+        seated:   rows.filter(r => r.status === 'SEATED').length,
+        late:     rows.filter(r => r.status !== 'SEATED' && r.time <= nowTime).length,
+        upcoming: rows.filter(r => r.status !== 'SEATED' && r.time > nowTime && r.time <= upcomingCutoff).length,
+      };
+    }));
+
+    res.json(stats);
+  } catch (err) { next(err); }
+});
+
 // PATCH /admin/groups/:id — update group name (SUPER_ADMIN only)
 router.patch('/groups/:id', superAdminOnly, validate(UpdateGroupSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
 import { useT } from '../../i18n/useT';
-import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -210,6 +210,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [assignId,   setAssignId]   = useState('');
   const [assignBusy, setAssignBusy] = useState(false);
 
+  // Tonight stats (group detail operational view)
+  const [tonightStatsMap,  setTonightStatsMap]  = useState<Record<string, LocationTonightStats>>({});
+  const [tonightLoading,   setTonightLoading]   = useState(false);
+  // Which location row's ⋮ actions menu is open
+  const [openActionsId,    setOpenActionsId]    = useState<string | null>(null);
+
   // WhatsApp credentials edit state
   const [editWhatsapp,      setEditWhatsapp]      = useState(false);
   const [whatsappForm,      setWhatsappForm]      = useState({ instanceId: '', token: '', phone: '' });
@@ -231,6 +237,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Toast
   const [toast, setToast] = useState<string | null>(null);
+
+  // Close the location actions menu on any outside click
+  useEffect(() => {
+    if (!openActionsId) return;
+    function handleOutside() { setOpenActionsId(null); }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [openActionsId]);
 
   // ── Data loading ────────────────────────────────────────────────────────────
 
@@ -284,10 +298,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setTimeout(() => setToast(null), 3000);
   }
 
-  function selectRestaurant(id: string) {
+  function selectRestaurant(id: string, tab: 'info' | 'settings' | 'users' = 'info') {
     setSelectedId(id);
     setView('detail');
-    setActiveTab('info');
+    setActiveTab(tab);
     setEditInfo(false);
     setEditSettings(false);
     setEditWhatsapp(false);
@@ -577,10 +591,18 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setView('group-detail');
     setShowAddHqUser(false);
     setAssignId('');
+    setOpenActionsId(null);
     setGroupDetailBusy(true);
-    try { setGroupDetail(await api.admin.groups.get(id)); }
-    catch { /* ignore */ }
-    finally { setGroupDetailBusy(false); }
+    setTonightLoading(true);
+    try {
+      const [detail, tonight] = await Promise.all([
+        api.admin.groups.get(id),
+        api.admin.groups.tonight(id).catch(() => [] as LocationTonightStats[]),
+      ]);
+      setGroupDetail(detail);
+      setTonightStatsMap(Object.fromEntries(tonight.map(s => [s.restaurantId, s])));
+    } catch { /* ignore */ }
+    finally { setGroupDetailBusy(false); setTonightLoading(false); }
   }
 
   function openCreateGroup() {
@@ -1535,16 +1557,55 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       );
     }
 
-    // Restaurants not yet in this group (available to assign)
     const memberIds = new Set(groupDetail.restaurants.map(r => r.id));
     const assignable = restaurants.filter(r => !memberIds.has(r.id));
 
+    // Compute tonight aggregate across all locations in the group
+    const allStats = groupDetail.restaurants.map(r => tonightStatsMap[r.id]).filter(Boolean);
+    const totalBooked   = allStats.reduce((s, x) => s + x.booked, 0);
+    const totalSeated   = allStats.reduce((s, x) => s + x.seated, 0);
+    const totalLate     = allStats.reduce((s, x) => s + x.late, 0);
+    const totalUpcoming = allStats.reduce((s, x) => s + x.upcoming, 0);
+    const hasActivity   = totalBooked > 0 || totalSeated > 0;
+
+    const bookingOrigin = window.location.origin;
+
     return (
       <div className="flex-1 overflow-y-auto p-8 space-y-8">
+
         {/* Group header */}
         <div>
           <h2 className="text-xl font-bold">{groupDetail.name}</h2>
           <p className="text-xs text-iron-muted mt-1">/{groupDetail.slug}</p>
+        </div>
+
+        {/* Tonight aggregate bar */}
+        <div className="rounded-xl border border-iron-border bg-iron-surface px-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-iron-muted uppercase tracking-wide">Tonight</span>
+            {groupDetail.restaurants.length > 0 && (
+              <span className="text-xs text-iron-muted">{groupDetail.restaurants.length} location{groupDetail.restaurants.length !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+          {tonightLoading ? (
+            <div className="flex items-center gap-2 text-xs text-iron-muted">
+              <div className="w-3 h-3 border border-iron-muted border-t-transparent rounded-full animate-spin" />
+              Loading…
+            </div>
+          ) : !hasActivity ? (
+            <p className="text-sm text-iron-muted">Quiet tonight</p>
+          ) : (
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="text-sm font-semibold">{totalBooked} <span className="font-normal text-iron-muted text-xs">booked</span></span>
+              <span className="text-sm font-semibold text-iron-green">{totalSeated} <span className="font-normal text-iron-muted text-xs">seated</span></span>
+              {totalUpcoming > 0 && (
+                <span className="text-sm font-semibold text-blue-400">{totalUpcoming} <span className="font-normal text-iron-muted text-xs">arriving soon</span></span>
+              )}
+              {totalLate > 0 && (
+                <span className="text-sm font-semibold text-amber-400">{totalLate} <span className="font-normal text-iron-muted text-xs">late</span></span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Member locations */}
@@ -1554,30 +1615,113 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <p className="text-sm text-iron-muted">{T.admin.noRestaurants}</p>
           ) : (
             <div className="space-y-2">
-              {groupDetail.restaurants.map(r => (
-                <div key={r.id} className="flex items-center justify-between bg-iron-surface border border-iron-border rounded px-4 py-2.5">
-                  <div>
-                    <span className="text-sm font-medium">{r.name}</span>
-                    <span className="text-xs text-iron-muted ml-2">/{r.slug}</span>
+              {groupDetail.restaurants.map(r => {
+                const s = tonightStatsMap[r.id];
+                const isMenuOpen = openActionsId === r.id;
+                const bookingUrl = `${bookingOrigin}/book/${r.slug}`;
+
+                return (
+                  <div key={r.id} className="flex items-center justify-between bg-iron-surface border border-iron-border rounded px-4 py-3 gap-3">
+                    {/* Identity */}
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium">{r.name}</span>
+                      <span className="text-xs text-iron-muted ml-2">/{r.slug}</span>
+                    </div>
+
+                    {/* Tonight chips */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {tonightLoading && !s && (
+                        <div className="w-3 h-3 border border-iron-muted border-t-transparent rounded-full animate-spin" />
+                      )}
+                      {s && (s.booked > 0 || s.seated > 0) ? (
+                        <>
+                          {s.booked > 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-iron-bg border border-iron-border text-iron-muted">
+                              {s.booked}b
+                            </span>
+                          )}
+                          {s.seated > 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-iron-green/15 text-iron-green border border-iron-green/20">
+                              {s.seated}s
+                            </span>
+                          )}
+                          {s.upcoming > 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              +{s.upcoming}
+                            </span>
+                          )}
+                          {s.late > 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              {s.late}⚠
+                            </span>
+                          )}
+                        </>
+                      ) : s ? (
+                        <span className="text-xs text-iron-muted/50">quiet</span>
+                      ) : null}
+                    </div>
+
+                    {/* Actions menu */}
+                    <div className="relative flex-shrink-0" onMouseDown={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setOpenActionsId(isMenuOpen ? null : r.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded text-iron-muted hover:text-iron-text hover:bg-iron-bg border border-transparent hover:border-iron-border transition-colors text-base leading-none"
+                        title="More actions"
+                      >⋮</button>
+
+                      {isMenuOpen && (
+                        <div className="absolute right-0 top-8 z-20 w-52 bg-iron-surface border border-iron-border rounded-lg shadow-xl py-1 text-sm">
+                          <button
+                            onClick={() => { selectRestaurant(r.id); setOpenActionsId(null); }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2"
+                          >
+                            <span className="text-iron-muted text-xs">⚙</span> View Details
+                          </button>
+                          <button
+                            onClick={() => { selectRestaurant(r.id, 'settings'); setOpenActionsId(null); }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2"
+                          >
+                            <span className="text-iron-muted text-xs">✎</span> Location Settings
+                          </button>
+                          <div className="border-t border-iron-border my-1" />
+                          <a
+                            href={bookingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setOpenActionsId(null)}
+                            className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2 block"
+                          >
+                            <span className="text-iron-muted text-xs">↗</span> Open Booking Page
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(bookingUrl);
+                              showToast('Booking URL copied');
+                              setOpenActionsId(null);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2"
+                          >
+                            <span className="text-iron-muted text-xs">⧉</span> Copy Booking URL
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Remove (SUPER_ADMIN only) */}
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => handleRemoveFromGroup(r.id)}
+                        className="text-xs text-red-400 hover:text-red-300 flex-shrink-0"
+                      >{T.admin.removeFromGroup}</button>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-iron-muted">{r._count.users}u · {r._count.tables}t</span>
-                    <button
-                      onClick={() => selectRestaurant(r.id)}
-                      className="text-xs text-iron-green hover:underline"
-                    >View</button>
-                    <button
-                      onClick={() => handleRemoveFromGroup(r.id)}
-                      className="text-xs text-red-400 hover:underline"
-                    >{T.admin.removeFromGroup}</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* Assign location */}
-          {assignable.length > 0 && (
+          {/* Assign location (SUPER_ADMIN only) */}
+          {isSuperAdmin && assignable.length > 0 && (
             <div className="flex gap-2 mt-3">
               <select
                 value={assignId}
