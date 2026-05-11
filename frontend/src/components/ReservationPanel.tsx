@@ -7,6 +7,21 @@ import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
 import { arrivalState, minutesUntilRes, isStaleReservation } from '../utils/arrival';
 
+// Unified name + phone search — works for "052", "1234", "Yossi", "lev".
+// Phone match strips all non-digits from both sides so formatting never matters.
+// Requires ≥2 digit chars to avoid matching every number on a single "0".
+function matchesSearch(name: string, phone: string | null | undefined, q: string): boolean {
+  if (!q.trim()) return true;
+  const ql = q.trim().toLowerCase();
+  if (name.toLowerCase().includes(ql)) return true;
+  const qDigits = ql.replace(/\D/g, '');
+  if (qDigits.length >= 2) {
+    const phoneDigits = (phone ?? '').replace(/\D/g, '');
+    if (phoneDigits && phoneDigits.includes(qDigits)) return true;
+  }
+  return false;
+}
+
 const STATUS_BADGE: Record<ReservationStatus, string> = {
   PENDING:   'bg-amber-500/15 text-amber-400 border-amber-500/25',
   CONFIRMED: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
@@ -106,10 +121,7 @@ export default function ReservationPanel({
       if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
       return false;
     })
-    .filter(r => {
-      if (!search) return true;
-      return r.guestName.toLowerCase().includes(search.toLowerCase());
-    })
+    .filter(r => matchesSearch(r.guestName, r.guestPhone, search))
     .sort((a, b) => a.time.localeCompare(b.time));
 
   return (
@@ -167,16 +179,16 @@ export default function ReservationPanel({
           )}
         </div>
 
-        {/* Reservation search + filters */}
-        {tab === 'reservations' && (
-          <div className="space-y-2 pb-3">
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={T.reservationPanel.searchPlaceholder}
-              className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
-            />
+        {/* Search — shared across reservations and waitlist tabs */}
+        <div className={tab === 'reservations' ? 'space-y-2 pb-3' : 'pb-3'}>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={T.reservationPanel.searchPlaceholder}
+            className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
+          />
+          {tab === 'reservations' && (
             <div className="flex gap-1 flex-wrap">
               {FILTERS.map(f => (
                 <button
@@ -199,14 +211,14 @@ export default function ReservationPanel({
                 </button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Content */}
       {tab === 'waitlist' ? (
         <WaitlistPanel
-          entries={waitlist}
+          entries={search.trim() ? waitlist.filter(e => matchesSearch(e.guestName, e.guestPhone, search)) : waitlist}
           loading={waitlistLoading}
           onAdd={onWaitlistAdd}
           onSeat={onWaitlistSeat}

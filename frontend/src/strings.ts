@@ -157,7 +157,7 @@ export const T = {
     tabWaitlist:      'Waitlist',
     walkIn:           'Walk-in',
     newReservation:   '+ New',
-    searchPlaceholder:'Search guest name…',
+    searchPlaceholder:'Search name or phone…',
     filterActive:     'Active',
     filterSeated:     'Seated',
     filterDone:       'Done',

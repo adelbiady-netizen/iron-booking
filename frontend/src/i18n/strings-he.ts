@@ -157,7 +157,7 @@ export const THe = {
     tabWaitlist:      'המתנה',
     walkIn:           'Walk-in',
     newReservation:   '+ חדש',
-    searchPlaceholder:'חיפוש לפי שם…',
+    searchPlaceholder:'חיפוש לפי שם או טלפון…',
     filterActive:     'פעילים',
     filterSeated:     'יושב',
     filterDone:       'הסתיים',
