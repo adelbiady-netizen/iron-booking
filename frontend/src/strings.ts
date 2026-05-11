@@ -245,6 +245,8 @@ export const T = {
     placeholderName:         'Full name',
     placeholderPhone:        '+1 555 000 0000',
     placeholderDuration:     '90',
+    durationPreset90:        '90 min',
+    durationPreset120:       '120 min',
     placeholderGuestNotes:   'Allergies, special requests…',
     placeholderHostNotes:    'Internal notes for the team…',
     sourcePhone:             'Phone',

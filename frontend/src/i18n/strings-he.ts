@@ -244,6 +244,8 @@ export const THe = {
     placeholderName:         'שם מלא',
     placeholderPhone:        '+972 50 000 0000',
     placeholderDuration:     '90',
+    durationPreset90:        '90 דק׳',
+    durationPreset120:       '120 דק׳',
     placeholderGuestNotes:   'אלרגיות, בקשות מיוחדות…',
     placeholderHostNotes:    'הערות פנימיות לצוות…',
     sourcePhone:             'טלפון',

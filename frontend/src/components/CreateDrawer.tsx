@@ -5,6 +5,7 @@ import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeCo
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
+import { getDefaultDuration } from '../utils/duration';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -153,7 +154,13 @@ export default function CreateDrawer({
   const [resParty,     setResParty]     = useState(2);
   const [resDate,      setResDate]      = useState(defaultDate);
   const [resTime,      setResTime]      = useState(snapToSlot(gapHint?.startTime ?? defaultTime));
-  const [resDuration,  setResDuration]  = useState(gapHint ? String(gapHint.durationMins) : '');
+  const [resDuration,  setResDuration]  = useState(
+    gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
+  );
+  // durationManual: host has explicitly chosen a duration → suppress auto-defaults.
+  // Starts true when a gap hint pre-fills the slot duration; false otherwise so
+  // party-size changes continue to update the default automatically.
+  const [durationManual, setDurationManual] = useState(!!gapHint);
   const [resGuestNote, setResGuestNote] = useState('');
   const [resHostNote,  setResHostNote]  = useState('');
   const [resSource,    setResSource]    = useState<'PHONE' | 'INTERNAL'>('PHONE');
@@ -304,6 +311,13 @@ export default function CreateDrawer({
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resDate, resTime, resParty, resDuration, mode]);
+
+  // Auto-default duration when party size changes, unless the host already made
+  // a manual choice. Runs on mount and every time resParty changes.
+  useEffect(() => {
+    if (durationManual) return;
+    setResDuration(String(getDefaultDuration(resParty)));
+  }, [resParty, durationManual]);
 
   // Board → drawer: when the host navigates to a different date on the top bar,
   // pull the new date into the reservation form so board and drawer stay on the
@@ -665,13 +679,35 @@ export default function CreateDrawer({
                 {/* Duration */}
                 <div>
                   <Label>{T.createDrawer.fieldDuration}</Label>
+                  <div className="flex gap-1 mt-0.5 mb-1.5">
+                    {([90, 120] as const).map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          setResDuration(String(preset));
+                          setDurationManual(true);
+                        }}
+                        className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                          resDuration === String(preset)
+                            ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light'
+                            : 'border-iron-border text-iron-muted hover:text-iron-text'
+                        }`}
+                      >
+                        {preset === 90 ? T.createDrawer.durationPreset90 : T.createDrawer.durationPreset120}
+                      </button>
+                    ))}
+                  </div>
                   <Input
                     type="number"
                     min={30}
                     max={480}
                     step={15}
                     value={resDuration}
-                    onChange={e => setResDuration(e.target.value)}
+                    onChange={e => {
+                      setResDuration(e.target.value);
+                      setDurationManual(true);
+                    }}
                     placeholder={T.createDrawer.placeholderDuration}
                   />
                 </div>
