@@ -2,8 +2,10 @@
   "common": {
     "poweredBy": "מופעל על ידי Iron Booking",
     "guestCount_one": "אורח אחד",
+    "guestCount_two": "{{count}} אורחים",
     "guestCount_other": "{{count}} אורחים",
     "guestWord_one": "אורח",
+    "guestWord_two": "אורחים",
     "guestWord_other": "אורחים",
     "maps": "מפות",
     "waze": "Waze",
