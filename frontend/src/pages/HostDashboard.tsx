@@ -4,7 +4,7 @@ import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
-import { arrivalState, minutesUntilRes } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isLiveServiceView } from '../utils/arrival';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import TopBar from '../components/TopBar';
@@ -297,10 +297,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     return new Date(y, mo - 1, d, h, m).getTime();
   }, [date, time]);
 
-  // True only when the selected date is calendar-today (live service mode).
-  // On future dates the board is in schedule/planning mode — live-clock
-  // countdowns, overdue indicators, and arrival alerts must be suppressed.
-  const isToday = date === todayStr();
+  // True only when the board is in live-service view: today's date AND board
+  // time is within ±90 min of the wall-clock. When false (browsing future hours,
+  // future dates, past dates, or history) all arrival alerts are suppressed.
+  const isLiveView = isLiveServiceView(date, time);
 
   // Waitlist — refresh on date, time, main refresh, or dedicated 30s waitlist key.
   // Same stale-while-revalidate pattern: spinner only on date change or first load.
@@ -641,7 +641,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   // Arrival-based insights for CONFIRMED late/at-risk guests (frontend-computed,
   // uses operational time, covers both assigned and unassigned reservations).
   const arrivalInsights = useMemo((): FloorInsight[] => {
-    if (!isToday) return [];
+    if (!isLiveView) return [];
     return reservations
       .filter(r => r.status === 'CONFIRMED')
       .flatMap(r => {
@@ -666,7 +666,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         const bMins = bId ? Math.abs(minutesUntilRes(bId.time, time)) : 0;
         return bMins - aMins;
       });
-  }, [reservations, time, T, isToday]);
+  }, [reservations, time, T, isLiveView]);
 
   // Backend insights + frontend arrival insights, deduped by reservationId.
   // Backend messages are English-hardcoded, so we re-derive them from raw data using T.
@@ -1133,6 +1133,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           onReorganizeSelect={r => setSelectedRes(r)}
           allTables={allTables}
           onChooseTable={handleChooseTable}
+          isLiveView={isLiveView}
         />
       </div>
       </BoardErrorBoundary>
@@ -1148,6 +1149,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             onSuccess={showToast}
             onTableLockChange={handleTableLockChange}
             nowTime={time}
+            isLiveView={isLiveView}
             onPickTables={handlePickTables}
             onPickTablesCancel={handlePickCancel}
             onDateTimeChange={handleDrawerDateTimeChange}

@@ -2,6 +2,25 @@
 // (the dashboard's selected time, not the machine clock).
 // Only applies to CONFIRMED reservations — other statuses return null.
 
+// Returns true only when the board is showing near-real-time live service:
+//   - selected date is today's calendar date, AND
+//   - board time is within ±90 minutes of the wall-clock
+// Outside this window the board is in browse/preview mode and all arrival
+// alerts (late, no-show-risk, overdue) must be suppressed to avoid false
+// operational noise when inspecting past or future services.
+export function isLiveServiceView(date: string, boardTime: string): boolean {
+  const now = new Date();
+  const todayStr =
+    `${now.getFullYear()}-` +
+    `${String(now.getMonth() + 1).padStart(2, '0')}-` +
+    `${String(now.getDate()).padStart(2, '0')}`;
+  if (date !== todayStr) return false;
+  const [bH, bM] = boardTime.split(':').map(Number);
+  const realMins  = now.getHours() * 60 + now.getMinutes();
+  const boardMins = bH * 60 + bM;
+  return Math.abs(boardMins - realMins) <= 90;
+}
+
 export type ArrivalState = 'ARRIVING_SOON' | 'DUE_NOW' | 'LATE' | 'NO_SHOW_RISK';
 
 // Grace period after which a PENDING/CONFIRMED reservation is considered stale

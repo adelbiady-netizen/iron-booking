@@ -192,6 +192,7 @@ interface Props {
   onSuccess?: (message: string) => void;
   onTableLockChange?: () => void;
   nowTime?: string;
+  isLiveView?: boolean;
   onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string) => void;
   onPickTablesCancel?: () => void;
   /** Called when the host changes the date/time in edit mode so the floor board
@@ -199,7 +200,7 @@ interface Props {
   onDateTimeChange?: (date: string, time: string) => void;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, onPickTables, onPickTablesCancel, onDateTimeChange }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -880,7 +881,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Arrival state banner — only for CONFIRMED reservations */}
           {(() => {
-            if (!nowTime) return null;
+            if (!nowTime || !isLiveView) return null;
             const aState = arrivalState(res.time, res.status, nowTime);
             if (!aState) return null;
             const minsLate = Math.abs(minutesUntilRes(res.time, nowTime));
