@@ -175,8 +175,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const [showServiceReport, setShowServiceReport] = useState(false);
 
-  // Compact table action panel — shown on floor map click before opening full GuestDrawer
-  const [quickTable, setQuickTable] = useState<{ floorTable: FloorTable; reservation: Reservation | null } | null>(null);
+  // Compact table action panel — shown on floor map click before opening full GuestDrawer.
+  // Stores IDs only so the panel always derives fresh data from the live reservations/floorTables
+  // arrays, which means SSE updates automatically propagate without any manual sync.
+  const [quickTable, setQuickTable] = useState<{ tableId: string; reservationId: string | null } | null>(null);
 
   // Management Reorganize Mode
   const [reorganizeMode, setReorganizeMode] = useState(false);
@@ -309,6 +311,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // future dates, past dates, or history) all arrival alerts are suppressed.
   const isLiveView = isLiveServiceView(date, time);
 
+  // Derive live-synced objects from ID-based quickTable state.
+  // Because these are computed from the live arrays they update automatically
+  // when reservations or floorTables change (SSE push, API response, etc.).
+  const quickFloorTable = useMemo(
+    () => (quickTable ? floorTables.find(t => t.id === quickTable.tableId) ?? null : null),
+    [quickTable, floorTables],
+  );
+  const quickRes = useMemo(
+    () => (quickTable?.reservationId ? reservations.find(r => r.id === quickTable.reservationId) ?? null : null),
+    [quickTable, reservations],
+  );
+
   // Waitlist — refresh on date, time, main refresh, or dedicated 30s waitlist key.
   // Same stale-while-revalidate pattern: spinner only on date change or first load.
   useEffect(() => {
@@ -358,7 +372,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const floorTable = floorTables.find(t => t.id === enriched.tableId) ?? null;
     if (floorTable) {
       setSelectedRes(null);
-      setQuickTable({ floorTable, reservation: enriched });
+      setQuickTable({ tableId: floorTable.id, reservationId: enriched.id });
     } else {
       setSelectedRes(enriched);
     }
@@ -377,6 +391,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setQuickTable(null);
     setSelectedRes(updated);
+    setRefreshKey(k => k + 1);
+    setWaitlistRefreshKey(k => k + 1);
+  }, []);
+
+  // Updates reservations in-place; the panel auto-refreshes via quickRes derivation.
+  const handleQuickPanelUpdated = useCallback((updated: Reservation) => {
+    setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setRefreshKey(k => k + 1);
     setWaitlistRefreshKey(k => k + 1);
   }, []);
@@ -441,7 +462,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleAvailableClick = useCallback((table: FloorTable) => {
     setSelectedRes(null);
-    setQuickTable({ floorTable: table, reservation: null });
+    setQuickTable({ tableId: table.id, reservationId: null });
   }, []);
 
   const handleCombineToggle = useCallback((tableId: string) => {
@@ -948,6 +969,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, floorTables, showToast]);
 
+  const handleContextMenuMove = useCallback(async (res: Reservation) => {
+    let sug: BackendTableSuggestion[] = [];
+    try {
+      sug = await api.tables.suggest({
+        date: res.date,
+        time: res.time,
+        partySize: res.partySize,
+        duration: res.duration,
+        excludeReservationId: res.id,
+      });
+    } catch { /* proceed with no suggestions */ }
+    const currentIds = [res.tableId, ...(res.combinedTableIds ?? [])].filter(Boolean) as string[];
+    handlePickTables(
+      currentIds,
+      sug,
+      async (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [primaryId, ...secondaryIds] = ids;
+        const name = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
+        try {
+          const updated = await api.reservations.move(res.id, primaryId, undefined, secondaryIds);
+          setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+          setRefreshKey(k => k + 1);
+          showToast(T.guestDrawer.toastMoved(name));
+          setQuickTable(null);
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+        }
+      },
+      'move',
+      res.guestName,
+    );
+  }, [handlePickTables, floorTables, showToast]);
+
   // Called after a reservation is created — refresh everything and open it in the drawer
   const handleCreated = useCallback((created: Reservation) => {
     setCreateMode(null);
@@ -1261,20 +1316,24 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       </div>
       </BoardErrorBoundary>
 
-      {quickTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
+      {quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
         <TableQuickPanel
-          floorTable={quickTable.floorTable}
-          reservation={quickTable.reservation}
+          floorTable={quickFloorTable}
+          reservation={quickRes}
           allTables={allTables}
           isFutureDate={date > todayStr()}
+          nowTime={time}
+          isLiveView={isLiveView}
           onClose={() => setQuickTable(null)}
           onViewFull={(res) => { setQuickTable(null); setSelectedRes(res); }}
           onSeat={handleContextMenuSeat}
+          onMoveTable={handleContextMenuMove}
+          onChangeTable={handleChooseTable}
           onLock={handleLockTable}
           onUnlock={handleUnlockTable}
           onOpenCreate={(tableId) => { setPreselectedTableId(tableId); setCreateMode('reservation'); }}
           onOpenWalkin={(tableId) => { setPreselectedTableId(tableId); setCreateMode('walkin'); }}
-          onUpdated={handleUpdated}
+          onUpdated={handleQuickPanelUpdated}
           onSuccess={showToast}
         />
       )}
