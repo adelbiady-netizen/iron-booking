@@ -166,9 +166,28 @@ export interface AdminRestaurant {
   email: string | null;
   address: string | null;
   isSystem: boolean;
+  groupId: string | null;
   settings: Record<string, unknown>;
   createdAt: string;
   _count: { users: number; tables: number; reservations: number };
+}
+
+export interface AdminGroup {
+  id: string;
+  name: string;
+  slug: string;
+  settings: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  _count: { restaurants: number; users: number };
+}
+
+export interface AdminGroupDetail extends AdminGroup {
+  restaurants: AdminRestaurant[];
+  users: Array<{
+    id: string; email: string | null; firstName: string; lastName: string;
+    role: string; isActive: boolean; createdAt: string;
+  }>;
 }
 
 export interface AdminRestaurantDetail extends AdminRestaurant {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
 import { useT } from '../../i18n/useT';
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -148,7 +148,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [listLoading, setListLoading]  = useState(true);
 
   // View state
-  const [view,       setView]       = useState<'splash' | 'create' | 'detail'>('splash');
+  const isSuperAdmin = auth.user.role === 'SUPER_ADMIN';
+
+  const [view,       setView]       = useState<'splash' | 'create' | 'detail' | 'create-group' | 'group-detail'>('splash');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail,     setDetail]     = useState<AdminRestaurantDetail | null>(null);
   const [users,      setUsers]      = useState<AdminUser[]>([]);
@@ -186,6 +188,27 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Layout seeding
   const [layoutBusy, setLayoutBusy] = useState(false);
+
+  // ── Group state (SUPER_ADMIN only) ───────────────────────────────────────────
+  const [sidebarTab,      setSidebarTab]      = useState<'locations' | 'groups'>('locations');
+  const [groups,          setGroups]          = useState<AdminGroup[]>([]);
+  const [groupsLoading,   setGroupsLoading]   = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupDetail,     setGroupDetail]     = useState<AdminGroupDetail | null>(null);
+  const [groupDetailBusy, setGroupDetailBusy] = useState(false);
+  // Create group form
+  const [groupName,  setGroupName]  = useState('');
+  const [groupSlug,  setGroupSlug]  = useState('');
+  const [groupBusy,  setGroupBusy]  = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  // Add HQ admin to group
+  const [showAddHqUser, setShowAddHqUser] = useState(false);
+  const [hqUserForm,    setHqUserForm]    = useState({ firstName: '', lastName: '', email: '', password: '' });
+  const [hqUserBusy,    setHqUserBusy]    = useState(false);
+  const [hqUserError,   setHqUserError]   = useState<string | null>(null);
+  // Assign location to group
+  const [assignId,   setAssignId]   = useState('');
+  const [assignBusy, setAssignBusy] = useState(false);
 
   // WhatsApp credentials edit state
   const [editWhatsapp,      setEditWhatsapp]      = useState(false);
@@ -540,6 +563,92 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     finally { setLayoutBusy(false); }
   }
 
+  // ── Group handlers ────────────────────────────────────────────────────────────
+
+  const loadGroups = useCallback(async () => {
+    setGroupsLoading(true);
+    try { setGroups(await api.admin.groups.list()); }
+    catch { /* ignore */ }
+    finally { setGroupsLoading(false); }
+  }, []);
+
+  async function selectGroup(id: string) {
+    setSelectedGroupId(id);
+    setView('group-detail');
+    setShowAddHqUser(false);
+    setAssignId('');
+    setGroupDetailBusy(true);
+    try { setGroupDetail(await api.admin.groups.get(id)); }
+    catch { /* ignore */ }
+    finally { setGroupDetailBusy(false); }
+  }
+
+  function openCreateGroup() {
+    setView('create-group');
+    setGroupName('');
+    setGroupSlug('');
+    setGroupError(null);
+  }
+
+  async function handleCreateGroup() {
+    setGroupBusy(true);
+    setGroupError(null);
+    try {
+      const g = await api.admin.groups.create({ name: groupName, slug: groupSlug });
+      setGroups(gs => [g, ...gs]);
+      showToast(T.admin.groupCreated);
+      selectGroup(g.id);
+    } catch (e: unknown) {
+      setGroupError(e instanceof Error ? e.message : 'Failed to create group');
+    } finally {
+      setGroupBusy(false);
+    }
+  }
+
+  async function handleAssignToGroup() {
+    if (!selectedGroupId || !assignId) return;
+    setAssignBusy(true);
+    try {
+      await api.admin.groups.addRestaurant(selectedGroupId, assignId);
+      setGroupDetail(await api.admin.groups.get(selectedGroupId));
+      await loadRestaurants();
+      setAssignId('');
+      showToast(T.admin.settingsSaved);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to assign location');
+    } finally {
+      setAssignBusy(false);
+    }
+  }
+
+  async function handleRemoveFromGroup(restaurantId: string) {
+    if (!selectedGroupId) return;
+    try {
+      await api.admin.groups.removeRestaurant(selectedGroupId, restaurantId);
+      setGroupDetail(await api.admin.groups.get(selectedGroupId));
+      await loadRestaurants();
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Failed to remove location');
+    }
+  }
+
+  async function handleCreateHqUser() {
+    if (!selectedGroupId) return;
+    setHqUserBusy(true);
+    setHqUserError(null);
+    try {
+      await api.admin.groups.createHqUser(selectedGroupId, hqUserForm);
+      setGroupDetail(await api.admin.groups.get(selectedGroupId));
+      setShowAddHqUser(false);
+      setHqUserForm({ firstName: '', lastName: '', email: '', password: '' });
+      showToast(T.admin.hqAdminCreated);
+    } catch (e: unknown) {
+      setHqUserError(e instanceof Error ? e.message : 'Failed to create HQ admin');
+    } finally {
+      setHqUserBusy(false);
+    }
+  }
+
   // ── Render helpers ────────────────────────────────────────────────────────────
 
   const inputCls = 'w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green';
@@ -790,7 +899,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Details</h3>
-              <button onClick={() => setEditInfo(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>
+              {isSuperAdmin && <button onClick={() => setEditInfo(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {[
@@ -848,7 +957,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Service settings</h3>
-              <button onClick={() => setEditSettings(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>
+              {isSuperAdmin && <button onClick={() => setEditSettings(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {[
@@ -940,7 +1049,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Weekly Schedule</h3>
-              <button onClick={() => setEditSchedule(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>
+              {isSuperAdmin && <button onClick={() => setEditSchedule(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <div className="space-y-1.5 text-sm">
               {scheduleRows.map(row => (
@@ -991,10 +1100,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">WhatsApp Integration</h3>
-              <button
+              {isSuperAdmin && <button
                 onClick={() => { setEditWhatsapp(true); setWhatsappError(null); }}
                 className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-              >{T.admin.editBtn}</button>
+              >{T.admin.editBtn}</button>}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
               <div>
@@ -1182,10 +1291,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
                   >Preview ↗</a>
                 )}
-                <button
+                {isSuperAdmin && <button
                   onClick={() => { setEditBranding(true); setBrandingError(null); }}
                   className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-                >{T.admin.editBtn}</button>
+                >{T.admin.editBtn}</button>}
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -1317,11 +1426,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button onClick={() => { setShowAddUser(false); setUserError(null); setUserFieldErrors({}); setUserForm(DEFAULT_USER); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
             </div>
           </div>
-        ) : (
+        ) : isSuperAdmin ? (
           <button onClick={() => setShowAddUser(true)} className={btnSecondary + ' w-full text-center'}>
             {T.admin.addUser}
           </button>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -1373,6 +1482,180 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     );
   }
 
+  // ── Group panels ──────────────────────────────────────────────────────────────
+
+  function renderCreateGroup() {
+    return (
+      <div className="flex-1 overflow-y-auto p-8 max-w-lg">
+        <h2 className="text-lg font-semibold mb-6">{T.admin.newGroup}</h2>
+        <div className="space-y-4">
+          <Field label={T.admin.groupName}>
+            <Input
+              value={groupName}
+              onChange={e => {
+                const n = e.target.value;
+                const s = n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                setGroupName(n);
+                setGroupSlug(s);
+              }}
+              placeholder="e.g. Northern Region"
+              required
+            />
+          </Field>
+          <Field label={T.admin.groupSlug}>
+            <Input
+              value={groupSlug}
+              onChange={e => setGroupSlug(e.target.value)}
+              placeholder="e.g. northern-region"
+              pattern="[a-z0-9-]+"
+            />
+          </Field>
+          {groupError && <p className="text-sm text-red-400">{groupError}</p>}
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={handleCreateGroup}
+              disabled={groupBusy || !groupName.trim() || !groupSlug.trim()}
+              className={btnPrimary}
+            >
+              {groupBusy ? T.admin.wizardCreateBusy : T.admin.createRestaurant}
+            </button>
+            <button onClick={() => setView('splash')} className={btnSecondary}>{T.admin.cancelBtn}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderGroupDetail() {
+    if (groupDetailBusy || !groupDetail) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
+
+    // Restaurants not yet in this group (available to assign)
+    const memberIds = new Set(groupDetail.restaurants.map(r => r.id));
+    const assignable = restaurants.filter(r => !memberIds.has(r.id));
+
+    return (
+      <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        {/* Group header */}
+        <div>
+          <h2 className="text-xl font-bold">{groupDetail.name}</h2>
+          <p className="text-xs text-iron-muted mt-1">/{groupDetail.slug}</p>
+        </div>
+
+        {/* Member locations */}
+        <section>
+          <h3 className="text-sm font-semibold text-iron-muted uppercase tracking-wide mb-3">{T.admin.groupMembers}</h3>
+          {groupDetail.restaurants.length === 0 ? (
+            <p className="text-sm text-iron-muted">{T.admin.noRestaurants}</p>
+          ) : (
+            <div className="space-y-2">
+              {groupDetail.restaurants.map(r => (
+                <div key={r.id} className="flex items-center justify-between bg-iron-surface border border-iron-border rounded px-4 py-2.5">
+                  <div>
+                    <span className="text-sm font-medium">{r.name}</span>
+                    <span className="text-xs text-iron-muted ml-2">/{r.slug}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-iron-muted">{r._count.users}u · {r._count.tables}t</span>
+                    <button
+                      onClick={() => selectRestaurant(r.id)}
+                      className="text-xs text-iron-green hover:underline"
+                    >View</button>
+                    <button
+                      onClick={() => handleRemoveFromGroup(r.id)}
+                      className="text-xs text-red-400 hover:underline"
+                    >{T.admin.removeFromGroup}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Assign location */}
+          {assignable.length > 0 && (
+            <div className="flex gap-2 mt-3">
+              <select
+                value={assignId}
+                onChange={e => setAssignId(e.target.value)}
+                className="flex-1 bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+              >
+                <option value="">{T.admin.assignLocation}…</option>
+                {assignable.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleAssignToGroup}
+                disabled={!assignId || assignBusy}
+                className={btnPrimary}
+              >{assignBusy ? '…' : T.admin.addToGroup}</button>
+            </div>
+          )}
+        </section>
+
+        {/* HQ Admins */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-iron-muted uppercase tracking-wide">{T.admin.groupAdmins}</h3>
+            {!showAddHqUser && (
+              <button onClick={() => setShowAddHqUser(true)} className="text-xs text-iron-green hover:underline">
+                {T.admin.createHqUser}
+              </button>
+            )}
+          </div>
+          {groupDetail.users.length === 0 && !showAddHqUser && (
+            <p className="text-sm text-iron-muted">{T.admin.noHqAdmins}</p>
+          )}
+          {groupDetail.users.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {groupDetail.users.map(u => (
+                <div key={u.id} className="flex items-center justify-between bg-iron-surface border border-iron-border rounded px-4 py-2.5">
+                  <div>
+                    <span className="text-sm font-medium">{u.firstName} {u.lastName}</span>
+                    <span className="text-xs text-iron-muted ml-2">{u.email}</span>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded ${u.isActive ? 'bg-iron-green/20 text-iron-green' : 'bg-red-900/20 text-red-400'}`}>
+                    {u.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {showAddHqUser && (
+            <div className="border border-iron-border rounded p-4 space-y-3 bg-iron-surface">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={T.admin.fieldFirstName}>
+                  <Input value={hqUserForm.firstName} onChange={e => setHqUserForm(f => ({ ...f, firstName: e.target.value }))} />
+                </Field>
+                <Field label={T.admin.fieldLastName}>
+                  <Input value={hqUserForm.lastName} onChange={e => setHqUserForm(f => ({ ...f, lastName: e.target.value }))} />
+                </Field>
+              </div>
+              <Field label={T.admin.fieldUserEmail}>
+                <Input type="email" value={hqUserForm.email} onChange={e => setHqUserForm(f => ({ ...f, email: e.target.value }))} />
+              </Field>
+              <Field label={T.admin.fieldPassword}>
+                <Input type="password" value={hqUserForm.password} onChange={e => setHqUserForm(f => ({ ...f, password: e.target.value }))} />
+              </Field>
+              {hqUserError && <p className="text-xs text-red-400">{hqUserError}</p>}
+              <div className="flex gap-2">
+                <button onClick={handleCreateHqUser} disabled={hqUserBusy} className={btnPrimary}>
+                  {hqUserBusy ? T.admin.wizardCreateBusy : T.admin.createHqUser}
+                </button>
+                <button onClick={() => { setShowAddHqUser(false); setHqUserError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
   // ── Root render ───────────────────────────────────────────────────────────────
 
   return (
@@ -1412,36 +1695,86 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div className="w-64 border-r border-iron-border flex flex-col bg-iron-surface flex-shrink-0 overflow-hidden">
-          <div className="p-4 border-b border-iron-border">
-            <button
-              onClick={openCreate}
-              className="w-full px-3 py-2 bg-iron-green text-black font-semibold rounded text-sm"
-            >
-              {T.admin.newRestaurant}
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {listLoading ? (
-              <div className="flex justify-center p-4">
-                <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : restaurants.length === 0 ? (
-              <p className="text-iron-muted text-sm text-center p-6">{T.admin.noRestaurants}</p>
-            ) : (
-              restaurants.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => selectRestaurant(r.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-iron-border hover:bg-iron-bg transition-colors ${
-                    selectedId === r.id ? 'border-l-2 border-l-iron-green bg-iron-bg' : ''
-                  }`}
-                >
-                  <div className="font-medium text-sm truncate">{r.name}</div>
-                  <div className="text-xs text-iron-muted mt-0.5">{r._count.users}u · {r._count.tables}t · {r._count.reservations}r</div>
+          {/* Locations / Groups tabs — SUPER_ADMIN only */}
+          {isSuperAdmin && (
+            <div className="flex border-b border-iron-border flex-shrink-0">
+              <button
+                onClick={() => { setSidebarTab('locations'); setView('splash'); setSelectedGroupId(null); }}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'locations' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
+              >{T.admin.restaurants}</button>
+              <button
+                onClick={() => { setSidebarTab('groups'); setView('splash'); setSelectedId(null); if (groups.length === 0) loadGroups(); }}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'groups' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
+              >{T.admin.groups}</button>
+            </div>
+          )}
+
+          {/* Locations panel */}
+          {sidebarTab === 'locations' && (<>
+            {isSuperAdmin && (
+              <div className="p-4 border-b border-iron-border flex-shrink-0">
+                <button onClick={openCreate} className="w-full px-3 py-2 bg-iron-green text-black font-semibold rounded text-sm">
+                  {T.admin.newRestaurant}
                 </button>
-              ))
+              </div>
             )}
-          </div>
+            <div className="flex-1 overflow-y-auto">
+              {listLoading ? (
+                <div className="flex justify-center p-4">
+                  <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : restaurants.length === 0 ? (
+                <p className="text-iron-muted text-sm text-center p-6">{T.admin.noRestaurants}</p>
+              ) : (
+                restaurants.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => selectRestaurant(r.id)}
+                    className={`w-full text-left px-4 py-3 border-b border-iron-border hover:bg-iron-bg transition-colors ${
+                      selectedId === r.id ? 'border-l-2 border-l-iron-green bg-iron-bg' : ''
+                    }`}
+                  >
+                    <div className="font-medium text-sm truncate">{r.name}</div>
+                    <div className="text-xs text-iron-muted mt-0.5">
+                      {r._count.users}u · {r._count.tables}t · {r._count.reservations}r
+                      {r.groupId && <span className="ml-1 text-iron-green/70">●</span>}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </>)}
+
+          {/* Groups panel (SUPER_ADMIN only) */}
+          {sidebarTab === 'groups' && (<>
+            <div className="p-4 border-b border-iron-border flex-shrink-0">
+              <button onClick={openCreateGroup} className="w-full px-3 py-2 bg-iron-green text-black font-semibold rounded text-sm">
+                {T.admin.newGroup}
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {groupsLoading ? (
+                <div className="flex justify-center p-4">
+                  <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : groups.length === 0 ? (
+                <p className="text-iron-muted text-sm text-center p-6">{T.admin.noGroups}</p>
+              ) : (
+                groups.map(g => (
+                  <button
+                    key={g.id}
+                    onClick={() => selectGroup(g.id)}
+                    className={`w-full text-left px-4 py-3 border-b border-iron-border hover:bg-iron-bg transition-colors ${
+                      selectedGroupId === g.id ? 'border-l-2 border-l-iron-green bg-iron-bg' : ''
+                    }`}
+                  >
+                    <div className="font-medium text-sm truncate">{g.name}</div>
+                    <div className="text-xs text-iron-muted mt-0.5">{g._count.restaurants} locations · {g._count.users} admins</div>
+                  </button>
+                ))
+              )}
+            </div>
+          </>)}
         </div>
 
         {/* Main content */}
@@ -1450,13 +1783,17 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <p className="text-iron-muted text-sm">
-                  {restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate}
+                  {sidebarTab === 'groups'
+                    ? (groups.length === 0 ? T.admin.noGroupsHint : 'Select a group or create a new one')
+                    : (restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate)}
                 </p>
               </div>
             </div>
           )}
-          {view === 'create' && renderWizard()}
-          {view === 'detail' && renderDetail()}
+          {view === 'create'        && renderWizard()}
+          {view === 'detail'        && renderDetail()}
+          {view === 'create-group'  && renderCreateGroup()}
+          {view === 'group-detail'  && renderGroupDetail()}
         </div>
       </div>
 

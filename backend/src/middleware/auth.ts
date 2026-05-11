@@ -66,9 +66,8 @@ export function requireRole(...roles: UserRole[]) {
 }
 
 // Ensure request restaurantId param matches the JWT restaurantId.
-// SUPER_ADMIN and HQ_ADMIN bypass this check — they have elevated cross-restaurant access.
-// (HQ_ADMIN cross-branch validation via group is a future concern; for now, elevated bypass is safe
-// since HQ users are provisioned manually and there are no HQ users in production yet.)
+// SUPER_ADMIN bypasses entirely. HQ_ADMIN bypasses here — group-scoping is
+// enforced at the admin-router level via assertGroupAccess().
 export function scopeToRestaurant(req: Request, res: Response, next: NextFunction): void {
   const { role } = req.auth;
   if (role === 'SUPER_ADMIN' || role === 'HQ_ADMIN') { next(); return; }

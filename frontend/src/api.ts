@@ -1,4 +1,4 @@
-import type { ActivityLogEntry, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -376,6 +376,22 @@ export const api = {
         request<{ id: string; primaryColor: string | null; accentColor: string | null; publicThemePreset: string | null; logoUrl: string | null; coverImageUrl: string | null; heroVideoUrl: string | null }>(`/admin/restaurants/${id}/branding`, { method: 'PATCH', body: JSON.stringify(body) }),
       updateOperatingHours: (id: string, hours: Array<{ dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string }>) =>
         request<Array<{ dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string }>>(`/admin/restaurants/${id}/operating-hours`, { method: 'PUT', body: JSON.stringify({ hours }) }),
+    },
+    groups: {
+      list: () =>
+        request<AdminGroup[]>('/admin/groups'),
+      create: (body: { name: string; slug: string }) =>
+        request<AdminGroup>('/admin/groups', { method: 'POST', body: JSON.stringify(body) }),
+      get: (id: string) =>
+        request<AdminGroupDetail>(`/admin/groups/${id}`),
+      update: (id: string, body: { name: string }) =>
+        request<AdminGroup>(`/admin/groups/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      addRestaurant: (groupId: string, restaurantId: string) =>
+        request<AdminRestaurant>(`/admin/groups/${groupId}/restaurants/${restaurantId}`, { method: 'POST', body: JSON.stringify({}) }),
+      removeRestaurant: (groupId: string, restaurantId: string) =>
+        request<AdminRestaurant>(`/admin/groups/${groupId}/restaurants/${restaurantId}`, { method: 'DELETE' }),
+      createHqUser: (groupId: string, body: { email: string; password: string; firstName: string; lastName: string }) =>
+        request<AdminUser>(`/admin/groups/${groupId}/users`, { method: 'POST', body: JSON.stringify(body) }),
     },
     users: {
       list: (restaurantId: string) =>

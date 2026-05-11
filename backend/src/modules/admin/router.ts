@@ -72,8 +72,21 @@ router.post('/bootstrap', validate(BootstrapSchema), async (req: Request, res: R
   } catch (err) { next(err); }
 });
 
-// ─── All routes below require SUPER_ADMIN ────────────────────────────────────
-router.use(authenticate, requireRole('SUPER_ADMIN'));
+// ─── All routes below require at least HQ_ADMIN ──────────────────────────────
+// SUPER_ADMIN (100) passes. HQ_ADMIN (80) passes.
+// Mutation routes each carry an explicit requireRole('SUPER_ADMIN') guard.
+router.use(authenticate, requireRole('HQ_ADMIN'));
+
+const superAdminOnly = requireRole('SUPER_ADMIN');
+
+// Helper: validate an HQ_ADMIN's groupId matches a restaurant's groupId.
+// SUPER_ADMIN always passes. Throws ForbiddenError otherwise.
+async function assertGroupAccess(req: Request, restaurantGroupId: string | null) {
+  if (req.auth.role === 'SUPER_ADMIN') return;
+  if (!req.auth.groupId || restaurantGroupId !== req.auth.groupId) {
+    throw new ForbiddenError('Access denied: restaurant is not in your group');
+  }
+}
 
 // POST /admin/create-super-admin — create an additional SUPER_ADMIN account
 const CreateSuperAdminSchema = z.object({
@@ -83,7 +96,7 @@ const CreateSuperAdminSchema = z.object({
   lastName:  z.string().min(1).default('User'),
 });
 
-router.post('/create-super-admin', validate(CreateSuperAdminSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/create-super-admin', superAdminOnly, validate(CreateSuperAdminSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, firstName, lastName } = req.body as z.infer<typeof CreateSuperAdminSchema>;
 
@@ -105,14 +118,15 @@ router.post('/create-super-admin', validate(CreateSuperAdminSchema), async (req:
 
 // ─── Restaurants ─────────────────────────────────────────────────────────────
 
-// GET /admin/restaurants
-router.get('/restaurants', async (_req: Request, res: Response, next: NextFunction) => {
+// GET /admin/restaurants — SUPER_ADMIN sees all; HQ_ADMIN sees their group only
+router.get('/restaurants', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const where = req.auth.role === 'SUPER_ADMIN'
+      ? { isSystem: false }
+      : { isSystem: false, groupId: req.auth.groupId ?? '__none__' };
     const rows = await prisma.restaurant.findMany({
-      where: { isSystem: false },
-      include: {
-        _count: { select: { users: true, tables: true, reservations: true } },
-      },
+      where,
+      include: { _count: { select: { users: true, tables: true, reservations: true } } },
       orderBy: { createdAt: 'desc' },
     });
     res.json(rows);
@@ -129,7 +143,7 @@ const CreateRestaurantSchema = z.object({
 });
 
 // POST /admin/restaurants
-router.post('/restaurants', validate(CreateRestaurantSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/restaurants', superAdminOnly, validate(CreateRestaurantSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, slug, timezone, phone, email, address } = req.body as z.infer<typeof CreateRestaurantSchema>;
 
@@ -174,6 +188,7 @@ router.get('/restaurants/:id', async (req: Request, res: Response, next: NextFun
       },
     });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    await assertGroupAccess(req, restaurant.groupId);
     res.json(restaurant);
   } catch (err) { next(err); }
 });
@@ -188,7 +203,7 @@ const UpdateRestaurantSchema = z.object({
 });
 
 // PATCH /admin/restaurants/:id
-router.patch('/restaurants/:id', validate(UpdateRestaurantSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/restaurants/:id', superAdminOnly, validate(UpdateRestaurantSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -216,7 +231,7 @@ const UpdateSettingsSchema = z.object({
 });
 
 // PATCH /admin/restaurants/:id/settings
-router.patch('/restaurants/:id/settings', validate(UpdateSettingsSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/restaurants/:id/settings', superAdminOnly, validate(UpdateSettingsSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -237,7 +252,7 @@ const UpdateWhatsappSchema = z.object({
 });
 
 // PATCH /admin/restaurants/:id/whatsapp — save per-restaurant UltraMsg credentials
-router.patch('/restaurants/:id/whatsapp', validate(UpdateWhatsappSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/restaurants/:id/whatsapp', superAdminOnly, validate(UpdateWhatsappSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -258,7 +273,7 @@ router.patch('/restaurants/:id/whatsapp', validate(UpdateWhatsappSchema), async 
 });
 
 // POST /admin/restaurants/:id/whatsapp/test — send a test WhatsApp to the restaurant's whatsappPhone
-router.post('/restaurants/:id/whatsapp/test', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/restaurants/:id/whatsapp/test', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -284,7 +299,7 @@ const UpdateBrandingSchema = z.object({
 });
 
 // PATCH /admin/restaurants/:id/branding
-router.patch('/restaurants/:id/branding', validate(UpdateBrandingSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandingSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -323,7 +338,7 @@ const OperatingHoursSchema = z.object({
 });
 
 // PUT /admin/restaurants/:id/operating-hours — replace all 7 day records
-router.put('/restaurants/:id/operating-hours', validate(OperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.put('/restaurants/:id/operating-hours', superAdminOnly, validate(OperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -368,7 +383,7 @@ router.put('/restaurants/:id/operating-hours', validate(OperatingHoursSchema), a
 });
 
 // POST /admin/restaurants/:id/sample-layout — seeds default sections + tables
-router.post('/restaurants/:id/sample-layout', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/restaurants/:id/sample-layout', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
@@ -409,7 +424,7 @@ router.post('/restaurants/:id/sample-layout', async (req: Request, res: Response
 // ─── Telephony ────────────────────────────────────────────────────────────────
 
 // GET /admin/telephony — list all restaurants with their telephony routing config
-router.get('/telephony', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/telephony', superAdminOnly, async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const rows = await prisma.restaurant.findMany({
       where: { isSystem: false },
@@ -425,6 +440,10 @@ router.get('/telephony', async (_req: Request, res: Response, next: NextFunction
 // GET /admin/restaurants/:id/users
 router.get('/restaurants/:id/users', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (req.auth.role !== 'SUPER_ADMIN') {
+      const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+      await assertGroupAccess(req, restaurant?.groupId ?? null);
+    }
     const users = await prisma.user.findMany({
       where: { restaurantId: p(req, 'id') },
       select: {
@@ -448,7 +467,7 @@ const CreateUserSchema = z.object({
 });
 
 // POST /admin/restaurants/:id/users
-router.post('/restaurants/:id/users', validate(CreateUserSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/restaurants/:id/users', superAdminOnly, validate(CreateUserSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = p(req, 'id');
     const { email, password, firstName, lastName, role } = req.body as z.infer<typeof CreateUserSchema>;
@@ -481,7 +500,7 @@ const UpdateUserSchema = z.object({
 });
 
 // PATCH /admin/users/:id
-router.patch('/users/:id', validate(UpdateUserSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/users/:id', superAdminOnly, validate(UpdateUserSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { password, ...rest } = req.body as z.infer<typeof UpdateUserSchema>;
 
@@ -498,6 +517,154 @@ router.patch('/users/:id', validate(UpdateUserSchema), async (req: Request, res:
       },
     });
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// ─── Groups ───────────────────────────────────────────────────────────────────
+
+const CreateGroupSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(2).regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers and hyphens only'),
+});
+
+const UpdateGroupSchema = z.object({
+  name: z.string().min(1).optional(),
+});
+
+// GET /admin/groups — list all groups (SUPER_ADMIN only)
+router.get('/groups', superAdminOnly, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const groups = await prisma.restaurantGroup.findMany({
+      include: { _count: { select: { restaurants: true, users: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json(groups);
+  } catch (err) { next(err); }
+});
+
+// POST /admin/groups — create a group (SUPER_ADMIN only)
+router.post('/groups', superAdminOnly, validate(CreateGroupSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, slug } = req.body as z.infer<typeof CreateGroupSchema>;
+    const exists = await prisma.restaurantGroup.findUnique({ where: { slug } });
+    if (exists) throw new ConflictError(`Slug "${slug}" is already taken`);
+    const group = await prisma.restaurantGroup.create({
+      data: { name, slug },
+      include: { _count: { select: { restaurants: true, users: true } } },
+    });
+    res.status(201).json(group);
+  } catch (err) { next(err); }
+});
+
+// GET /admin/groups/:id — SUPER_ADMIN sees any; HQ_ADMIN sees their own group
+router.get('/groups/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const group = await prisma.restaurantGroup.findUnique({
+      where: { id: p(req, 'id') },
+      include: {
+        restaurants: {
+          where: { isSystem: false },
+          include: { _count: { select: { users: true, tables: true, reservations: true } } },
+          orderBy: { name: 'asc' },
+        },
+        users: {
+          where: { role: 'HQ_ADMIN' },
+          select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: { select: { restaurants: true, users: true } },
+      },
+    });
+    if (!group) throw new NotFoundError('Group', p(req, 'id'));
+    if (req.auth.role !== 'SUPER_ADMIN' && req.auth.groupId !== group.id) {
+      throw new ForbiddenError('Access denied');
+    }
+    res.json(group);
+  } catch (err) { next(err); }
+});
+
+// PATCH /admin/groups/:id — update group name (SUPER_ADMIN only)
+router.patch('/groups/:id', superAdminOnly, validate(UpdateGroupSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const group = await prisma.restaurantGroup.findUnique({ where: { id: p(req, 'id') } });
+    if (!group) throw new NotFoundError('Group', p(req, 'id'));
+    const updated = await prisma.restaurantGroup.update({
+      where: { id: p(req, 'id') },
+      data: req.body,
+      include: { _count: { select: { restaurants: true, users: true } } },
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// POST /admin/groups/:id/restaurants/:restaurantId — assign restaurant to group (SUPER_ADMIN only)
+router.post('/groups/:groupId/restaurants/:restaurantId', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const group = await prisma.restaurantGroup.findUnique({ where: { id: p(req, 'groupId') } });
+    if (!group) throw new NotFoundError('Group', p(req, 'groupId'));
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'restaurantId'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'restaurantId'));
+    const updated = await prisma.restaurant.update({
+      where: { id: p(req, 'restaurantId') },
+      data: { groupId: group.id },
+      include: { _count: { select: { users: true, tables: true, reservations: true } } },
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/groups/:id/restaurants/:restaurantId — remove restaurant from group (SUPER_ADMIN only)
+router.delete('/groups/:groupId/restaurants/:restaurantId', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'restaurantId'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'restaurantId'));
+    const updated = await prisma.restaurant.update({
+      where: { id: p(req, 'restaurantId') },
+      data: { groupId: null },
+      include: { _count: { select: { users: true, tables: true, reservations: true } } },
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// POST /admin/groups/:id/users — create an HQ_ADMIN for this group (SUPER_ADMIN only)
+const CreateHqUserSchema = z.object({
+  email:     z.string().email('Invalid email address'),
+  password:  z.string().min(8, 'Password must be at least 8 characters'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName:  z.string().min(1, 'Last name is required'),
+});
+
+router.post('/groups/:id/users', superAdminOnly, validate(CreateHqUserSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const group = await prisma.restaurantGroup.findUnique({ where: { id: p(req, 'id') } });
+    if (!group) throw new NotFoundError('Group', p(req, 'id'));
+
+    // HQ_ADMIN users are anchored to the system restaurant (they span all branches in their group)
+    const systemRestaurant = await prisma.restaurant.findFirst({ where: { isSystem: true } });
+    if (!systemRestaurant) throw new Error('System restaurant not found — run bootstrap first');
+
+    const { email, password, firstName, lastName } = req.body as z.infer<typeof CreateHqUserSchema>;
+
+    const existing = await prisma.user.findFirst({ where: { email } });
+    if (existing) throw new ConflictError(`User with email ${email} already exists`);
+
+    const user = await prisma.user.create({
+      data: {
+        restaurantId: systemRestaurant.id,
+        groupId:      group.id,
+        email,
+        passwordHash: await bcrypt.hash(password, 12),
+        firstName,
+        lastName,
+        role: 'HQ_ADMIN',
+      },
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        role: true, groupId: true, isActive: true, createdAt: true,
+      },
+    });
+    res.status(201).json(user);
   } catch (err) { next(err); }
 });
 
