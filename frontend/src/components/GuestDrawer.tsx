@@ -220,6 +220,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const isFutureReservation = res.date.slice(0, 10) > _todayStr;
   const [cancelReason,  setCancelReason]  = useState('');
   const [unseatConfirm, setUnseatConfirm] = useState(false);
+  const [phoneCopied,   setPhoneCopied]   = useState(false);
   const [lockReason,   setLockReason]   = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -809,6 +810,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <div className="p-4 border-b border-iron-border shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pr-3">
+              {/* Name + VIP */}
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-iron-text font-semibold text-base truncate">{res.guestName}</h2>
                 {res.guest?.isVip && (
@@ -817,7 +819,37 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+
+              {/* Phone — prominent, clickable, copyable */}
+              <div className="flex items-center gap-2 mt-1.5">
+                {res.guestPhone ? (
+                  <>
+                    <a
+                      href={`tel:${res.guestPhone}`}
+                      className="text-sm font-mono font-medium text-iron-text hover:text-iron-green-light transition-colors"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {res.guestPhone}
+                    </a>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(res.guestPhone!);
+                        setPhoneCopied(true);
+                        setTimeout(() => setPhoneCopied(false), 1500);
+                      }}
+                      className={`text-xs transition-colors px-1.5 py-0.5 rounded ${phoneCopied ? 'text-iron-green-light' : 'text-iron-muted hover:text-iron-text'}`}
+                      title="Copy phone"
+                    >
+                      {phoneCopied ? 'Copied' : 'Copy'}
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-iron-muted/50 text-xs">No phone</span>
+                )}
+              </div>
+
+              {/* Status + badges */}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
@@ -831,29 +863,37 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     {T.guestDrawer.reorganizeBadge}
                   </span>
                 )}
-                {res.isConfirmedByGuest && (
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
-                    {T.guestDrawer.guestConfirmed}
-                  </span>
-                )}
                 {res.isRunningLate && res.status !== 'SEATED' && (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
                     {T.guestDrawer.runningLate}
                   </span>
                 )}
-                {!res.isConfirmedByGuest && res.confirmationSentAt && res.status !== 'SEATED' && (
+                {res.isConfirmedByGuest ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
+                    {T.guestDrawer.guestConfirmed}
+                  </span>
+                ) : res.confirmationSentAt && res.status !== 'SEATED' ? (
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-medium">
                     {T.guestDrawer.smsSentBadge}
                   </span>
-                )}
-                <span className="text-iron-muted text-xs">{T.common.guests(res.partySize)}</span>
+                ) : null}
+              </div>
+
+              {/* Party + table — compact secondary line */}
+              <div className="flex items-center gap-1.5 mt-1.5 text-iron-muted text-xs">
+                <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
-                  <span className="text-iron-muted text-xs">
-                    · {res.combinedTableIds.length
-                      ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
-                      : res.table.name}
-                  </span>
+                  <>
+                    <span>·</span>
+                    <span>
+                      {res.combinedTableIds.length
+                        ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
+                        : res.table.name}
+                    </span>
+                  </>
                 )}
+                <span>·</span>
+                <span>{formatReservationSource(res.source, locale)}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -898,6 +938,29 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
             );
           })()}
+
+          {/* Operational context — host notes, guest notes, occasion */}
+          {(res.hostNotes || res.guestNotes || res.occasion) && (
+            <section className="space-y-2">
+              {res.hostNotes && (
+                <div className="px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/25">
+                  <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
+                  <p className="text-amber-300 text-xs">{res.hostNotes}</p>
+                </div>
+              )}
+              {res.guestNotes && (
+                <div className="px-3 py-2 rounded-lg bg-iron-bg border border-iron-border">
+                  <p className="text-[10px] text-iron-muted font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
+                  <p className="text-iron-text text-xs">{res.guestNotes}</p>
+                </div>
+              )}
+              {res.occasion && (
+                <div className="px-3 py-1.5 rounded-lg bg-iron-green/8 border border-iron-green/20">
+                  <p className="text-iron-green-light text-xs font-medium">{res.occasion}</p>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Smart table suggestion */}
           {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
@@ -998,10 +1061,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               const secondaryNames = res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id);
               return [res.table.name, ...secondaryNames].join(' + ');
             })()} />
-            <Row label={T.guestDrawer.rowSource}     value={formatReservationSource(res.source, locale)} />
-            {res.occasion  && <Row label={T.guestDrawer.rowOccasion}   value={res.occasion}   accent />}
-            {res.guestNotes && <Row label={T.guestDrawer.rowGuestNotes} value={res.guestNotes} />}
-            {res.hostNotes  && <Row label={T.guestDrawer.rowHostNotes}  value={res.hostNotes}  accent />}
           </section>
 
           {/* Other reservations at the same table */}
