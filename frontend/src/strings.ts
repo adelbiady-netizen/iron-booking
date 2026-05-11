@@ -414,6 +414,12 @@ export const T = {
     tsCompleted:          'Completed',
     tsCancelled:          'Cancelled',
     tsNoShow:             'No-show',
+    // Attribution
+    attrCreatedBy:        'Created by',
+    attrUpdatedBy:        'Updated by',
+    attrSeatedBy:         'Seated by',
+    attrCancelledBy:      'Closed by',
+    attrMovedBy:          'Moved by',
     // Toasts
     toastUpdated:         'Reservation updated',
     toastConfirmed:       'Reservation confirmed',

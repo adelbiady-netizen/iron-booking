@@ -50,10 +50,12 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
 
     const token = jwt.sign(
       {
-        userId: user.id,
+        userId:       user.id,
         restaurantId: user.restaurantId,
-        role: user.role,
-        email: user.email,
+        role:         user.role,
+        email:        user.email,
+        firstName:    user.firstName,
+        lastName:     user.lastName,
       },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any }
@@ -145,10 +147,12 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
 
     const token = jwt.sign(
       {
-        userId: result.user.id,
+        userId:       result.user.id,
         restaurantId: result.restaurant.id,
-        role: result.user.role,
-        email: result.user.email,
+        role:         result.user.role,
+        email:        result.user.email,
+        firstName:    result.user.firstName,
+        lastName:     result.user.lastName,
       },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any }
@@ -224,6 +228,8 @@ router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Re
         restaurantId: user.restaurantId,
         role:         user.role,
         email:        user.email ?? '',
+        firstName:    user.firstName,
+        lastName:     user.lastName,
       },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any }
@@ -373,7 +379,7 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
 
       // ── 7. Sign and return the JWT ───────────────────────────────────────
       const token = jwt.sign(
-        { userId: user.id, restaurantId: user.restaurantId, role: user.role, email: user.email },
+        { userId: user.id, restaurantId: user.restaurantId, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
         config.jwtSecret,
         { expiresIn: config.jwtExpiresIn as any }
       );
@@ -453,7 +459,7 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
       });
 
       const token = jwt.sign(
-        { userId: user.id, restaurantId: user.restaurantId, role: user.role, email: user.email },
+        { userId: user.id, restaurantId: user.restaurantId, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
         config.jwtSecret,
         { expiresIn: config.jwtExpiresIn as any },
       );

@@ -28,7 +28,8 @@ function notifyFloorUpdated(restaurantId: string): void {
 const router = Router();
 router.use(authenticate);
 
-const actorName = (req: Request) => `${req.auth.email}`;
+const actorName = (req: Request) =>
+  `${req.auth.firstName} ${req.auth.lastName}`.trim() || req.auth.email || 'Host';
 
 // Express 5 types req.params values as string | string[]; route params from
 // :id patterns are always plain strings at runtime.

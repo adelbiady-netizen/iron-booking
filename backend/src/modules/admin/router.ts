@@ -57,7 +57,7 @@ router.post('/bootstrap', validate(BootstrapSchema), async (req: Request, res: R
     });
 
     const token = jwt.sign(
-      { userId: user.id, restaurantId: restaurant.id, role: user.role, email: user.email },
+      { userId: user.id, restaurantId: restaurant.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any },
     );

@@ -82,6 +82,12 @@ export interface Reservation {
   reorganizeAt: string | null;
   reorganizeFromTableId: string | null;
   reorganizeBySeatingId: string | null;
+  createdByName: string | null;
+  updatedByName: string | null;
+  seatedByName: string | null;
+  cancelledByName: string | null;
+  movedByName: string | null;
+  reorganizedByName: string | null;
   minutesRemaining?: number;
   minutesUntil?: number;
 }

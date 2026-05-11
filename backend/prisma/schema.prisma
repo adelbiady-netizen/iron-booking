@@ -327,6 +327,14 @@ model Reservation {
   // For move history — which table was previously assigned
   previousTableId String?
 
+  // Host attribution — who performed key operational actions
+  createdByName     String?
+  updatedByName     String?
+  seatedByName      String?
+  cancelledByName   String?
+  movedByName       String?
+  reorganizedByName String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

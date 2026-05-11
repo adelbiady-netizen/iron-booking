@@ -230,6 +230,7 @@ export async function createReservation(
         depositRequired: input.depositRequired,
         depositAmountCents: input.depositAmountCents ?? null,
         confirmedAt: status === 'CONFIRMED' ? new Date() : null,
+        createdByName: actorName,
       },
       include: { table: true, guest: true },
     });
@@ -339,6 +340,7 @@ export async function updateReservation(
         ...(input.tags && { tags: input.tags }),
         // Assigning a table to a reorganized reservation resolves it
         ...(resolvingReorganize && { reorganizeAt: null }),
+        updatedByName: actorName,
       },
       include: { table: true, guest: true },
     });
@@ -520,6 +522,7 @@ export async function seatReservation(
             reorganizeAt: new Date(),
             reorganizeFromTableId: tableId,
             reorganizeBySeatingId: id,
+            reorganizedByName: actorName,
           },
         });
         await logActivity(tx, displaced.id, 'REORGANIZE_TRIGGERED', actorName, {
@@ -540,6 +543,7 @@ export async function seatReservation(
         confirmedAt: r.confirmedAt ?? new Date(),
         returnedToListAt: null,
         reorganizeAt: null,
+        seatedByName: actorName,
       },
       include: { table: true },
     });
@@ -588,6 +592,7 @@ export async function moveReservation(
         tableId: input.tableId,
         previousTableId: r.tableId,
         combinedTableIds: input.combinedTableIds ?? [],
+        movedByName: actorName,
       },
       include: { table: true },
     });
@@ -647,7 +652,7 @@ export async function markNoShow(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'NO_SHOW', noShowAt: new Date(), returnedToListAt: null },
+      data: { status: 'NO_SHOW', noShowAt: new Date(), returnedToListAt: null, cancelledByName: actorName },
     });
     await logActivity(tx, id, 'NO_SHOW', actorName, {
       fromStatus: r.status,
@@ -679,7 +684,7 @@ export async function cancelReservation(
   return prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
-      data: { status: 'CANCELLED', cancelledAt: new Date(), returnedToListAt: null },
+      data: { status: 'CANCELLED', cancelledAt: new Date(), returnedToListAt: null, cancelledByName: actorName },
     });
     await logActivity(tx, id, 'CANCELLED', actorName, {
       fromStatus: r.status,

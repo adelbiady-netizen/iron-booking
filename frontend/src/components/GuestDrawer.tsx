@@ -1527,6 +1527,17 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             {res.completedAt && <Ts label={T.guestDrawer.tsCompleted}  ts={res.completedAt} />}
             {res.cancelledAt && <Ts label={T.guestDrawer.tsCancelled}  ts={res.cancelledAt} />}
             {res.noShowAt    && <Ts label={T.guestDrawer.tsNoShow}     ts={res.noShowAt} />}
+
+            {/* Host attribution */}
+            {(res.createdByName || res.updatedByName || res.seatedByName || res.cancelledByName || res.movedByName) && (
+              <div className="mt-3 pt-3 border-t border-iron-border/50 space-y-1.5">
+                {res.createdByName  && <Row label={T.guestDrawer.attrCreatedBy}   value={res.createdByName} />}
+                {res.seatedByName   && <Row label={T.guestDrawer.attrSeatedBy}    value={res.seatedByName} />}
+                {res.movedByName    && <Row label={T.guestDrawer.attrMovedBy}     value={res.movedByName} />}
+                {res.cancelledByName && <Row label={T.guestDrawer.attrCancelledBy} value={res.cancelledByName} />}
+                {res.updatedByName  && <Row label={T.guestDrawer.attrUpdatedBy}   value={res.updatedByName} />}
+              </div>
+            )}
           </section>
         </div>
       </aside>

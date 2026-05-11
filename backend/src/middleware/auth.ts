@@ -9,6 +9,8 @@ export interface AuthPayload {
   restaurantId: string;
   role: UserRole;
   email: string;
+  firstName: string;
+  lastName: string;
 }
 
 declare global {
