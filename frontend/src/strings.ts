@@ -678,6 +678,36 @@ export const T = {
     setupSubmitBusy:       'Creating…',
   },
 
+  // ── Service Report ─────────────────────────────────────────────────────────
+  serviceReport: {
+    title:               'Service Report',
+    close:               'Close',
+    tabAll:              'All Day',
+    tabLunch:            'Lunch',
+    tabDinner:           'Dinner',
+    loading:             'Loading…',
+    error:               'Failed to load report',
+    retry:               'Retry',
+    noData:              'No reservations for this date',
+    lunchShift:          (from: string, to: string) => `Lunch · ${from}–${to}`,
+    dinnerShift:         (from: string) => `Dinner · ${from}+`,
+    labelReservations:   'Reservations',
+    labelExpectedGuests: 'Expected Guests',
+    labelSeated:         'Seated',
+    labelCompleted:      'Completed',
+    labelNoShows:        'No-shows',
+    labelCancelled:      'Cancelled',
+    labelPending:        'Pending',
+    labelConfirmed:      'Confirmed',
+    labelWalkIns:        'Walk-ins',
+    labelPhone:          'Phone bookings',
+    labelOnline:         'Online / OT / Resy',
+    labelNoShowPct:      'No-show rate',
+    labelCancellationPct:'Cancellation rate',
+    guests:              (n: number) => `${n}`,
+    pct:                 (n: number) => `${n}%`,
+  },
+
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'Edit Map',
@@ -709,5 +739,6 @@ export const T = {
     rebuildDayConfirm:   'Lift Reservations',
     toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'reservation' : 'reservations'} lifted from ${table}`,
     toastRebuildFail:    'Failed to lift reservations',
+    serviceReportBtn:    'Service Report',
   },
 };

@@ -654,6 +654,36 @@ export const THe = {
     setupSubmitBusy:       'יוצר…',
   },
 
+  // ── Service Report ─────────────────────────────────────────────────────────
+  serviceReport: {
+    title:               'דוח משמרת',
+    close:               'סגור',
+    tabAll:              'כל היום',
+    tabLunch:            'צהריים',
+    tabDinner:           'ערב',
+    loading:             'טוען…',
+    error:               'שגיאה בטעינת הדוח',
+    retry:               'נסה שוב',
+    noData:              'אין הזמנות לתאריך זה',
+    lunchShift:          (from: string, to: string) => `צהריים · ${from}–${to}`,
+    dinnerShift:         (from: string) => `ערב · ${from}+`,
+    labelReservations:   'הזמנות',
+    labelExpectedGuests: 'אורחים צפויים',
+    labelSeated:         'הושבו',
+    labelCompleted:      'הסתיימו',
+    labelNoShows:        'לא הגיעו',
+    labelCancelled:      'בוטלו',
+    labelPending:        'ממתינות',
+    labelConfirmed:      'מאושרות',
+    labelWalkIns:        'כניסות ישירות',
+    labelPhone:          'הזמנות טלפוניות',
+    labelOnline:         'אונליין / OT / Resy',
+    labelNoShowPct:      'שיעור אי-הגעה',
+    labelCancellationPct:'שיעור ביטולים',
+    guests:              (n: number) => `${n}`,
+    pct:                 (n: number) => `${n}%`,
+  },
+
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'עריכת מפה',
@@ -685,5 +715,6 @@ export const THe = {
     rebuildDayConfirm:   'העבר הזמנות',
     toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'הזמנה' : 'הזמנות'} הועברו משולחן ${table}`,
     toastRebuildFail:    'ההעברה נכשלה',
+    serviceReportBtn:    'דוח משמרת',
   },
 };

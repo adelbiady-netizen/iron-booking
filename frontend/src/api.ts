@@ -2,6 +2,26 @@ import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, Avail
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
+export interface ShiftMetrics {
+  totalReservations: number;
+  totalExpectedGuests: number;
+  seatedReservations: number;
+  seatedGuests: number;
+  completedReservations: number;
+  completedGuests: number;
+  noShowReservations: number;
+  noShowGuests: number;
+  cancelledReservations: number;
+  cancelledGuests: number;
+  pendingReservations: number;
+  confirmedReservations: number;
+  walkIns: number;
+  phoneReservations: number;
+  onlineReservations: number;
+  noShowPct: number;
+  cancellationPct: number;
+}
+
 // Carries structured error info from the backend.
 export class ApiError extends Error {
   readonly fieldErrors: Record<string, string[]>;
@@ -354,6 +374,18 @@ export const api = {
         firstName?: string; lastName?: string; role?: string; isActive?: boolean; password?: string;
       }) => request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     },
+  },
+
+  analytics: {
+    shiftSummary: (date: string) =>
+      request<{
+        date: string;
+        lunchStart: string;
+        dinnerStart: string;
+        all: ShiftMetrics;
+        lunch: ShiftMetrics;
+        dinner: ShiftMetrics;
+      }>(`/analytics/shift-summary?date=${date}`),
   },
 
   public: {

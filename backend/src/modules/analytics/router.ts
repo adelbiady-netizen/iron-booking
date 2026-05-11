@@ -14,6 +14,10 @@ const DateRangeSchema = z.object({
   dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+const SingleDateSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
 // GET /analytics/summary?dateFrom=&dateTo=
 router.get('/summary', validate(DateRangeSchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -177,6 +181,80 @@ router.get('/occupancy', async (req: Request, res: Response, next: NextFunction)
       }));
 
     res.json({ date: dateStr, totalTables: tables, occupancy });
+  } catch (err) { next(err); }
+});
+
+// ─── Shift summary helpers ────────────────────────────────────────────────────
+
+type ShiftRow = {
+  status: string;
+  source: string;
+  time: string;
+  partySize: number;
+};
+
+function shiftMetrics(rows: ShiftRow[]) {
+  const sum = (arr: ShiftRow[]) => arr.reduce((s, r) => s + r.partySize, 0);
+
+  const seated    = rows.filter(r => r.status === 'SEATED' || r.status === 'COMPLETED');
+  const completed = rows.filter(r => r.status === 'COMPLETED');
+  const noShows   = rows.filter(r => r.status === 'NO_SHOW');
+  const cancelled = rows.filter(r => r.status === 'CANCELLED');
+  const pending   = rows.filter(r => r.status === 'PENDING');
+  const confirmed = rows.filter(r => r.status === 'CONFIRMED');
+
+  const total = rows.length;
+  const pct = (n: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
+
+  return {
+    totalReservations:    total,
+    totalExpectedGuests:  sum(rows),
+    seatedReservations:   seated.length,
+    seatedGuests:         sum(seated),
+    completedReservations: completed.length,
+    completedGuests:      sum(completed),
+    noShowReservations:   noShows.length,
+    noShowGuests:         sum(noShows),
+    cancelledReservations: cancelled.length,
+    cancelledGuests:      sum(cancelled),
+    pendingReservations:  pending.length,
+    confirmedReservations: confirmed.length,
+    walkIns:              rows.filter(r => r.source === 'WALK_IN').length,
+    phoneReservations:    rows.filter(r => r.source === 'PHONE').length,
+    onlineReservations:   rows.filter(r => ['ONLINE', 'OPENTABLE', 'RESY', 'INTERNAL'].includes(r.source)).length,
+    noShowPct:            pct(noShows.length),
+    cancellationPct:      pct(cancelled.length),
+  };
+}
+
+// GET /analytics/shift-summary?date=YYYY-MM-DD
+// Returns daily + lunch + dinner shift metrics calculated from DB.
+// Shift boundaries are hardcoded as defaults (lunch 11:00–16:59, dinner 17:00+).
+router.get('/shift-summary', validate(SingleDateSchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { date } = req.query as { date: string };
+    const dateObj = new Date(date + 'T00:00:00.000Z');
+    const restaurantId = req.auth.restaurantId;
+
+    const LUNCH_START  = '11:00';
+    const DINNER_START = '17:00';
+
+    const rows = await prisma.reservation.findMany({
+      where: { restaurantId, date: dateObj },
+      select: { status: true, source: true, time: true, partySize: true },
+    });
+
+    const lunchRows  = rows.filter(r => r.time >= LUNCH_START && r.time < DINNER_START);
+    const dinnerRows = rows.filter(r => r.time >= DINNER_START);
+
+    res.json({
+      date,
+      lunchStart:  LUNCH_START,
+      dinnerStart: DINNER_START,
+      all:    shiftMetrics(rows),
+      lunch:  shiftMetrics(lunchRows),
+      dinner: shiftMetrics(dinnerRows),
+    });
   } catch (err) { next(err); }
 });
 

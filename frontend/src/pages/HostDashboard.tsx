@@ -20,6 +20,7 @@ import GuestsPage from './GuestsPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
+import ServiceReportPanel from '../components/ServiceReportPanel';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -167,6 +168,8 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   // Waitlist manual table assignment — two-step flow: select table then confirm seat
   const [waitlistAssignEntry,   setWaitlistAssignEntry]   = useState<WaitlistEntry | null>(null);
   const [waitlistAssignTableId, setWaitlistAssignTableId] = useState<string | null>(null);
+
+  const [showServiceReport, setShowServiceReport] = useState(false);
 
   // Management Reorganize Mode
   const [reorganizeMode, setReorganizeMode] = useState(false);
@@ -1039,12 +1042,20 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor}
           </button>
         </div>
-        <button
-          onClick={() => setLayoutMode(true)}
-          className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
-        >
-          {T.hostDashboard.editLayout}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowServiceReport(true)}
+            className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+          >
+            {T.hostDashboard.serviceReportBtn}
+          </button>
+          <button
+            onClick={() => setLayoutMode(true)}
+            className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+          >
+            {T.hostDashboard.editLayout}
+          </button>
+        </div>
       </div>
 
       <ActionBar insights={allInsights} onItemClick={handleActionBarClick} />
@@ -1272,6 +1283,13 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
             </div>
           </div>
         </div>
+      )}
+
+      {showServiceReport && (
+        <ServiceReportPanel
+          initialDate={date}
+          onClose={() => setShowServiceReport(false)}
+        />
       )}
 
       {reorganizeConflict && (
