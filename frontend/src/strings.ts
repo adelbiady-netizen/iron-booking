@@ -479,6 +479,24 @@ export const T = {
     toastTableReassigned:      (table: string) => `Table changed to ${table}`,
   },
 
+  // ── TableQuickPanel ────────────────────────────────────────────────────────
+  tableQuickPanel: {
+    viewFullDetails: 'View full details',
+    available:       'Available',
+    newReservation:  '+ New reservation',
+    walkIn:          'Walk-in',
+    locked:          'Locked',
+    statusOccupied:  'Occupied',
+    statusReserved:  'Reserved',
+    hostNote:        'Host note',
+    guestNote:       'Guest note',
+    labelTime:       'Time',
+    labelGuests:     'Guests',
+    labelDuration:   'Duration',
+    labelSource:     'Source',
+    lockedTitle:     'Table locked',
+  },
+
   // ── CallDrawer ─────────────────────────────────────────────────────────────
   callDrawer: {
     title:           'Incoming Call',

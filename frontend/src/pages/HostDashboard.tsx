@@ -23,6 +23,7 @@ import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
 import ServiceReportPanel from '../components/ServiceReportPanel';
+import TableQuickPanel from '../components/TableQuickPanel';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -173,6 +174,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [waitlistAssignTableId, setWaitlistAssignTableId] = useState<string | null>(null);
 
   const [showServiceReport, setShowServiceReport] = useState(false);
+
+  // Compact table action panel — shown on floor map click before opening full GuestDrawer
+  const [quickTable, setQuickTable] = useState<{ floorTable: FloorTable; reservation: Reservation | null } | null>(null);
 
   // Management Reorganize Mode
   const [reorganizeMode, setReorganizeMode] = useState(false);
@@ -351,11 +355,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
-    setSelectedRes(enriched);
-  }, [reservations]);
+    const floorTable = floorTables.find(t => t.id === enriched.tableId) ?? null;
+    if (floorTable) {
+      setSelectedRes(null);
+      setQuickTable({ floorTable, reservation: enriched });
+    } else {
+      setSelectedRes(enriched);
+    }
+  }, [reservations, floorTables]);
 
   const handlePanelSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
+    setQuickTable(null);
     setSelectedRes(enriched);
     const [h, m] = r.time.split(':').map(Number);
     setTime(snapTo30(h * 60 + m));
@@ -364,6 +375,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleUpdated = useCallback((updated: Reservation) => {
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+    setQuickTable(null);
     setSelectedRes(updated);
     setRefreshKey(k => k + 1);
     setWaitlistRefreshKey(k => k + 1);
@@ -428,8 +440,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handleInsightAction, reservations, floorTables]);
 
   const handleAvailableClick = useCallback((table: FloorTable) => {
-    setPreselectedTableId(table.id);
-    setCreateMode('reservation');
+    setSelectedRes(null);
+    setQuickTable({ floorTable: table, reservation: null });
   }, []);
 
   const handleCombineToggle = useCallback((tableId: string) => {
@@ -1223,8 +1235,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           highlightId={highlightId}
           onSelect={handlePanelSelect}
           loading={resLoading}
-          onNewReservation={() => { setPreselectedTableId(null); setCreateMode('reservation'); }}
-          onWalkIn={() => setCreateMode('walkin')}
+          onNewReservation={() => { setQuickTable(null); setPreselectedTableId(null); setCreateMode('reservation'); }}
+          onWalkIn={() => { setQuickTable(null); setCreateMode('walkin'); }}
           waitlist={waitlist}
           waitlistLoading={waitlistLoading}
           onWaitlistAdd={handleWaitlistAdd}
@@ -1248,6 +1260,24 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         />
       </div>
       </BoardErrorBoundary>
+
+      {quickTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
+        <TableQuickPanel
+          floorTable={quickTable.floorTable}
+          reservation={quickTable.reservation}
+          allTables={allTables}
+          isFutureDate={date > todayStr()}
+          onClose={() => setQuickTable(null)}
+          onViewFull={(res) => { setQuickTable(null); setSelectedRes(res); }}
+          onSeat={handleContextMenuSeat}
+          onLock={handleLockTable}
+          onUnlock={handleUnlockTable}
+          onOpenCreate={(tableId) => { setPreselectedTableId(tableId); setCreateMode('reservation'); }}
+          onOpenWalkin={(tableId) => { setPreselectedTableId(tableId); setCreateMode('walkin'); }}
+          onUpdated={handleUpdated}
+          onSuccess={showToast}
+        />
+      )}
 
       {selectedRes && !createMode && (
         <DrawerErrorBoundary key={selectedRes.id} onClose={() => setSelectedRes(null)}>

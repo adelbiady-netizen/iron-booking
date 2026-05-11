@@ -466,20 +466,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
-  async function runDelete() {
-    setError(null);
-    setBusy(true);
-    try {
-      await api.reservations.delete(res.id);
-      onSuccess?.(T.guestDrawer.toastDeleted);
-      onClose();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   // ─── Action buttons per status ──────────────────────────────────────────────
 
   const btnGreen  = 'bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30';
@@ -677,7 +663,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         )}
         <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionDelete}   cls={btnRed}    onClick={() => setMode('delete')} disabled={busy} />
       </>
     );
 
@@ -717,7 +702,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber}  onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionDelete}   cls={btnRed}    onClick={() => setMode('delete')} disabled={busy} />
       </>
     );
 
@@ -754,14 +738,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           <ActionBtn label={T.guestDrawer.actionUnseat} cls={btnNeutral} onClick={() => setUnseatConfirm(true)} disabled={busy} />
         )}
         <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}     onClick={() => setMode('cancel')}  disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionDelete}   cls={btnRed}     onClick={() => setMode('delete')} disabled={busy} />
       </>
     );
 
     if (['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status)) return (
       <>
         <ActionBtn label={T.guestDrawer.actionUndo}   cls={btnNeutral} onClick={() => run(() => api.reservations.undo(res.id), T.guestDrawer.toastUndone)} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionDelete} cls={btnRed}     onClick={() => setMode('delete')} disabled={busy} />
       </>
     );
 
@@ -1471,27 +1453,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     className="flex-1 text-xs py-1.5 rounded-lg bg-red-900/20 border border-red-900/30 text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-40"
                   >
                     {T.guestDrawer.confirmCancel}
-                  </button>
-                  <button
-                    onClick={() => setMode('view')}
-                    className="text-iron-muted text-xs hover:text-iron-text px-3 transition-colors"
-                  >
-                    {T.guestDrawer.backButton}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {mode === 'delete' && (
-              <div className="space-y-2">
-                <p className="text-red-400/80 text-xs">{T.guestDrawer.deleteConfirmLabel}</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={runDelete}
-                    disabled={busy}
-                    className="flex-1 text-xs py-1.5 rounded-lg bg-red-950/50 border border-red-800/50 text-red-400 hover:bg-red-950/70 transition-colors disabled:opacity-40"
-                  >
-                    {T.guestDrawer.confirmDelete}
                   </button>
                   <button
                     onClick={() => setMode('view')}

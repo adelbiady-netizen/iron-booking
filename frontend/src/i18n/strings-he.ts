@@ -465,6 +465,24 @@ export const THe = {
     toastTableReassigned:      (table: string) => `שולחן הוחלף ל${table}`,
   },
 
+  // ── TableQuickPanel ────────────────────────────────────────────────────────
+  tableQuickPanel: {
+    viewFullDetails: 'פרטים מלאים',
+    available:       'פנוי',
+    newReservation:  '+ הזמנה חדשה',
+    walkIn:          'כניסה ישירה',
+    locked:          'נעול',
+    statusOccupied:  'תפוס',
+    statusReserved:  'שמור',
+    hostNote:        'הערת מארח',
+    guestNote:       'הערת אורח',
+    labelTime:       'שעה',
+    labelGuests:     'אורחים',
+    labelDuration:   'משך',
+    labelSource:     'מקור',
+    lockedTitle:     'שולחן נעול',
+  },
+
   // ── CallDrawer ─────────────────────────────────────────────────────────────
   callDrawer: {
     title:           'שיחה נכנסת',
