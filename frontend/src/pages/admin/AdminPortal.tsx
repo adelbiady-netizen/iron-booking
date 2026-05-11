@@ -650,7 +650,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       <div className="space-y-4">
         {wizardRestaurantId && (
           <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-3 py-2">
-            Restaurant created — fix the errors below to add the first user, or skip.
+            Location added — fix the errors below to add the first user, or skip.
           </p>
         )}
         <p className="text-sm text-iron-muted">Create the first staff member for this restaurant. You can skip this and add users later.</p>
@@ -1450,7 +1450,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <p className="text-iron-muted text-sm">
-                  {restaurants.length === 0 ? T.admin.noRestaurantsHint : 'Select a restaurant or create a new one'}
+                  {restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate}
                 </p>
               </div>
             </div>
