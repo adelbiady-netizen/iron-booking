@@ -427,14 +427,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [handleInsightAction, reservations, floorTables]);
 
-  const handleContextMenuSeat = useCallback(async (res: Reservation) => {
-    if (!res.tableId) {
-      showToast(T.hostDashboard.toastNoTable, 'error');
-      return;
-    }
-    await handleInsightAction(res.tableId, res.id);
-  }, [handleInsightAction, showToast]);
-
   const handleAvailableClick = useCallback((table: FloorTable) => {
     setPreselectedTableId(table.id);
     setCreateMode('reservation');
@@ -874,6 +866,69 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       r.guestName,
     );
   }, [handlePickTables, floorTables, allTables, showToast]);
+
+  const handleContextMenuSeat = useCallback(async (res: Reservation) => {
+    let sug: BackendTableSuggestion[] = [];
+    try {
+      sug = await api.tables.suggest({
+        date: res.date,
+        time: res.time,
+        partySize: res.partySize,
+        duration: res.duration,
+        excludeReservationId: res.id,
+      });
+    } catch { /* proceed with no suggestions — all tables remain selectable */ }
+
+    const currentIds = [res.tableId, ...(res.combinedTableIds ?? [])].filter(Boolean) as string[];
+
+    handlePickTables(
+      currentIds,
+      sug,
+      async (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [primaryId, ...secondaryIds] = ids;
+        try {
+          const updated = await api.reservations.seat(res.id, primaryId, false, secondaryIds);
+          setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+          setRefreshKey(k => k + 1);
+          setInsights(prev => prev.filter(i => i.tableId !== primaryId && i.reservationId !== res.id));
+          const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
+          showToast(T.hostDashboard.toastQuickSeated(tableName), 'success', {
+            label: T.hostDashboard.quickSeatUndo,
+            onClick: () => {
+              api.reservations.undo(updated.id)
+                .then(reverted => {
+                  setReservations(prev => prev.map(r => r.id === reverted.id ? { ...r, ...reverted } : r));
+                  setRefreshKey(k => k + 1);
+                  showToast(T.hostDashboard.toastQuickUndone);
+                })
+                .catch(() => showToast(T.hostDashboard.toastUndoFail, 'error'));
+            },
+          });
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'CONFLICT') {
+            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+              const tName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
+              setReorganizeConflict({
+                conflicts: det.conflicts,
+                pendingReservationId: res.id,
+                pendingTableId: primaryId,
+                pendingCombinedIds: secondaryIds,
+                tableName: tName,
+                busy: false,
+                _key: ++reorganizeKeyRef.current,
+              });
+              return;
+            }
+          }
+          showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+        }
+      },
+      'seat',
+      res.guestName,
+    );
+  }, [handlePickTables, floorTables, showToast]);
 
   // Called after a reservation is created — refresh everything and open it in the drawer
   const handleCreated = useCallback((created: Reservation) => {
