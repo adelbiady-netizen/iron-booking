@@ -364,7 +364,7 @@ export const THe = {
     placeholderMinutes:   'דקות',
     wasNMin:              (n: number) => `היה ${n} דק׳`,
     saveChanges:          'שמור שינויים',
-    seatedEditNote:       'ההזמנה בהושבה — לא ניתן לשנות תאריך, שעה או מספר אורחים.',
+    seatedEditNote:       'ההזמנה בהושבה — תאריך, שעה ושולחן נעולים. ניתן לעדכן מספר אורחים ופרטים נוספים.',
     tableConflictNote:    'שינוי שעה או מספר אורחים יאמת מחדש את הקצאת השולחן.',
     fieldTable:           'שולחן',
     changeTable:          'שנה',

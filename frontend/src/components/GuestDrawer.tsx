@@ -401,7 +401,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     const isSeated = res.status === 'SEATED';
     const partySize = parseInt(editParty, 10);
     if (!editName.trim()) { setError(T.guestDrawer.fieldGuestName + ' is required'); return; }
-    if (!isSeated && (isNaN(partySize) || partySize < 1)) { setError(T.guestDrawer.fieldPartySize + ' must be at least 1'); return; }
+    if (isNaN(partySize) || partySize < 1) { setError(T.guestDrawer.fieldPartySize + ' must be at least 1'); return; }
     if (editDuration < 30) { setError(T.guestDrawer.fieldDuration + ' must be at least 30 minutes'); return; }
     if (!isSeated && !editDate) { setError(T.guestDrawer.fieldDate + ' is required'); return; }
     if (!isSeated && !editTime) { setError(T.guestDrawer.fieldTime + ' is required'); return; }
@@ -413,8 +413,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       () => api.reservations.update(res.id, {
         guestName:  editName.trim(),
         guestPhone: editPhone.trim() || undefined,
+        partySize,
         ...(isSeated ? {} : {
-          partySize,
           date:     editDate !== res.date ? editDate : undefined,
           time:     editTime !== res.time ? editTime : undefined,
           ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
@@ -1117,7 +1117,37 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   />
                 </Field>
 
-                {/* Date / time — hidden for SEATED (immutable once seated) */}
+                <Field label={T.guestDrawer.fieldPartySize}>
+                  <input
+                    className={inputCls}
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={editParty}
+                    onChange={e => setEditParty(e.target.value)}
+                  />
+                </Field>
+
+                {/* Capacity advisory warning — shown for all statuses when a table is assigned */}
+                {(() => {
+                  const allIds = [editTableId, ...editCombinedTableIds].filter(Boolean) as string[];
+                  if (allIds.length === 0) return null;
+                  const party = parseInt(editParty, 10);
+                  if (isNaN(party) || party < 1) return null;
+                  const totalMax = allIds.reduce((sum, id) => {
+                    const t = tables.find(t => t.id === id);
+                    return sum + (t?.maxCovers ?? 0);
+                  }, 0);
+                  if (totalMax >= party) return null;
+                  return (
+                    <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-amber-500/25">
+                      <span className="text-amber-400 shrink-0">⚠</span>
+                      <p className="text-amber-400 text-xs">{T.guestDrawer.tableCapacityWarn(totalMax, party)}</p>
+                    </div>
+                  );
+                })()}
+
+                {/* Date / time / table — locked while seated */}
                 {res.status === 'SEATED' ? (
                   <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                     {T.guestDrawer.seatedEditNote}
@@ -1150,16 +1180,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         />
                       </Field>
                     </div>
-                    <Field label={T.guestDrawer.fieldPartySize}>
-                      <input
-                        className={inputCls}
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={editParty}
-                        onChange={e => setEditParty(e.target.value)}
-                      />
-                    </Field>
 
                     {/* Table reassignment */}
                     <Field label={T.guestDrawer.fieldTable}>
@@ -1248,25 +1268,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         {T.guestDrawer.tableConflictNote}
                       </p>
                     )}
-
-                    {/* Capacity advisory warning */}
-                    {(() => {
-                      const allIds = [editTableId, ...editCombinedTableIds].filter(Boolean) as string[];
-                      if (allIds.length === 0) return null;
-                      const party = parseInt(editParty, 10);
-                      if (isNaN(party) || party < 1) return null;
-                      const totalMax = allIds.reduce((sum, id) => {
-                        const t = tables.find(t => t.id === id);
-                        return sum + (t?.maxCovers ?? 0);
-                      }, 0);
-                      if (totalMax >= party) return null;
-                      return (
-                        <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-amber-500/25">
-                          <span className="text-amber-400 shrink-0">⚠</span>
-                          <p className="text-amber-400 text-xs">{T.guestDrawer.tableCapacityWarn(totalMax, party)}</p>
-                        </div>
-                      );
-                    })()}
                   </>
                 )}
 

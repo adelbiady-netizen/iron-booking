@@ -370,7 +370,7 @@ export const T = {
     placeholderMinutes:   'Minutes',
     wasNMin:              (n: number) => `was ${n}m`,
     saveChanges:          'Save changes',
-    seatedEditNote:       'Reservation is seated — date, time, and party size cannot be changed.',
+    seatedEditNote:       'Reservation is seated — date, time, and table are locked. Guest count and other details can still be updated.',
     tableConflictNote:    'Changing time or party size will re-validate the current table assignment.',
     fieldTable:           'Table',
     changeTable:          'Change',

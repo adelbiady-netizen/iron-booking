@@ -271,12 +271,12 @@ export async function updateReservation(
     throw new BusinessRuleError(`Cannot modify a ${existing.status} reservation`);
   }
 
-  // SEATED guests: only allow name, phone, and notes changes
+  // SEATED guests: date, time, and table are locked; operational fields (party size, notes, duration) remain editable
   if (existing.status === 'SEATED' && (
-    input.date || input.time || input.partySize ||
+    input.date || input.time ||
     input.tableId !== undefined || input.combinedTableIds !== undefined
   )) {
-    throw new BusinessRuleError('Cannot change date, time, party size, or table for a seated reservation');
+    throw new BusinessRuleError('Cannot change date, time, or table for a seated reservation');
   }
 
   const settings = await getRestaurantSettings(restaurantId);
