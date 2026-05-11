@@ -671,10 +671,18 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   // Backend insights + frontend arrival insights, deduped by reservationId.
   // Backend messages are English-hardcoded, so we re-derive them from raw data using T.
   const allInsights = useMemo((): FloorInsight[] => {
-    const backendResIds = new Set(insights.map(i => i.reservationId).filter(Boolean));
+    // In browse/preview mode suppress time-derived late alerts from the backend.
+    // LATE_GUEST is computed by the backend using the board's time param, not the
+    // real wall-clock, so it fires false positives whenever the host previews a
+    // future hour on today's date. ENDING_SOON and SEAT_NOW are unaffected.
+    const liveInsights = isLiveView
+      ? insights
+      : insights.filter(i => i.type !== 'LATE_GUEST');
+
+    const backendResIds = new Set(liveInsights.map(i => i.reservationId).filter(Boolean));
     const extra = arrivalInsights.filter(i => i.reservationId && !backendResIds.has(i.reservationId));
 
-    const translated = insights.map((insight): FloorInsight => {
+    const translated = liveInsights.map((insight): FloorInsight => {
       if (insight.type === 'LATE_GUEST' && insight.reservationId) {
         const res = reservations.find(r => r.id === insight.reservationId);
         if (res) {
@@ -701,7 +709,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     });
 
     return [...translated, ...extra];
-  }, [insights, arrivalInsights, reservations, floorTables, time, T]);
+  }, [insights, arrivalInsights, reservations, floorTables, time, T, isLiveView]);
 
   const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string }) => {
     const entry = await api.waitlist.add({ ...data, date });
