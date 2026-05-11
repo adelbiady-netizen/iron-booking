@@ -101,6 +101,7 @@ function shiftTime(dateStr: string, timeStr: string, minutes: number): { date: s
 interface Props {
   auth: AuthState;
   onLogout: () => void;
+  onSwitchHost?: () => void;
   zoom: number;
   zoomStep: number;
   onZoomChange: (v: number) => void;
@@ -109,7 +110,7 @@ interface Props {
   onAdminPortal?: () => void;
 }
 
-export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomChange, theme, onThemeChange, onAdminPortal }: Props) {
+export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoomStep, onZoomChange, theme, onThemeChange, onAdminPortal }: Props) {
   const T = useT();
   const [date, setDate]             = useState(todayStr);
   const [time, setTime]             = useState(nowTime);
@@ -975,7 +976,10 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   if (activePage === 'hosts') {
     return (
       <>
-        <HostsSettingsPage onBack={() => setActivePage('dashboard')} />
+        <HostsSettingsPage
+          onBack={() => setActivePage('dashboard')}
+          userRole={auth.user.role}
+        />
         <ToastContainer toasts={toasts} onRemove={removeToast} />
       </>
     );
@@ -1013,6 +1017,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
         onThemeChange={onThemeChange}
         onAdminPortal={onAdminPortal}
         onGuestsPage={handleGuestsPage}
+        onSwitchHost={onSwitchHost}
       />
 
       {/* Secondary toolbar */}

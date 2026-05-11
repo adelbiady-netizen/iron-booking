@@ -57,6 +57,8 @@ export const T = {
     backToToday:    'Back to today',
     guestsButton:   'Guests',
     adminButton:    'Admin',
+    activeHost:     (name: string) => `Active Host: ${name}`,
+    switchHost:     'Switch Host',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -771,7 +773,9 @@ export const T = {
     toastPinSet:    (name: string) => `PIN set for ${name}`,
     toastToggled:   (name: string, active: boolean) => `${name} ${active ? 'activated' : 'deactivated'}`,
     toastDeleted:   (name: string) => `${name} deleted`,
-    toastError:     'Something went wrong',
+    toastError:       'Something went wrong',
+    permissionDenied: 'Manager permission required',
+    permissionHint:   'Only managers and owners can manage hosts.',
   },
 
   // ── HostDashboard ──────────────────────────────────────────────────────────

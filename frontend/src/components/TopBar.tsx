@@ -24,6 +24,7 @@ interface Props {
   onThemeChange: () => void;
   onAdminPortal?: () => void;
   onGuestsPage?: () => void;
+  onSwitchHost?: () => void;
 }
 
 function SunIcon() {
@@ -70,6 +71,7 @@ export default function TopBar({
   theme, onThemeChange,
   onAdminPortal,
   onGuestsPage,
+  onSwitchHost,
 }: Props) {
   const T = useT();
   const atMin  = zoom <= 75;
@@ -201,10 +203,36 @@ export default function TopBar({
             {T.topBar.adminButton}
           </button>
         )}
-        <div className="text-right hidden lg:block">
-          <p className="text-iron-text text-xs font-medium leading-tight">{userName}</p>
-          <p className="text-iron-muted text-xs leading-tight">{restaurantName}</p>
-        </div>
+
+        {/* Active host badge (host-selection-aware sessions) */}
+        {onSwitchHost ? (
+          <div className="hidden lg:flex items-center gap-1.5 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1">
+            <span className="text-iron-muted text-xs leading-tight">{T.topBar.activeHost(userName)}</span>
+            <span className="text-iron-border/60 text-xs">·</span>
+            <button
+              onClick={onSwitchHost}
+              className="text-iron-green-light text-xs font-semibold hover:text-iron-green transition-colors leading-tight whitespace-nowrap"
+            >
+              {T.topBar.switchHost}
+            </button>
+          </div>
+        ) : (
+          <div className="text-right hidden lg:block">
+            <p className="text-iron-text text-xs font-medium leading-tight">{userName}</p>
+            <p className="text-iron-muted text-xs leading-tight">{restaurantName}</p>
+          </div>
+        )}
+
+        {/* On small screens, show a compact Switch Host button instead of badge */}
+        {onSwitchHost && (
+          <button
+            onClick={onSwitchHost}
+            className="lg:hidden text-iron-green-light hover:text-iron-green text-xs border border-iron-green/30 px-2.5 py-1.5 rounded-md transition-colors font-medium"
+          >
+            {T.topBar.switchHost}
+          </button>
+        )}
+
         <button
           onClick={onLogout}
           className="text-iron-muted hover:text-iron-text text-xs border border-iron-border px-3 py-1.5 rounded-md transition-colors"

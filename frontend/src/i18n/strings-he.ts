@@ -57,6 +57,8 @@ export const THe = {
     backToToday:    'חזרה להיום',
     guestsButton:   'אורחים',
     adminButton:    'ניהול',
+    activeHost:     (name: string) => `מארח פעיל: ${name}`,
+    switchHost:     'החלף מארח',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -744,7 +746,9 @@ export const THe = {
     toastPinSet:    (name: string) => `PIN הוגדר עבור ${name}`,
     toastToggled:   (name: string, active: boolean) => `${name} ${active ? 'הופעל' : 'הושבת'}`,
     toastDeleted:   (name: string) => `${name} נמחק`,
-    toastError:     'אירעה שגיאה',
+    toastError:       'אירעה שגיאה',
+    permissionDenied: 'נדרשת הרשאת מנהל',
+    permissionHint:   'רק מנהלים ובעלים יכולים לנהל מארחים.',
   },
 
   // ── HostDashboard ──────────────────────────────────────────────────────────

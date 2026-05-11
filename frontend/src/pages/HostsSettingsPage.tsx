@@ -5,6 +5,7 @@ import type { HostUser } from '../types';
 
 interface Props {
   onBack: () => void;
+  userRole: string;
 }
 
 type Role = 'HOST' | 'SERVER' | 'MANAGER';
@@ -245,7 +246,9 @@ function PinDialog({ host, onSave, onCancel, T }: PinDialogProps) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function HostsSettingsPage({ onBack }: Props) {
+const MANAGER_ROLES = new Set(['MANAGER', 'ADMIN', 'SUPER_ADMIN']);
+
+export default function HostsSettingsPage({ onBack, userRole }: Props) {
   const T = useT();
   const [hosts,    setHosts]    = useState<HostUser[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -254,9 +257,12 @@ export default function HostsSettingsPage({ onBack }: Props) {
   const [pinFor,   setPinFor]   = useState<HostUser | null>(null);
   const [toast,    setToast]    = useState<string | null>(null);
 
+  const canManage = MANAGER_ROLES.has(userRole);
+
   useEffect(() => {
+    if (!canManage) return;
     load();
-  }, []);
+  }, [canManage]);
 
   useEffect(() => {
     if (!toast) return;
@@ -324,6 +330,26 @@ export default function HostsSettingsPage({ onBack }: Props) {
     } catch {
       setToast(T.hostsSettings.toastError);
     }
+  }
+
+  if (!canManage) {
+    return (
+      <div className="h-full bg-iron-bg flex flex-col">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-iron-border">
+          <button onClick={onBack} className="text-iron-muted hover:text-iron-text text-sm transition-colors">
+            {T.hostsSettings.back}
+          </button>
+          <h1 className="text-iron-text font-semibold flex-1">{T.hostsSettings.title}</h1>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-2">
+            <span className="text-amber-400 text-xl">🔒</span>
+          </div>
+          <p className="text-iron-text font-semibold text-sm">{T.hostsSettings.permissionDenied}</p>
+          <p className="text-iron-muted text-xs">{T.hostsSettings.permissionHint}</p>
+        </div>
+      </div>
+    );
   }
 
   return (

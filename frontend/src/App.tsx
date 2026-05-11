@@ -100,6 +100,15 @@ export default function App() {
     setForceLoginPage(false);
   }
 
+  // Fast host switch — clears the JWT session but keeps iron_restaurant_id
+  // so the Host Selection Screen appears immediately for the next staff member.
+  function handleSwitchHost() {
+    clearAuth();
+    setSessionToken(null);
+    setAuth(null);
+    setForceLoginPage(false);
+  }
+
   const scale = zoom / 100;
 
   const path = window.location.pathname;
@@ -278,6 +287,7 @@ export default function App() {
         zoomStep={ZOOM_STEP}
         onZoomChange={handleZoom}
         onLogout={handleLogout}
+        onSwitchHost={localStorage.getItem('iron_restaurant_id') ? handleSwitchHost : undefined}
         theme={theme}
         onThemeChange={toggleTheme}
       />
