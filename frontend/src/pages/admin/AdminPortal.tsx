@@ -121,6 +121,28 @@ interface Props {
 
 export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const T = useT();
+
+  // ── HQ-local theme (iron_hq_theme, independent of restaurant dashboard) ─────
+  const [hqTheme, setHqTheme] = useState<'dark' | 'light'>(() => {
+    const stored = localStorage.getItem('iron_hq_theme');
+    return stored === 'light' ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = hqTheme;
+    document.documentElement.classList.toggle('dark', hqTheme === 'dark');
+    localStorage.setItem('iron_hq_theme', hqTheme);
+  }, [hqTheme]);
+
+  // Restore the restaurant dashboard theme when the HQ portal unmounts
+  useEffect(() => {
+    return () => {
+      const hostTheme = (localStorage.getItem('iron_theme') ?? 'dark') as 'dark' | 'light';
+      document.documentElement.dataset.theme = hostTheme;
+      document.documentElement.classList.toggle('dark', hostTheme === 'dark');
+    };
+  }, []);
+
   // Restaurant list
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
   const [listLoading, setListLoading]  = useState(true);
@@ -1363,6 +1385,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-iron-muted">{auth.user.email ?? ''}</span>
+          <button
+            onClick={() => setHqTheme(t => t === 'dark' ? 'light' : 'dark')}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-iron-border text-iron-muted hover:text-iron-text hover:bg-iron-bg transition-colors text-base"
+            title={hqTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {hqTheme === 'dark' ? '☀' : '☾'}
+          </button>
           {onDashboard && (
             <button
               onClick={onDashboard}
