@@ -716,6 +716,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
+    // Close any open reservation drawer so the full floor map is accessible
+    setSelectedRes(null);
+    setCreateMode(null);
     // Enter table assignment mode — host must select a table on the map before seating
     setWaitlistAssignEntry(entry);
     setWaitlistAssignTableId(null);
@@ -758,13 +761,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
-    // Pre-select table from suggestion — host can change or confirm on the map
+    // Close any open reservation drawer so the full floor map is accessible
+    setSelectedRes(null);
+    setCreateMode(null);
+    // Pre-select table from suggestion — host can freely change it on the map
     setWaitlistAssignEntry(entry);
     setWaitlistAssignTableId(tableId);
   }, [showToast]);
 
   const handleWaitlistTablePick = useCallback((tableId: string) => {
-    setWaitlistAssignTableId(prev => (prev === tableId ? null : tableId));
+    setWaitlistAssignTableId(tableId);
   }, []);
 
   const handleWaitlistAssignCancel = useCallback(() => {

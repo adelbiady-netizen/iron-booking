@@ -130,6 +130,8 @@ export default function FloorBoard({
   const [pickSelection,    setPickSelection]    = useState<string[]>([]);
   const [pickWarn,         setPickWarn]         = useState<string | null>(null);
   const [pickCurrentWarn,  setPickCurrentWarn]  = useState(false);
+  // Waitlist assign mode — flash ineligible table when host clicks it
+  const [wlPickWarn,       setWlPickWarn]       = useState<string | null>(null);
   const dragStartRef   = useRef<{ cx: number; cy: number } | null>(null);
   const isDraggingRef  = useRef(false);
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -322,10 +324,14 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
-    // Waitlist assignment mode: clicking an available table selects it for the entry
+    // Waitlist assignment mode: clicking an available table replaces the current selection
     if (waitlistAssignEntry) {
       if (t.liveStatus === 'AVAILABLE' && !t.locked) {
         onWaitlistTablePick?.(t.id);
+      } else {
+        // Flash the ineligible table so the host understands why nothing changed
+        setWlPickWarn(t.id);
+        setTimeout(() => setWlPickWarn(w => (w === t.id ? null : w)), 1200);
       }
       return;
     }
@@ -552,7 +558,11 @@ export default function FloorBoard({
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
-              const dimmed     = !pickMode && hoveredSectionId !== null && t.section?.id !== hoveredSectionId;
+              const ineligibleForAssign = !!waitlistAssignEntry && !pickMode && (t.liveStatus !== 'AVAILABLE' || t.locked);
+              const dimmed     = !pickMode && (
+                (hoveredSectionId !== null && t.section?.id !== hoveredSectionId) ||
+                ineligibleForAssign
+              );
               const wMatch     = waitlistMatches[t.id];
               const turns      = turnData.get(t.id) ?? [];
               const extraTurns = Math.max(0, turns.length - 1);
@@ -589,6 +599,7 @@ export default function FloorBoard({
                   pickMode={pickMode}
                   pickSelected={pickMode && pickSelection.includes(t.id)}
                   pickStatus={ps}
+                  wlPickWarn={wlPickWarn === t.id}
                 />
               );
             })}
@@ -632,16 +643,20 @@ export default function FloorBoard({
                     : undefined;
                   const isPickSelected = pickMode && pickSelection.includes(t.id);
                   const isWLTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
+                  const ineligibleForAssign = !!waitlistAssignEntry && !pickMode && (t.liveStatus !== 'AVAILABLE' || t.locked);
                   return (
                     <div
                       key={t.id}
                       className={
                         isWLTarget
                           ? 'ring-2 ring-indigo-500/60 rounded-lg'
+                          : wlPickWarn === t.id
+                          ? 'ring-2 ring-red-500/60 rounded-lg'
                           : isPickSelected || combinedSelection.includes(t.id)
                           ? 'ring-2 ring-blue-500/50 rounded-lg'
                           : ''
                       }
+                      style={ineligibleForAssign ? { opacity: 0.3 } : undefined}
                     >
                       <TableCard
                         table={t}
@@ -903,7 +918,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, date }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, date }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -924,6 +939,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickSelected?: boolean;
   pickStatus?: PickStatus;
   waitlistAssignTarget?: boolean;
+  wlPickWarn?: boolean;
   date?: string;
 }) {
   const T = useT();
@@ -963,6 +979,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     borderColor = '#6366f1';
     borderWidth = 2;
     boxShadow   = '0 0 0 3px rgba(99,102,241,0.35)';
+    opacity     = 1;
+  }
+
+  // Ineligible table flash — brief red ring when host clicks an unavailable table in assign mode
+  if (wlPickWarn) {
+    borderColor = '#ef4444';
+    borderWidth = 2;
+    boxShadow   = '0 0 0 3px rgba(239,68,68,0.35)';
     opacity     = 1;
   }
 
