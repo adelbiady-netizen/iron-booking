@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
-    "build": "prisma generate && tsc && tsc -p tsconfig.seed.json && prisma db push --accept-data-loss",
-    "start": "npm run build && prisma db push --accept-data-loss && echo '[Deploy] db push ok' && (node dist/prisma/seed.js && echo '[Deploy] seed ok' || echo '[Deploy] seed failed — skipping, server will still start') && node dist/server.js",
+    "build": "prisma generate && tsc && tsc -p tsconfig.seed.json",
+    "start": "prisma db push --accept-data-loss && echo '[Deploy] db push ok' && (node dist/prisma/seed.js && echo '[Deploy] seed ok' || echo '[Deploy] seed failed — skipping, server will still start') && node dist/server.js",
     "start:server": "node dist/server.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
