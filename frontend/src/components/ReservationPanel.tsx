@@ -16,7 +16,7 @@ const STATUS_BADGE: Record<ReservationStatus, string> = {
   NO_SHOW:   'bg-orange-900/15 text-orange-400 border-orange-900/20',
 };
 
-type FilterValue = 'ALL' | 'PENDING' | 'CONFIRMED' | 'SEATED' | 'DONE' | 'NO_TABLE';
+type FilterValue = 'ACTIVE' | 'SEATED' | 'DONE' | 'NO_TABLE';
 type Tab = 'reservations' | 'waitlist';
 
 interface Props {
@@ -60,7 +60,7 @@ export default function ReservationPanel({
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
-  const [filter, setFilter] = useState<FilterValue>('ALL');
+  const [filter, setFilter] = useState<FilterValue>('ACTIVE');
   const [search, setSearch] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ res: Reservation; x: number; y: number } | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
@@ -90,22 +90,21 @@ export default function ReservationPanel({
   ).length;
 
   const FILTERS: { label: string; value: FilterValue; count?: number }[] = [
-    { label: T.reservationPanel.filterAll,       value: 'ALL' },
-    { label: T.reservationPanel.filterPending,   value: 'PENDING' },
-    { label: T.reservationPanel.filterConfirmed, value: 'CONFIRMED' },
-    { label: T.reservationPanel.filterSeated,    value: 'SEATED' },
-    { label: T.reservationPanel.filterDone,      value: 'DONE' },
-    { label: T.reservationPanel.filterNoTable,   value: 'NO_TABLE', count: noTableCount || undefined },
+    { label: T.reservationPanel.filterActive,  value: 'ACTIVE' },
+    { label: T.reservationPanel.filterSeated,  value: 'SEATED' },
+    { label: T.reservationPanel.filterDone,    value: 'DONE' },
+    { label: T.reservationPanel.filterNoTable, value: 'NO_TABLE', count: noTableCount || undefined },
   ];
 
   const waitingCount = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED').length;
 
   const visible = reservations
     .filter(r => {
+      if (filter === 'ACTIVE')   return ['PENDING', 'CONFIRMED'].includes(r.status);
+      if (filter === 'SEATED')   return r.status === 'SEATED';
       if (filter === 'DONE')     return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
-      if (filter === 'ALL')      return ['PENDING', 'CONFIRMED', 'SEATED'].includes(r.status);
       if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
-      return r.status === filter;
+      return false;
     })
     .filter(r => {
       if (!search) return true;
