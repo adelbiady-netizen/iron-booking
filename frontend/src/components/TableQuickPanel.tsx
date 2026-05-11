@@ -101,7 +101,7 @@ export default function TableQuickPanel({
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <aside className="fixed right-0 top-0 h-full w-72 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">
+      <aside className="fixed left-0 top-0 h-full w-72 bg-iron-card border-r border-iron-border z-50 flex flex-col shadow-2xl animate-slide-in-left">
 
         {/* Header */}
         <div className="p-4 border-b border-iron-border shrink-0">
