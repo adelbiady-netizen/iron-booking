@@ -17,6 +17,7 @@ import ActionBar from '../components/ActionBar';
 import LayoutEditor from '../components/LayoutEditor';
 import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
+import HostsSettingsPage from './HostsSettingsPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
@@ -148,7 +149,7 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
-  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests'>('dashboard');
+  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts'>('dashboard');
   const [layoutMode,                  setLayoutMode]                  = useState(false);
   const [createMode,                  setCreateMode]                  = useState<CreateMode | null>(null);
   const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
@@ -971,6 +972,15 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
     );
   }
 
+  if (activePage === 'hosts') {
+    return (
+      <>
+        <HostsSettingsPage onBack={() => setActivePage('dashboard')} />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
   if (layoutMode) {
     return (
       <LayoutEditor
@@ -1057,6 +1067,14 @@ export default function HostDashboard({ auth, onLogout, zoom, zoomStep, onZoomCh
           >
             {T.hostDashboard.serviceReportBtn}
           </button>
+          {(['MANAGER', 'ADMIN', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'SUPER_ADMIN') && (
+            <button
+              onClick={() => setActivePage('hosts')}
+              className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+            >
+              {T.hostDashboard.hostsBtn}
+            </button>
+          )}
           <button
             onClick={() => setLayoutMode(true)}
             className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"

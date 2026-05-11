@@ -1362,7 +1362,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <span className="text-xs px-2 py-0.5 bg-iron-green/20 text-iron-green rounded font-medium">Admin</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-iron-muted">{auth.user.email}</span>
+          <span className="text-sm text-iron-muted">{auth.user.email ?? ''}</span>
           {onDashboard && (
             <button
               onClick={onDashboard}

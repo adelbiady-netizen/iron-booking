@@ -8,6 +8,7 @@ import AdminPortal from './pages/admin/AdminPortal';
 import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
 import WaitlistKioskPage from './pages/WaitlistKioskPage';
+import HostSelectionScreen from './pages/HostSelectionScreen';
 import type { AuthState } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -26,11 +27,13 @@ function applyTheme(t: Theme) {
 }
 
 export default function App() {
-  const [auth,         setAuth]         = useState<AuthState | null>(null);
-  const [ready,        setReady]        = useState(false);
-  const [bootstrapped, setBootstrapped] = useState(true);
+  const [auth,             setAuth]             = useState<AuthState | null>(null);
+  const [ready,            setReady]            = useState(false);
+  const [bootstrapped,     setBootstrapped]     = useState(true);
   // SUPER_ADMIN can toggle between AdminPortal and HostDashboard
-  const [adminView,    setAdminView]    = useState(true);
+  const [adminView,        setAdminView]        = useState(true);
+  // When true, show LoginPage even if iron_restaurant_id is set (Manager Login from HostSelectionScreen)
+  const [forceLoginPage,   setForceLoginPage]   = useState(false);
   const [zoom,  setZoom]  = useState<number>(() =>
     clampZoom(parseInt(localStorage.getItem('iron_zoom') ?? '100'))
   );
@@ -94,6 +97,7 @@ export default function App() {
     setSessionToken(null);
     setAuth(null);
     setAdminView(true);
+    setForceLoginPage(false);
   }
 
   const scale = zoom / 100;
@@ -159,7 +163,7 @@ export default function App() {
             <div className="bg-iron-card border border-iron-border rounded-xl p-6 mb-4 text-center">
               <p className="text-iron-text font-medium mb-1">Not authorized for HQ access</p>
               <p className="text-iron-muted text-sm">
-                Your account ({auth.user.email}) does not have HQ privileges.
+                Your account ({auth.user.email ?? `${auth.user.firstName} ${auth.user.lastName}`}) does not have HQ privileges.
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -247,8 +251,23 @@ export default function App() {
     }
 
     if (!auth) {
+      const restaurantId = localStorage.getItem('iron_restaurant_id');
+      if (restaurantId && !forceLoginPage) {
+        return (
+          <HostSelectionScreen
+            restaurantId={restaurantId}
+            onLogin={handleLogin}
+            onManagerLogin={() => setForceLoginPage(true)}
+          />
+        );
+      }
       return (
-        <LoginPage onLogin={handleLogin} />
+        <LoginPage
+          onLogin={(token, user) => {
+            setForceLoginPage(false);
+            handleLogin(token, user);
+          }}
+        />
       );
     }
 

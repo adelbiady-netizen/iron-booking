@@ -107,9 +107,21 @@ export interface OperatingHourRecord {
   lastSeating: string;   // "HH:mm" — last reservation slot
 }
 
+export interface HostUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  avatarUrl: string | null;
+  isActive: boolean;
+  email: string | null;
+  hasPin: boolean;
+  createdAt: string;
+}
+
 export interface AuthUser {
   id: string;
-  email: string;
+  email: string | null;
   firstName: string;
   lastName: string;
   role: UserRole;

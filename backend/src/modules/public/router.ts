@@ -6,6 +6,32 @@ const router = Router();
 
 router.use('/book', bookingRouter);
 
+// ─── GET /api/public/hosts?restaurantId=xxx ──────────────────────────────────
+// Returns active hosts that have a PIN set — used by the Host Selection Screen.
+// No authentication required; returns only display fields (no PINs or emails).
+router.get('/hosts', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = typeof req.query['restaurantId'] === 'string' ? req.query['restaurantId'] : '';
+    if (!restaurantId) {
+      return res.status(400).json({ error: { code: 'MISSING_PARAM', message: 'restaurantId is required' } });
+    }
+
+    const hosts = await prisma.user.findMany({
+      where: {
+        restaurantId,
+        isActive: true,
+        pin: { not: null },
+      },
+      select: {
+        id: true, firstName: true, lastName: true, avatarUrl: true, role: true,
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+
+    return res.json(hosts);
+  } catch (err) { next(err); }
+});
+
 // ─── DB lookup ───────────────────────────────────────────────────────────────
 async function findReservation(token: string) {
   return prisma.reservation.findUnique({

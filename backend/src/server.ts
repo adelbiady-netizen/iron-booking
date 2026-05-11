@@ -38,9 +38,9 @@ async function maybeBootstrapSuperAdmin() {
   const existing = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
 
   if (existing) {
-    if (existing.email.toLowerCase() !== email.toLowerCase()) {
+    if ((existing.email ?? '').toLowerCase() !== email.toLowerCase()) {
       // Different email — do not touch the existing account.
-      console.log(`[Bootstrap] SUPER_ADMIN already exists (${existing.email}) but BOOTSTRAP_EMAIL does not match — skipping.`);
+      console.log(`[Bootstrap] SUPER_ADMIN already exists (${existing.email ?? 'no-email'}) but BOOTSTRAP_EMAIL does not match — skipping.`);
       return;
     }
     // Same email — update the password hash.

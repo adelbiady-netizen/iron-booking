@@ -19,6 +19,9 @@ export default function LoginPage({ onLogin }: Props) {
     setLoading(true);
     try {
       const r = await api.auth.login(email, password);
+      if (r.user.restaurant?.id) {
+        localStorage.setItem('iron_restaurant_id', r.user.restaurant.id);
+      }
       onLogin(r.token, r.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';

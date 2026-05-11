@@ -86,8 +86,10 @@ model Restaurant {
 model User {
   id           String    @id @default(uuid())
   restaurantId String
-  email        String
-  passwordHash String
+  email        String?   // null for PIN-only floor hosts
+  passwordHash String?   // null for PIN-only floor hosts
+  pin          String?   // bcrypt-hashed 4-digit PIN for floor login
+  avatarUrl    String?
   firstName    String
   lastName     String
   role         UserRole  @default(HOST)

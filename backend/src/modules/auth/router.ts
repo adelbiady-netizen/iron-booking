@@ -38,7 +38,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
       },
     });
 
-    if (!user) throw new UnauthorizedError('Invalid credentials');
+    if (!user || !user.passwordHash) throw new UnauthorizedError('Invalid credentials');
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedError('Invalid credentials');
@@ -174,6 +174,76 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
           timezone: result.restaurant.timezone,
           settings: result.restaurant.settings,
           operatingHours: regHours.map(h => ({
+            dayOfWeek:   h.dayOfWeek,
+            isOpen:      h.isOpen,
+            openTime:    h.openTime,
+            closeTime:   h.closeTime,
+            lastSeating: h.lastSeating,
+          })),
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /auth/pin-login — floor host login via 4-digit PIN
+const PinLoginSchema = z.object({
+  restaurantId: z.string().uuid(),
+  userId:       z.string().uuid(),
+  pin:          z.string().regex(/^\d{4}$/),
+});
+
+router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { restaurantId, userId, pin } = req.body;
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, restaurantId, isActive: true },
+      include: {
+        restaurant: {
+          include: { operatingHours: { orderBy: { dayOfWeek: 'asc' } } },
+        },
+      },
+    });
+
+    if (!user || !user.pin) throw new UnauthorizedError('Invalid PIN');
+
+    const valid = await bcrypt.compare(pin, user.pin);
+    if (!valid) throw new UnauthorizedError('Invalid PIN');
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const token = jwt.sign(
+      {
+        userId:       user.id,
+        restaurantId: user.restaurantId,
+        role:         user.role,
+        email:        user.email ?? '',
+      },
+      config.jwtSecret,
+      { expiresIn: config.jwtExpiresIn as any }
+    );
+
+    res.json({
+      token,
+      user: {
+        id:        user.id,
+        email:     user.email ?? null,
+        firstName: user.firstName,
+        lastName:  user.lastName,
+        role:      user.role,
+        restaurant: {
+          id:             user.restaurant.id,
+          name:           user.restaurant.name,
+          slug:           user.restaurant.slug,
+          timezone:       user.restaurant.timezone,
+          settings:       user.restaurant.settings,
+          operatingHours: user.restaurant.operatingHours.map(h => ({
             dayOfWeek:   h.dayOfWeek,
             isOpen:      h.isOpen,
             openTime:    h.openTime,

@@ -15,6 +15,7 @@ import adminRouter from './modules/admin/router';
 import publicRouter from './modules/public/router';
 import linkRouter   from './modules/integrations/link.router';
 import eventsRouter from './modules/integrations/events.router';
+import hostsRouter  from './modules/hosts/router';
 
 const app = express();
 
@@ -86,6 +87,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/public',              publicRouter);
 app.use('/api/integrations/link',   linkRouter);
 app.use('/api/integrations/events', eventsRouter);
+app.use('/api/hosts',               hostsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -159,6 +159,11 @@ export const api = {
       request<{ token: string; user: AuthUser }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
+      }),
+    pinLogin: (restaurantId: string, userId: string, pin: string) =>
+      publicRequest<{ token: string; user: AuthUser }>('/auth/pin-login', {
+        method: 'POST',
+        body: JSON.stringify({ restaurantId, userId, pin }),
       }),
     devLogin: () =>
       request<{ token: string; user: AuthUser }>('/auth/dev-login', {
@@ -376,6 +381,21 @@ export const api = {
     },
   },
 
+  hosts: {
+    list: () =>
+      request<HostUser[]>('/hosts'),
+    create: (body: { firstName: string; lastName: string; role?: string; avatarUrl?: string | null; pin?: string }) =>
+      request<HostUser>('/hosts', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: { firstName?: string; lastName?: string; role?: string; avatarUrl?: string | null }) =>
+      request<HostUser>(`/hosts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    setPin: (id: string, pin: string) =>
+      request<HostUser>(`/hosts/${id}/set-pin`, { method: 'POST', body: JSON.stringify({ pin }) }),
+    toggleActive: (id: string) =>
+      request<HostUser>(`/hosts/${id}/active`, { method: 'PATCH', body: JSON.stringify({}) }),
+    remove: (id: string) =>
+      request<void>(`/hosts/${id}`, { method: 'DELETE' }),
+  },
+
   analytics: {
     shiftSummary: (date: string) =>
       request<{
@@ -389,6 +409,9 @@ export const api = {
   },
 
   public: {
+    getHosts: (restaurantId: string) =>
+      publicRequest<Array<{ id: string; firstName: string; lastName: string; avatarUrl: string | null; role: string }>>(`/public/hosts?restaurantId=${encodeURIComponent(restaurantId)}`),
+
     getReservation: (token: string) =>
       publicRequest<PublicReservation>(`/public/reservation?token=${encodeURIComponent(token)}`),
     confirm: (token: string) =>

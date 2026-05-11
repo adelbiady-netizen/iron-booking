@@ -710,6 +710,70 @@ export const T = {
     pct:                 (n: number) => `${n}%`,
   },
 
+  // ── Host Selection Screen ─────────────────────────────────────────────────
+  hostSelection: {
+    title:          'Who is working today?',
+    subtitle:       'Tap your name to sign in',
+    noHosts:        'No hosts configured yet',
+    noHostsHint:    'A manager must add hosts in Settings → Hosts first.',
+    managerLogin:   'Manager Login',
+    pinTitle:       (name: string) => `Enter PIN for ${name}`,
+    pinBack:        'Back',
+    pinError:       'Incorrect PIN — try again',
+    pinSubmitting:  'Signing in…',
+    loadError:      'Failed to load hosts',
+    roleHost:       'Host',
+    roleServer:     'Server',
+    roleManager:    'Manager',
+  },
+
+  // ── Hosts Settings ────────────────────────────────────────────────────────
+  hostsSettings: {
+    title:          'Hosts',
+    back:           '← Back',
+    addHost:        '+ Add Host',
+    noHosts:        'No hosts yet',
+    noHostsHint:    'Add floor staff who log in with a PIN.',
+    roleLabel:      'Role',
+    roleHost:       'Host',
+    roleServer:     'Server',
+    roleManager:    'Manager',
+    pinSet:         'PIN set',
+    pinNotSet:      'No PIN',
+    setPin:         'Set PIN',
+    changePin:      'Change PIN',
+    editBtn:        'Edit',
+    deactivate:     'Deactivate',
+    activate:       'Activate',
+    deleteBtn:      'Delete',
+    deleteConfirm:  (name: string) => `Delete ${name}? This cannot be undone.`,
+    // Create / edit form
+    formTitleCreate:'New Host',
+    formTitleEdit:  'Edit Host',
+    fieldFirst:     'First name',
+    fieldLast:      'Last name',
+    fieldAvatar:    'Avatar URL (optional)',
+    fieldRole:      'Role',
+    saveBtn:        'Save',
+    saveBusy:       'Saving…',
+    cancelBtn:      'Cancel',
+    // PIN dialog
+    pinDialogTitle: (name: string) => `Set PIN for ${name}`,
+    pinHint:        'Enter a 4-digit PIN',
+    pinConfirmHint: 'Confirm PIN',
+    pinMismatch:    'PINs do not match',
+    pinSaveBtn:     'Save PIN',
+    pinSaveBusy:    'Saving…',
+    pinCancelBtn:   'Cancel',
+    // Toasts
+    toastCreated:   (name: string) => `${name} added`,
+    toastUpdated:   (name: string) => `${name} updated`,
+    toastPinSet:    (name: string) => `PIN set for ${name}`,
+    toastToggled:   (name: string, active: boolean) => `${name} ${active ? 'activated' : 'deactivated'}`,
+    toastDeleted:   (name: string) => `${name} deleted`,
+    toastError:     'Something went wrong',
+  },
+
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'Edit Map',
@@ -742,5 +806,6 @@ export const T = {
     toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'reservation' : 'reservations'} lifted from ${table}`,
     toastRebuildFail:    'Failed to lift reservations',
     serviceReportBtn:    'Service Report',
+    hostsBtn:            'Hosts',
   },
 };
