@@ -56,6 +56,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
         email:        user.email,
         firstName:    user.firstName,
         lastName:     user.lastName,
+        ...(user.groupId ? { groupId: user.groupId } : {}),
       },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any }
@@ -69,6 +70,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        ...(user.groupId ? { groupId: user.groupId } : {}),
         // SUPER_ADMIN belongs to the system restaurant — hide it from callers
         restaurant: user.role === 'SUPER_ADMIN' ? null : {
           id: user.restaurant.id,
@@ -153,6 +155,7 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
         email:        result.user.email,
         firstName:    result.user.firstName,
         lastName:     result.user.lastName,
+        // groupId will be null for newly registered restaurants — omit from JWT
       },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any }
@@ -230,6 +233,7 @@ router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Re
         email:        user.email ?? '',
         firstName:    user.firstName,
         lastName:     user.lastName,
+        ...(user.groupId ? { groupId: user.groupId } : {}),
       },
       config.jwtSecret,
       { expiresIn: config.jwtExpiresIn as any }
@@ -243,6 +247,7 @@ router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Re
         firstName: user.firstName,
         lastName:  user.lastName,
         role:      user.role,
+        ...(user.groupId ? { groupId: user.groupId } : {}),
         restaurant: {
           id:             user.restaurant.id,
           name:           user.restaurant.name,
@@ -380,6 +385,7 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
       // ── 7. Sign and return the JWT ───────────────────────────────────────
       const token = jwt.sign(
         { userId: user.id, restaurantId: user.restaurantId, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
+        // Dev users have no group — omit groupId
         config.jwtSecret,
         { expiresIn: config.jwtExpiresIn as any }
       );

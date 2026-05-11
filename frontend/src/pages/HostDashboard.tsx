@@ -1091,7 +1091,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           >
             {T.hostDashboard.activityLogBtn}
           </button>
-          {(['MANAGER', 'ADMIN', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'SUPER_ADMIN') && (
+          {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
             <button
               onClick={() => setActivePage('hosts')}
               className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"

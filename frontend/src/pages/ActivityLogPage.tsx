@@ -115,7 +115,7 @@ const ACTION_BADGE: Record<string, string> = {
 export default function ActivityLogPage({ onBack, userRole }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
-  const isManager = ['MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(userRole);
+  const isManager = ['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'].includes(userRole);
 
   const [date,         setDate]         = useState(todayStr());
   const [actorFilter,  setActorFilter]  = useState('');

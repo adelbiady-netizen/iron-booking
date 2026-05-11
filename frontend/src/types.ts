@@ -103,7 +103,15 @@ export interface FloorTable extends Table {
   upcomingReservations: Array<Reservation & { minutesUntil: number }>;
 }
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'HOST' | 'SERVER';
+export type UserRole =
+  | 'SUPER_ADMIN'    // system-wide admin
+  | 'HQ_ADMIN'       // group-level admin (all branches in their group)
+  | 'GROUP_MANAGER'  // group-level manager (limited cross-branch)
+  | 'OWNER'          // restaurant owner (restaurant-scoped, same tier as ADMIN)
+  | 'ADMIN'          // restaurant-level admin (backward compat)
+  | 'MANAGER'
+  | 'HOST'
+  | 'SERVER';
 
 export interface OperatingHourRecord {
   dayOfWeek:   number;   // 0 = Sunday … 6 = Saturday
@@ -131,6 +139,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   role: UserRole;
+  groupId?: string; // present for HQ_ADMIN / GROUP_MANAGER users
   restaurant: {
     id: string;
     name: string;

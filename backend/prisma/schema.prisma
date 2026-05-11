@@ -6,6 +6,24 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Restaurant Group ────────────────────────────────────────────────────────
+// Lightweight group entity for future multi-branch / chain support.
+// Restaurants that are standalone (the common case) leave groupId null.
+
+model RestaurantGroup {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  settings    Json     @default("{}") // future: chain-level defaults, branding, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurants Restaurant[]
+  users       User[]       // HQ-level users who span multiple branches
+
+  @@map("restaurant_groups")
+}
+
 // ─── Restaurant ─────────────────────────────────────────────────────────────
 
 model Restaurant {
@@ -40,6 +58,10 @@ model Restaurant {
   ultramsgInstanceId  String?
   ultramsgToken       String?
   whatsappPhone       String?
+
+  // Restaurant group — null for standalone restaurants (the current default)
+  groupId     String?
+  group       RestaurantGroup? @relation(fields: [groupId], references: [id])
 
   // Set true for the internal _system restaurant that SUPER_ADMIN users belong to
   isSystem    Boolean  @default(false)
@@ -85,7 +107,7 @@ model Restaurant {
 
 model User {
   id           String    @id @default(uuid())
-  restaurantId String
+  restaurantId String    // always set — HQ users are tied to their primary branch or the system restaurant
   email        String?   // null for PIN-only floor hosts
   passwordHash String?   // null for PIN-only floor hosts
   pin          String?   // bcrypt-hashed 4-digit PIN for floor login
@@ -96,6 +118,11 @@ model User {
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
 
+  // Group membership — set for HQ_ADMIN / GROUP_MANAGER users who span branches.
+  // Null for all existing restaurant-scoped users (backward safe).
+  groupId      String?
+  group        RestaurantGroup? @relation(fields: [groupId], references: [id])
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -103,15 +130,19 @@ model User {
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
+  @@index([groupId])
   @@map("users")
 }
 
 enum UserRole {
-  SUPER_ADMIN  // cross-restaurant system admin
-  ADMIN        // restaurant-level admin
-  MANAGER
-  HOST
-  SERVER
+  SUPER_ADMIN    // system-wide admin (all restaurants, cross-group)
+  HQ_ADMIN       // group-level admin (all branches within their group)
+  GROUP_MANAGER  // group-level manager (limited cross-branch access)
+  OWNER          // restaurant owner (restaurant-scoped, highest branch role)
+  ADMIN          // restaurant-level admin (kept for backward compatibility)
+  MANAGER        // restaurant manager
+  HOST           // floor host
+  SERVER         // server (read-mostly)
 }
 
 // ─── Operating Hours ─────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
 import WaitlistKioskPage from './pages/WaitlistKioskPage';
 import HostSelectionScreen from './pages/HostSelectionScreen';
-import type { AuthState } from './types';
+import type { AuthState, UserRole } from './types';
 
 export type Theme = 'dark' | 'light';
 
@@ -84,7 +84,7 @@ export default function App() {
     }
     setSessionToken(token);
     setAuth({ token, user });
-    setAdminView(user.role === 'SUPER_ADMIN');
+    setAdminView(user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN');
   }
 
   function handleLogout() {
@@ -157,7 +157,8 @@ export default function App() {
 
     // Logged in but wrong role — show access-denied WITHOUT signing them out.
     // "Back to Dashboard" preserves their existing host session at /.
-    if (auth.user.role !== 'SUPER_ADMIN') {
+    const HQ_ROLES: UserRole[] = ['SUPER_ADMIN', 'HQ_ADMIN'];
+    if (!HQ_ROLES.includes(auth.user.role)) {
       return (
         <div className="h-screen bg-iron-bg flex items-center justify-center p-4">
           <div className="w-full max-w-sm">
@@ -223,7 +224,7 @@ export default function App() {
       );
     }
 
-    if (auth?.user.role === 'SUPER_ADMIN') {
+    if (auth?.user.role === 'SUPER_ADMIN' || auth?.user.role === 'HQ_ADMIN') {
       if (adminView) {
         return (
           <AdminPortal
