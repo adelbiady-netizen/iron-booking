@@ -470,6 +470,22 @@ export interface CreateReservationBody {
   depositRequired?: boolean;
 }
 
+export interface ActivityLogEntry {
+  id: string;
+  action: string;
+  actor: string;
+  timestamp: string;
+  reservationId: string;
+  guestName: string;
+  tableId: string | null;
+  tableName: string | null;
+  fromTableName: string | null;
+  toTableName: string | null;
+  displacedFromName: string | null;
+  assignedTableName: string | null;
+  details: Record<string, unknown>;
+}
+
 export type BestTableResult = {
   type: 'single' | 'combined';
   tableIds: string[];

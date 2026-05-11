@@ -1,4 +1,4 @@
-import type { AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { ActivityLogEntry, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -293,6 +293,14 @@ export const api = {
       ),
     delete: (id: string) =>
       request<void>(`/reservations/${id}`, { method: 'DELETE' }),
+    activityLog: (params: { date?: string; actor?: string; action?: string; page?: number; limit?: number }) => {
+      const qs = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+      ).toString();
+      return request<{ data: ActivityLogEntry[]; meta: { total: number; page: number; limit: number } }>(
+        `/reservations/activity-log${qs ? `?${qs}` : ''}`
+      );
+    },
   },
 
   waitlist: {

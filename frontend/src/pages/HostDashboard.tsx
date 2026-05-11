@@ -18,6 +18,7 @@ import LayoutEditor from '../components/LayoutEditor';
 import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
 import HostsSettingsPage from './HostsSettingsPage';
+import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
@@ -150,7 +151,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
-  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts'>('dashboard');
+  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity'>('dashboard');
   const [layoutMode,                  setLayoutMode]                  = useState(false);
   const [createMode,                  setCreateMode]                  = useState<CreateMode | null>(null);
   const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
@@ -985,6 +986,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }
 
+  if (activePage === 'activity') {
+    return (
+      <>
+        <ActivityLogPage
+          onBack={() => setActivePage('dashboard')}
+          userRole={auth.user.role}
+        />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
   if (layoutMode) {
     return (
       <LayoutEditor
@@ -1071,6 +1084,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
           >
             {T.hostDashboard.serviceReportBtn}
+          </button>
+          <button
+            onClick={() => setActivePage('activity')}
+            className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+          >
+            {T.hostDashboard.activityLogBtn}
           </button>
           {(['MANAGER', 'ADMIN', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'SUPER_ADMIN') && (
             <button

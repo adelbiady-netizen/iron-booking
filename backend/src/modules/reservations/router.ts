@@ -58,6 +58,89 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
   } catch (err) { next(err); }
 });
 
+// GET /reservations/activity-log — must come before /:id routes
+router.get('/activity-log', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { date, actor, action, page = '1', limit = '50' } = req.query as Record<string, string>;
+    const restaurantId = req.auth.restaurantId;
+    const isManager = ['MANAGER', 'ADMIN', 'SUPER_ADMIN'].includes(req.auth.role);
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Date boundaries — default to today in UTC if not provided
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const dayStart = new Date(`${targetDate}T00:00:00.000Z`);
+    const dayEnd   = new Date(`${targetDate}T23:59:59.999Z`);
+
+    const selfActor = `${req.auth.firstName} ${req.auth.lastName}`.trim() || req.auth.email || 'Host';
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {
+      reservation: { restaurantId },
+      timestamp: { gte: dayStart, lte: dayEnd },
+    };
+
+    if (action) where.action = action;
+
+    if (isManager) {
+      if (actor) where.actor = { contains: actor, mode: 'insensitive' };
+    } else {
+      where.actor = selfActor;
+    }
+
+    const [total, entries] = await Promise.all([
+      prisma.reservationActivity.count({ where }),
+      prisma.reservationActivity.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+        skip,
+        take: limitNum,
+        include: { reservation: { select: { id: true, guestName: true } } },
+      }),
+    ]);
+
+    // Batch-resolve table names from details JSON fields
+    const tableIdSet = new Set<string>();
+    for (const e of entries) {
+      const d = e.details as Record<string, unknown>;
+      for (const key of ['tableId', 'fromTableId', 'toTableId', 'displacedFrom', 'assignedTableId']) {
+        if (typeof d[key] === 'string') tableIdSet.add(d[key] as string);
+      }
+    }
+    const tableNameMap: Record<string, string> = {};
+    if (tableIdSet.size > 0) {
+      const tables = await prisma.table.findMany({
+        where: { id: { in: [...tableIdSet] } },
+        select: { id: true, name: true },
+      });
+      for (const t of tables) tableNameMap[t.id] = t.name;
+    }
+
+    const data = entries.map(e => {
+      const d = e.details as Record<string, unknown>;
+      return {
+        id:                e.id,
+        action:            e.action,
+        actor:             e.actor,
+        timestamp:         e.timestamp.toISOString(),
+        reservationId:     e.reservationId,
+        guestName:         e.reservation?.guestName ?? (d.guestName as string | undefined) ?? '',
+        tableId:           typeof d.tableId === 'string' ? d.tableId : null,
+        tableName:         typeof d.tableId === 'string' ? (tableNameMap[d.tableId] ?? null) : null,
+        fromTableName:     typeof d.fromTableId === 'string' ? (tableNameMap[d.fromTableId] ?? null) : null,
+        toTableName:       typeof d.toTableId === 'string' ? (tableNameMap[d.toTableId] ?? null) : null,
+        displacedFromName: typeof d.displacedFrom === 'string' ? (tableNameMap[d.displacedFrom] ?? null) : null,
+        assignedTableName: typeof d.assignedTableId === 'string' ? (tableNameMap[d.assignedTableId] ?? null) : null,
+        details:           d,
+      };
+    });
+
+    res.json({ data, meta: { total, page: pageNum, limit: limitNum } });
+  } catch (err) { next(err); }
+});
+
 // GET /reservations/:id/timeline — must come before GET /:id to avoid shadowing
 router.get('/:id/timeline', async (req: Request, res: Response, next: NextFunction) => {
   try {
