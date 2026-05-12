@@ -391,6 +391,7 @@ export interface PublicReservation {
   guestName: string;
   restaurantName: string;
   restaurantAddress: string | null;
+  restaurantPhone: string | null;
   restaurantLogoUrl: string | null;
   restaurantCoverImageUrl: string | null;
   restaurantGoogleMapsUrl: string | null;
@@ -427,6 +428,7 @@ export interface PublicRestaurantProfile {
   description: string | null;
   cuisine: string | null;
   address: string | null;
+  phone: string | null;
   logoUrl: string | null;
   coverImageUrl: string | null;
   websiteUrl: string | null;

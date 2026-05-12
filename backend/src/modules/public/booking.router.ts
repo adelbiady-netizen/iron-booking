@@ -456,6 +456,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
       description:          restaurant.description,
       cuisine:              restaurant.cuisine,
       address:              restaurant.address,
+      phone:                restaurant.phone,
       logoUrl:              restaurant.logoUrl,
       coverImageUrl:        restaurant.coverImageUrl,
       websiteUrl:           restaurant.websiteUrl,

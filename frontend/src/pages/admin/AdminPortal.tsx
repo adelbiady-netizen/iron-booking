@@ -513,8 +513,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setSettingsBusy(true);
     setSettingsError(null);
     try {
-      const updated = await api.admin.restaurants.settings(selectedId, settingsForm as unknown as Record<string, unknown>);
+      const updated = await api.admin.restaurants.settings(selectedId, wizardSettings as unknown as Record<string, unknown>);
       setDetail(d => d ? { ...d, settings: updated.settings } : d);
+      setSettingsForm(wizardSettings);
       setEditSettings(false);
       showToast(T.admin.settingsSaved);
     } catch (err) {
@@ -1081,7 +1082,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Service settings</h3>
-              {isSuperAdmin && <button onClick={() => setEditSettings(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
+              {isSuperAdmin && <button onClick={() => { setWizardSettings(settingsForm); setEditSettings(true); }} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {[

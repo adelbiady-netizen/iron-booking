@@ -444,7 +444,18 @@ export default function WaitlistKioskPage({ slug }: Props) {
 
       </div>
 
-      <PublicFooter visible={phase.phase !== 'loading' && phase.phase !== 'not-found'} />
+      <PublicFooter
+        visible={phase.phase !== 'loading' && phase.phase !== 'not-found'}
+        restaurant={profile ? {
+          name:         profile.name,
+          address:      profile.address,
+          phone:        profile.phone,
+          websiteUrl:   profile.websiteUrl,
+          instagramUrl: profile.instagramUrl,
+          googleMapsUrl: profile.googleMapsUrl,
+          wazeUrl:      profile.wazeUrl,
+        } : null}
+      />
 
     </div>
   );

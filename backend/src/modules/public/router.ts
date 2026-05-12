@@ -41,6 +41,7 @@ async function findReservation(token: string) {
         select: {
           name: true,
           address: true,
+          phone: true,
           logoUrl: true,
           coverImageUrl: true,
           googleMapsUrl: true,
@@ -117,6 +118,7 @@ router.get('/reservation', async (req: Request, res: Response, next: NextFunctio
       guestName:                    r.guestName,
       restaurantName:               r.restaurant.name,
       restaurantAddress:            r.restaurant.address,
+      restaurantPhone:              r.restaurant.phone,
       restaurantLogoUrl:            r.restaurant.logoUrl,
       restaurantCoverImageUrl:      r.restaurant.coverImageUrl,
       restaurantGoogleMapsUrl:      r.restaurant.googleMapsUrl,
