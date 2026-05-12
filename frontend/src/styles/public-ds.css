@@ -1,0 +1,657 @@
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Iron Booking — Public Design System                                         */
+/* Premium hospitality · warm but operational · mobile-first                  */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/*                                                                             */
+/* TOKEN NAMING: --pub-{category}-{scale}                                     */
+/* CLASS NAMING: .pub-{component}[--{modifier}]                               */
+/*                                                                             */
+/* Note: --pub-rgb is injected per-restaurant by publicTheme.ts               */
+/* All classes use .pub-* prefix — no collision with dashboard iron-* tokens  */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. Color tokens ───────────────────────────────────────────────────────
+ *
+ * Architecture: three-layer opacity system on an atmospheric dark base.
+ *   Surface 0 → page atmosphere (#090c12)
+ *   Surface 1 → glass card (blue-dark with 72–80% opacity)
+ *   Surface 2 → raised element on card (white @ 4–9% opacity)
+ *   Surface 3 → hover / interactive state (white @ 8–11% opacity)
+ *
+ * Text: always warm white (#f8f5ef), never pure white. Opacity steps
+ * create hierarchy: 100% → 72% → 42% → 28% → 22% → 14%.
+ *
+ * Borders: opacity-only, ascending emphasis:
+ *   border-0 (4.5%) → dividers inside cards
+ *   border-1 (6.5%) → card outer edge
+ *   border-2 (12%)  → inputs, chips, rows
+ *   border-3 (22%)  → hover / selected emphasis
+ * ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Brand — dynamic per restaurant, set by publicTheme.ts
+     Usage: rgb(var(--pub-rgb) / 0.XX)                      */
+  --pub-brand:          rgb(var(--pub-rgb, 74 222 128));
+  --pub-brand-subtle:   rgb(var(--pub-rgb, 74 222 128) / 0.09);
+  --pub-brand-muted:    rgb(var(--pub-rgb, 74 222 128) / 0.18);
+  --pub-brand-border:   rgb(var(--pub-rgb, 74 222 128) / 0.30);
+  --pub-brand-glow:     rgb(var(--pub-rgb, 74 222 128) / 0.08);
+  --pub-brand-text:     rgb(var(--pub-rgb, 74 222 128) / 0.90);
+
+  /* Page atmosphere */
+  --pub-page-bg:        #090c12;
+
+  /* Glass surfaces */
+  --pub-surface-card:   linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%);
+  --pub-surface-raised: rgba(255,255,255,0.048);
+  --pub-surface-hover:  rgba(255,255,255,0.080);
+  --pub-surface-active: rgba(255,255,255,0.110);
+  --pub-surface-input:  rgba(255,255,255,0.040);
+
+  /* Text — warm white family */
+  --pub-text-primary:   #f8f5ef;
+  --pub-text-warm:      #f2ece0;
+  --pub-text-secondary: rgba(255,255,255,0.72);
+  --pub-text-tertiary:  rgba(255,255,255,0.42);
+  --pub-text-muted:     rgba(255,255,255,0.28);
+  --pub-text-disabled:  rgba(255,255,255,0.22);
+  --pub-text-micro:     rgba(255,255,255,0.15);
+
+  /* Borders */
+  --pub-border-0:       rgba(255,255,255,0.045);
+  --pub-border-1:       rgba(255,255,255,0.065);
+  --pub-border-2:       rgba(255,255,255,0.12);
+  --pub-border-3:       rgba(255,255,255,0.22);
+
+  /* Semantic — success (green) */
+  --pub-success-bg:     rgba(74,222,128,0.09);
+  --pub-success-border: rgba(74,222,128,0.25);
+  --pub-success-text:   rgba(74,222,128,0.90);
+  --pub-success-glow:   rgba(74,222,128,0.08);
+
+  /* Semantic — warning (amber) */
+  --pub-warning-bg:     rgba(251,191,36,0.09);
+  --pub-warning-border: rgba(251,191,36,0.25);
+  --pub-warning-text:   rgba(251,191,36,0.88);
+  --pub-warning-glow:   rgba(251,191,36,0.06);
+
+  /* Semantic — error (red) */
+  --pub-error-bg:       rgba(239,68,68,0.09);
+  --pub-error-border:   rgba(239,68,68,0.22);
+  --pub-error-text:     rgba(248,113,113,0.90);
+  --pub-error-glow:     rgba(239,68,68,0.07);
+
+  /* Semantic — neutral (white) */
+  --pub-neutral-bg:     rgba(255,255,255,0.04);
+  --pub-neutral-border: rgba(255,255,255,0.10);
+  --pub-neutral-text:   rgba(255,255,255,0.45);
+}
+
+
+/* ── 2. Typography scale ───────────────────────────────────────────────────
+ *
+ * Fixed scale: 10 → 12 → 13 → 14 → 15 → 17 → 20 → 24 → 30px
+ * Fluid display: clamp() for hero text that breathes on mobile/tablet
+ *
+ * Weight vocabulary:
+ *   200 — hero numbers (time, large date display)
+ *   300 — ghost button text, secondary labels
+ *   400 — body copy
+ *   500 — section labels, nav text
+ *   600 — card titles, primary buttons, strong emphasis
+ *
+ * Letter spacing vocabulary:
+ *   label: 0.20em — UPPERCASE section markers
+ *   field: 0.14em — field labels above inputs
+ *   micro: 0.18em — powered-by, tiny footer text
+ *   tight: -0.025em — card titles, restaurant name
+ *   tighter: -0.035em — hero numbers (time, large amounts)
+ *   0 — body text, RTL overrides
+ * ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Fixed scale */
+  --pub-size-micro:   10px;
+  --pub-size-xs:      12px;
+  --pub-size-sm:      13px;
+  --pub-size-base:    14px;
+  --pub-size-md:      15px;
+  --pub-size-lg:      17px;
+  --pub-size-xl:      20px;
+  --pub-size-2xl:     24px;
+  --pub-size-3xl:     30px;
+
+  /* Fluid display */
+  --pub-size-display-sm:   clamp(1.3rem, 3.5vh, 1.6rem);
+  --pub-size-display-md:   clamp(1.6rem, 3.8vh, 2.0rem);
+  --pub-size-display-hero: clamp(2.0rem, 4.5vh, 2.8rem);
+
+  /* Tracking */
+  --pub-tracking-label:   0.20em;
+  --pub-tracking-field:   0.14em;
+  --pub-tracking-micro:   0.18em;
+  --pub-tracking-tight:  -0.025em;
+  --pub-tracking-tighter:-0.035em;
+}
+
+/* RTL: collapse all positive tracking to avoid Hebrew character spacing */
+[dir="rtl"] {
+  --pub-tracking-label: 0;
+  --pub-tracking-field: 0;
+  --pub-tracking-micro: 0;
+}
+
+
+/* ── 3. Spacing ────────────────────────────────────────────────────────────
+ *
+ * Base unit: 4px grid.
+ * Fluid tokens use clamp() tied to viewport height so cards feel
+ * appropriately dense on short mobile screens without cramping on tablets.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --pub-space-1:  4px;
+  --pub-space-2:  8px;
+  --pub-space-3:  12px;
+  --pub-space-4:  16px;
+  --pub-space-5:  20px;
+  --pub-space-6:  24px;
+  --pub-space-8:  32px;
+  --pub-space-10: 40px;
+  --pub-space-12: 48px;
+
+  /* Fluid */
+  --pub-pad-card:     clamp(20px, 3.5vh, 28px);
+  --pub-pad-card-lg:  clamp(24px, 4.0vh, 36px);
+  --pub-gap-section:  clamp(14px, 2.5vh, 24px);
+  --pub-gap-row:      clamp(12px, 2.0vh, 20px);
+  --pub-page-bottom:  clamp(24px, 5.0vh, 64px);
+}
+
+
+/* ── 4. Radius system ──────────────────────────────────────────────────────
+ *
+ * Principle: smaller interactive elements use smaller radius.
+ * Cards use 28–32px (deliberately generous for premium feel).
+ * Pills/toggles always 9999px.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --pub-radius-sm:     12px;    /* chips, inline tags                  */
+  --pub-radius-md:     16px;    /* inputs, small controls, date chips  */
+  --pub-radius-lg:     20px;    /* action buttons                      */
+  --pub-radius-xl:     24px;    /* section containers, alternative rows*/
+  --pub-radius-card:   28px;    /* primary glass card                  */
+  --pub-radius-card-lg:32px;    /* large terminal-state cards          */
+  --pub-radius-pill:  9999px;   /* toggles, nav pills, avatar rings    */
+}
+
+
+/* ── 5. Shadow system ──────────────────────────────────────────────────────
+ *
+ * All shadows are multi-layer:
+ *   1. Inset top specular (rgba white) — simulates light catching the glass
+ *   2. Inset side specular — subtle left/right edge glint
+ *   3. Inset bottom shadow — grounds the card
+ *   4. External drop — depth / atmosphere
+ *
+ * Never use a single box-shadow — the layering is what reads as "glass".
+ * ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --pub-shadow-card:
+    /* inner specular */
+    0 2px 0    rgba(255,255,255,0.090) inset,
+    1px 0 0    rgba(255,255,255,0.030) inset,
+    -1px 0 0   rgba(255,255,255,0.016) inset,
+    0 -1px 0   rgba(0,0,0,0.45)        inset,
+    /* outer depth */
+    0 48px 96px rgba(0,0,0,0.65),
+    0 18px 48px rgba(0,0,0,0.45);
+
+  --pub-shadow-card-lg:
+    0 2px 0    rgba(255,255,255,0.095) inset,
+    1px 0 0    rgba(255,255,255,0.032) inset,
+    -1px 0 0   rgba(255,255,255,0.018) inset,
+    0 -1px 0   rgba(0,0,0,0.45)        inset,
+    0 60px 120px rgba(0,0,0,0.70),
+    0 24px 60px  rgba(0,0,0,0.50),
+    0 6px  18px  rgba(0,0,0,0.40),
+    0 0 0  0.5px rgba(255,255,255,0.030);
+
+  /* Primary button: warm cream, specular lift */
+  --pub-shadow-btn-primary:
+    0 1px 0    rgba(255,255,255,0.70)  inset,
+    0 -1px 0   rgba(110,80,30,0.16)    inset,
+    0 12px 32px rgba(0,0,0,0.35),
+    0 3px  10px rgba(0,0,0,0.25);
+
+  --pub-shadow-btn-primary-hover:
+    0 1px 0    rgba(255,255,255,0.75)  inset,
+    0 -1px 0   rgba(110,80,30,0.16)    inset,
+    0 14px 42px rgba(0,0,0,0.38),
+    0 3px  10px rgba(0,0,0,0.25),
+    0 0   60px  rgba(245,240,228,0.16);
+
+  /* Floating pill / nav chip */
+  --pub-shadow-float: 0 4px 14px rgba(0,0,0,0.22);
+}
+
+
+/* ── 6. Glass card ─────────────────────────────────────────────────────────
+ *
+ * The primary surface. Replace the repeated GlassCard inline-style
+ * pattern with these classes. backdrop-filter requires the element to
+ * be a stacking context and have a semi-transparent background.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.pub-card {
+  width: 100%;
+  border-radius: var(--pub-radius-card);
+  padding: var(--pub-pad-card);
+  background: var(--pub-surface-card);
+  border: 1px solid var(--pub-border-1);
+  box-shadow: var(--pub-shadow-card);
+  backdrop-filter: blur(100px);
+  -webkit-backdrop-filter: blur(100px);
+}
+
+.pub-card--lg {
+  border-radius: var(--pub-radius-card-lg);
+  padding: var(--pub-pad-card-lg);
+  box-shadow: var(--pub-shadow-card-lg);
+}
+
+/* Inset panel — raised surface inside a card */
+.pub-inset {
+  border-radius: var(--pub-radius-xl);
+  padding: var(--pub-space-5) var(--pub-space-5);
+  background: var(--pub-surface-raised);
+  border: 1px solid var(--pub-border-1);
+}
+
+/* Horizontal rule between card sections */
+.pub-divider {
+  height: 1px;
+  background: var(--pub-border-0);
+  margin: var(--pub-gap-section) 0;
+  border: none;
+}
+
+
+/* ── 7. Button hierarchy ───────────────────────────────────────────────────
+ *
+ * Four levels:
+ *   primary  — main CTA, warm cream, high contrast (confirm reservation)
+ *   secondary— brand-tinted glass (join waitlist, find table)
+ *   ghost    — warm amber tint (I'm running late, minor actions)
+ *   bare     — no chrome (I can't make it, cancel)
+ *
+ * All buttons share base reset; modifiers add visual treatment.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.pub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pub-space-2);
+  width: 100%;
+  border: none;
+  border-radius: var(--pub-radius-lg);
+  font-family: inherit;
+  font-size: var(--pub-size-lg);
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background   0.18s ease,
+    box-shadow   0.18s ease,
+    color        0.18s ease,
+    border-color 0.18s ease,
+    transform    0.10s ease;
+}
+.pub-btn:active:not(:disabled) { transform: scale(0.98); }
+.pub-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.40;
+}
+
+/* Primary */
+.pub-btn-primary {
+  padding: clamp(13px, 2.0vh, 16px) 24px;
+  background: linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%);
+  color: #0c0e14;
+  box-shadow: var(--pub-shadow-btn-primary);
+}
+.pub-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #faf5e8 0%, #f2e8d4 100%);
+  box-shadow: var(--pub-shadow-btn-primary-hover);
+}
+.pub-btn-primary:disabled {
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.28);
+  box-shadow: none;
+}
+
+/* Secondary — brand tint */
+.pub-btn-secondary {
+  padding: clamp(13px, 2.0vh, 16px) 24px;
+  background: var(--pub-brand-subtle);
+  border: 1px solid var(--pub-brand-border);
+  color: var(--pub-brand-text);
+  font-weight: 500;
+  box-shadow: none;
+}
+.pub-btn-secondary:hover:not(:disabled) {
+  background: var(--pub-brand-muted);
+}
+
+/* Ghost — amber warmth for secondary-attention actions */
+.pub-btn-ghost {
+  padding: clamp(11px, 1.9vh, 15px) 24px;
+  background: rgba(148,115,50,0.12);
+  border: 1px solid rgba(185,148,72,0.34);
+  color: rgba(220,185,118,0.90);
+  font-size: var(--pub-size-md);
+  font-weight: 300;
+  letter-spacing: 0.012em;
+  box-shadow: none;
+}
+.pub-btn-ghost:hover:not(:disabled) {
+  background: rgba(148,115,50,0.20);
+  color: rgba(228,196,132,1.0);
+}
+
+/* Bare — no visual chrome; text-level action */
+.pub-btn-bare {
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--pub-text-tertiary);
+  font-size: var(--pub-size-sm);
+  font-weight: 400;
+  letter-spacing: 0.015em;
+  box-shadow: none;
+}
+.pub-btn-bare:hover:not(:disabled) {
+  color: var(--pub-text-secondary);
+}
+
+
+/* ── 8. Form field styling ─────────────────────────────────────────────────
+ *
+ * Inputs use a glass-surface background (white @ 4%) with a subtle
+ * border that brightens to the brand color on focus. No hard shadows —
+ * the border transition provides enough feedback.
+ *
+ * Never use outline:none without providing a visible focus alternative.
+ * These inputs rely on border-color change; :focus-visible in index.css
+ * provides the system-level fallback for keyboard users.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.pub-input,
+.pub-textarea {
+  width: 100%;
+  border-radius: var(--pub-radius-md);
+  padding: 14px 16px;
+  background: var(--pub-surface-input);
+  border: 1px solid var(--pub-border-2);
+  color: var(--pub-text-primary);
+  font-family: inherit;
+  font-size: var(--pub-size-md);
+  line-height: 1.4;
+  outline: none;
+  -webkit-appearance: none;
+  transition: border-color 0.2s;
+}
+.pub-input::placeholder,
+.pub-textarea::placeholder { color: var(--pub-text-disabled); }
+.pub-input:focus,
+.pub-textarea:focus        { border-color: var(--pub-brand-border); }
+.pub-textarea { resize: none; line-height: 1.5; }
+
+/* Field label — uppercase micro text above an input */
+.pub-field-label {
+  display: block;
+  font-size: var(--pub-size-micro);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--pub-tracking-field);
+  color: var(--pub-text-muted);
+  margin-bottom: var(--pub-space-2);
+}
+[dir="rtl"] .pub-field-label { letter-spacing: 0; }
+.pub-field-label .pub-required {
+  color: var(--pub-success-text);
+  opacity: 0.65;
+  margin-inline-start: 2px;
+}
+
+/* Section label — above a control group, not an input */
+.pub-section-label {
+  font-size: var(--pub-size-micro);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--pub-tracking-label);
+  color: var(--pub-text-muted);
+  margin-bottom: var(--pub-space-3);
+}
+[dir="rtl"] .pub-section-label { letter-spacing: 0; }
+
+/* Custom toggle (switch) — pairs with role="switch" aria-checked */
+.pub-toggle {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: var(--pub-radius-pill);
+  background: var(--pub-neutral-bg);
+  border: 1px solid var(--pub-border-2);
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.pub-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--pub-radius-pill);
+  background: rgba(255,255,255,0.35);
+  transition: left 0.2s, background 0.2s;
+}
+[aria-checked="true"] .pub-toggle,
+.pub-toggle[data-checked] {
+  background: var(--pub-brand-muted);
+  border-color: var(--pub-brand-border);
+}
+[aria-checked="true"] .pub-toggle::after,
+.pub-toggle[data-checked]::after {
+  left: 16px;
+  background: var(--pub-brand-text);
+}
+
+
+/* ── 9. Success / warning / error states ──────────────────────────────────
+ *
+ * Status banner — inline, horizontal, dismissible
+ * Outcome icon  — centered, terminal state (full-card outcome)
+ * Alert         — text with role="alert", used for form errors
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* Status banner (inline notification row) */
+.pub-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pub-space-2);
+  border-radius: var(--pub-radius-xl);
+  padding: var(--pub-space-3) var(--pub-space-4);
+  font-size: var(--pub-size-sm);
+  font-weight: 500;
+  margin-bottom: var(--pub-space-4);
+}
+.pub-banner--success { background: var(--pub-success-bg); border: 1px solid var(--pub-success-border); color: var(--pub-success-text); }
+.pub-banner--warning { background: var(--pub-warning-bg); border: 1px solid var(--pub-warning-border); color: var(--pub-warning-text); }
+.pub-banner--error   { background: var(--pub-error-bg);   border: 1px solid var(--pub-error-border);   color: var(--pub-error-text);   }
+.pub-banner--neutral { background: var(--pub-neutral-bg); border: 1px solid var(--pub-neutral-border); color: var(--pub-neutral-text); }
+
+/* Outcome icon — centered large circle for terminal screens */
+.pub-outcome-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--pub-radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin: 0 auto;
+  margin-bottom: var(--pub-gap-section);
+}
+.pub-outcome-icon--brand   { background: var(--pub-brand-subtle);   border: 1.5px solid var(--pub-brand-border);   color: var(--pub-brand-text);   box-shadow: 0 0 48px var(--pub-brand-glow);   }
+.pub-outcome-icon--success { background: var(--pub-success-bg);     border: 1.5px solid var(--pub-success-border); color: var(--pub-success-text); box-shadow: 0 0 48px var(--pub-success-glow); }
+.pub-outcome-icon--warning { background: var(--pub-warning-bg);     border: 1.5px solid var(--pub-warning-border); color: var(--pub-warning-text); box-shadow: 0 0 48px var(--pub-warning-glow); }
+.pub-outcome-icon--error   { background: var(--pub-error-bg);       border: 1.5px solid var(--pub-error-border);   color: var(--pub-error-text);   box-shadow: 0 0 48px var(--pub-error-glow);   }
+.pub-outcome-icon--neutral { background: var(--pub-neutral-bg);     border: 1.5px solid var(--pub-neutral-border); color: var(--pub-neutral-text);                                                 }
+
+/* Alert — inline error text (role="alert") */
+.pub-alert {
+  border-radius: var(--pub-radius-md);
+  padding: var(--pub-space-3) var(--pub-space-4);
+  font-size: var(--pub-size-sm);
+  text-align: center;
+}
+.pub-alert--error   { background: var(--pub-error-bg);   border: 1px solid var(--pub-error-border);   color: var(--pub-error-text);   }
+.pub-alert--warning { background: var(--pub-warning-bg); border: 1px solid var(--pub-warning-border); color: var(--pub-warning-text); }
+.pub-alert--success { background: var(--pub-success-bg); border: 1px solid var(--pub-success-border); color: var(--pub-success-text); }
+
+
+/* ── 10. Loading skeleton ──────────────────────────────────────────────────
+ *
+ * Shimmer sweeps left-to-right (always LTR regardless of page dir).
+ * Use for placeholder content before data loads. Never use spinners
+ * for anticipated content shapes — prefer skeleton blocks that match
+ * the final layout dimensions.
+ *
+ * Preset shapes cover the most common booking-page content blocks.
+ * For custom sizes, compose: <div class="pub-skeleton" style="height:XX">
+ * ─────────────────────────────────────────────────────────────────────── */
+
+@keyframes pub-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.pub-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.030) 25%,
+    rgba(255,255,255,0.075) 50%,
+    rgba(255,255,255,0.030) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--pub-radius-sm);
+  animation: pub-shimmer 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Preset dimensions */
+.pub-skeleton-line   { height: 14px; width: 60%; }
+.pub-skeleton-line-sm{ height: 11px; width: 40%; }
+.pub-skeleton-line-lg{ height: 20px; width: 75%; }
+.pub-skeleton-title  { height: 28px; width: 70%; }
+.pub-skeleton-btn    { height: 52px; width: 100%; border-radius: var(--pub-radius-lg);  }
+.pub-skeleton-chip   { height: 32px; width:  72px; border-radius: var(--pub-radius-pill); }
+.pub-skeleton-circle { border-radius: var(--pub-radius-pill); }
+.pub-skeleton-input  { height: 52px; width: 100%; border-radius: var(--pub-radius-md);  }
+
+/* Skeleton group — stacks placeholder lines with appropriate gap */
+.pub-skeleton-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pub-space-3);
+}
+
+/* Honour prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .pub-skeleton {
+    animation: none;
+    opacity: 0.06;
+  }
+}
+
+
+/* ── Utility: pill / chip ──────────────────────────────────────────────────
+ *
+ * Used for party size display, occasion tags, availability labels.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.pub-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--pub-radius-pill);
+  padding: 6px 20px;
+  font-size: var(--pub-size-xs);
+  letter-spacing: 0.04em;
+  background: var(--pub-neutral-bg);
+  border: 1px solid var(--pub-border-2);
+  color: var(--pub-text-tertiary);
+}
+.pub-chip--brand   { background: var(--pub-brand-subtle);   border-color: var(--pub-brand-border);   color: var(--pub-brand-text);   }
+.pub-chip--success { background: var(--pub-success-bg);     border-color: var(--pub-success-border); color: var(--pub-success-text); }
+.pub-chip--warning { background: var(--pub-warning-bg);     border-color: var(--pub-warning-border); color: var(--pub-warning-text); }
+.pub-chip--limited { background: var(--pub-warning-bg);     border-color: var(--pub-warning-border); color: var(--pub-warning-text); }
+
+
+/* ── Utility: nav pill (maps / waze link) ──────────────────────────────── */
+
+.pub-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--pub-radius-pill);
+  padding: 9px 20px;
+  font-size: var(--pub-size-xs);
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  background: rgba(255,255,255,0.068);
+  border: 1px solid rgba(255,255,255,0.160);
+  color: rgba(255,255,255,0.64);
+  box-shadow: var(--pub-shadow-float);
+  transition: background 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.pub-nav-pill:hover {
+  background: rgba(255,255,255,0.110);
+  color: rgba(255,255,255,0.85);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.24);
+}
+
+
+/* ── Utility: detail row (label + value pairs inside .pub-inset) ────────── */
+
+.pub-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--pub-border-0);
+}
+.pub-detail-row:last-child { border-bottom: none; }
+.pub-detail-row__label {
+  font-size: var(--pub-size-micro);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--pub-tracking-label);
+  color: var(--pub-text-muted);
+}
+[dir="rtl"] .pub-detail-row__label { letter-spacing: 0; }
+.pub-detail-row__value {
+  font-size: var(--pub-size-sm);
+  font-weight: 500;
+  color: var(--pub-text-secondary);
+}
