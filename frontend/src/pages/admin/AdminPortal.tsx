@@ -1208,6 +1208,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 className="w-full bg-iron-bg border border-iron-border rounded-md px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
               >
                 <option value="">— No preset (Iron default) —</option>
+                <option value="italiano">Italiano (espresso · olive)</option>
                 <option value="fineDining">Elegant Dark</option>
                 <option value="luxury">Modern Luxury</option>
                 <option value="mediterranean">Mediterranean</option>
