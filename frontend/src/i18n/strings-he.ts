@@ -356,7 +356,6 @@ export const THe = {
     actionChangeTable:    'שנה שולחן',
     actionSendSms:        'שלח SMS',
     actionUndo:           'בטל פעולה',
-    actionDelete:         'מחק הזמנה',
     fieldGuestName:       'שם האורח',
     fieldPhone:           'טלפון',
     fieldDate:            'תאריך',

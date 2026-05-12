@@ -361,7 +361,6 @@ export const T = {
     actionChangeTable:    'Change table',
     actionSendSms:        'Send SMS',
     actionUndo:           'Undo',
-    actionDelete:         'Delete reservation',
     // Edit mode fields
     fieldGuestName:       'Guest name',
     fieldPhone:           'Phone',
