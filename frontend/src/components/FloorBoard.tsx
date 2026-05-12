@@ -489,7 +489,7 @@ export default function FloorBoard({
           </div>
         )}
 
-        <span className="ml-auto text-xs text-iron-muted">{T.floorBoard.tableCount(dedupedTables.length)}</span>
+        <span className="ml-auto text-[10px] text-iron-muted">{T.floorBoard.tableCount(dedupedTables.length)}</span>
 
         <div className="flex items-center gap-px ml-3 rounded border border-iron-border overflow-hidden shrink-0">
           {(['floor', 'timeline'] as View[]).map(v => (
@@ -919,7 +919,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
   return (
     <div className="flex items-center gap-1.5">
       <span className={`text-base font-semibold tabular-nums ${color}`}>{value}</span>
-      <span className="text-iron-muted/70 text-xs">{label}</span>
+      <span className="text-iron-muted/70 text-[10px]">{label}</span>
     </div>
   );
 }
@@ -1114,7 +1114,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
           fontSize: hasGuest ? 10 : 12,
-          fontWeight: hasGuest ? 500 : 600,
+          fontWeight: 600,
           color: hasGuest ? 'rgb(var(--iron-muted))' : table.liveStatus === 'BLOCKED' ? 'rgb(var(--iron-muted))' : 'rgb(var(--iron-text))',
           opacity: hasGuest ? 0.65 : table.liveStatus === 'BLOCKED' ? 0.55 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
@@ -1135,10 +1135,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         )}
       </div>
 
-      {/* Capacity — wayfinding only; fades when guest name is primary */}
-      <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', opacity: hasGuest ? 0.40 : 0.65, lineHeight: 1.3, marginTop: 1 }}>
-        {table.minCovers}–{table.maxCovers}
-      </span>
+      {/* Capacity — wayfinding for empty tables only; noise on active tables */}
+      {!hasGuest && (
+        <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', opacity: 0.65, lineHeight: 1.3, marginTop: 1 }}>
+          {table.minCovers}–{table.maxCovers}
+        </span>
+      )}
 
       {/* Pick mode: current-table label */}
       {pickMode && pickStatus === 'current' && (
@@ -1158,7 +1160,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: nameColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {currentRes.guestName}
               </p>
               {isCombined && (
@@ -1168,20 +1170,26 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               )}
             </div>
             {!isSecondary && (
-              <p style={{
-                fontSize: 11,
-                color: isOverdue ? '#fca5a5' : 'rgb(var(--iron-muted))',
-                opacity: isOverdue ? 1 : 0.80,
-                fontWeight: isOverdue ? 600 : 400,
-              }}>
-                {currentRes.partySize}
+              <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
+                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.50 }}>
+                  {currentRes.partySize}
+                </span>
                 {isToday && (() => {
                   const endTimeStr = new Date(currentRes.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                   const timerStr = mr > 20 ? endTimeStr
                     : mr > 5   ? T.floorBoard.mLeft(mr)
                     : mr >= -5 ? T.floorBoard.ending
                     : T.floorBoard.mOver(Math.abs(mr));
-                  return <>{' · '}{timerStr}</>;
+                  const timerColor = isOverdue || mr <= 5 ? '#fca5a5'
+                    : mr <= 20 ? '#fbbf24'
+                    : 'rgb(var(--iron-muted))';
+                  const timerWeight = isOverdue || mr <= 5 ? 700 : mr <= 20 ? 600 : 400;
+                  const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.75;
+                  return (
+                    <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight, opacity: timerOpacity }}>
+                      · {timerStr}
+                    </span>
+                  );
                 })()}
               </p>
             )}
@@ -1210,8 +1218,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               )}
             </div>
             {!isSecondary && nextRes && (
-              <p style={{ fontSize: 11, color: 'rgb(var(--iron-muted))', opacity: 0.75 }}>
-                {nextRes.partySize} · {nextRes.time}{isToday && table.liveStatus === 'RESERVED_SOON' && nextRes.minutesUntil > 0 ? ` · ${T.floorBoard.inNMin(nextRes.minutesUntil)}` : ''}
+              <p style={{ marginTop: 1, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
+                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.60 }}>
+                  {nextRes.partySize} · {nextRes.time}
+                </span>
+                {isToday && table.liveStatus === 'RESERVED_SOON' && nextRes.minutesUntil > 0 && (
+                  <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 600, opacity: 0.95 }}>
+                    · {T.floorBoard.inNMin(nextRes.minutesUntil)}
+                  </span>
+                )}
               </p>
             )}
           </div>
