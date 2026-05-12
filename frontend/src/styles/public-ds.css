@@ -998,28 +998,29 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* Legal / trust footer  (.pub-footer)                                         */
 /* Shared by BookingPage, WaitlistKioskPage, ConfirmationPage.                 */
+/* Full-width dark surface — readable over any page background or theme color. */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
 .pub-footer {
   width: 100%;
-  max-width: 480px;
-  margin: 8px auto 0;
-  padding: 0 1.25rem 36px;
+  margin: 20px 0 0;
+  padding: 0;
   text-align: center;
+  /* Solid dark backdrop — immune to page background / theme colors */
+  background: rgba(9, 10, 14, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Gradient hairline — visually bridges the page into the footer */
-.pub-footer-sep {
-  height: 1px;
-  margin: 0 auto 28px;
-  max-width: 300px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.08) 30%,
-    rgba(255, 255, 255, 0.08) 70%,
-    transparent 100%
-  );
+/* Content width constraint + internal padding */
+.pub-footer-inner {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 28px 1.25rem 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ◆ IRON BOOKING wordmark */
@@ -1032,7 +1033,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55);
   margin: 0 0 20px;
   user-select: none;
 }
@@ -1040,7 +1041,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 
 .pub-footer-diamond {
   font-size: 7px;
-  color: rgb(var(--pub-rgb, 74 222 128) / 0.50);
+  color: rgb(var(--pub-rgb, 74 222 128) / 0.80);
   line-height: 1;
 }
 
@@ -1059,7 +1060,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 .pub-footer-link {
   font-size: 10.5px;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.65);
   text-decoration: none;
   padding: 4px 0;
   transition: color 0.18s ease;
@@ -1067,13 +1068,13 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 }
 [dir="rtl"] .pub-footer-link { letter-spacing: 0; }
 
-.pub-footer-link:hover { color: rgba(255, 255, 255, 0.58); }
+.pub-footer-link:hover { color: rgba(255, 255, 255, 0.92); }
 
 .pub-footer-link:focus-visible {
   outline: none;
-  color: rgba(255, 255, 255, 0.58);
+  color: rgba(255, 255, 255, 0.92);
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.30);
+  text-decoration-color: rgba(255, 255, 255, 0.45);
   text-underline-offset: 3px;
 }
 
@@ -1081,7 +1082,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 .pub-footer-links li + li::before {
   content: '·';
   padding: 0 8px;
-  color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.28);
   font-size: 12px;
   line-height: 1;
   display: inline-block;
@@ -1093,7 +1094,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
   font-size: 9.5px;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.38);
   margin: 0;
 }
 [dir="rtl"] .pub-footer-copy { letter-spacing: 0.02em; }

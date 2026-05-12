@@ -41,11 +41,11 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
     display:        'inline-flex',
     alignItems:     'center',
     gap:            '5px',
-    padding:        '5px 12px',
+    padding:        '6px 14px',
     borderRadius:   '999px',
-    border:         '1px solid rgba(255,255,255,0.10)',
-    background:     'rgba(255,255,255,0.048)',
-    color:          'rgba(255,255,255,0.62)',
+    border:         '1px solid rgba(255,255,255,0.18)',
+    background:     'rgba(255,255,255,0.08)',
+    color:          'rgba(255,255,255,0.88)',
     fontSize:       '12px',
     fontWeight:     500,
     textDecoration: 'none',
@@ -55,27 +55,26 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
 
   function pillEnter(e: React.MouseEvent<HTMLAnchorElement>) {
     const el = e.currentTarget;
-    el.style.background   = 'rgb(var(--pub-rgb) / 0.12)';
-    el.style.borderColor  = 'rgb(var(--pub-rgb) / 0.32)';
-    el.style.color        = 'rgba(255,255,255,0.88)';
+    el.style.background  = 'rgb(var(--pub-rgb) / 0.20)';
+    el.style.borderColor = 'rgb(var(--pub-rgb) / 0.50)';
+    el.style.color       = 'rgba(255,255,255,1)';
   }
   function pillLeave(e: React.MouseEvent<HTMLAnchorElement>) {
     const el = e.currentTarget;
-    el.style.background   = 'rgba(255,255,255,0.048)';
-    el.style.borderColor  = 'rgba(255,255,255,0.10)';
-    el.style.color        = 'rgba(255,255,255,0.62)';
+    el.style.background  = 'rgba(255,255,255,0.08)';
+    el.style.borderColor = 'rgba(255,255,255,0.18)';
+    el.style.color       = 'rgba(255,255,255,0.88)';
   }
 
   return (
     <footer className="pub-footer" aria-label="Iron Booking">
-      <div className="pub-footer-sep" aria-hidden="true" />
+      <div className="pub-footer-inner">
 
       {/* ── Restaurant info section ─────────────────────────────────────── */}
       {hasRestaurantSection && (
         <div
           style={{
             width:        '100%',
-            maxWidth:     '480px',
             marginBottom: '20px',
             textAlign:    'center',
           }}
@@ -83,9 +82,9 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
           {hasAddress && (
             <p
               style={{
-                fontSize:    '12px',
+                fontSize:    '13px',
                 lineHeight:  1.6,
-                color:       'rgba(255,255,255,0.38)',
+                color:       'rgba(255,255,255,0.72)',
                 marginBottom: hasPills ? '12px' : '0',
               }}
             >
@@ -99,7 +98,7 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
               style={{
                 display:        'flex',
                 flexWrap:       'wrap',
-                gap:            '6px',
+                gap:            '8px',
                 justifyContent: 'center',
               }}
             >
@@ -178,10 +177,10 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
           <div
             aria-hidden="true"
             style={{
-              margin:     '18px auto 0',
-              width:      '48px',
+              margin:     '20px auto 0',
+              width:      '40px',
               height:     '1px',
-              background: 'rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.18)',
             }}
           />
         </div>
@@ -213,6 +212,8 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
 
       {/* ── Copyright ──────────────────────────────────────────────────── */}
       <p className="pub-footer-copy">{t('footer.copyright', { year })}</p>
+
+      </div>{/* /pub-footer-inner */}
     </footer>
   );
 }
