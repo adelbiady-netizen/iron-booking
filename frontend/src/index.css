@@ -18,11 +18,12 @@
   --iron-green-light:  111 138 60;     /* #6F8A3C */
 
   /* Canvas map (hex — used in inline style backgroundColor) */
-  --canvas-bg:              #18181b;
-  --canvas-dot:             #3f3f46;
+  --canvas-bg:              #14161a;   /* deeper, cooler — real dining room at night */
+  --canvas-dot:             #22252c;   /* refined grid — blueprint, not spreadsheet   */
   --canvas-table-bg:        #1c1c1e;
   --canvas-status-occupied: #86efac;   /* green-200 */
   --canvas-status-reserved: #60a5fa;   /* blue-400  */
+  --canvas-ambient:         rgba(255,255,255,0.013); /* ceiling light center bloom */
 
   color-scheme: dark;
 }

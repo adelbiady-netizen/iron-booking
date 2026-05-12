@@ -18,11 +18,11 @@ interface SectionGroup {
 }
 
 const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> = {
-  WALL:     { bg: '#71717abb', border: '#71717a', zone: false },
-  DIVIDER:  { bg: '#52525bbb', border: '#52525b', zone: false },
-  BAR:      { bg: '#92400ebb', border: '#92400e', zone: false },
-  ENTRANCE: { bg: '#1e40afbb', border: '#1e40af', zone: false },
-  ZONE:     { bg: 'rgba(30,34,28,0.45)', border: 'rgba(62,72,58,0.55)', zone: true },
+  WALL:     { bg: 'rgba(58,60,68,0.72)',  border: 'rgba(78,80,90,0.82)',   zone: false },
+  DIVIDER:  { bg: 'rgba(46,48,58,0.62)',  border: 'rgba(66,68,80,0.75)',   zone: false },
+  BAR:      { bg: 'rgba(120,44,16,0.72)', border: 'rgba(150,52,18,0.90)',  zone: false },
+  ENTRANCE: { bg: 'rgba(13,20,38,0.72)',  border: 'rgba(28,54,128,0.84)',  zone: false },
+  ZONE:     { bg: 'rgba(18,22,17,0.58)',  border: 'rgba(44,54,40,0.62)',   zone: true  },
 };
 
 const STATUS_BG: Record<string, string> = {
@@ -539,7 +539,7 @@ export default function FloorBoard({
 
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
-        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 80px rgba(0,0,0,0.32)' }}>
+        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 140px rgba(0,0,0,0.55), inset 0 0 50px rgba(0,0,0,0.28)' }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
@@ -547,8 +547,13 @@ export default function FloorBoard({
               width: CANVAS_W,
               height: CANVAS_H,
               backgroundColor: 'var(--canvas-bg)',
-              backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 0.72px, transparent 0.72px)',
-              backgroundSize: '30px 30px',
+              backgroundImage: [
+                // Ceiling light bloom — the room has a light source above the dining floor
+                'radial-gradient(ellipse 70% 58% at 50% 42%, var(--canvas-ambient) 0%, transparent 100%)',
+                // Refined dot grid — blueprint precision, not developer grid
+                'radial-gradient(circle, var(--canvas-dot) 0.55px, transparent 0.55px)',
+              ].join(', '),
+              backgroundSize: 'auto, 28px 28px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
@@ -645,13 +650,24 @@ export default function FloorBoard({
         // ── Grouped grid (fallback when no positions saved) ────────────────────
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {groups.map(group => (
-            <section key={group.id}>
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-0.5 h-5 rounded-full shrink-0" style={{ backgroundColor: group.color, opacity: 0.85 }} />
-                <h3 className="text-[10px] font-medium uppercase tracking-widest text-iron-muted/70">
+            <section key={group.id} className="relative">
+              {/* Faint section color wash — zone identity at 3% opacity */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', inset: 0,
+                  borderRadius: 10,
+                  backgroundColor: group.color,
+                  opacity: 0.03,
+                  pointerEvents: 'none',
+                }}
+              />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-px h-4 rounded-full shrink-0" style={{ backgroundColor: group.color, opacity: 0.58 }} />
+                <h3 className="text-[9px] font-semibold uppercase tracking-[0.16em] text-iron-muted/48">
                   {formatSectionName(group.name, locale)}
                 </h3>
-                <div className="flex-1 h-px bg-iron-border/30" />
+                <div className="flex-1 h-px bg-iron-border/18" />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                 {group.tables.map(t => {
@@ -1097,6 +1113,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     if (dimmed) opacity = Math.max(opacity, 0.55);
   }
 
+  // Candlelight from within — occupied tables that aren't overdue feel warm and alive.
+  // The hairline top highlight simulates light bouncing off the tablecloth surface.
+  if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue) {
+    const innerGlow = 'inset 0 1px 0 rgba(134,239,172,0.09)';
+    boxShadow = boxShadow ? `${boxShadow}, ${innerGlow}` : innerGlow;
+  }
+
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
   // and the table number becomes a secondary label
   const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
@@ -1113,14 +1136,34 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         borderRadius: tableRadius(table.shape),
         border: `${borderWidth}px solid ${borderColor}`,
         backgroundColor: bg,
+        // Material surface — angled light from upper-left, like a real table under overhead lighting.
+        // Occupied reads warmest; available recedes; pick/warn states are neutral (clarity first).
+        backgroundImage: !pickMode && !wlPickWarn ? (
+          table.liveStatus === 'OCCUPIED'
+            ? 'linear-gradient(148deg, rgba(255,255,255,0.060) 0%, transparent 52%)'
+            : table.liveStatus === 'RESERVED_SOON'
+            ? 'linear-gradient(148deg, rgba(255,255,255,0.034) 0%, transparent 54%)'
+            : table.liveStatus === 'RESERVED'
+            ? 'linear-gradient(148deg, rgba(255,255,255,0.022) 0%, transparent 58%)'
+            : table.liveStatus === 'AVAILABLE'
+            ? 'linear-gradient(148deg, rgba(255,255,255,0.016) 0%, transparent 62%)'
+            : undefined
+        ) : undefined,
         boxShadow,
+        // Physical depth — tables are objects on a floor, they cast shadows.
+        // Occupied tables come forward (heavier shadow); available recede (lighter).
+        // Drop-shadow is not clipped by overflow:hidden, unlike box-shadow.
+        filter: dimmed ? undefined
+          : table.liveStatus === 'OCCUPIED'  ? 'drop-shadow(0 3px 10px rgba(0,0,0,0.62))'
+          : table.liveStatus === 'AVAILABLE' ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
+          : 'drop-shadow(0 2px 6px rgba(0,0,0,0.50))',
         opacity,
         padding: '6px 8px',
         overflow: 'hidden',
         display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         textAlign: 'left',
         cursor,
-        transition: `opacity var(--duration-fast) ease-out, border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
+        transition: `opacity var(--duration-fast) ease-out, filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
     >
       {/* Table number — primary when empty, secondary label when a guest is present */}
