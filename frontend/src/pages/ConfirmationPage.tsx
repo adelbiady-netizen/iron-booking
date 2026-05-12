@@ -193,16 +193,16 @@ export default function ConfirmationPage({ token }: Props) {
 
         {state.phase === 'loading' && (
           <GlassCard>
-            <div className="py-12 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+            <div className="py-12 flex items-center justify-center" role="status" aria-label={t('common.loading')}>
+              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
             </div>
           </GlassCard>
         )}
 
         {state.phase === 'actioning' && (
           <GlassCard>
-            <div className="py-12 flex flex-col items-center gap-3">
-              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+            <div className="py-12 flex flex-col items-center gap-3" role="status">
+              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
               <p className="text-white/35 text-sm">
                 {state.action === 'confirm' ? t('confirmation.actionConfirming')
                   : state.action === 'cancel' ? t('confirmation.actionCancelling')
@@ -214,11 +214,13 @@ export default function ConfirmationPage({ token }: Props) {
 
         {state.phase === 'error' && (
           <GlassCard>
-            <OutcomeIcon variant="error" />
-            <h1 className="text-white text-xl font-semibold text-center mb-2">
-              {t(state.code === 'EXPIRED' ? 'confirmation.errorExpired' : 'confirmation.errorNotFound')}
-            </h1>
-            <p className="text-white/40 text-sm text-center leading-relaxed">{state.message}</p>
+            <div role="alert">
+              <OutcomeIcon variant="error" />
+              <h1 className="text-white text-xl font-semibold text-center mb-2">
+                {t(state.code === 'EXPIRED' ? 'confirmation.errorExpired' : 'confirmation.errorNotFound')}
+              </h1>
+              <p className="text-white/40 text-sm text-center leading-relaxed">{state.message}</p>
+            </div>
           </GlassCard>
         )}
 
@@ -625,7 +627,7 @@ function OccasionChip({ children }: { children: React.ReactNode }) {
       className="inline-flex items-center gap-1.5 rounded-full px-5 py-1.5 text-amber-300/80 text-[13px] tracking-wide"
       style={{ background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.22)' }}
     >
-      ✦ {children}
+      <span aria-hidden="true">✦</span> {children}
     </span>
   );
 }
@@ -642,7 +644,7 @@ function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'a
       className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5"
       style={{ background: styles.bg, border: `1px solid ${styles.border}` }}
     >
-      <span className={`${styles.textCls} text-sm`}>{icon}</span>
+      <span className={`${styles.textCls} text-sm`} aria-hidden="true">{icon}</span>
       <span className={`${styles.textCls} text-[13px] font-medium`}>{text}</span>
     </div>
   );
@@ -658,7 +660,7 @@ function OutcomeIcon({ variant }: { variant: 'confirmed' | 'late' | 'error' | 'n
     neutral:   { bg: 'rgba(255,255,255,0.07)', ring: 'rgba(255,255,255,0.14)', glow: 'transparent',            icon: '○',  color: 'rgba(255,255,255,0.35)' },
   }[variant];
   return (
-    <div className="flex items-center justify-center" style={{ marginBottom: 'clamp(12px, 2.2vh, 24px)' }}>
+    <div className="flex items-center justify-center" style={{ marginBottom: 'clamp(12px, 2.2vh, 24px)' }} aria-hidden="true">
       <div
         className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl"
         style={{
@@ -857,7 +859,7 @@ function InfoBlock({ label, icon, children }: { label: string; icon: React.React
       style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.058)' }}
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <span className="text-white/22">{icon}</span>
+        <span className="text-white/22" aria-hidden="true">{icon}</span>
         <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.16em] rtl:tracking-normal">{label}</p>
       </div>
       <p className="text-white/50 text-[13px] leading-relaxed">{children}</p>
@@ -940,7 +942,7 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
 
 function PinIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
     </svg>
   );
@@ -948,7 +950,7 @@ function PinIcon() {
 
 function CarIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
     </svg>
   );
@@ -956,7 +958,7 @@ function CarIcon() {
 
 function NoteIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
     </svg>
   );
@@ -964,7 +966,7 @@ function NoteIcon() {
 
 function ParkIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M13 3H6v18h4v-6h3c3.31 0 6-2.69 6-6s-2.69-6-6-6zm.2 8H10V7h3.2c1.1 0 2 .9 2 2s-.9 2-2 2z" />
     </svg>
   );
@@ -972,7 +974,7 @@ function ParkIcon() {
 
 function PolicyIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15h8v2H8zm0-4h8v2H8z" />
     </svg>
   );
@@ -980,7 +982,7 @@ function PolicyIcon() {
 
 function GlobeIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
     </svg>
   );
@@ -988,7 +990,7 @@ function GlobeIcon() {
 
 function InstagramIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
     </svg>
   );

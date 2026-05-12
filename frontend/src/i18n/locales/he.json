@@ -10,7 +10,11 @@
     "maps": "מפות",
     "waze": "Waze",
     "website": "אתר אינטרנט",
-    "instagram": "אינסטגרם"
+    "instagram": "אינסטגרם",
+    "loading": "טוען",
+    "back": "חזרה",
+    "decreaseParty": "הפחת גודל קבוצה",
+    "increaseParty": "הגדל גודל קבוצה"
   },
   "booking": {
     "notFound": "מסעדה לא נמצאה",

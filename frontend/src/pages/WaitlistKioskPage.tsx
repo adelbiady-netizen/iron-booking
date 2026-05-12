@@ -97,10 +97,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function GlassInput({
-  type = 'text', value, onChange, placeholder, autoComplete, inputMode,
+  type = 'text', value, onChange, placeholder, autoComplete, inputMode, 'aria-label': ariaLabel,
 }: {
   type?: string; value: string; onChange: (v: string) => void;
   placeholder?: string; autoComplete?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  'aria-label'?: string;
 }) {
   return (
     <input
@@ -110,6 +111,7 @@ function GlassInput({
       placeholder={placeholder}
       autoComplete={autoComplete}
       inputMode={inputMode}
+      aria-label={ariaLabel}
       className="w-full rounded-2xl outline-none transition-all"
       style={{
         background: 'rgba(255,255,255,0.065)',
@@ -126,9 +128,9 @@ function GlassInput({
 }
 
 function GlassTextarea({
-  value, onChange, placeholder,
+  value, onChange, placeholder, 'aria-label': ariaLabel,
 }: {
-  value: string; onChange: (v: string) => void; placeholder?: string;
+  value: string; onChange: (v: string) => void; placeholder?: string; 'aria-label'?: string;
 }) {
   return (
     <textarea
@@ -136,6 +138,7 @@ function GlassTextarea({
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       rows={3}
+      aria-label={ariaLabel}
       className="w-full rounded-2xl outline-none transition-all resize-none"
       style={{
         background: 'rgba(255,255,255,0.065)',
@@ -172,15 +175,16 @@ function PartySelector({ value, onChange }: { value: number; onChange: (n: numbe
       <button
         type="button"
         onClick={() => onChange(Math.max(1, value - 1))}
+        aria-label={t('common.decreaseParty')}
         style={btnStyle}
         onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.13)'; }}
         onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
       >
-        −
+        <span aria-hidden="true">−</span>
       </button>
-      <div className="flex-1 text-center" dir="ltr">
+      <div className="flex-1 text-center" dir="ltr" aria-live="polite" aria-atomic="true">
         <span style={{ color: '#f8f5ef', fontSize: 42, fontWeight: 200, letterSpacing: '-0.03em', lineHeight: 1 }}>
           {value}
         </span>
@@ -191,13 +195,14 @@ function PartySelector({ value, onChange }: { value: number; onChange: (n: numbe
       <button
         type="button"
         onClick={() => onChange(Math.min(20, value + 1))}
+        aria-label={t('common.increaseParty')}
         style={btnStyle}
         onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.13)'; }}
         onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
       >
-        +
+        <span aria-hidden="true">+</span>
       </button>
     </div>
   );
@@ -265,6 +270,7 @@ function SuccessScreen({ restaurantName, onReset }: { restaurantName: string; on
     <div className="flex flex-col items-center gap-6 py-4 text-center">
       {/* Checkmark */}
       <div
+        aria-hidden="true"
         style={{
           width: 80, height: 80, borderRadius: '50%',
           background: 'rgb(var(--pub-rgb) / 0.15)',
@@ -272,7 +278,7 @@ function SuccessScreen({ restaurantName, onReset }: { restaurantName: string; on
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pub-rgb) / 0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pub-rgb) / 0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
@@ -396,8 +402,8 @@ export default function WaitlistKioskPage({ slug }: Props) {
         {/* Loading */}
         {phase.phase === 'loading' && (
           <GlassCard>
-            <div className="py-16 flex items-center justify-center">
-              <div className="w-7 h-7 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+            <div className="py-16 flex items-center justify-center" role="status" aria-label={t('common.loading')}>
+              <div className="w-7 h-7 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
             </div>
           </GlassCard>
         )}
@@ -460,6 +466,7 @@ export default function WaitlistKioskPage({ slug }: Props) {
                   onChange={setName}
                   placeholder={t('kiosk.namePlaceholder')}
                   autoComplete="name"
+                  aria-label={t('kiosk.name')}
                 />
               </div>
 
@@ -473,6 +480,7 @@ export default function WaitlistKioskPage({ slug }: Props) {
                   placeholder={t('kiosk.phonePlaceholder')}
                   autoComplete="tel"
                   inputMode="tel"
+                  aria-label={t('kiosk.phone')}
                 />
               </div>
 
@@ -488,12 +496,14 @@ export default function WaitlistKioskPage({ slug }: Props) {
                   value={note}
                   onChange={setNote}
                   placeholder={t('kiosk.notePlaceholder')}
+                  aria-label={t('kiosk.note')}
                 />
               </div>
 
               {/* Error */}
               {phase.phase === 'error' && (
                 <p
+                  role="alert"
                   className="text-center rounded-2xl"
                   style={{
                     background: 'rgba(239,68,68,0.10)',

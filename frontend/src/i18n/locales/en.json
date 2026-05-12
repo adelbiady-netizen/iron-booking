@@ -8,7 +8,11 @@
     "maps": "Maps",
     "waze": "Waze",
     "website": "Website",
-    "instagram": "Instagram"
+    "instagram": "Instagram",
+    "loading": "Loading",
+    "back": "Go back",
+    "decreaseParty": "Decrease party size",
+    "increaseParty": "Increase party size"
   },
   "booking": {
     "notFound": "Restaurant not found",

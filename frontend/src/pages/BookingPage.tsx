@@ -225,8 +225,8 @@ export default function BookingPage({ slug }: Props) {
       >
         {state.phase === 'loading' && (
           <GlassCard>
-            <div className="py-14 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+            <div className="py-14 flex items-center justify-center" role="status" aria-label={t('common.loading')}>
+              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
             </div>
           </GlassCard>
         )}
@@ -294,6 +294,7 @@ export default function BookingPage({ slug }: Props) {
                 <div
                   className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', fontSize: '22px', color: 'rgba(255,255,255,0.30)' }}
+                  aria-hidden="true"
                 >
                   ◌
                 </div>
@@ -401,8 +402,8 @@ export default function BookingPage({ slug }: Props) {
 
         {state.phase === 'submitting' && (
           <GlassCard>
-            <div className="py-14 flex flex-col items-center gap-3">
-              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+            <div className="py-14 flex flex-col items-center gap-3" role="status">
+              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
               <p className="text-white/40 text-sm">{t('booking.securingTable')}</p>
             </div>
           </GlassCard>
@@ -418,6 +419,7 @@ export default function BookingPage({ slug }: Props) {
               <div
                 className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-2xl mx-auto mb-4"
                 style={{ background: 'rgba(251,191,36,0.12)', border: '1.5px solid rgba(251,191,36,0.30)', color: '#fbbf24' }}
+                aria-hidden="true"
               >
                 ⏱
               </div>
@@ -456,10 +458,11 @@ export default function BookingPage({ slug }: Props) {
 
         {state.phase === 'error' && (
           <GlassCard>
-            <div className="text-center py-4">
+            <div className="text-center py-4" role="alert">
               <div
                 className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-2xl mx-auto mb-4"
                 style={{ background: 'rgba(239,68,68,0.10)', border: '1.5px solid rgba(239,68,68,0.25)', color: '#f87171' }}
+                aria-hidden="true"
               >
                 ✕
               </div>
@@ -664,25 +667,27 @@ function PartySelector({ value, max, onChange }: { value: number; max: number; o
     <div className="flex items-center gap-5">
       <button
         onClick={() => onChange(Math.max(1, value - 1))}
+        aria-label={t('common.decreaseParty')}
         className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all active:scale-95"
         style={{ background: 'rgba(255,255,255,0.068)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.70)' }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
       >
-        −
+        <span aria-hidden="true">−</span>
       </button>
-      <div className="flex-1 text-center" dir="ltr">
+      <div className="flex-1 text-center" dir="ltr" aria-live="polite" aria-atomic="true">
         <span className="text-3xl font-light" style={{ color: '#f8f5ef', letterSpacing: '-0.03em' }}>{value}</span>
         <span className="text-[13px] ms-2" style={{ color: 'rgba(255,255,255,0.40)' }}>{t('common.guestWord', { count: value })}</span>
       </div>
       <button
         onClick={() => onChange(Math.min(max, value + 1))}
+        aria-label={t('common.increaseParty')}
         className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all active:scale-95"
         style={{ background: 'rgba(255,255,255,0.068)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.70)' }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
       >
-        +
+        <span aria-hidden="true">+</span>
       </button>
     </div>
   );
@@ -798,6 +803,8 @@ function DateCarousel({
               key={dateStr}
               onClick={() => isOpen && onSelect(dateStr)}
               disabled={!isOpen}
+              aria-pressed={isSelected}
+              aria-label={`${fmtChipDay(d, intlLocale)} ${d.getDate()} ${fmtChipMonth(d, intlLocale)}`}
               className="flex flex-col items-center shrink-0 rounded-2xl px-3 py-3 transition-all active:scale-95"
               style={{
                 minWidth: '52px',
@@ -975,12 +982,13 @@ function BookingSummaryBar({
     <div className="flex items-center gap-3">
       <button
         onClick={onBack}
+        aria-label={t('common.back')}
         className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-all"
         style={{ background: 'rgba(255,255,255,0.058)', border: '1px solid rgba(255,255,255,0.11)', color: 'rgba(255,255,255,0.55)' }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.90)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.55)'; }}
       >
-        {isRTL ? '›' : '‹'}
+        <span aria-hidden="true">{isRTL ? '›' : '‹'}</span>
       </button>
       <div className="flex-1">
         <p className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>
@@ -1184,6 +1192,8 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
         />
         <button
           type="button"
+          role="switch"
+          aria-checked={form.flexibleTime}
           onClick={() => field('flexibleTime', !form.flexibleTime)}
           className="flex items-center gap-2 mt-2.5 transition-all"
         >
@@ -1220,7 +1230,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
         />
       </div>
 
-      {error && <p className="text-red-400/80 text-[13px] text-center">{error}</p>}
+      {error && <p className="text-red-400/80 text-[13px] text-center" role="alert">{error}</p>}
 
       <div className="pt-2">
         <PrimaryBtn type="submit" disabled={!isValid} loading={loading}>
@@ -1242,6 +1252,7 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
         <div
           className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl mx-auto mb-5"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.55)' }}
+          aria-hidden="true"
         >
           ◎
         </div>
@@ -1297,6 +1308,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
         <div
           className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl mx-auto mb-5"
           style={{ background: 'rgb(var(--pub-rgb) / 0.12)', border: '1.5px solid rgb(var(--pub-rgb) / 0.30)', boxShadow: '0 0 48px rgb(var(--pub-rgb) / 0.12)', color: '#4ade80' }}
+          aria-hidden="true"
         >
           ✓
         </div>
@@ -1414,7 +1426,7 @@ function StatusBanner({ icon, color, text }: { icon: string; color: 'red' | 'amb
   }[color];
   return (
     <div className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 mb-4" style={{ background: styles.bg, border: `1px solid ${styles.border}` }}>
-      <span style={{ color: styles.text }}>{icon}</span>
+      <span style={{ color: styles.text }} aria-hidden="true">{icon}</span>
       <span className="text-[13px] font-medium" style={{ color: styles.text }}>{text}</span>
     </div>
   );
@@ -1424,7 +1436,7 @@ function StatusBanner({ icon, color, text }: { icon: string; color: 'red' | 'amb
 
 function PinIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
     </svg>
   );
@@ -1432,7 +1444,7 @@ function PinIcon() {
 
 function CarIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor">
+    <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="currentColor" aria-hidden="true">
       <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
     </svg>
   );
