@@ -22,7 +22,7 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
   DIVIDER:  { bg: '#52525bbb', border: '#52525b', zone: false },
   BAR:      { bg: '#92400ebb', border: '#92400e', zone: false },
   ENTRANCE: { bg: '#1e40afbb', border: '#1e40af', zone: false },
-  ZONE:     { bg: '#37415120', border: '#374151', zone: true  },
+  ZONE:     { bg: 'rgba(30,34,28,0.45)', border: 'rgba(62,72,58,0.55)', zone: true },
 };
 
 const STATUS_BG: Record<string, string> = {
@@ -447,10 +447,14 @@ export default function FloorBoard({
 
       {/* Stats + section legend */}
       <div className="flex items-center gap-4 px-4 py-2.5 border-b border-iron-border/70 bg-iron-card shrink-0 flex-wrap">
-        <Stat label={T.floorBoard.statAvailable} value={available}      color="text-iron-muted" />
+        {/* Live service state — what's happening right now */}
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
+        {/* Divider: live | upcoming */}
+        <div className="w-px h-3 bg-iron-border/50 -mx-1" />
+        {/* Upcoming — what's booked and what's open */}
         <Stat label={T.floorBoard.statReserved}  value={reserved}     color="text-blue-400" />
+        <Stat label={T.floorBoard.statAvailable} value={available}    color="text-iron-muted" />
 
         {positioned && sections.length > 0 && (
           <>
@@ -519,7 +523,7 @@ export default function FloorBoard({
 
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
-        <div ref={canvasScrollRef} className="flex-1 overflow-auto">
+        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 70px rgba(0,0,0,0.28)' }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
@@ -527,8 +531,8 @@ export default function FloorBoard({
               width: CANVAS_W,
               height: CANVAS_H,
               backgroundColor: 'var(--canvas-bg)',
-              backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
+              backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 0.85px, transparent 0.85px)',
+              backgroundSize: '30px 30px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
@@ -622,17 +626,17 @@ export default function FloorBoard({
         </div>
       ) : (
         // ── Grouped grid (fallback when no positions saved) ────────────────────
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {groups.map(group => (
             <section key={group.id}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                <h3 className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-0.5 h-5 rounded-full shrink-0" style={{ backgroundColor: group.color, opacity: 0.85 }} />
+                <h3 className="text-[10px] font-medium uppercase tracking-widest text-iron-muted/70">
                   {formatSectionName(group.name, locale)}
                 </h3>
-                <div className="flex-1 h-px bg-iron-border" />
+                <div className="flex-1 h-px bg-iron-border/30" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                 {group.tables.map(t => {
                   const insight    = insights.find(i => i.tableId === t.id);
                   const wMatch     = waitlistMatches[t.id];
