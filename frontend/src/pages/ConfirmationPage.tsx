@@ -193,8 +193,12 @@ export default function ConfirmationPage({ token }: Props) {
 
         {state.phase === 'loading' && (
           <GlassCard>
-            <div className="py-12 flex items-center justify-center" role="status" aria-label={t('common.loading')}>
-              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
+            <div role="status" aria-label={t('common.loading')}>
+              <div className="pub-skeleton pub-skeleton-circle mb-5 mx-auto" style={{ width: 68, height: 68 }} />
+              <div className="pub-skeleton pub-skeleton-title mb-3 mx-auto" />
+              <div className="pub-skeleton pub-skeleton-line mb-8 mx-auto" />
+              <div className="pub-skeleton pub-skeleton-btn mb-3" />
+              <div className="pub-skeleton pub-skeleton-btn" style={{ opacity: 0.5 }} />
             </div>
           </GlassCard>
         )}
@@ -252,7 +256,7 @@ export default function ConfirmationPage({ token }: Props) {
               <h1 className="text-white text-2xl font-semibold text-center tracking-tight mb-1">
                 {t('confirmation.confirmedTitle', { weekday: fmtWeekday(r.date, intlLocale) })}
               </h1>
-              <p className="text-white/35 text-sm text-center" style={{ marginBottom: 'clamp(16px, 3vh, 32px)' }}>
+              <p className="text-sm text-center" style={{ color: 'var(--pub-text-muted)', marginBottom: 'clamp(16px, 3vh, 32px)' }}>
                 {t('confirmation.confirmedSub', { time: fmtTime(r.time, isRTL) })}
               </p>
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
@@ -272,7 +276,7 @@ export default function ConfirmationPage({ token }: Props) {
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
 
               {(r.isConfirmedByGuest || r.isRunningLate) && (
-                <div className="mt-2 mb-5 space-y-2">
+                <div className="mt-4 space-y-2">
                   {r.isConfirmedByGuest && (
                     <StatusNotice icon="✓" color="green" text={t('confirmation.tableConfirmed')} />
                   )}
@@ -343,32 +347,9 @@ export default function ConfirmationPage({ token }: Props) {
 function AtmosphericBg() {
   return (
     <>
-      <div
-        className="fixed inset-0 -z-20"
-        style={{
-          background: [
-            'radial-gradient(ellipse 160% 65% at 50% -20%, rgb(var(--pub-rgb) / 0.11) 0%, transparent 50%)',
-            'radial-gradient(ellipse 80% 45% at 10% 105%, rgba(59,130,246,0.04) 0%, transparent 50%)',
-            'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
-          ].join(', '),
-        }}
-      />
-      <div
-        className="fixed -z-10"
-        style={{
-          top: '20%', left: '50%', transform: 'translateX(-50%)',
-          width: '600px', height: '600px',
-          background: [
-            'radial-gradient(circle at 50% 38%, rgba(255,255,255,0.028) 0%, transparent 52%)',
-            'radial-gradient(circle at 50% 62%, rgb(var(--pub-rgb) / 0.022) 0%, transparent 48%)',
-          ].join(', '),
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        className="fixed inset-0 -z-10 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 42%, rgba(0,0,0,0.50) 100%)' }}
-      />
+      <div className="pub-atm-base" />
+      <div className="pub-atm-orb" />
+      <div className="pub-atm-vignette" />
     </>
   );
 }
@@ -550,34 +531,13 @@ function RestaurantHero({ identity }: { identity: RestaurantIdentity | null }) {
 // ─── Glass card ───────────────────────────────────────────────────────────────
 
 function GlassCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="w-full rounded-[32px] backdrop-blur-[100px]"
-      style={{
-        padding: 'clamp(20px, 3.8vh, 32px)',
-        background: 'linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%)',
-        border: '1px solid rgba(255,255,255,0.065)',
-        boxShadow: [
-          '0 2px 0 rgba(255,255,255,0.095) inset',
-          '1px 0 0 rgba(255,255,255,0.032) inset',
-          '-1px 0 0 rgba(255,255,255,0.018) inset',
-          '0 -1px 0 rgba(0,0,0,0.45) inset',
-          '0 60px 120px rgba(0,0,0,0.70)',
-          '0 24px 60px rgba(0,0,0,0.50)',
-          '0 6px 18px rgba(0,0,0,0.40)',
-          '0 0 0 0.5px rgba(255,255,255,0.030)',
-        ].join(', '),
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="pub-card pub-card--lg w-full">{children}</div>;
 }
 
 // ─── Divider ──────────────────────────────────────────────────────────────────
 
 function Divider() {
-  return <div className="h-px" style={{ margin: 'clamp(16px, 2.8vh, 28px) 0', background: 'rgba(255,255,255,0.055)' }} />;
+  return <hr className="pub-divider" />;
 }
 
 // ─── Date hero ────────────────────────────────────────────────────────────────
@@ -594,11 +554,11 @@ function DateHero({ date, time, partySize, occasion }: {
       </p>
       <p
         className="font-semibold leading-none"
-        style={{ fontSize: 'clamp(2rem, 4.5vh, 2.8rem)', letterSpacing: '-0.035em', color: '#f8f5ef', marginBottom: 'clamp(6px, 1.2vh, 10px)' }}
+        style={{ fontSize: 'var(--pub-size-display-hero)', letterSpacing: 'var(--pub-tracking-tighter)', color: 'var(--pub-text-warm)', marginBottom: 'clamp(6px, 1.2vh, 10px)' }}
       >
         {fmtMonthDay(date, intlLocale)}
       </p>
-      <p className="text-white/40 text-[19px] font-light tracking-wide" style={{ marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmtTime(time, isRTL)}</p>
+      <p className="text-[19px] font-light tracking-wide" style={{ color: 'var(--pub-text-secondary)', marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmtTime(time, isRTL)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
         <Chip>{t('common.guestCount', { count: partySize })}</Chip>
@@ -611,22 +571,12 @@ function DateHero({ date, time, partySize, occasion }: {
 // ─── Chips ────────────────────────────────────────────────────────────────────
 
 function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-5 py-1.5 text-white/45 text-[13px] tracking-wide"
-      style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.085)' }}
-    >
-      {children}
-    </span>
-  );
+  return <span className="pub-chip">{children}</span>;
 }
 
 function OccasionChip({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-5 py-1.5 text-amber-300/80 text-[13px] tracking-wide"
-      style={{ background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.22)' }}
-    >
+    <span className="pub-chip pub-chip--warning">
       <span aria-hidden="true">✦</span> {children}
     </span>
   );
@@ -635,17 +585,11 @@ function OccasionChip({ children }: { children: React.ReactNode }) {
 // ─── Status notices ───────────────────────────────────────────────────────────
 
 function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'amber'; text: string }) {
-  const styles = {
-    green: { bg: 'rgb(var(--pub-rgb) / 0.08)',  border: 'rgb(var(--pub-rgb) / 0.20)',  textCls: 'text-[#4ade80]/80' },
-    amber: { bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.20)', textCls: 'text-amber-300/80' },
-  }[color];
+  const mod = color === 'green' ? 'success' : 'warning';
   return (
-    <div
-      className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5"
-      style={{ background: styles.bg, border: `1px solid ${styles.border}` }}
-    >
-      <span className={`${styles.textCls} text-sm`} aria-hidden="true">{icon}</span>
-      <span className={`${styles.textCls} text-[13px] font-medium`}>{text}</span>
+    <div className={`pub-banner pub-banner--${mod}`}>
+      <span aria-hidden="true">{icon}</span>
+      <span>{text}</span>
     </div>
   );
 }
@@ -653,69 +597,16 @@ function StatusNotice({ icon, color, text }: { icon: string; color: 'green' | 'a
 // ─── Outcome icons ────────────────────────────────────────────────────────────
 
 function OutcomeIcon({ variant }: { variant: 'confirmed' | 'late' | 'error' | 'neutral' }) {
-  const cfg = {
-    confirmed: { bg: 'rgb(var(--pub-rgb) / 0.12)',   ring: 'rgb(var(--pub-rgb) / 0.28)',   glow: 'rgb(var(--pub-rgb) / 0.12)',   icon: '✓',  color: '#4ade80' },
-    late:      { bg: 'rgba(251,191,36,0.12)',  ring: 'rgba(251,191,36,0.28)',  glow: 'rgba(251,191,36,0.10)',  icon: '⏱', color: '#fbbf24' },
-    error:     { bg: 'rgba(239,68,68,0.10)',   ring: 'rgba(239,68,68,0.25)',   glow: 'rgba(239,68,68,0.07)',   icon: '✕',  color: '#f87171' },
-    neutral:   { bg: 'rgba(255,255,255,0.07)', ring: 'rgba(255,255,255,0.14)', glow: 'transparent',            icon: '○',  color: 'rgba(255,255,255,0.35)' },
-  }[variant];
-  return (
-    <div className="flex items-center justify-center" style={{ marginBottom: 'clamp(12px, 2.2vh, 24px)' }} aria-hidden="true">
-      <div
-        className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl"
-        style={{
-          background: cfg.bg,
-          border: `1.5px solid ${cfg.ring}`,
-          boxShadow: `0 0 48px ${cfg.glow}`,
-          color: cfg.color,
-        }}
-      >
-        {cfg.icon}
-      </div>
-    </div>
-  );
+  const mod = variant === 'confirmed' ? 'brand' : variant === 'late' ? 'warning' : variant;
+  const icon = { confirmed: '✓', late: '⏱', error: '✕', neutral: '○' }[variant];
+  return <div className={`pub-outcome-icon pub-outcome-icon--${mod}`} aria-hidden="true">{icon}</div>;
 }
 
 // ─── Action buttons ───────────────────────────────────────────────────────────
 
 function ConfirmBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  const base = [
-    '0 1px 0 rgba(255,255,255,0.70) inset',
-    '0 -1px 0 rgba(110,80,30,0.16) inset',
-    '0 14px 38px rgba(0,0,0,0.35)',
-    '0 3px 10px rgba(0,0,0,0.25)',
-  ].join(', ');
-  const hover = [
-    '0 1px 0 rgba(255,255,255,0.75) inset',
-    '0 -1px 0 rgba(110,80,30,0.16) inset',
-    '0 14px 42px rgba(0,0,0,0.38)',
-    '0 3px 10px rgba(0,0,0,0.25)',
-    '0 0 60px rgba(245,240,228,0.16)',
-  ].join(', ');
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full active:scale-[0.98] rounded-[20px] text-[16px] transition-all"
-      style={{
-        padding: 'clamp(14px, 2.2vh, 18px) 24px',
-        background: 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)',
-        color: '#0c0e14',
-        letterSpacing: '0.018em',
-        fontWeight: 600,
-        boxShadow: base,
-      }}
-      onMouseEnter={e => {
-        const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'linear-gradient(180deg, #faf5e8 0%, #f2e8d4 100%)';
-        b.style.boxShadow = hover;
-      }}
-      onMouseLeave={e => {
-        const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)';
-        b.style.boxShadow = base;
-      }}
-    >
+    <button type="button" onClick={onClick} className="pub-btn pub-btn-primary">
       {children}
     </button>
   );
@@ -723,28 +614,7 @@ function ConfirmBtn({ onClick, children }: { onClick: () => void; children: Reac
 
 function LateBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full active:scale-[0.98] font-light rounded-[20px] text-[15px] transition-all"
-      style={{
-        padding: 'clamp(11px, 1.9vh, 15px) 24px',
-        background: 'rgba(148,115,50,0.12)',
-        border: '1px solid rgba(185,148,72,0.34)',
-        color: 'rgba(220,185,118,0.90)',
-        letterSpacing: '0.012em',
-      }}
-      onMouseEnter={e => {
-        const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'rgba(148,115,50,0.20)';
-        b.style.color = 'rgba(228,196,132,1.0)';
-      }}
-      onMouseLeave={e => {
-        const b = e.currentTarget as HTMLButtonElement;
-        b.style.background = 'rgba(148,115,50,0.12)';
-        b.style.color = 'rgba(220,185,118,0.90)';
-      }}
-    >
+    <button type="button" onClick={onClick} className="pub-btn pub-btn-ghost">
       {children}
     </button>
   );
@@ -752,14 +622,7 @@ function LateBtn({ onClick, children }: { onClick: () => void; children: React.R
 
 function CancelLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full text-center text-[12px] py-2.5 transition-colors"
-      style={{ color: 'rgba(255,255,255,0.40)', letterSpacing: '0.015em' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.62)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.40)'; }}
-    >
+    <button type="button" onClick={onClick} className="pub-btn pub-btn-bare">
       {children}
     </button>
   );
@@ -773,74 +636,22 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
   const { t } = useTranslation();
   if (!address && !googleMapsUrl && !wazeUrl) return null;
 
-  const pillBase = {
-    background: 'rgba(255,255,255,0.068)',
-    border: '1px solid rgba(255,255,255,0.160)',
-    color: 'rgba(255,255,255,0.64)',
-    boxShadow: '0 4px 14px rgba(0,0,0,0.22)',
-  };
-
   return (
     <div className="mt-5 text-center">
       {address && (
-        <p
-          className="text-[13px] leading-relaxed mb-4 mx-auto"
-          style={{ color: 'rgba(255,255,255,0.72)', maxWidth: '300px' }}
-        >
+        <p className="text-[13px] leading-relaxed mb-4 mx-auto" style={{ color: 'var(--pub-text-secondary)', maxWidth: '300px' }}>
           {address}
         </p>
       )}
       {(googleMapsUrl || wazeUrl) && (
         <div className="flex gap-3 justify-center">
           {googleMapsUrl && (
-            <a
-              href={googleMapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              dir="ltr"
-              className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
-              style={{ ...pillBase, padding: '9px 20px' }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.110)';
-                el.style.color = 'rgba(255,255,255,0.85)';
-                el.style.transform = 'translateY(-2px)';
-                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.24)';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = pillBase.background;
-                el.style.color = pillBase.color;
-                el.style.transform = '';
-                el.style.boxShadow = pillBase.boxShadow;
-              }}
-            >
+            <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" dir="ltr" className="pub-nav-pill">
               <PinIcon /> {t('common.maps')}
             </a>
           )}
           {wazeUrl && (
-            <a
-              href={wazeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              dir="ltr"
-              className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
-              style={{ ...pillBase, padding: '9px 20px' }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = 'rgba(255,255,255,0.110)';
-                el.style.color = 'rgba(255,255,255,0.85)';
-                el.style.transform = 'translateY(-2px)';
-                el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.24)';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.background = pillBase.background;
-                el.style.color = pillBase.color;
-                el.style.transform = '';
-                el.style.boxShadow = pillBase.boxShadow;
-              }}
-            >
+            <a href={wazeUrl} target="_blank" rel="noopener noreferrer" dir="ltr" className="pub-nav-pill">
               <CarIcon /> {t('common.waze')}
             </a>
           )}
@@ -854,15 +665,12 @@ function NavChips({ address, googleMapsUrl, wazeUrl }: {
 
 function InfoBlock({ label, icon, children }: { label: string; icon: React.ReactNode; children: string }) {
   return (
-    <div
-      className="mt-3 rounded-2xl p-5"
-      style={{ background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.058)' }}
-    >
+    <div className="pub-inset mt-3">
       <div className="flex items-center gap-1.5 mb-2">
-        <span className="text-white/22" aria-hidden="true">{icon}</span>
-        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.16em] rtl:tracking-normal">{label}</p>
+        <span style={{ color: 'var(--pub-text-micro)' }} aria-hidden="true">{icon}</span>
+        <p className="pub-section-label" style={{ marginBottom: 0 }}>{label}</p>
       </div>
-      <p className="text-white/50 text-[13px] leading-relaxed">{children}</p>
+      <p className="text-[13px] leading-relaxed" style={{ color: 'var(--pub-text-tertiary)' }}>{children}</p>
     </div>
   );
 }

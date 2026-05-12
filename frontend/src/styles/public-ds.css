@@ -313,6 +313,7 @@
     border-color 0.18s ease,
     transform    0.10s ease;
 }
+[dir="rtl"] .pub-btn { letter-spacing: 0; }
 .pub-btn:active:not(:disabled) { transform: scale(0.98); }
 .pub-btn:disabled {
   cursor: not-allowed;
@@ -404,12 +405,17 @@
   line-height: 1.4;
   outline: none;
   -webkit-appearance: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .pub-input::placeholder,
 .pub-textarea::placeholder { color: var(--pub-text-disabled); }
 .pub-input:focus,
 .pub-textarea:focus        { border-color: var(--pub-brand-border); }
+.pub-input:focus-visible,
+.pub-textarea:focus-visible {
+  border-color: var(--pub-brand-border);
+  box-shadow: 0 0 0 3px rgb(var(--pub-rgb, 74 222 128) / 0.20);
+}
 .pub-textarea { resize: none; line-height: 1.5; }
 
 /* Field label — uppercase micro text above an input */
@@ -599,10 +605,25 @@
   border: 1px solid var(--pub-border-2);
   color: var(--pub-text-tertiary);
 }
+[dir="rtl"] .pub-chip { letter-spacing: 0; }
 .pub-chip--brand   { background: var(--pub-brand-subtle);   border-color: var(--pub-brand-border);   color: var(--pub-brand-text);   }
 .pub-chip--success { background: var(--pub-success-bg);     border-color: var(--pub-success-border); color: var(--pub-success-text); }
 .pub-chip--warning { background: var(--pub-warning-bg);     border-color: var(--pub-warning-border); color: var(--pub-warning-text); }
 .pub-chip--limited { background: var(--pub-warning-bg);     border-color: var(--pub-warning-border); color: var(--pub-warning-text); }
+
+/* Interactive chip (when rendered as <button>) */
+button.pub-chip,
+.pub-chip[role="button"] {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.08s;
+}
+button.pub-chip:hover,
+.pub-chip[role="button"]:hover { background: var(--pub-surface-hover); border-color: var(--pub-border-3); }
+button.pub-chip--brand:hover,
+.pub-chip--brand[role="button"]:hover { background: var(--pub-brand-muted); }
+button.pub-chip:active,
+.pub-chip[role="button"]:active { transform: scale(0.95); }
+button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); border-color: var(--pub-brand-border); color: var(--pub-brand-text); }
 
 
 /* ── Utility: nav pill (maps / waze link) ──────────────────────────────── */
@@ -624,11 +645,196 @@
   box-shadow: var(--pub-shadow-float);
   transition: background 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
 }
+[dir="rtl"] .pub-nav-pill { letter-spacing: 0; }
 .pub-nav-pill:hover {
   background: rgba(255,255,255,0.110);
   color: rgba(255,255,255,0.85);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.24);
+}
+.pub-nav-pill:active { transform: translateY(0); }
+
+
+/* ── Utility: counter button (party size +/−) ──────────────────────────── */
+
+.pub-counter-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--pub-radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  background: var(--pub-surface-raised);
+  border: 1px solid var(--pub-border-2);
+  color: var(--pub-text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+  flex-shrink: 0;
+}
+.pub-counter-btn:hover:not(:disabled) {
+  background: var(--pub-surface-hover);
+  border-color: var(--pub-border-3);
+}
+.pub-counter-btn:active:not(:disabled) {
+  transform: scale(0.90);
+  background: var(--pub-surface-active);
+}
+.pub-counter-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Atmospheric background                                                       */
+/* These CSS classes replace inline-style gradients in AtmosphericBg so        */
+/* preset overrides can target them via [data-pub-preset="*"] selectors.        */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.pub-atm-base {
+  position: fixed;
+  inset: 0;
+  z-index: -20;
+  background:
+    radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.040) 0%, transparent 50%),
+    linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%);
+}
+
+.pub-atm-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.48) 100%);
+}
+
+/* Confirmation page: centered depth orb (unique to that page) */
+.pub-atm-orb {
+  position: fixed;
+  z-index: -10;
+  top: 20%; left: 50%;
+  transform: translateX(-50%);
+  width: 600px; height: 600px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255,255,255,0.028) 0%, transparent 52%),
+    radial-gradient(circle at 50% 62%, rgb(var(--pub-rgb) / 0.022) 0%, transparent 48%);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Restaurant preset: Italiano                                                  */
+/* Espresso-dark atmosphere · warm cream typography · muted olive accent        */
+/* Scoped entirely to [data-pub-preset="italiano"] so no other restaurant       */
+/* is affected.                                                                 */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-pub-preset="italiano"] {
+
+  /* atmosphere */
+  --pub-page-bg: #0d0b08;
+
+  /* glass surfaces — espresso warm tint, more opaque than default */
+  --pub-surface-card:   linear-gradient(160deg, rgba(24,18,11,0.87) 0%, rgba(15,11,7,0.92) 100%);
+  --pub-surface-raised: rgba(255,248,232,0.050);
+  --pub-surface-hover:  rgba(255,248,232,0.082);
+  --pub-surface-active: rgba(255,248,232,0.115);
+  --pub-surface-input:  rgba(255,248,232,0.038);
+
+  /* text — extra warm cream, slightly richer than neutral white */
+  --pub-text-primary:   #f9f5ec;
+  --pub-text-warm:      #f5ede0;
+  --pub-text-secondary: rgba(252,246,234,0.72);
+  --pub-text-tertiary:  rgba(252,246,234,0.42);
+  --pub-text-muted:     rgba(252,246,234,0.28);
+  --pub-text-disabled:  rgba(252,246,234,0.20);
+  --pub-text-micro:     rgba(252,246,234,0.14);
+
+  /* borders — warm cream-gold tint instead of pure white */
+  --pub-border-0: rgba(255,245,215,0.040);
+  --pub-border-1: rgba(255,245,215,0.060);
+  --pub-border-2: rgba(255,245,215,0.105);
+  --pub-border-3: rgba(255,245,215,0.195);
+
+  /* radius — refined: slightly tighter for a more architectural feel */
+  --pub-radius-sm:       8px;
+  --pub-radius-md:      12px;
+  --pub-radius-lg:      14px;
+  --pub-radius-xl:      18px;
+  --pub-radius-card:    22px;
+  --pub-radius-card-lg: 26px;
+  /* --pub-radius-pill stays 9999px */
+
+  /* typography — wide, elegant Italian spacing */
+  --pub-tracking-label:   0.22em;
+  --pub-tracking-field:   0.16em;
+  --pub-tracking-micro:   0.20em;
+  --pub-tracking-tight:  -0.022em;
+  --pub-tracking-tighter:-0.032em;
+
+  /* shadows — espresso-warm tinted (not pure black) */
+  --pub-shadow-card:
+    0 2px 0    rgba(255,245,215,0.058) inset,
+    1px 0 0    rgba(255,245,215,0.020) inset,
+    -1px 0 0   rgba(255,245,215,0.010) inset,
+    0 -1px 0   rgba(0,0,0,0.52)        inset,
+    0 48px 96px rgba(8,5,2,0.68),
+    0 18px 48px rgba(8,5,2,0.48);
+
+  --pub-shadow-card-lg:
+    0 2px 0    rgba(255,245,215,0.062) inset,
+    1px 0 0    rgba(255,245,215,0.022) inset,
+    -1px 0 0   rgba(255,245,215,0.012) inset,
+    0 -1px 0   rgba(0,0,0,0.54)        inset,
+    0 60px 120px rgba(8,5,2,0.72),
+    0 24px 60px  rgba(8,5,2,0.52),
+    0 6px  18px  rgba(8,5,2,0.42),
+    0 0 0  0.5px rgba(255,245,215,0.026);
+
+  --pub-shadow-btn-primary:
+    0 1px 0    rgba(255,255,255,0.68) inset,
+    0 -1px 0   rgba(100,72,20,0.18)   inset,
+    0 12px 32px rgba(8,5,2,0.38),
+    0 3px  10px rgba(8,5,2,0.28);
+
+  --pub-shadow-btn-primary-hover:
+    0 1px 0    rgba(255,255,255,0.72) inset,
+    0 -1px 0   rgba(100,72,20,0.18)   inset,
+    0 14px 42px rgba(8,5,2,0.42),
+    0 3px  10px rgba(8,5,2,0.28),
+    0 0   60px  rgba(245,240,228,0.12);
+
+  --pub-shadow-float: 0 4px 18px rgba(8,5,2,0.32);
+}
+
+/* Italiano card: heavier blur for denser, more opaque glass */
+[data-pub-preset="italiano"] .pub-card {
+  backdrop-filter: blur(140px);
+  -webkit-backdrop-filter: blur(140px);
+}
+
+/* Italiano atmosphere: espresso-warm gradient, amber side-glow */
+[data-pub-preset="italiano"] .pub-atm-base {
+  background:
+    radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 35% at 85% 108%, rgba(180,140,60,0.022) 0%, transparent 50%),
+    linear-gradient(168deg, #1c1710 0%, #140f09 40%, #0e0b06 100%);
+}
+
+/* Italiano vignette: slightly deeper for cinematic feel */
+[data-pub-preset="italiano"] .pub-atm-vignette {
+  background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 36%, rgba(0,0,0,0.55) 100%);
+}
+
+/* Italiano orb: warm amber instead of brand-green tint */
+[data-pub-preset="italiano"] .pub-atm-orb {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(240,230,200,0.020) 0%, transparent 52%),
+    radial-gradient(circle at 50% 62%, rgb(var(--pub-rgb) / 0.018) 0%, transparent 48%);
 }
 
 

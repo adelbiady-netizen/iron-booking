@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-type PresetKey = 'luxury' | 'casual' | 'family' | 'nightlife' | 'minimal' | 'fineDining' | 'mediterranean';
+type PresetKey = 'luxury' | 'casual' | 'family' | 'nightlife' | 'minimal' | 'fineDining' | 'mediterranean' | 'italiano';
 
 // Space-separated RGB channels for use with `rgb(var(--pub-rgb) / alpha)` syntax
 const PRESET_RGB: Record<PresetKey | 'default', string> = {
@@ -12,6 +12,7 @@ const PRESET_RGB: Record<PresetKey | 'default', string> = {
   minimal:       '113 113 122', // Japanese Minimal — warm zinc
   fineDining:    '212 175 55',  // Elegant Dark — rich gold
   mediterranean: '203 125 87',  // Mediterranean — terracotta
+  italiano:      '146 135 98',  // Italiano — muted warm olive
 };
 
 // Per-preset typography + feel tokens
@@ -24,6 +25,7 @@ const PRESET_RADIUS: Record<PresetKey | 'default', string> = {
   minimal:       '2px',   // Japanese Minimal — sharp
   fineDining:    '2px',   // Elegant Dark — sharp, refined
   mediterranean: '12px',  // Mediterranean — natural curves
+  italiano:      '4px',   // Italiano — architectural, refined
 };
 
 const PRESET_TRACKING: Record<PresetKey | 'default', string> = {
@@ -35,6 +37,7 @@ const PRESET_TRACKING: Record<PresetKey | 'default', string> = {
   minimal:       '0.08em',  // Japanese Minimal — airy
   fineDining:    '0.12em',  // Elegant Dark — very wide
   mediterranean: '0.03em',  // Mediterranean — natural
+  italiano:      '0.10em',  // Italiano — elegant and spacious
 };
 
 const PRESET_GLOW: Record<PresetKey | 'default', string> = {
@@ -46,6 +49,7 @@ const PRESET_GLOW: Record<PresetKey | 'default', string> = {
   minimal:       '0.10',  // Japanese Minimal — barely there
   fineDining:    '0.15',  // Elegant Dark — understated
   mediterranean: '0.30',  // Mediterranean — warm sun
+  italiano:      '0.12',  // Italiano — understated, cinematic
 };
 
 interface BrandingInput {
@@ -74,11 +78,20 @@ export function usePublicTheme(branding: BrandingInput | null | undefined) {
     document.documentElement.style.setProperty('--pub-tracking', PRESET_TRACKING[key]);
     document.documentElement.style.setProperty('--pub-glow',     PRESET_GLOW[key]);
 
+    // Set data attribute so CSS preset selectors (e.g. [data-pub-preset="italiano"])
+    // can override tokens and component styles without JS coupling.
+    if (key !== 'default') {
+      document.documentElement.setAttribute('data-pub-preset', key);
+    } else {
+      document.documentElement.removeAttribute('data-pub-preset');
+    }
+
     return () => {
       document.documentElement.style.removeProperty('--pub-rgb');
       document.documentElement.style.removeProperty('--pub-radius');
       document.documentElement.style.removeProperty('--pub-tracking');
       document.documentElement.style.removeProperty('--pub-glow');
+      document.documentElement.removeAttribute('data-pub-preset');
     };
   }, [primary, preset]);
 }

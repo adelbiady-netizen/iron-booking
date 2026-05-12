@@ -292,7 +292,7 @@ router.post('/restaurants/:id/whatsapp/test', superAdminOnly, async (req: Reques
 const UpdateBrandingSchema = z.object({
   primaryColor:      z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   accentColor:       z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
-  publicThemePreset: z.enum(['luxury','casual','family','nightlife','minimal','fineDining','mediterranean']).nullable().optional(),
+  publicThemePreset: z.enum(['luxury','casual','family','nightlife','minimal','fineDining','mediterranean','italiano']).nullable().optional(),
   logoUrl:           z.string().url().nullable().optional(),
   coverImageUrl:     z.string().url().nullable().optional(),
   heroVideoUrl:      z.string().url().nullable().optional(),

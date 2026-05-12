@@ -225,8 +225,16 @@ export default function BookingPage({ slug }: Props) {
       >
         {state.phase === 'loading' && (
           <GlassCard>
-            <div className="py-14 flex items-center justify-center" role="status" aria-label={t('common.loading')}>
-              <div className="w-6 h-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
+            <div role="status" aria-label={t('common.loading')}>
+              <div className="pub-skeleton pub-skeleton-title mb-4 mx-auto" />
+              <div className="pub-skeleton-group mb-6">
+                <div className="pub-skeleton pub-skeleton-line mx-auto" />
+                <div className="pub-skeleton pub-skeleton-line-sm mx-auto" />
+              </div>
+              <div className="flex gap-2 justify-center mb-6">
+                {[...Array(5)].map((_, i) => <div key={i} className="pub-skeleton pub-skeleton-chip" />)}
+              </div>
+              <div className="pub-skeleton pub-skeleton-btn" />
             </div>
           </GlassCard>
         )}
@@ -249,7 +257,7 @@ export default function BookingPage({ slug }: Props) {
               onChange={setPartySize}
             />
 
-            <div className="h-px" style={{ margin: 'clamp(14px, 2.5vh, 24px) 0', background: 'rgba(255,255,255,0.055)' }} />
+            <hr className="pub-divider" />
 
             <SectionLabel>{t('booking.selectDate')}</SectionLabel>
             <DateCarousel
@@ -278,7 +286,7 @@ export default function BookingPage({ slug }: Props) {
               onBack={() => setState({ phase: 'select' })}
             />
 
-            <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
+            <hr className="pub-divider" />
 
             {state.data.isClosed && (
               <StatusBanner icon="✕" color="red" text={t('booking.closed', { date: fmtDateShort(state.date, intlLocale) })} />
@@ -291,17 +299,11 @@ export default function BookingPage({ slug }: Props) {
             {/* Fully booked with no alternatives → premium dead-end avoidance */}
             {!state.data.isClosed && !state.data.isPast && state.data.isFullyBooked && state.data.alternatives.length === 0 && (
               <div className="py-2 text-center">
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', fontSize: '22px', color: 'rgba(255,255,255,0.30)' }}
-                  aria-hidden="true"
-                >
-                  ◌
-                </div>
-                <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.75)', fontSize: '16px' }}>
+                <div className="pub-outcome-icon pub-outcome-icon--neutral" aria-hidden="true">◌</div>
+                <h3 className="font-semibold mb-1.5" style={{ color: 'var(--pub-text-secondary)', fontSize: '16px' }}>
                   {t('booking.noTablesAvailable')}
                 </h3>
-                <p className="text-[13px] leading-relaxed mb-6 px-4" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                <p className="text-[13px] leading-relaxed mb-6 px-4" style={{ color: 'var(--pub-text-muted)' }}>
                   {t('booking.fullyBookedMessage', { date: fmtDateShort(state.date, intlLocale), count: state.partySize })}
                 </p>
                 <PrimaryBtn onClick={() => setState({ phase: 'waitlist', date: state.date, partySize: state.partySize, slotsData: state.data })}>
@@ -338,17 +340,14 @@ export default function BookingPage({ slug }: Props) {
 
             {/* Waitlist CTA — secondary, shown when fully booked with alternatives */}
             {!state.data.isClosed && !state.data.isPast && state.data.isFullyBooked && state.data.alternatives.length > 0 && (
-              <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.055)' }}>
-                <p className="text-[13px] mb-1" style={{ color: 'rgba(255,255,255,0.52)' }}>{t('booking.noneWork')}</p>
-                <p className="text-[12px] mb-4 leading-relaxed" style={{ color: 'rgba(255,255,255,0.32)' }}>
+              <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid var(--pub-border-1)' }}>
+                <p className="text-[13px] mb-1" style={{ color: 'var(--pub-text-tertiary)' }}>{t('booking.noneWork')}</p>
+                <p className="text-[12px] mb-4 leading-relaxed" style={{ color: 'var(--pub-text-muted)' }}>
                   {t('booking.waitlistCta', { date: fmtDateShort(state.date, intlLocale) })}
                 </p>
                 <button
                   onClick={() => setState({ phase: 'waitlist', date: state.date, partySize: state.partySize, slotsData: state.data })}
-                  className="w-full rounded-[18px] text-[14px] font-medium transition-all active:scale-[0.98]"
-                  style={{ padding: '13px 24px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.72)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; }}
+                  className="pub-btn pub-btn-secondary"
                 >
                   {t('booking.joinWaitlist')}
                 </button>
@@ -365,10 +364,10 @@ export default function BookingPage({ slug }: Props) {
               partySize={state.partySize}
               onBack={() => setState({ phase: 'slots', date: state.date, partySize: state.partySize, data: state.slotsData })}
             />
-            <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
+            <hr className="pub-divider" />
             <div className="mb-5">
-              <h3 className="font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.88)', fontSize: '17px' }}>{t('booking.waitlistForm.title')}</h3>
-              <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.40)' }}>
+              <h3 className="font-semibold mb-1.5" style={{ color: 'var(--pub-text-primary)', fontSize: '17px' }}>{t('booking.waitlistForm.title')}</h3>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--pub-text-tertiary)' }}>
                 {t('booking.waitlistForm.description', { date: fmtDateShort(state.date, intlLocale), count: state.partySize })}
               </p>
             </div>
@@ -391,7 +390,7 @@ export default function BookingPage({ slug }: Props) {
                 data: { date: state.date, partySize: state.partySize, timezone: '', slots: [],
                   isFullyBooked: false, isClosed: false, isPast: false, alternatives: [] } })}
             />
-            <div className="h-px" style={{ margin: 'clamp(12px, 2vh, 20px) 0', background: 'rgba(255,255,255,0.055)' }} />
+            <hr className="pub-divider" />
             <GuestForm
               form={form}
               onChange={setForm}
@@ -416,13 +415,7 @@ export default function BookingPage({ slug }: Props) {
         {state.phase === 'slot-taken' && (
           <GlassCard>
             <div className="text-center mb-6">
-              <div
-                className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-2xl mx-auto mb-4"
-                style={{ background: 'rgba(251,191,36,0.12)', border: '1.5px solid rgba(251,191,36,0.30)', color: '#fbbf24' }}
-                aria-hidden="true"
-              >
-                ⏱
-              </div>
+              <div className="pub-outcome-icon pub-outcome-icon--warning" aria-hidden="true">⏱</div>
               <h2 className="text-white text-xl font-semibold mb-2">{t('booking.slotTakenTitle')}</h2>
               <p className="text-white/40 text-sm leading-relaxed">
                 {t('booking.slotTakenDetail')}
@@ -444,13 +437,7 @@ export default function BookingPage({ slug }: Props) {
               <p className="text-white/40 text-sm text-center">{t('booking.noAlternatives')}</p>
             )}
 
-            <button
-              onClick={() => setState({ phase: 'select' })}
-              className="w-full mt-5 text-center text-[13px] py-2.5 transition-colors"
-              style={{ color: 'rgba(255,255,255,0.50)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.50)'; }}
-            >
+            <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-bare mt-5">
               {t('booking.chooseDifferentDate')}
             </button>
           </GlassCard>
@@ -459,20 +446,10 @@ export default function BookingPage({ slug }: Props) {
         {state.phase === 'error' && (
           <GlassCard>
             <div className="text-center py-4" role="alert">
-              <div
-                className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-2xl mx-auto mb-4"
-                style={{ background: 'rgba(239,68,68,0.10)', border: '1.5px solid rgba(239,68,68,0.25)', color: '#f87171' }}
-                aria-hidden="true"
-              >
-                ✕
-              </div>
+              <div className="pub-outcome-icon pub-outcome-icon--error" aria-hidden="true">✕</div>
               <h2 className="text-white text-xl font-semibold mb-2">{t('booking.errorTitle')}</h2>
               <p className="text-white/40 text-sm leading-relaxed mb-5">{state.message}</p>
-              <button
-                onClick={() => setState({ phase: 'select' })}
-                className="text-[13px] py-2.5 px-5 rounded-full transition-colors"
-                style={{ color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.12)' }}
-              >
+              <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-secondary">
                 {t('booking.tryAgain')}
               </button>
             </div>
@@ -497,20 +474,8 @@ export default function BookingPage({ slug }: Props) {
 function AtmosphericBg() {
   return (
     <>
-      <div
-        className="fixed inset-0 -z-20"
-        style={{
-          background: [
-            'radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%)',
-            'radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.04) 0%, transparent 50%)',
-            'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
-          ].join(', '),
-        }}
-      />
-      <div
-        className="fixed inset-0 -z-10 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.48) 100%)' }}
-      />
+      <div className="pub-atm-base" />
+      <div className="pub-atm-vignette" />
     </>
   );
 }
@@ -627,36 +592,13 @@ function BookingHeroFallback({ profile }: { profile: PublicRestaurantProfile | n
 // ─── Glass card ────────────────────────────────────────────────────────────────
 
 function GlassCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="w-full rounded-[28px] backdrop-blur-[100px]"
-      style={{
-        padding: 'clamp(20px, 3.5vh, 28px)',
-        background: 'linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%)',
-        border: '1px solid rgba(255,255,255,0.065)',
-        boxShadow: [
-          '0 2px 0 rgba(255,255,255,0.090) inset',
-          '1px 0 0 rgba(255,255,255,0.030) inset',
-          '-1px 0 0 rgba(255,255,255,0.016) inset',
-          '0 -1px 0 rgba(0,0,0,0.45) inset',
-          '0 48px 96px rgba(0,0,0,0.65)',
-          '0 18px 48px rgba(0,0,0,0.45)',
-        ].join(', '),
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="pub-card w-full">{children}</div>;
 }
 
 // ─── Section label ─────────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[10px] font-medium uppercase tracking-[0.20em] mb-3 rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.28)' }}>
-      {children}
-    </p>
-  );
+  return <p className="pub-section-label">{children}</p>;
 }
 
 // ─── Party size selector ───────────────────────────────────────────────────────
@@ -668,24 +610,20 @@ function PartySelector({ value, max, onChange }: { value: number; max: number; o
       <button
         onClick={() => onChange(Math.max(1, value - 1))}
         aria-label={t('common.decreaseParty')}
-        className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all active:scale-95"
-        style={{ background: 'rgba(255,255,255,0.068)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.70)' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
+        disabled={value <= 1}
+        className="pub-counter-btn"
       >
         <span aria-hidden="true">−</span>
       </button>
       <div className="flex-1 text-center" dir="ltr" aria-live="polite" aria-atomic="true">
-        <span className="text-3xl font-light" style={{ color: '#f8f5ef', letterSpacing: '-0.03em' }}>{value}</span>
-        <span className="text-[13px] ms-2" style={{ color: 'rgba(255,255,255,0.40)' }}>{t('common.guestWord', { count: value })}</span>
+        <span className="text-3xl font-light" style={{ color: 'var(--pub-text-warm)', letterSpacing: 'var(--pub-tracking-tighter)' }}>{value}</span>
+        <span className="text-[13px] ms-2" style={{ color: 'var(--pub-text-tertiary)' }}>{t('common.guestWord', { count: value })}</span>
       </div>
       <button
         onClick={() => onChange(Math.min(max, value + 1))}
         aria-label={t('common.increaseParty')}
-        className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all active:scale-95"
-        style={{ background: 'rgba(255,255,255,0.068)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.70)' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
+        disabled={value >= max}
+        className="pub-counter-btn"
       >
         <span aria-hidden="true">+</span>
       </button>
@@ -817,7 +755,7 @@ function DateCarousel({
             >
               <span
                 className="text-[10px] font-medium uppercase tracking-wide mb-1"
-                style={{ color: isSelected ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.40)' }}
+                style={{ color: isSelected ? 'var(--pub-brand-text)' : 'rgba(255,255,255,0.40)' }}
               >
                 {fmtChipDay(d, intlLocale)}
               </span>
@@ -829,7 +767,7 @@ function DateCarousel({
               </span>
               <span
                 className="text-[10px] mt-1"
-                style={{ color: isSelected ? 'rgba(74,222,128,0.70)' : 'rgba(255,255,255,0.30)' }}
+                style={{ color: isSelected ? 'rgb(var(--pub-rgb) / 0.70)' : 'rgba(255,255,255,0.30)' }}
               >
                 {fmtChipMonth(d, intlLocale)}
               </span>
@@ -983,19 +921,17 @@ function BookingSummaryBar({
       <button
         onClick={onBack}
         aria-label={t('common.back')}
-        className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-all"
-        style={{ background: 'rgba(255,255,255,0.058)', border: '1px solid rgba(255,255,255,0.11)', color: 'rgba(255,255,255,0.55)' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.90)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.55)'; }}
+        className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-all hover:brightness-125"
+        style={{ background: 'var(--pub-surface-raised)', border: '1px solid var(--pub-border-2)', color: 'var(--pub-text-muted)' }}
       >
         <span aria-hidden="true">{isRTL ? '›' : '‹'}</span>
       </button>
       <div className="flex-1">
-        <p className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>
+        <p className="text-[13px] font-medium" style={{ color: 'var(--pub-text-secondary)' }}>
           {slot ? `${fmtTime(slot, isRTL)}` : fmtDateShort(date, intlLocale)}
-          {slot && <span className="font-light ms-2" style={{ color: 'rgba(255,255,255,0.42)' }}>{fmtDateShort(date, intlLocale)}</span>}
+          {slot && <span className="font-light ms-2" style={{ color: 'var(--pub-text-tertiary)' }}>{fmtDateShort(date, intlLocale)}</span>}
         </p>
-        <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+        <p className="text-[11px]" style={{ color: 'var(--pub-text-muted)' }}>
           {t('common.guestCount', { count: partySize })}
         </p>
       </div>
@@ -1011,17 +947,6 @@ function GuestForm({ form, onChange, onSubmit }: {
   onSubmit: (e: React.FormEvent) => void;
 }) {
   const { t } = useTranslation();
-  const inputStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.040)',
-    border: '1px solid rgba(255,255,255,0.095)',
-    borderRadius: '14px',
-    padding: '14px 16px',
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: '15px',
-    width: '100%',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  };
 
   function field(key: keyof FormState, value: string) {
     onChange({ ...form, [key]: value });
@@ -1034,62 +959,48 @@ function GuestForm({ form, onChange, onSubmit }: {
       <div>
         <FieldLabel required>{t('booking.form.name')}</FieldLabel>
         <input
-          type="text"
-          required
-          autoFocus
+          type="text" required autoFocus
           placeholder={t('booking.form.namePlaceholder')}
           value={form.guestName}
           onChange={e => field('guestName', e.target.value)}
-          style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-input"
         />
       </div>
 
       <div>
         <FieldLabel required>{t('booking.form.phone')}</FieldLabel>
         <input
-          type="tel"
-          required
+          type="tel" required
           placeholder={t('booking.form.phonePlaceholder')}
           value={form.guestPhone}
           onChange={e => field('guestPhone', e.target.value)}
-          style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-input"
         />
-        <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
+        <p className="text-[11px] mt-1.5" style={{ color: 'var(--pub-text-muted)' }}>
           {t('booking.form.phoneHint')}
         </p>
       </div>
 
       <div>
-        <FieldLabel>{t('booking.form.email')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
+        <FieldLabel>{t('booking.form.email')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <input
           type="email"
           placeholder={t('booking.form.emailPlaceholder')}
           value={form.guestEmail}
           onChange={e => field('guestEmail', e.target.value)}
-          style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-input"
         />
       </div>
 
       <div>
-        <FieldLabel>{t('booking.form.occasion')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
+        <FieldLabel>{t('booking.form.occasion')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <div className="flex gap-2 flex-wrap">
           {OCCASIONS.map(({ value, tKey }) => (
             <button
               key={value}
               type="button"
               onClick={() => field('occasion', form.occasion === value ? '' : value)}
-              className="text-[12px] px-3.5 py-1.5 rounded-full transition-all"
-              style={{
-                background: form.occasion === value ? 'rgb(var(--pub-rgb) / 0.16)' : 'rgba(255,255,255,0.048)',
-                border: form.occasion === value ? '1px solid rgb(var(--pub-rgb) / 0.40)' : '1px solid rgba(255,255,255,0.095)',
-                color: form.occasion === value ? 'rgba(74,222,128,0.90)' : 'rgba(255,255,255,0.52)',
-              }}
+              className={`pub-chip transition-all${form.occasion === value ? ' pub-chip--brand' : ''}`}
             >
               {t(tKey)}
             </button>
@@ -1098,15 +1009,13 @@ function GuestForm({ form, onChange, onSubmit }: {
       </div>
 
       <div>
-        <FieldLabel>{t('booking.form.specialRequests')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
+        <FieldLabel>{t('booking.form.specialRequests')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <textarea
           placeholder={t('booking.form.specialRequestsPlaceholder')}
           value={form.guestNotes}
           onChange={e => field('guestNotes', e.target.value)}
           rows={3}
-          style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
-          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-textarea"
         />
       </div>
 
@@ -1148,12 +1057,6 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
 
   const isValid = form.guestName.trim().length > 0 && form.guestPhone.trim().length >= 3 && form.preferredTime.length > 0;
 
-  const inputStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.040)', border: '1px solid rgba(255,255,255,0.095)',
-    borderRadius: '14px', padding: '14px 16px', color: 'rgba(255,255,255,0.88)',
-    fontSize: '15px', width: '100%', outline: 'none', transition: 'border-color 0.2s',
-  };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -1161,9 +1064,7 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
         <input
           type="text" required autoFocus placeholder={t('booking.form.namePlaceholder')}
           value={form.guestName} onChange={e => field('guestName', e.target.value)}
-          style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-input"
         />
       </div>
 
@@ -1172,11 +1073,9 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
         <input
           type="tel" required placeholder={t('booking.form.phonePlaceholder')}
           value={form.guestPhone} onChange={e => field('guestPhone', e.target.value)}
-          style={inputStyle}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-input"
         />
-        <p className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.32)' }}>
+        <p className="text-[11px] mt-1.5" style={{ color: 'var(--pub-text-muted)' }}>
           {t('booking.waitlistForm.phoneHint')}
         </p>
       </div>
@@ -1186,9 +1085,8 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
         <input
           type="time" required
           value={form.preferredTime} onChange={e => field('preferredTime', e.target.value)}
-          style={{ ...inputStyle, colorScheme: 'dark' } as React.CSSProperties}
-          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-input"
+          style={{ colorScheme: 'dark' } as React.CSSProperties}
         />
         <button
           type="button"
@@ -1197,40 +1095,24 @@ function WaitlistForm({ onSubmit }: { onSubmit: (data: WaitlistFormState) => Pro
           onClick={() => field('flexibleTime', !form.flexibleTime)}
           className="flex items-center gap-2 mt-2.5 transition-all"
         >
-          <div
-            className="w-8 h-4 rounded-full relative shrink-0 transition-all"
-            style={{
-              background: form.flexibleTime ? 'rgb(var(--pub-rgb) / 0.28)' : 'rgba(255,255,255,0.08)',
-              border: form.flexibleTime ? '1px solid rgb(var(--pub-rgb) / 0.45)' : '1px solid rgba(255,255,255,0.10)',
-            }}
-          >
-            <div
-              className="absolute top-[2px] w-3 h-3 rounded-full transition-all"
-              style={{
-                background: form.flexibleTime ? '#4ade80' : 'rgba(255,255,255,0.35)',
-                left: form.flexibleTime ? '18px' : '2px',
-              }}
-            />
-          </div>
-          <span className="text-[12px]" style={{ color: form.flexibleTime ? 'rgba(74,222,128,0.85)' : 'rgba(255,255,255,0.38)' }}>
+          <div className="pub-toggle" />
+          <span className="text-[12px]" style={{ color: form.flexibleTime ? 'var(--pub-brand-text)' : 'var(--pub-text-muted)' }}>
             {t('booking.waitlistForm.flexibleLabel')}
           </span>
         </button>
       </div>
 
       <div>
-        <FieldLabel>{t('booking.waitlistForm.notes')} <span style={{ color: 'rgba(255,255,255,0.28)' }}>({t('booking.form.optional')})</span></FieldLabel>
+        <FieldLabel>{t('booking.waitlistForm.notes')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <textarea
           placeholder={t('booking.waitlistForm.notesPlaceholder')}
           value={form.notes} onChange={e => field('notes', e.target.value)}
           rows={3}
-          style={{ ...inputStyle, resize: 'none', fontFamily: 'inherit' }}
-          onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgb(var(--pub-rgb) / 0.50)'; }}
-          onBlur={e =>  { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.095)'; }}
+          className="pub-textarea"
         />
       </div>
 
-      {error && <p className="text-red-400/80 text-[13px] text-center" role="alert">{error}</p>}
+      {error && <p className="pub-alert pub-alert--error" role="alert">{error}</p>}
 
       <div className="pt-2">
         <PrimaryBtn type="submit" disabled={!isValid} loading={loading}>
@@ -1249,13 +1131,7 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
   return (
     <GlassCard>
       <div className="text-center mb-7">
-        <div
-          className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl mx-auto mb-5"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.55)' }}
-          aria-hidden="true"
-        >
-          ◎
-        </div>
+        <div className="pub-outcome-icon pub-outcome-icon--neutral" aria-hidden="true">◎</div>
         <h2 className="text-white text-2xl font-semibold tracking-tight mb-2">
           {t('booking.waitlistSuccess.title')}
         </h2>
@@ -1264,25 +1140,22 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
         </p>
       </div>
 
-      <div
-        className="rounded-2xl px-5 py-4 mb-6"
-        style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.075)' }}
-      >
-        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.dateLabel')}</span>
-          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmtDateLong(result.date, intlLocale)}</span>
+      <div className="pub-inset mb-6">
+        <div className="pub-detail-row">
+          <span className="pub-detail-row__label">{t('booking.waitlistSuccess.dateLabel')}</span>
+          <span className="pub-detail-row__value">{fmtDateLong(result.date, intlLocale)}</span>
         </div>
-        <div className="flex justify-between items-center py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.partyLabel')}</span>
-          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{t('common.guestCount', { count: result.partySize })}</span>
+        <div className="pub-detail-row">
+          <span className="pub-detail-row__label">{t('booking.waitlistSuccess.partyLabel')}</span>
+          <span className="pub-detail-row__value">{t('common.guestCount', { count: result.partySize })}</span>
         </div>
-        <div className="flex justify-between items-center py-1.5">
-          <span className="text-[11px] uppercase tracking-wide rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>{t('booking.waitlistSuccess.preferredTimeLabel')}</span>
-          <span className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.80)' }}>{fmtTime(result.preferredTime, isRTL)}</span>
+        <div className="pub-detail-row">
+          <span className="pub-detail-row__label">{t('booking.waitlistSuccess.preferredTimeLabel')}</span>
+          <span className="pub-detail-row__value">{fmtTime(result.preferredTime, isRTL)}</span>
         </div>
       </div>
 
-      <p className="text-center text-[12px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+      <p className="text-center text-[12px]" style={{ color: 'var(--pub-text-micro)' }}>
         {t('booking.waitlistSuccess.phoneSent')}
       </p>
     </GlassCard>
@@ -1291,8 +1164,8 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-[11px] font-medium uppercase tracking-[0.14em] mb-2 rtl:tracking-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>
-      {children}{required && <span style={{ color: 'rgba(74,222,128,0.60)' }}> *</span>}
+    <label className="pub-field-label">
+      {children}{required && <span className="pub-required"> *</span>}
     </label>
   );
 }
@@ -1305,13 +1178,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
   return (
     <GlassCard>
       <div className="text-center mb-7">
-        <div
-          className="w-[68px] h-[68px] rounded-full flex items-center justify-center text-2xl mx-auto mb-5"
-          style={{ background: 'rgb(var(--pub-rgb) / 0.12)', border: '1.5px solid rgb(var(--pub-rgb) / 0.30)', boxShadow: '0 0 48px rgb(var(--pub-rgb) / 0.12)', color: '#4ade80' }}
-          aria-hidden="true"
-        >
-          ✓
-        </div>
+        <div className="pub-outcome-icon pub-outcome-icon--brand" aria-hidden="true">✓</div>
         <h2 className="text-white text-2xl font-semibold tracking-tight mb-1">
           {t('booking.confirmed.title')}
         </h2>
@@ -1320,17 +1187,14 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
         </p>
       </div>
 
-      <div
-        className="rounded-2xl px-5 py-4 mb-6 text-center"
-        style={{ background: 'rgba(255,255,255,0.038)', border: '1px solid rgba(255,255,255,0.075)' }}
-      >
-        <p className="text-white/28 text-[10px] font-medium uppercase tracking-[0.18em] mb-1 rtl:tracking-normal">
+      <div className="pub-inset mb-6 text-center">
+        <p className="text-[10px] font-medium uppercase tracking-[0.18em] mb-1 rtl:tracking-normal" style={{ color: 'var(--pub-text-muted)' }}>
           {fmtDateLong(result.date, intlLocale)}
         </p>
         <p className="text-white text-[2rem] font-light leading-none mb-2" style={{ letterSpacing: '-0.03em' }}>
           {fmtTime(result.time, isRTL)}
         </p>
-        <p className="text-white/45 text-[14px]">
+        <p style={{ color: 'var(--pub-text-tertiary)', fontSize: 'var(--pub-size-md)' }}>
           {t('common.guestCount', { count: result.partySize })}
           {result.status === 'PENDING' && (
             <span className="ms-2 text-amber-400/80">· {t('booking.confirmed.pendingBadge')}</span>
@@ -1340,7 +1204,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
 
       {profile?.address && (
         <div className="text-center mb-2">
-          <p className="text-[13px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.72)' }}>
+          <p className="text-[13px] leading-relaxed mb-3" style={{ color: 'var(--pub-text-secondary)' }}>
             {profile.address}
           </p>
           <div className="flex gap-3 justify-center">
@@ -1354,7 +1218,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
         </div>
       )}
 
-      <p className="text-center text-[12px] mt-5" style={{ color: 'rgba(255,255,255,0.32)' }}>
+      <p className="text-center text-[12px] mt-5" style={{ color: 'var(--pub-text-micro)' }}>
         {t('booking.confirmed.phoneSent')}
       </p>
     </GlassCard>
@@ -1364,18 +1228,8 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
 // ─── Nav pills ─────────────────────────────────────────────────────────────────
 
 function NavPill({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  const base = { background: 'rgba(255,255,255,0.068)', border: '1px solid rgba(255,255,255,0.160)', color: 'rgba(255,255,255,0.64)', boxShadow: '0 4px 14px rgba(0,0,0,0.22)' } as React.CSSProperties;
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      dir="ltr"
-      className="flex items-center justify-center gap-1.5 rounded-full text-[12px] tracking-wide font-light transition-all no-underline"
-      style={{ ...base, padding: '9px 20px' }}
-      onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = 'rgba(255,255,255,0.110)'; el.style.color = 'rgba(255,255,255,0.85)'; }}
-      onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = base.background as string; el.style.color = base.color as string; }}
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" dir="ltr" className="pub-nav-pill">
       {icon} {label}
     </a>
   );
@@ -1390,27 +1244,13 @@ function PrimaryBtn({ onClick, children, disabled, loading, type = 'button' }: {
   loading?: boolean;
   type?: 'button' | 'submit';
 }) {
-  const base = ['0 1px 0 rgba(255,255,255,0.70) inset', '0 -1px 0 rgba(110,80,30,0.16) inset', '0 12px 32px rgba(0,0,0,0.35)', '0 3px 10px rgba(0,0,0,0.25)'].join(', ');
   return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full active:scale-[0.98] rounded-[18px] text-[15px] font-semibold transition-all"
-      style={{
-        padding: 'clamp(13px, 2vh, 16px) 24px',
-        background: disabled ? 'rgba(255,255,255,0.10)' : 'linear-gradient(180deg, #f6f1e5 0%, #ede3cc 100%)',
-        color: disabled ? 'rgba(255,255,255,0.30)' : '#0c0e14',
-        letterSpacing: '0.015em',
-        boxShadow: disabled ? 'none' : base,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-      }}
-    >
+    <button type={type} onClick={onClick} disabled={disabled} className="pub-btn pub-btn-primary">
       {loading ? (
-        <span className="flex items-center justify-center gap-2">
-          <span className="w-4 h-4 border-2 border-black/20 border-t-black/60 rounded-full animate-spin" />
+        <>
+          <span className="w-4 h-4 border-2 border-black/20 border-t-black/60 rounded-full animate-spin" aria-hidden="true" />
           {children}
-        </span>
+        </>
       ) : children}
     </button>
   );
@@ -1419,15 +1259,11 @@ function PrimaryBtn({ onClick, children, disabled, loading, type = 'button' }: {
 // ─── Status banner ─────────────────────────────────────────────────────────────
 
 function StatusBanner({ icon, color, text }: { icon: string; color: 'red' | 'amber' | 'neutral'; text: string }) {
-  const styles = {
-    red:     { bg: 'rgba(239,68,68,0.08)',    border: 'rgba(239,68,68,0.20)',    text: 'rgba(248,113,113,0.85)' },
-    amber:   { bg: 'rgba(251,191,36,0.08)',   border: 'rgba(251,191,36,0.22)',   text: 'rgba(251,191,36,0.85)' },
-    neutral: { bg: 'rgba(255,255,255,0.040)', border: 'rgba(255,255,255,0.085)', text: 'rgba(255,255,255,0.50)' },
-  }[color];
+  const mod = color === 'red' ? 'error' : color === 'amber' ? 'warning' : 'neutral';
   return (
-    <div className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 mb-4" style={{ background: styles.bg, border: `1px solid ${styles.border}` }}>
-      <span style={{ color: styles.text }} aria-hidden="true">{icon}</span>
-      <span className="text-[13px] font-medium" style={{ color: styles.text }}>{text}</span>
+    <div className={`pub-banner pub-banner--${mod}`}>
+      <span aria-hidden="true">{icon}</span>
+      <span>{text}</span>
     </div>
   );
 }

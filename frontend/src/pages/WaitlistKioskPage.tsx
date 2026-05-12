@@ -43,57 +43,19 @@ function AtmosphericBg({ coverImageUrl }: { coverImageUrl?: string | null }) {
           />
         </div>
       ) : (
-        <div
-          className="fixed inset-0 -z-20"
-          style={{
-            background: [
-              'radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%)',
-              'radial-gradient(ellipse 80% 40% at 10% 110%, rgba(59,130,246,0.04) 0%, transparent 50%)',
-              'linear-gradient(170deg, #101520 0%, #0b0f18 40%, #080a10 100%)',
-            ].join(', '),
-          }}
-        />
+        <div className="pub-atm-base" />
       )}
-      <div
-        className="fixed inset-0 -z-10 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.48) 100%)' }}
-      />
+      <div className="pub-atm-vignette" />
     </>
   );
 }
 
 function GlassCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="w-full rounded-[28px] backdrop-blur-[100px]"
-      style={{
-        padding: 'clamp(24px, 4vh, 36px)',
-        background: 'linear-gradient(160deg, rgba(14,18,30,0.72) 0%, rgba(7,9,18,0.80) 100%)',
-        border: '1px solid rgba(255,255,255,0.065)',
-        boxShadow: [
-          '0 2px 0 rgba(255,255,255,0.090) inset',
-          '1px 0 0 rgba(255,255,255,0.030) inset',
-          '-1px 0 0 rgba(255,255,255,0.016) inset',
-          '0 -1px 0 rgba(0,0,0,0.45) inset',
-          '0 48px 96px rgba(0,0,0,0.65)',
-          '0 18px 48px rgba(0,0,0,0.45)',
-        ].join(', '),
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="pub-card pub-card--lg w-full">{children}</div>;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      className="text-[10px] font-medium uppercase tracking-[0.20em] mb-3 rtl:tracking-normal"
-      style={{ color: 'rgba(255,255,255,0.28)' }}
-    >
-      {children}
-    </p>
-  );
+  return <p className="pub-section-label">{children}</p>;
 }
 
 function GlassInput({
@@ -112,17 +74,8 @@ function GlassInput({
       autoComplete={autoComplete}
       inputMode={inputMode}
       aria-label={ariaLabel}
-      className="w-full rounded-2xl outline-none transition-all"
-      style={{
-        background: 'rgba(255,255,255,0.065)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        color: 'rgba(255,255,255,0.92)',
-        padding: '16px 18px',
-        fontSize: '17px',
-        lineHeight: 1.4,
-      }}
-      onFocus={e => { e.currentTarget.style.border = '1px solid rgb(var(--pub-rgb) / 0.55)'; }}
-      onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.12)'; }}
+      className="pub-input"
+      style={{ fontSize: '17px', padding: '16px 18px' }}
     />
   );
 }
@@ -139,17 +92,8 @@ function GlassTextarea({
       placeholder={placeholder}
       rows={3}
       aria-label={ariaLabel}
-      className="w-full rounded-2xl outline-none transition-all resize-none"
-      style={{
-        background: 'rgba(255,255,255,0.065)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        color: 'rgba(255,255,255,0.92)',
-        padding: '16px 18px',
-        fontSize: '16px',
-        lineHeight: 1.5,
-      }}
-      onFocus={e => { e.currentTarget.style.border = '1px solid rgb(var(--pub-rgb) / 0.55)'; }}
-      onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.12)'; }}
+      className="pub-textarea"
+      style={{ fontSize: '16px', padding: '16px 18px' }}
     />
   );
 }
@@ -158,37 +102,23 @@ function GlassTextarea({
 
 function PartySelector({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const { t } = useTranslation();
-  const btnStyle: React.CSSProperties = {
-    width: 56, height: 56,
-    borderRadius: '50%',
-    background: 'rgba(255,255,255,0.068)',
-    border: '1px solid rgba(255,255,255,0.14)',
-    color: 'rgba(255,255,255,0.70)',
-    fontSize: 24,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer',
-    flexShrink: 0,
-    transition: 'background 0.15s',
-  };
   return (
     <div className="flex items-center gap-5">
       <button
         type="button"
         onClick={() => onChange(Math.max(1, value - 1))}
         aria-label={t('common.decreaseParty')}
-        style={btnStyle}
-        onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.13)'; }}
-        onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
+        disabled={value <= 1}
+        className="pub-counter-btn"
+        style={{ width: 56, height: 56, fontSize: 24 }}
       >
         <span aria-hidden="true">−</span>
       </button>
       <div className="flex-1 text-center" dir="ltr" aria-live="polite" aria-atomic="true">
-        <span style={{ color: '#f8f5ef', fontSize: 42, fontWeight: 200, letterSpacing: '-0.03em', lineHeight: 1 }}>
+        <span style={{ color: 'var(--pub-text-warm)', fontSize: 42, fontWeight: 200, letterSpacing: '-0.03em', lineHeight: 1 }}>
           {value}
         </span>
-        <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: 14, marginInlineStart: 8 }}>
+        <span style={{ color: 'var(--pub-text-tertiary)', fontSize: 14, marginInlineStart: 8 }}>
           {t('common.guestWord', { count: value })}
         </span>
       </div>
@@ -196,11 +126,9 @@ function PartySelector({ value, onChange }: { value: number; onChange: (n: numbe
         type="button"
         onClick={() => onChange(Math.min(20, value + 1))}
         aria-label={t('common.increaseParty')}
-        style={btnStyle}
-        onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.13)'; }}
-        onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.11)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.068)'; }}
+        disabled={value >= 20}
+        className="pub-counter-btn"
+        style={{ width: 56, height: 56, fontSize: 24 }}
       >
         <span aria-hidden="true">+</span>
       </button>
@@ -238,11 +166,11 @@ function RestaurantHeader({ profile }: { profile: PublicRestaurantProfile | null
         </div>
       )}
       <div className="text-center">
-        <h2 style={{ color: '#f2ece0', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+        <h2 style={{ color: 'var(--pub-text-warm)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
           {profile.name}
         </h2>
         {profile.cuisine && (
-          <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: 13, marginTop: 2 }}>{profile.cuisine}</p>
+          <p style={{ color: 'var(--pub-text-tertiary)', fontSize: 13, marginTop: 2 }}>{profile.cuisine}</p>
         )}
       </div>
     </div>
@@ -268,53 +196,42 @@ function SuccessScreen({ restaurantName, onReset }: { restaurantName: string; on
 
   return (
     <div className="flex flex-col items-center gap-6 py-4 text-center">
-      {/* Checkmark */}
       <div
         aria-hidden="true"
+        className="flex items-center justify-center rounded-full mx-auto"
         style={{
-          width: 80, height: 80, borderRadius: '50%',
-          background: 'rgb(var(--pub-rgb) / 0.15)',
-          border: '1.5px solid rgb(var(--pub-rgb) / 0.40)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 80, height: 80,
+          background: 'var(--pub-brand-subtle)',
+          border: '1.5px solid var(--pub-brand-border)',
+          boxShadow: '0 0 48px var(--pub-brand-glow)',
         }}
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--pub-rgb) / 0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--pub-brand-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
 
       <div className="space-y-2">
-        <h2 style={{ color: '#f2ece0', fontSize: 30, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.1 }}>
+        <h2 style={{ color: 'var(--pub-text-warm)', fontSize: 30, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.1 }}>
           {t('kiosk.successTitle')}
         </h2>
-        <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 17, lineHeight: 1.5 }}>
+        <p style={{ color: 'var(--pub-text-secondary)', fontSize: 17, lineHeight: 1.5 }}>
           {t('kiosk.successSubtitle')}
         </p>
-        <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 14, lineHeight: 1.5 }}>
+        <p style={{ color: 'var(--pub-text-muted)', fontSize: 14, lineHeight: 1.5 }}>
           {t('kiosk.successWhatsapp')}
         </p>
       </div>
 
-      <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: 13 }}>
+      <p style={{ color: 'var(--pub-text-micro)', fontSize: 13 }}>
         {restaurantName}
       </p>
 
       <div className="w-full flex flex-col gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onReset}
-          className="w-full rounded-2xl font-semibold transition-all active:scale-[0.98]"
-          style={{
-            padding: '18px',
-            fontSize: 17,
-            background: 'rgba(255,255,255,0.10)',
-            border: '1px solid rgba(255,255,255,0.16)',
-            color: 'rgba(255,255,255,0.82)',
-          }}
-        >
+        <button type="button" onClick={onReset} className="pub-btn pub-btn-secondary" style={{ fontSize: 17, padding: '18px' }}>
           {t('kiosk.newGuest')}
         </button>
-        <p style={{ color: 'rgba(255,255,255,0.22)', fontSize: 13 }}>
+        <p style={{ color: 'var(--pub-text-micro)', fontSize: 13 }}>
           {t('kiosk.resetIn', { n: countdown })}
         </p>
       </div>
@@ -402,8 +319,13 @@ export default function WaitlistKioskPage({ slug }: Props) {
         {/* Loading */}
         {phase.phase === 'loading' && (
           <GlassCard>
-            <div className="py-16 flex items-center justify-center" role="status" aria-label={t('common.loading')}>
-              <div className="w-7 h-7 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
+            <div role="status" aria-label={t('common.loading')}>
+              <div className="pub-skeleton pub-skeleton-circle mb-5 mx-auto" style={{ width: 64, height: 64 }} />
+              <div className="pub-skeleton pub-skeleton-title mb-3 mx-auto" />
+              <div className="pub-skeleton pub-skeleton-line mb-8 mx-auto" />
+              <div className="pub-skeleton pub-skeleton-input mb-3" />
+              <div className="pub-skeleton pub-skeleton-input mb-3" />
+              <div className="pub-skeleton pub-skeleton-btn" />
             </div>
           </GlassCard>
         )}
@@ -412,10 +334,10 @@ export default function WaitlistKioskPage({ slug }: Props) {
         {phase.phase === 'not-found' && (
           <GlassCard>
             <div className="py-10 text-center space-y-2">
-              <p style={{ color: 'rgba(255,255,255,0.80)', fontSize: 20, fontWeight: 500 }}>
+              <p style={{ color: 'var(--pub-text-secondary)', fontSize: 20, fontWeight: 500 }}>
                 {t('kiosk.notFound')}
               </p>
-              <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 14 }}>
+              <p style={{ color: 'var(--pub-text-muted)', fontSize: 14 }}>
                 {t('kiosk.notFoundDetail')}
               </p>
             </div>
@@ -438,14 +360,14 @@ export default function WaitlistKioskPage({ slug }: Props) {
               <RestaurantHeader profile={profile} />
 
               {/* Divider */}
-              <div style={{ height: 1, background: 'rgba(255,255,255,0.055)', margin: '0 -4px' }} />
+              <hr className="pub-divider" style={{ margin: '0 -4px' }} />
 
               {/* Title */}
               <div className="text-center space-y-1">
-                <h1 style={{ color: '#f2ece0', fontSize: 26, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.2 }}>
+                <h1 style={{ color: 'var(--pub-text-warm)', fontSize: 26, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.2 }}>
                   {t('kiosk.title')}
                 </h1>
-                <p style={{ color: 'rgba(255,255,255,0.48)', fontSize: 15, lineHeight: 1.5 }}>
+                <p style={{ color: 'var(--pub-text-tertiary)', fontSize: 15, lineHeight: 1.5 }}>
                   {t('kiosk.subtitle')}
                 </p>
               </div>
@@ -456,7 +378,7 @@ export default function WaitlistKioskPage({ slug }: Props) {
                 <PartySelector value={partySize} onChange={setPartySize} />
               </div>
 
-              <div style={{ height: 1, background: 'rgba(255,255,255,0.055)' }} />
+              <hr className="pub-divider" />
 
               {/* Name */}
               <div>
@@ -488,7 +410,7 @@ export default function WaitlistKioskPage({ slug }: Props) {
               <div>
                 <SectionLabel>
                   {t('kiosk.note')}{' '}
-                  <span style={{ color: 'rgba(255,255,255,0.20)', textTransform: 'none', letterSpacing: 0 }}>
+                  <span style={{ color: 'var(--pub-text-micro)', textTransform: 'none', letterSpacing: 0 }}>
                     — {t('kiosk.optional')}
                   </span>
                 </SectionLabel>
@@ -502,38 +424,15 @@ export default function WaitlistKioskPage({ slug }: Props) {
 
               {/* Error */}
               {phase.phase === 'error' && (
-                <p
-                  role="alert"
-                  className="text-center rounded-2xl"
-                  style={{
-                    background: 'rgba(239,68,68,0.10)',
-                    border: '1px solid rgba(239,68,68,0.22)',
-                    color: 'rgba(252,165,165,0.90)',
-                    padding: '12px 16px',
-                    fontSize: 14,
-                  }}
-                >
-                  {phase.message}
-                </p>
+                <p className="pub-alert pub-alert--error" role="alert">{phase.message}</p>
               )}
 
               {/* Submit */}
               <button
                 type="submit"
                 disabled={isSubmitting || !name.trim() || !phone.trim()}
-                className="w-full rounded-2xl font-semibold transition-all active:scale-[0.98]"
-                style={{
-                  padding: '20px',
-                  fontSize: 18,
-                  background: (isSubmitting || !name.trim() || !phone.trim())
-                    ? 'rgb(var(--pub-rgb) / 0.30)'
-                    : 'rgb(var(--pub-rgb) / 0.82)',
-                  color: 'white',
-                  cursor: (isSubmitting || !name.trim() || !phone.trim()) ? 'not-allowed' : 'pointer',
-                  boxShadow: (isSubmitting || !name.trim() || !phone.trim())
-                    ? 'none'
-                    : '0 4px 24px rgb(var(--pub-rgb) / 0.28)',
-                }}
+                className="pub-btn pub-btn-primary"
+                style={{ fontSize: 18, padding: '20px' }}
               >
                 {isSubmitting ? t('kiosk.submitting') : t('kiosk.submit')}
               </button>
