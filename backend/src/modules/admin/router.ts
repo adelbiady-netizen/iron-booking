@@ -155,7 +155,7 @@ router.post('/restaurants', superAdminOnly, validate(CreateRestaurantSchema), as
         data: {
           name, slug, timezone, phone, email, address,
           settings: {
-            defaultTurnMinutes: 90, slotIntervalMinutes: 15, maxPartySize: 20,
+            defaultTurnMinutes: 90, slotIntervalMinutes: 30, maxPartySize: 20,
             depositRequired: false, depositAmountCents: 0, autoConfirm: false,
             bufferBetweenTurnsMinutes: 15, openingHour: '11:00', closingHour: '22:00',
             lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,

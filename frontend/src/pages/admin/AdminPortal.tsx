@@ -27,7 +27,7 @@ const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map(d => ({
 
 const DEFAULT_BASIC: WizardBasic     = { name: '', slug: '', timezone: 'America/New_York', phone: '', email: '', address: '' };
 const DEFAULT_SETTINGS: WizardSettings = {
-  defaultTurnMinutes: 90, slotIntervalMinutes: 15, maxPartySize: 20,
+  defaultTurnMinutes: 90, slotIntervalMinutes: 30, maxPartySize: 20,
   autoConfirm: false, bufferBetweenTurnsMinutes: 15,
   lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,
 };
@@ -357,7 +357,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setInfoForm({ name: d.name, timezone: d.timezone, phone: d.phone ?? '', email: d.email ?? '', address: d.address ?? '' });
       setSettingsForm({
         defaultTurnMinutes:        Number(s.defaultTurnMinutes ?? 90),
-        slotIntervalMinutes:       Number(s.slotIntervalMinutes ?? 15),
+        slotIntervalMinutes:       Number(s.slotIntervalMinutes ?? 30),
         maxPartySize:              Number(s.maxPartySize ?? 20),
         autoConfirm:               Boolean(s.autoConfirm ?? false),
         bufferBetweenTurnsMinutes: Number(s.bufferBetweenTurnsMinutes ?? 15),
@@ -1080,7 +1080,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {[
                 ['Default turn time',   `${s.defaultTurnMinutes ?? 90}m`],
-                ['Slot interval',       `${s.slotIntervalMinutes ?? 15}m`],
+                ['Slot interval',       `${s.slotIntervalMinutes ?? 30}m`],
                 ['Max party size',      String(s.maxPartySize ?? 20)],
                 ['Auto-confirm',        s.autoConfirm ? 'Yes' : 'No'],
                 ['Turn buffer',         `${s.bufferBetweenTurnsMinutes ?? 15}m`],
