@@ -60,6 +60,8 @@ export const T = {
     activeHost:          (name: string) => `Active Host: ${name}`,
     switchHost:          'Switch Host',
     bulkConfirmButton:   'Confirmations',
+    sseReconnecting:     'Reconnecting…',
+    sseOffline:          'Live updates offline',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -901,6 +903,7 @@ export const T = {
     rebuildDayConfirm:   'Lift Reservations',
     toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'reservation' : 'reservations'} lifted from ${table}`,
     toastRebuildFail:    'Failed to lift reservations',
+    toastCancelFail:     'Failed to cancel',
     serviceReportBtn:    'Service Report',
     hostsBtn:            'Hosts',
     activityLogBtn:      'Activity Log',

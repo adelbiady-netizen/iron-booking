@@ -60,6 +60,8 @@ export const THe = {
     activeHost:          (name: string) => `מארח פעיל: ${name}`,
     switchHost:          'החלף מארח',
     bulkConfirmButton:   'אישורים',
+    sseReconnecting:     'מתחבר מחדש…',
+    sseOffline:          'עדכונים חיים לא זמינים',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -872,6 +874,7 @@ export const THe = {
     rebuildDayConfirm:   'העבר הזמנות',
     toastRebuildDone:    (n: number, table: string) => `${n} ${n === 1 ? 'הזמנה' : 'הזמנות'} הועברו משולחן ${table}`,
     toastRebuildFail:    'ההעברה נכשלה',
+    toastCancelFail:     'הביטול נכשל',
     serviceReportBtn:    'דוח משמרת',
     hostsBtn:            'מארחים',
     activityLogBtn:      'יומן פעילות',

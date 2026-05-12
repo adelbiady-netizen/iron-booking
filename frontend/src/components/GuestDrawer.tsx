@@ -228,6 +228,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const reorganizeKeyRef = useRef(0);
+  const inflightRef = useRef(false);
   const [reorganizeModal, setReorganizeModal] = useState<{
     conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
     pendingTableId: string;
@@ -432,6 +433,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   }
 
   async function run(fn: () => Promise<Reservation>, successMsg?: string) {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
     setError(null);
     setBusy(true);
     try {
@@ -445,6 +448,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
     } finally {
       setBusy(false);
+      inflightRef.current = false;
     }
   }
 

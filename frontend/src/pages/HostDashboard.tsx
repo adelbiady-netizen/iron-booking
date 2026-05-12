@@ -198,7 +198,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
 
-  useServerEvents({
+  const sseStatus = useServerEvents({
     incoming_call: (data) => {
       const d = data as { phone: string; createdAt: string };
       const now = Date.now();
@@ -270,14 +270,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         const dupeIds = ids.filter((id: string, i: number, a: string[]) => a.indexOf(id) !== i);
         if (dupeIds.length > 0) {
           console.error('[HostDashboard] API returned duplicate table IDs:', dupeIds, 'total:', ids.length, 'unique:', new Set(ids).size);
-        } else {
-          console.log('[HostDashboard] floor refresh ok — tables:', ids.length, 'date:', date, 'time:', time, 'key:', refreshKey);
         }
         setFloorTables(ft);
         setLoadError(false);
       }
       if (resOk) {
-        setReservations(resResult.value.data);
+        const freshData = resResult.value.data as Reservation[];
+        setReservations(freshData);
+        setSelectedRes(prev => {
+          if (!prev) return prev;
+          return freshData.find(r => r.id === prev.id) ?? prev;
+        });
         loadedDateRef.current = date;
       }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
@@ -586,9 +589,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (action === 'move') { setSelectedRes(res); return; }
     if (action === 'cancel') {
       try { await api.reservations.cancel(res.id); setRefreshKey(k => k + 1); }
-      catch { /* ignore */ }
+      catch (err) { showToast(err instanceof Error ? err.message : T.hostDashboard.toastCancelFail, 'error'); }
     }
-  }, [handleInsightAction]);
+  }, [handleInsightAction, showToast]);
 
   const handleTableLocked = useCallback((updated: Table) => {
     setFloorTables(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t));
@@ -820,10 +823,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (!waitlistAssignEntry) return;
     const entry   = waitlistAssignEntry;
     const tableId = waitlistAssignTableId ?? undefined;
-    setWaitlistAssignEntry(null);
-    setWaitlistAssignTableId(null);
     try {
       const { reservation } = await api.waitlist.seat(entry.id, tableId);
+      setWaitlistAssignEntry(null);
+      setWaitlistAssignTableId(null);
       setReservations(prev => [...prev, reservation]);
       setRefreshKey(k => k + 1);
       setWaitlist(prev => prev.filter(e => e.id !== entry.id));
@@ -1165,6 +1168,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onGuestsPage={handleGuestsPage}
         onSwitchHost={onSwitchHost}
         onBulkConfirm={() => setShowBulkConfirm(true)}
+        sseStatus={sseStatus}
       />
 
       {/* Secondary toolbar */}

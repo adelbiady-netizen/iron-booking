@@ -1,6 +1,7 @@
 import type React from 'react';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
+import type { SseStatus } from '../hooks/useServerEvents';
 import LanguageSwitcher from './LanguageSwitcher';
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
   onGuestsPage?: () => void;
   onSwitchHost?: () => void;
   onBulkConfirm?: () => void;
+  sseStatus?: SseStatus;
 }
 
 function SunIcon() {
@@ -74,6 +76,7 @@ export default function TopBar({
   onGuestsPage,
   onSwitchHost,
   onBulkConfirm,
+  sseStatus,
 }: Props) {
   const T = useT();
   const atMin  = zoom <= 75;
@@ -180,6 +183,20 @@ export default function TopBar({
         >
           {T.topBar.bulkConfirmButton}
         </button>
+      )}
+
+      {/* SSE connection status — only shown when degraded */}
+      {sseStatus === 'reconnecting' && (
+        <div className="flex items-center gap-1.5 text-amber-400 text-xs shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="hidden sm:block">{T.topBar.sseReconnecting}</span>
+        </div>
+      )}
+      {sseStatus === 'disconnected' && (
+        <div className="flex items-center gap-1.5 text-red-400 text-xs shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+          <span className="hidden sm:block">{T.topBar.sseOffline}</span>
+        </div>
       )}
 
       <div className="flex-1" />
