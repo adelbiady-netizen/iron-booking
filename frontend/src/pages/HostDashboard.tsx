@@ -1373,6 +1373,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             preselectedTableId={preselectedTableId ?? undefined}
             preselectedCombinedTableIds={preselectedCombinedTableIds.length > 0 ? preselectedCombinedTableIds : undefined}
             gapHint={gapHint ?? undefined}
+            defaultTurnMinutes={auth.user.restaurant?.settings?.defaultTurnMinutes}
             initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
             onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}
             onCreated={handleCreated}

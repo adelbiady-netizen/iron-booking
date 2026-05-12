@@ -29,6 +29,7 @@ interface Props {
   floorObjs?: FloorObjectData[];
   initialData?: { guestName?: string; partySize?: number; guestPhone?: string };
   gapHint?: GapHint;
+  defaultTurnMinutes?: number;
   onClose: () => void;
   onCreated: (r: Reservation) => void;
   onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
@@ -140,7 +141,7 @@ function snapToSlot(time: string): string {
 export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables,
   preselectedTableId, preselectedCombinedTableIds, floorObjs,
-  initialData, gapHint, onClose, onCreated,
+  initialData, gapHint, defaultTurnMinutes, onClose, onCreated,
   onPickTables, onPickTablesCancel,
   onDateTimeChange,
 }: Props) {
@@ -170,6 +171,8 @@ export default function CreateDrawer({
   const [wiName,          setWiName]          = useState(initialData?.guestName  ?? '');
   const [wiPhone,         setWiPhone]         = useState(initialData?.guestPhone ?? '');
   const [wiParty,         setWiParty]         = useState(initialData?.partySize  ?? 2);
+  const [wiDuration,      setWiDuration]      = useState(String(defaultTurnMinutes ?? getDefaultDuration(initialData?.partySize ?? 2)));
+  const [wiDurationManual, setWiDurationManual] = useState(false);
   const [wiNotes,         setWiNotes]         = useState('');
   const [wiTable,         setWiTable]         = useState(preselectedTableId ?? '');
   const [wiGuestHint,     setWiGuestHint]     = useState<GuestLookupResult | null>(null);
@@ -319,6 +322,12 @@ export default function CreateDrawer({
     setResDuration(String(getDefaultDuration(resParty)));
   }, [resParty, durationManual]);
 
+  // Same logic for walk-in duration.
+  useEffect(() => {
+    if (wiDurationManual) return;
+    setWiDuration(String(defaultTurnMinutes ?? getDefaultDuration(wiParty)));
+  }, [wiParty, wiDurationManual, defaultTurnMinutes]);
+
   // Board → drawer: when the host navigates to a different date on the top bar,
   // pull the new date into the reservation form so board and drawer stay on the
   // same day. Time is intentionally NOT synced here — the booking slot chosen by
@@ -407,6 +416,7 @@ export default function CreateDrawer({
         partySize:  wiParty,
         date:       todayStr(),
         time:       nowStr(),
+        duration:   wiDuration ? parseInt(wiDuration, 10) : undefined,
         guestNotes: wiNotes.trim() || undefined,
         source:     'WALK_IN',
       });
@@ -1038,6 +1048,47 @@ export default function CreateDrawer({
                   onChange={e => setWiParty(parseInt(e.target.value, 10) || 1)}
                 />
               </div>
+            </div>
+
+            {/* Duration */}
+            <div>
+              <Label>{T.createDrawer.fieldWalkInDuration}</Label>
+              <div className="flex gap-1 mt-0.5 mb-1.5">
+                {([60, 90, 120, 150] as const).map(preset => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => { setWiDuration(String(preset)); setWiDurationManual(true); }}
+                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                      wiDuration === String(preset)
+                        ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light'
+                        : 'border-iron-border text-iron-muted hover:text-iron-text'
+                    }`}
+                  >
+                    {preset === 60  ? T.createDrawer.durationPreset60
+                      : preset === 90  ? T.createDrawer.durationPreset90
+                      : preset === 120 ? T.createDrawer.durationPreset120
+                      : T.createDrawer.durationPreset150}
+                  </button>
+                ))}
+              </div>
+              <Input
+                type="number"
+                min={30}
+                max={480}
+                step={15}
+                value={wiDuration}
+                onChange={e => { setWiDuration(e.target.value); setWiDurationManual(true); }}
+                placeholder="90"
+              />
+              {(() => {
+                const mins = parseInt(wiDuration, 10);
+                if (!mins || isNaN(mins)) return null;
+                const end = new Date();
+                end.setMinutes(end.getMinutes() + mins);
+                const endStr = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+                return <p className="text-iron-muted text-[11px] mt-1">{T.createDrawer.walkInEndsAt(endStr)}</p>;
+              })()}
             </div>
 
             <div>
