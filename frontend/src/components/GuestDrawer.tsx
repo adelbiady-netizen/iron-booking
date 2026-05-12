@@ -97,15 +97,18 @@ interface ActionBtnProps {
   onClick: () => void;
   disabled: boolean;
   title?: string;
+  primary?: boolean;
 }
 
-function ActionBtn({ label, cls, onClick, disabled, title }: ActionBtnProps) {
+function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnProps) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${cls}`}
+      className={`rounded-lg border transition-colors disabled:opacity-40 ${
+        primary ? 'text-sm font-semibold px-4 py-2' : 'text-xs font-medium px-3 py-1.5'
+      } ${cls}`}
     >
       {label}
     </button>
@@ -522,7 +525,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     return (
       <section className="border-t border-iron-border pt-4 space-y-2.5">
-        <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">
+        <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider">
           {T.guestDrawer.confirmationSection}
         </p>
 
@@ -635,10 +638,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   function Actions() {
     if (res.status === 'PENDING') return (
       <>
-        <ActionBtn label={T.guestDrawer.actionConfirm}  cls={btnBlue}   onClick={() => run(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed)} disabled={busy} />
+        <ActionBtn label={T.guestDrawer.actionConfirm}  cls={btnBlue}   onClick={() => run(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed)} disabled={busy} primary />
         <ActionBtn
           label={T.guestDrawer.actionSeat}
           cls={btnGreen}
+          primary
           onClick={() => {
             if (onPickTables) {
               openActionMapPicker('seat');
@@ -685,6 +689,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <ActionBtn
           label={T.guestDrawer.actionSeat}
           cls={btnGreen}
+          primary
           onClick={() => {
             if (onPickTables) {
               openActionMapPicker('seat');
@@ -729,7 +734,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     if (res.status === 'SEATED') return (
       <>
-        <ActionBtn label={T.guestDrawer.actionComplete}  cls={btnGreen}   onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} />
+        <ActionBtn label={T.guestDrawer.actionComplete}  cls={btnGreen}   onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} primary />
         <ActionBtn
           label={T.guestDrawer.actionMoveTable}
           cls={btnNeutral}
@@ -811,14 +816,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`}>
 
         {/* Header */}
-        <div className="p-4 border-b border-iron-border shrink-0">
+        <div className="px-5 pt-5 pb-4 border-b border-iron-border/70 bg-iron-elevated shrink-0">
           <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0 pr-3">
+            <div className="flex-1 min-w-0 pe-3">
               {/* Name + VIP */}
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-iron-text font-semibold text-base truncate">{res.guestName}</h2>
+                <h2 className="text-iron-text font-semibold text-xl tracking-tight truncate">{res.guestName}</h2>
                 {res.guest?.isVip && (
-                  <span className="text-amber-400 text-xs font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                  <span className="text-amber-400 text-xs font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0">
                     {T.common.vip}
                   </span>
                 )}
@@ -853,50 +858,50 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Status + badges */}
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${STATUS_PILL[res.status]}`}>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
                 {res.returnedToListAt && (
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
                     {T.guestDrawer.returnedToList}
                   </span>
                 )}
                 {res.reorganizeAt && (
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
                     {T.guestDrawer.reorganizeBadge}
                   </span>
                 )}
                 {res.isRunningLate && res.status !== 'SEATED' && (
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
                     {T.guestDrawer.runningLate}
                   </span>
                 )}
                 {res.isConfirmedByGuest ? (
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
                     {T.guestDrawer.guestConfirmed}
                   </span>
                 ) : res.confirmationSentAt && res.status !== 'SEATED' ? (
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 border-blue-500/25 text-blue-400 font-medium">
                     {T.guestDrawer.smsSentBadge}
                   </span>
                 ) : null}
               </div>
 
               {/* Party + table — compact secondary line */}
-              <div className="flex items-center gap-1.5 mt-1.5 text-iron-muted text-xs">
+              <div className="flex items-center gap-1.5 mt-2 text-iron-muted/70 text-xs">
                 <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
-                    <span>·</span>
-                    <span>
+                    <span className="text-iron-muted/30">·</span>
+                    <span className="text-iron-muted">
                       {res.combinedTableIds.length
                         ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
                         : res.table.name}
                     </span>
                   </>
                 )}
-                <span>·</span>
+                <span className="text-iron-muted/30">·</span>
                 <span>{formatReservationSource(res.source, locale)}</span>
               </div>
             </div>
@@ -973,7 +978,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 ? 'border-amber-500/30 bg-amber-500/5'
                 : 'border-iron-green/30 bg-iron-green/5'
             }`}>
-              <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">
+              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider">
                 {smartSuggestion?.mode === 'upgrade'
                   ? T.guestDrawer.sectionSmartUpgrade
                   : T.guestDrawer.sectionSmartSuggest}
@@ -1080,7 +1085,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (others.length === 0) return null;
             return (
               <section className="border-t border-iron-border pt-4 space-y-1.5">
-                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-2">
+                <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-2">
                   {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
                 </p>
                 {others.map(r => (
@@ -1107,7 +1112,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Guest CRM */}
           {res.guest && (
             <section className="border-t border-iron-border pt-4 space-y-2">
-              <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-2">
+              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
               <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`} />
@@ -1137,7 +1142,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Actions */}
           <section className="border-t border-iron-border pt-4">
-            <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-3">
+            <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-3">
               {T.guestDrawer.sectionActions}
             </p>
 
@@ -1503,7 +1508,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Table lock */}
           {assignedTable && mode !== 'lock' && (
             <section className="border-t border-iron-border pt-4">
-              <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-3">{T.guestDrawer.sectionTableLock}</p>
+              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-3">{T.guestDrawer.sectionTableLock}</p>
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
                   <div>
@@ -1521,7 +1526,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {mode === 'lock' && assignedTable && (
             <section className="border-t border-iron-border pt-4 space-y-3">
-              <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">{T.lockModal.title(assignedTable.name)}</p>
+              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider">{T.lockModal.title(assignedTable.name)}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCK_QUICK_REASONS.map(r => (
                   <button
@@ -1559,7 +1564,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Lifecycle timestamps */}
           <section className="border-t border-iron-border pt-4 space-y-2">
-            <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-2">
+            <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-2">
               {T.guestDrawer.sectionTimeline}
             </p>
             {!res.confirmedAt && !res.seatedAt && !res.completedAt && !res.cancelledAt && !res.noShowAt && (
