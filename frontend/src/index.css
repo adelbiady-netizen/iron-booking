@@ -18,13 +18,13 @@
   --iron-green-light:  111 138 60;     /* #6F8A3C */
 
   /* Canvas map (hex — used in inline style backgroundColor) */
-  --canvas-bg:              #100d0b;   /* warm deep dark — shadowed floor of a fine dining room */
-  --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light     */
-  --canvas-grid:            rgba(255,255,255,0.028); /* architectural cross-grid lines */
+  --canvas-bg:              #1a1208;   /* warm mahogany dark — floor surface is readable, not void */
+  --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light       */
+  --canvas-grid:            rgba(255,195,110,0.025); /* warm amber seams — matches floor material  */
   --canvas-table-bg:        #1c1c1e;
   --canvas-status-occupied: #86efac;   /* green-200 */
   --canvas-status-reserved: #60a5fa;   /* blue-400  */
-  --canvas-ambient:         rgba(255,248,230,0.022); /* chandelier warmth — warm white, not cold */
+  --canvas-ambient:         rgba(255,245,215,0.045); /* chandelier bloom — visible warm center    */
 
   color-scheme: dark;
 }

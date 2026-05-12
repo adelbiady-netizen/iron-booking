@@ -26,7 +26,7 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
 };
 
 const STATUS_BG: Record<string, string> = {
-  AVAILABLE:     'rgb(var(--iron-card))',
+  AVAILABLE:     'rgba(38,30,20,0.97)',        // warm dark brown — distinct from floor, not floating
   OCCUPIED:      'rgba(22,163,74,0.34)',        // warmer, grounded
   RESERVED_SOON: 'rgba(217,119,6,0.32)',         // warming — imminence energy
   RESERVED:      'rgba(37,99,235,0.16)',          // calm, committed
@@ -99,7 +99,7 @@ function tableRadius(shape: string): string {
 // Warm golden base layer shared by all occupied tables — the faint warmth of candlelight
 // spread across a tablecloth. At ~1.5-2% opacity it is sub-perceptible individually,
 // but across a room of occupied tables it shifts the floor from cold to inhabited.
-const OCCUPIED_WARM = 'radial-gradient(ellipse 90% 85% at 50% 50%, rgba(255,215,100,0.018) 0%, transparent 100%)';
+const OCCUPIED_WARM = 'radial-gradient(ellipse 90% 85% at 50% 50%, rgba(255,200,80,0.065) 0%, transparent 100%)';
 
 function tableGradient(shape: string, status: string): string | undefined {
   if (status === 'BLOCKED') return undefined;
@@ -107,7 +107,7 @@ function tableGradient(shape: string, status: string): string | undefined {
   const isBooth = shape === 'BOOTH';
   if (isRound) {
     // Round tables: radial spotlight + warm candle base for occupied
-    if (status === 'OCCUPIED')      return `radial-gradient(ellipse 64% 60% at 40% 36%, rgba(255,255,255,0.095) 0%, transparent 62%), ${OCCUPIED_WARM}`;
+    if (status === 'OCCUPIED')      return `radial-gradient(ellipse 64% 60% at 40% 36%, rgba(255,255,255,0.13) 0%, transparent 62%), ${OCCUPIED_WARM}`;
     if (status === 'RESERVED_SOON') return 'radial-gradient(ellipse 58% 54% at 40% 36%, rgba(255,255,255,0.046) 0%, transparent 68%)';
     if (status === 'RESERVED')      return 'radial-gradient(ellipse 55% 50% at 40% 36%, rgba(255,255,255,0.030) 0%, transparent 70%)';
     return                                  'radial-gradient(ellipse 52% 48% at 40% 36%, rgba(255,255,255,0.022) 0%, transparent 72%)';
@@ -119,7 +119,7 @@ function tableGradient(shape: string, status: string): string | undefined {
     return                                  'linear-gradient(180deg, rgba(255,255,255,0.014) 0%, transparent 100%)';
   }
   // Rectangular / square — angled upper-left highlight + warm candle base for occupied
-  if (status === 'OCCUPIED')      return `linear-gradient(148deg, rgba(255,255,255,0.072) 0%, transparent 50%), ${OCCUPIED_WARM}`;
+  if (status === 'OCCUPIED')      return `linear-gradient(148deg, rgba(255,255,255,0.10) 0%, transparent 50%), ${OCCUPIED_WARM}`;
   if (status === 'RESERVED_SOON') return 'linear-gradient(148deg, rgba(255,255,255,0.034) 0%, transparent 54%)';
   if (status === 'RESERVED')      return 'linear-gradient(148deg, rgba(255,255,255,0.022) 0%, transparent 58%)';
   return                                  'linear-gradient(148deg, rgba(255,255,255,0.016) 0%, transparent 62%)';
@@ -616,18 +616,20 @@ export default function FloorBoard({
               height: CANVAS_H,
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: [
-                // Chandelier bloom — warm white, wider spread for premium room scale
+                // Chandelier bloom — visible warm center, premium room scale
                 'radial-gradient(ellipse 85% 68% at 50% 38%, var(--canvas-ambient) 0%, transparent 72%)',
                 // Kitchen/pass warmth — amber from back-right, heat from the service pass
                 'radial-gradient(ellipse 38% 46% at 86% 74%, rgba(255,185,80,0.016) 0%, transparent 100%)',
                 // Entrance light — faint cool daylight from the front-left edge
                 'radial-gradient(ellipse 25% 52% at 7% 46%, rgba(180,210,255,0.008) 0%, transparent 100%)',
-                // Architectural cross-grid — horizontal lines (floor tile seams)
+                // Wood grain — diagonal plank seams across the floor surface
+                'repeating-linear-gradient(15deg, transparent, transparent 28px, rgba(255,195,110,0.007) 28px, rgba(255,195,110,0.007) 30px)',
+                // Architectural cross-grid — horizontal tile seams
                 'linear-gradient(0deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
-                // Architectural cross-grid — vertical lines
+                // Architectural cross-grid — vertical tile seams
                 'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
               ].join(', '),
-              backgroundSize: 'auto, auto, auto, 28px 28px, 28px 28px',
+              backgroundSize: 'auto, auto, auto, 30px 30px, 28px 28px, 28px 28px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
@@ -1100,8 +1102,8 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
   // Double-radial for occupied tables: wide ambient field (r=180) + tight spotlight (r=68).
   // Simulates a real restaurant spotlight — brightest at the table, fading into the dark floor.
   // Under pressure both layers intensify so active zones visually emerge faster.
-  const occOuter = underPressure ? 0.072 : 0.052;
-  const occInner = underPressure ? 0.052 : 0.038;
+  const occOuter = underPressure ? 0.092 : 0.072;
+  const occInner = underPressure ? 0.068 : 0.055;
   const ovdStrength = underPressure ? 0.050 : 0.038;
 
   return (
