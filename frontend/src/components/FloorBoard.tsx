@@ -1193,6 +1193,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                 })()}
               </p>
             )}
+            {/* Overdue turnover pressure — show who is waiting when this table needs to be freed */}
+            {isOverdue && !isSecondary && nextRes && (
+              <p style={{ marginTop: 2, fontSize: 9, color: '#fbbf24', opacity: 0.72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
+                → {nextRes.guestName} · {nextRes.time}
+              </p>
+            )}
           </div>
         );
       })()}

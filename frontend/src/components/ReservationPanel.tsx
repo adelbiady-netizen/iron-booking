@@ -388,9 +388,19 @@ export default function ReservationPanel({
                       {!r.table && (
                         <>
                           <span className="text-iron-muted/25">·</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-iron-border/15 border-iron-border/30 text-iron-muted font-medium">
-                            {T.reservationPanel.noTableBadge}
-                          </span>
+                          {(() => {
+                            const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
+                            const urgent = minsUntil !== null && minsUntil > 0 && minsUntil <= 30;
+                            return (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                                urgent
+                                  ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
+                                  : 'bg-iron-border/15 border-iron-border/30 text-iron-muted'
+                              }`}>
+                                {T.reservationPanel.noTableBadge}{urgent && minsUntil !== null ? ` · ${minsUntil}m` : ''}
+                              </span>
+                            );
+                          })()}
                         </>
                       )}
                     </div>
