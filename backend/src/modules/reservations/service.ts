@@ -432,21 +432,25 @@ export async function seatReservation(
   // defaulting to [] (single-table seat) when the argument is omitted.
   const resolvedCombinedIds = combinedTableIds ?? [];
 
+  // Current time in the restaurant's local timezone — used for both the
+  // near-term reorganize check and the availability validation below.
+  // Seating is a live operation: availability must be anchored to NOW, not to
+  // the reservation's original scheduled time, so both checks see the same state
+  // as the floor board (which also uses current time as its anchor).
+  const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: settings.timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date());
+  const [nowH, nowM] = nowTimeStr.split(':').map(Number);
+  const nowMins = nowH * 60 + nowM;
+
   // Check for near-term reservations on the target table. Only flag reservations
   // within a 120-minute window from now — far-future bookings don't block seating.
   // Skip this check when the caller has already selected IDs to reorganize.
   if (reorganizeIds.length === 0) {
     const todayDateObj = parseDateArg(todayLocal);
-
-    // Current time in the restaurant's local timezone as minutes from midnight.
-    const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
-      timeZone: settings.timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(new Date());
-    const [nowH, nowM] = nowTimeStr.split(':').map(Number);
-    const nowMins = nowH * 60 + nowM;
     const windowEndMins = nowMins + 120;
 
     const allOnTable = await prisma.reservation.findMany({
@@ -486,11 +490,15 @@ export async function seatReservation(
   }
 
   if (!overrideConflicts) {
+    // Use nowTimeStr (current restaurant-local time) instead of r.time so the
+    // conflict check matches what the floor board already shows. The floor board
+    // shows AVAILABLE when no reservation exists within the next 90 minutes;
+    // seating should never block on reservations the board doesn't surface.
     await validateTableAssignment(
       restaurantId,
       tableId,
       r.date,
-      r.time,
+      nowTimeStr,
       r.duration,
       settings.bufferBetweenTurnsMinutes,
       r.partySize,
@@ -572,11 +580,19 @@ export async function moveReservation(
   const settings = await getRestaurantSettings(restaurantId);
 
   if (!input.overrideConflicts) {
+    // Same as seatReservation: use current restaurant-local time so the conflict
+    // check stays consistent with what the floor board shows.
+    const nowTimeStrMove = new Intl.DateTimeFormat('en-GB', {
+      timeZone: settings.timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
     await validateTableAssignment(
       restaurantId,
       input.tableId,
       r.date,
-      r.time,
+      nowTimeStrMove,
       r.duration,
       settings.bufferBetweenTurnsMinutes,
       r.partySize,
@@ -958,11 +974,27 @@ export async function validateTableAssignment(
     } else if (tableAvail?.blockedBy) {
       throw new ConflictError(`Table ${table.name} is blocked: ${tableAvail.blockedBy}`);
     } else {
+      if (tableAvail?._debug) {
+        console.error(
+          '[validateTableAssignment] CONFLICT on table=%s (%s)' +
+          ' | blocking res=%s status=%s time=%s dur=%d' +
+          ' | incoming time=%s dur=%d buffer=%d',
+          table.name, tableId,
+          tableAvail._debug.conflictingResId,
+          tableAvail._debug.conflictingResStatus,
+          tableAvail._debug.conflictingResTime,
+          tableAvail._debug.conflictingResDuration,
+          tableAvail._debug.incomingTime,
+          tableAvail._debug.incomingDuration,
+          tableAvail._debug.bufferMinutes,
+        );
+      }
       throw new ConflictError(
         `Table ${table.name} is not available at that time`,
         {
           conflictingReservationId: tableAvail?.conflictingReservationId,
           nextAvailableAt: tableAvail?.nextAvailableAt,
+          debug: tableAvail?._debug,
         }
       );
     }

@@ -16,6 +16,16 @@ export interface TableAvailability {
   conflictingReservationId?: string;
   blockedBy?: string;
   nextAvailableAt?: Date;
+  // Debug: populated only when isAvailable is false due to a reservation conflict
+  _debug?: {
+    conflictingResId:    string;
+    conflictingResTime:  string;
+    conflictingResDuration: number;
+    conflictingResStatus: string;
+    incomingTime:        string;
+    incomingDuration:    number;
+    bufferMinutes:       number;
+  };
 }
 
 /**
@@ -91,6 +101,15 @@ export async function getTableAvailability(
         isAvailable: false,
         conflictingReservationId: conflict.id,
         nextAvailableAt: addMinutes(cStart, durationMinutes + bufferMinutes),
+        _debug: {
+          conflictingResId:       conflict.id,
+          conflictingResTime:     conflict.time,
+          conflictingResDuration: conflict.duration,
+          conflictingResStatus:   conflict.status,
+          incomingTime:           timeStr,
+          incomingDuration:       durationMinutes,
+          bufferMinutes,
+        },
       };
     }
 
