@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api, ApiError } from '../../api';
 import { useT } from '../../i18n/useT';
+import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
 import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
@@ -90,20 +91,20 @@ function StyleTileGroup<T extends string>({
 
 function BrandingPreviewCard({
   primaryColor, logoUrl, restaurantName, buttonStyle, cardStyle, backgroundMood,
+  backgroundColorHex, backgroundGradientHex,
 }: {
   primaryColor: string; logoUrl: string; restaurantName: string;
   buttonStyle: string; cardStyle: string; backgroundMood: string;
+  backgroundColorHex: string; backgroundGradientHex: string;
 }) {
   const hex = primaryColor || '#22C55E';
   const initial = restaurantName.charAt(0).toUpperCase();
 
-  // Derive button radius from style
   const btnRadius = buttonStyle === 'pill' ? '9999px'
     : buttonStyle === 'sharp' ? '4px'
     : buttonStyle === 'luxury' ? '6px'
-    : '10px'; // rounded / default
+    : '10px';
 
-  // Derive card background from cardStyle
   const cardBg = cardStyle === 'solid' ? 'rgba(10,12,18,0.97)'
     : cardStyle === 'luxury-dark' ? 'rgba(8,7,5,0.97)'
     : cardStyle === 'soft-light' ? 'rgba(255,255,255,0.09)'
@@ -112,17 +113,21 @@ function BrandingPreviewCard({
     : cardStyle === 'soft-light' ? 'rgba(255,255,255,0.18)'
     : 'rgba(255,255,255,0.08)';
 
-  // Derive background from mood
-  const bgColor = backgroundMood === 'espresso' ? '#120e08'
-    : backgroundMood === 'olive' ? '#0c1009'
-    : backgroundMood === 'cream' ? '#141108'
-    : backgroundMood === 'warm' ? '#120e05'
-    : '#0b0f18'; // dark / default
+  // Custom color overrides mood preset in preview
+  const bgStyle: React.CSSProperties = backgroundColorHex
+    ? { background: backgroundGradientHex
+        ? `linear-gradient(168deg, ${backgroundColorHex} 0%, ${backgroundGradientHex} 100%)`
+        : backgroundColorHex }
+    : { background: backgroundMood === 'espresso' ? '#120e08'
+        : backgroundMood === 'olive' ? '#0c1009'
+        : backgroundMood === 'cream' ? '#141108'
+        : backgroundMood === 'warm' ? '#120e05'
+        : '#0b0f18' };
 
   return (
     <div
       className="rounded-xl overflow-hidden border border-white/10"
-      style={{ background: bgColor, padding: '16px' }}
+      style={{ ...bgStyle, padding: '16px' }}
     >
       {/* Restaurant header */}
       <div className="flex flex-col items-center gap-2 mb-3">
@@ -302,11 +307,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
-  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '' });
+  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '' });
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
   const [logoPreview,    setLogoPreview]    = useState<string | null>(null);
   const [coverPreview,   setCoverPreview]   = useState<string | null>(null);
+  const [logoUpload,     setLogoUpload]     = useState<{ progress: number | null; error: string | null }>({ progress: null, error: null });
+  const [coverUpload,    setCoverUpload]    = useState<{ progress: number | null; error: string | null }>({ progress: null, error: null });
 
   // Weekly schedule edit state
   const [editSchedule,  setEditSchedule]  = useState(false);
@@ -359,7 +366,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
-      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '' });
+      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '' });
       if (d.operatingHours?.length === 7) {
         setScheduleRows(d.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -580,9 +587,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         logoUrl:           brandingForm.logoUrl           || null,
         coverImageUrl:     brandingForm.coverImageUrl     || null,
         heroVideoUrl:      brandingForm.heroVideoUrl      || null,
-        buttonStyle:       brandingForm.buttonStyle       || null,
-        cardStyle:         brandingForm.cardStyle         || null,
-        backgroundMood:    brandingForm.backgroundMood    || null,
+        buttonStyle:           brandingForm.buttonStyle           || null,
+        cardStyle:             brandingForm.cardStyle             || null,
+        backgroundMood:        brandingForm.backgroundMood        || null,
+        backgroundColorHex:    brandingForm.backgroundColorHex    || null,
+        backgroundGradientHex: brandingForm.backgroundGradientHex || null,
       });
       setDetail(d => d ? {
         ...d,
@@ -592,9 +601,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         logoUrl:           result.logoUrl,
         coverImageUrl:     result.coverImageUrl,
         heroVideoUrl:      result.heroVideoUrl,
-        buttonStyle:       result.buttonStyle,
-        cardStyle:         result.cardStyle,
-        backgroundMood:    result.backgroundMood,
+        buttonStyle:           result.buttonStyle,
+        cardStyle:             result.cardStyle,
+        backgroundMood:        result.backgroundMood,
+        backgroundColorHex:    result.backgroundColorHex,
+        backgroundGradientHex: result.backgroundGradientHex,
       } : d);
       setEditBranding(false);
       showToast('Branding saved');
@@ -1304,34 +1315,63 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </select>
             </Field>
 
-            {/* Logo upload + URL fallback */}
-            <Field label="Logo (PNG/SVG, transparent background recommended)">
+            {/* Cloudinary config notice */}
+            {!cloudinaryConfigured() && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300 space-y-1">
+                <p className="font-semibold">Image upload not configured</p>
+                <p className="text-amber-400/80">Add two env vars to your Vercel frontend project, then redeploy:</p>
+                <pre className="text-[10px] bg-black/20 rounded px-2 py-1 font-mono select-all">VITE_CLOUDINARY_CLOUD_NAME=your-cloud-name{'\n'}VITE_CLOUDINARY_UPLOAD_PRESET=your-unsigned-preset</pre>
+                <p className="text-amber-400/80">Get both for free at <span className="underline">cloudinary.com</span> → Settings → Upload presets (set mode: Unsigned).</p>
+                <p className="text-amber-400/80">Until then, paste a public image URL directly into the field below.</p>
+              </div>
+            )}
+
+            {/* Logo upload */}
+            <Field label="Logo (PNG/SVG/WEBP/JPG · max 2 MB · transparent background recommended)">
               <div className="flex items-center gap-2 mb-2">
-                <label className="flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text cursor-pointer shrink-0">
+                <label className={`flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 text-iron-muted cursor-pointer shrink-0 ${logoUpload.progress !== null ? 'opacity-50 pointer-events-none' : 'hover:bg-iron-bg hover:text-iron-text'}`}>
                   <input
                     type="file"
                     accept="image/png,image/svg+xml,image/webp,image/jpeg"
                     className="hidden"
-                    onChange={e => {
+                    onChange={async e => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const url = URL.createObjectURL(file);
+                      // Always show local preview immediately
                       if (logoPreview) URL.revokeObjectURL(logoPreview);
-                      setLogoPreview(url);
+                      setLogoPreview(URL.createObjectURL(file));
+                      setLogoUpload({ progress: null, error: null });
+                      // Validate
+                      const valErr = validateImageFile(file, 'logo');
+                      if (valErr) { setLogoUpload({ progress: null, error: valErr }); return; }
+                      // Upload if configured
+                      if (!cloudinaryConfigured()) return; // stay on local preview
+                      setLogoUpload({ progress: 0, error: null });
+                      try {
+                        const result = await uploadToCloudinary(
+                          file,
+                          `iron-booking/restaurants/${selectedId}/logo`,
+                          pct => setLogoUpload(u => ({ ...u, progress: pct })),
+                        );
+                        setBrandingForm(f => ({ ...f, logoUrl: result.secure_url }));
+                        setLogoUpload({ progress: null, error: null });
+                      } catch (err) {
+                        setLogoUpload({ progress: null, error: err instanceof Error ? err.message : 'Upload failed' });
+                      }
                     }}
                   />
-                  Choose file
+                  {logoUpload.progress !== null ? `Uploading ${logoUpload.progress}%` : 'Upload image'}
                 </label>
-                <span className="text-iron-muted text-xs truncate">{logoPreview ? 'File selected (local preview)' : 'No file chosen'}</span>
+                {logoUpload.progress !== null && (
+                  <div className="flex-1 h-1.5 bg-iron-border rounded-full overflow-hidden">
+                    <div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${logoUpload.progress}%` }} />
+                  </div>
+                )}
               </div>
-              <Input
-                value={brandingForm.logoUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
-                placeholder="Or paste CDN URL — https://cdn.example.com/logo.svg"
-              />
+              {logoUpload.error && <p className="text-[11px] text-red-400 mb-1">{logoUpload.error}</p>}
               {(logoPreview || brandingForm.logoUrl) && (
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-lg border border-iron-border bg-iron-bg flex items-center justify-center overflow-hidden">
+                <div className="mb-2 flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-lg border border-iron-border bg-iron-bg flex items-center justify-center overflow-hidden shrink-0">
                     <img
                       src={logoPreview ?? brandingForm.logoUrl}
                       alt="logo preview"
@@ -1339,41 +1379,65 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   </div>
-                  <div>
-                    <p className="text-iron-muted text-xs">{logoPreview ? 'Local preview only' : 'Saved URL preview'}</p>
-                    {logoPreview && <p className="text-[11px] text-amber-400 mt-0.5">Upload this file to your CDN, then paste the URL above to save it.</p>}
+                  <div className="text-xs text-iron-muted">
+                    {brandingForm.logoUrl && !brandingForm.logoUrl.startsWith('blob:')
+                      ? <p className="text-iron-green text-[11px]">✓ Uploaded and saved</p>
+                      : !cloudinaryConfigured()
+                        ? <p className="text-amber-400 text-[11px]">Local preview · configure Cloudinary to upload</p>
+                        : null}
                   </div>
                 </div>
               )}
+              <p className="text-[11px] text-iron-muted mb-1">Advanced: paste a public URL directly</p>
+              <Input
+                value={brandingForm.logoUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
+                placeholder="https://res.cloudinary.com/… or any public URL"
+              />
             </Field>
 
-            {/* Cover image upload + URL fallback */}
-            <Field label="Cover / hero image (wide landscape, ≥1200px wide recommended)">
+            {/* Cover image upload */}
+            <Field label="Cover / hero image (PNG/JPG/WEBP · max 5 MB · ≥1200px wide recommended)">
               <div className="flex items-center gap-2 mb-2">
-                <label className="flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text cursor-pointer shrink-0">
+                <label className={`flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 text-iron-muted cursor-pointer shrink-0 ${coverUpload.progress !== null ? 'opacity-50 pointer-events-none' : 'hover:bg-iron-bg hover:text-iron-text'}`}>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     className="hidden"
-                    onChange={e => {
+                    onChange={async e => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const url = URL.createObjectURL(file);
                       if (coverPreview) URL.revokeObjectURL(coverPreview);
-                      setCoverPreview(url);
+                      setCoverPreview(URL.createObjectURL(file));
+                      setCoverUpload({ progress: null, error: null });
+                      const valErr = validateImageFile(file, 'cover');
+                      if (valErr) { setCoverUpload({ progress: null, error: valErr }); return; }
+                      if (!cloudinaryConfigured()) return;
+                      setCoverUpload({ progress: 0, error: null });
+                      try {
+                        const result = await uploadToCloudinary(
+                          file,
+                          `iron-booking/restaurants/${selectedId}/cover`,
+                          pct => setCoverUpload(u => ({ ...u, progress: pct })),
+                        );
+                        setBrandingForm(f => ({ ...f, coverImageUrl: result.secure_url }));
+                        setCoverUpload({ progress: null, error: null });
+                      } catch (err) {
+                        setCoverUpload({ progress: null, error: err instanceof Error ? err.message : 'Upload failed' });
+                      }
                     }}
                   />
-                  Choose file
+                  {coverUpload.progress !== null ? `Uploading ${coverUpload.progress}%` : 'Upload image'}
                 </label>
-                <span className="text-iron-muted text-xs truncate">{coverPreview ? 'File selected (local preview)' : 'No file chosen'}</span>
+                {coverUpload.progress !== null && (
+                  <div className="flex-1 h-1.5 bg-iron-border rounded-full overflow-hidden">
+                    <div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${coverUpload.progress}%` }} />
+                  </div>
+                )}
               </div>
-              <Input
-                value={brandingForm.coverImageUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
-                placeholder="Or paste CDN URL — https://cdn.example.com/cover.jpg"
-              />
+              {coverUpload.error && <p className="text-[11px] text-red-400 mb-1">{coverUpload.error}</p>}
               {(coverPreview || brandingForm.coverImageUrl) && (
-                <div className="mt-2">
+                <div className="mb-2">
                   <div className="rounded-lg overflow-hidden border border-iron-border" style={{ height: 96 }}>
                     <img
                       src={coverPreview ?? brandingForm.coverImageUrl}
@@ -1382,9 +1446,20 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   </div>
-                  {coverPreview && <p className="text-[11px] text-amber-400 mt-1">Upload this file to your CDN, then paste the URL above to save it.</p>}
+                  {brandingForm.coverImageUrl && !brandingForm.coverImageUrl.startsWith('blob:') && (
+                    <p className="text-[11px] text-iron-green mt-1">✓ Uploaded and saved</p>
+                  )}
+                  {!cloudinaryConfigured() && coverPreview && (
+                    <p className="text-[11px] text-amber-400 mt-1">Local preview · configure Cloudinary to upload</p>
+                  )}
                 </div>
               )}
+              <p className="text-[11px] text-iron-muted mb-1">Advanced: paste a public URL directly</p>
+              <Input
+                value={brandingForm.coverImageUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
+                placeholder="https://res.cloudinary.com/… or any public URL"
+              />
             </Field>
 
             {/* Hero video URL */}
@@ -1416,16 +1491,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               value={brandingForm.cardStyle}
               onChange={v => setBrandingForm(f => ({ ...f, cardStyle: v }))}
               options={[
-                { value: 'glass',        label: 'Glass',       preview: <div className="w-full h-6 rounded-lg" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))', border: '1px solid rgba(255,255,255,0.14)' }} /> },
-                { value: 'solid',        label: 'Solid',       preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(10,12,18,0.97)', border: '1px solid rgba(255,255,255,0.07)' }} /> },
-                { value: 'luxury-dark',  label: 'Luxury',      preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(6,5,3,0.97)', border: '1px solid rgba(210,175,80,0.30)' }} /> },
-                { value: 'soft-light',   label: 'Soft',        preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.22)' }} /> },
+                { value: 'glass',       label: 'Glass',   preview: <div className="w-full h-6 rounded-lg" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))', border: '1px solid rgba(255,255,255,0.14)' }} /> },
+                { value: 'solid',       label: 'Solid',   preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(10,12,18,0.97)', border: '1px solid rgba(255,255,255,0.07)' }} /> },
+                { value: 'luxury-dark', label: 'Luxury',  preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(6,5,3,0.97)', border: '1px solid rgba(210,175,80,0.30)' }} /> },
+                { value: 'soft-light',  label: 'Soft',    preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.22)' }} /> },
               ]}
             />
 
-            {/* Background mood */}
+            {/* Background mood preset */}
             <StyleTileGroup
-              label="Background mood"
+              label="Background mood (preset)"
               value={brandingForm.backgroundMood}
               onChange={v => setBrandingForm(f => ({ ...f, backgroundMood: v }))}
               options={[
@@ -1437,6 +1512,76 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               ]}
             />
 
+            {/* Custom background color (overrides mood preset when set) */}
+            <div className="space-y-3">
+              <label className="block text-xs text-iron-muted">
+                Custom background color
+                <span className="ml-1 text-iron-muted/60">(overrides mood preset)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Base color (hex)">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandingForm.backgroundColorHex || '#0b0f18'}
+                      onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))}
+                      className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer shrink-0"
+                    />
+                    <Input
+                      value={brandingForm.backgroundColorHex}
+                      onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))}
+                      placeholder="#0b0f18"
+                    />
+                    {brandingForm.backgroundColorHex && (
+                      <button
+                        type="button"
+                        onClick={() => setBrandingForm(f => ({ ...f, backgroundColorHex: '', backgroundGradientHex: '' }))}
+                        className="text-iron-muted hover:text-iron-text text-xs shrink-0"
+                        title="Clear custom color"
+                      >✕</button>
+                    )}
+                  </div>
+                  {/* Contrast warning */}
+                  {brandingForm.backgroundColorHex && (() => {
+                    const m = brandingForm.backgroundColorHex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+                    if (!m) return null;
+                    const lum = [m[1], m[2], m[3]].reduce((acc, c, i) => {
+                      const v = parseInt(c, 16) / 255;
+                      return acc + (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i];
+                    }, 0);
+                    return lum > 0.12
+                      ? <p className="text-[11px] text-amber-400 mt-1">⚠ Background too light — white text may be unreadable. Use a value darker than #303030.</p>
+                      : null;
+                  })()}
+                </Field>
+                <Field label="Gradient end color (optional)">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandingForm.backgroundGradientHex || brandingForm.backgroundColorHex || '#080a10'}
+                      onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))}
+                      className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer shrink-0"
+                    />
+                    <Input
+                      value={brandingForm.backgroundGradientHex}
+                      onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))}
+                      placeholder="#080a10"
+                    />
+                  </div>
+                </Field>
+              </div>
+              {brandingForm.backgroundColorHex && (
+                <div
+                  className="rounded-lg h-10 border border-white/10"
+                  style={{
+                    background: brandingForm.backgroundGradientHex
+                      ? `linear-gradient(168deg, ${brandingForm.backgroundColorHex} 0%, ${brandingForm.backgroundGradientHex} 100%)`
+                      : brandingForm.backgroundColorHex,
+                  }}
+                />
+              )}
+            </div>
+
             {/* Live preview */}
             <div>
               <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">Live preview</p>
@@ -1447,6 +1592,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 buttonStyle={brandingForm.buttonStyle}
                 cardStyle={brandingForm.cardStyle}
                 backgroundMood={brandingForm.backgroundMood}
+                backgroundColorHex={brandingForm.backgroundColorHex}
+                backgroundGradientHex={brandingForm.backgroundGradientHex}
               />
             </div>
 
@@ -1455,7 +1602,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
                 onClick={() => {
-                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '' });
+                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '' });
                   setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setCoverPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setBrandingError(null);
@@ -1524,6 +1671,17 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Background mood</dt>
                 <dd className="text-iron-text capitalize">{detail?.backgroundMood ?? <span className="text-iron-muted italic">Dark</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Custom background</dt>
+                <dd className="flex items-center gap-2">
+                  {detail?.backgroundColorHex
+                    ? <>
+                        <span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.backgroundGradientHex ? `linear-gradient(168deg, ${detail.backgroundColorHex}, ${detail.backgroundGradientHex})` : detail.backgroundColorHex }} />
+                        <span className="text-iron-text font-mono text-xs">{detail.backgroundColorHex}{detail.backgroundGradientHex ? ` → ${detail.backgroundGradientHex}` : ''}</span>
+                      </>
+                    : <span className="text-iron-muted italic">Not set</span>}
+                </dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Logo</dt>

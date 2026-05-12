@@ -59,6 +59,8 @@ interface BrandingInput {
   buttonStyle?: string | null;
   cardStyle?: string | null;
   backgroundMood?: string | null;
+  backgroundColorHex?: string | null;
+  backgroundGradientHex?: string | null;
 }
 
 function hexToRgbChannels(hex: string): string | null {
@@ -68,11 +70,13 @@ function hexToRgbChannels(hex: string): string | null {
 }
 
 export function usePublicTheme(branding: BrandingInput | null | undefined) {
-  const primary        = branding?.primaryColor;
-  const preset         = branding?.publicThemePreset;
-  const buttonStyle    = branding?.buttonStyle;
-  const cardStyle      = branding?.cardStyle;
-  const backgroundMood = branding?.backgroundMood;
+  const primary             = branding?.primaryColor;
+  const preset              = branding?.publicThemePreset;
+  const buttonStyle         = branding?.buttonStyle;
+  const cardStyle           = branding?.cardStyle;
+  const backgroundMood      = branding?.backgroundMood;
+  const backgroundColorHex  = branding?.backgroundColorHex;
+  const backgroundGradientHex = branding?.backgroundGradientHex;
 
   useEffect(() => {
     const key = (preset && preset in PRESET_RGB) ? (preset as PresetKey) : 'default';
@@ -105,11 +109,22 @@ export function usePublicTheme(branding: BrandingInput | null | undefined) {
       document.documentElement.removeAttribute('data-pub-card');
     }
 
-    // data-pub-bg: background atmosphere mood
-    if (backgroundMood && backgroundMood !== 'dark') {
-      document.documentElement.setAttribute('data-pub-bg', backgroundMood);
-    } else {
+    // Custom background color takes priority over mood preset.
+    // Sets --pub-bg-from / --pub-bg-to CSS vars used by [data-pub-bg-custom] in public-ds.css.
+    if (backgroundColorHex) {
+      document.documentElement.style.setProperty('--pub-bg-from', backgroundColorHex);
+      document.documentElement.style.setProperty('--pub-bg-to',   backgroundGradientHex ?? backgroundColorHex);
+      document.documentElement.setAttribute('data-pub-bg-custom', '');
       document.documentElement.removeAttribute('data-pub-bg');
+    } else {
+      document.documentElement.style.removeProperty('--pub-bg-from');
+      document.documentElement.style.removeProperty('--pub-bg-to');
+      document.documentElement.removeAttribute('data-pub-bg-custom');
+      if (backgroundMood && backgroundMood !== 'dark') {
+        document.documentElement.setAttribute('data-pub-bg', backgroundMood);
+      } else {
+        document.documentElement.removeAttribute('data-pub-bg');
+      }
     }
 
     return () => {
@@ -117,10 +132,13 @@ export function usePublicTheme(branding: BrandingInput | null | undefined) {
       document.documentElement.style.removeProperty('--pub-radius');
       document.documentElement.style.removeProperty('--pub-tracking');
       document.documentElement.style.removeProperty('--pub-glow');
+      document.documentElement.style.removeProperty('--pub-bg-from');
+      document.documentElement.style.removeProperty('--pub-bg-to');
       document.documentElement.removeAttribute('data-pub-preset');
       document.documentElement.removeAttribute('data-pub-btn');
       document.documentElement.removeAttribute('data-pub-card');
       document.documentElement.removeAttribute('data-pub-bg');
+      document.documentElement.removeAttribute('data-pub-bg-custom');
     };
-  }, [primary, preset, buttonStyle, cardStyle, backgroundMood]);
+  }, [primary, preset, buttonStyle, cardStyle, backgroundMood, backgroundColorHex, backgroundGradientHex]);
 }

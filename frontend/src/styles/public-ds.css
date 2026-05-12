@@ -957,6 +957,19 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 }
 
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Custom background color (data-pub-bg-custom attribute)                       */
+/* Set by publicTheme.ts when restaurant has backgroundColorHex configured.     */
+/* Takes priority over mood preset. Uses --pub-bg-from / --pub-bg-to vars.      */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-pub-bg-custom] .pub-atm-base {
+  background:
+    radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%),
+    linear-gradient(168deg, var(--pub-bg-from) 0%, var(--pub-bg-to) 100%);
+}
+
+
 /* ── Utility: detail row (label + value pairs inside .pub-inset) ────────── */
 
 .pub-detail-row {

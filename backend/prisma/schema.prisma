@@ -84,9 +84,11 @@ model Restaurant {
   accentColor       String?  // hex, secondary accent
   publicThemePreset String?  // "luxury" | "casual" | "family" | "nightlife" | "minimal" | "fineDining" | "mediterranean" | "italiano"
   heroVideoUrl      String?  // muted autoplay background video for the public booking page
-  buttonStyle       String?  // "rounded" | "pill" | "sharp" | "luxury"
-  cardStyle         String?  // "glass" | "solid" | "luxury-dark" | "soft-light"
-  backgroundMood    String?  // "espresso" | "olive" | "cream" | "dark" | "warm"
+  buttonStyle          String?  // "rounded" | "pill" | "sharp" | "luxury"
+  cardStyle            String?  // "glass" | "solid" | "luxury-dark" | "soft-light"
+  backgroundMood       String?  // "espresso" | "olive" | "cream" | "dark" | "warm"
+  backgroundColorHex   String?  // custom bg base color, e.g. "#1a0f05"; overrides mood preset
+  backgroundGradientHex String? // optional gradient end color, e.g. "#0a0603"
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
