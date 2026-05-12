@@ -43,9 +43,9 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
     gap:            '5px',
     padding:        '6px 14px',
     borderRadius:   '999px',
-    border:         '1px solid rgba(255,255,255,0.18)',
-    background:     'rgba(255,255,255,0.08)',
-    color:          'rgba(255,255,255,0.88)',
+    border:         '1px solid rgba(93,127,50,0.32)',
+    background:     'rgba(93,127,50,0.10)',
+    color:          'rgba(205,228,165,0.88)',
     fontSize:       '12px',
     fontWeight:     500,
     textDecoration: 'none',
@@ -55,15 +55,15 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
 
   function pillEnter(e: React.MouseEvent<HTMLAnchorElement>) {
     const el = e.currentTarget;
-    el.style.background  = 'rgb(var(--pub-rgb) / 0.20)';
-    el.style.borderColor = 'rgb(var(--pub-rgb) / 0.50)';
-    el.style.color       = 'rgba(255,255,255,1)';
+    el.style.background  = 'rgba(93,127,50,0.22)';
+    el.style.borderColor = 'rgba(93,127,50,0.58)';
+    el.style.color       = 'rgba(222,244,182,1)';
   }
   function pillLeave(e: React.MouseEvent<HTMLAnchorElement>) {
     const el = e.currentTarget;
-    el.style.background  = 'rgba(255,255,255,0.08)';
-    el.style.borderColor = 'rgba(255,255,255,0.18)';
-    el.style.color       = 'rgba(255,255,255,0.88)';
+    el.style.background  = 'rgba(93,127,50,0.10)';
+    el.style.borderColor = 'rgba(93,127,50,0.32)';
+    el.style.color       = 'rgba(205,228,165,0.88)';
   }
 
   return (
@@ -84,7 +84,7 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
               style={{
                 fontSize:    '13px',
                 lineHeight:  1.6,
-                color:       'rgba(255,255,255,0.72)',
+                color:       'rgba(200,224,158,0.72)',
                 marginBottom: hasPills ? '12px' : '0',
               }}
             >
@@ -180,7 +180,7 @@ export function PublicFooter({ visible = true, restaurant }: Props) {
               margin:     '20px auto 0',
               width:      '40px',
               height:     '1px',
-              background: 'rgba(255,255,255,0.18)',
+              background: 'rgba(93,127,50,0.40)',
             }}
           />
         </div>

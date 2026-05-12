@@ -998,19 +998,22 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* Legal / trust footer  (.pub-footer)                                         */
 /* Shared by BookingPage, WaitlistKioskPage, ConfirmationPage.                 */
-/* Full-width dark surface — readable over any page background or theme color. */
+/* Iron brand green — warm olive luxury palette, not neon, not gaming.         */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
 .pub-footer {
   width: 100%;
-  margin: 20px 0 0;
+  margin: 0;
   padding: 0;
   text-align: center;
-  /* Solid dark backdrop — immune to page background / theme colors */
-  background: rgba(9, 10, 14, 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  /* Dark Iron green gradient — anchored in brand, reads as premium dark */
+  background: linear-gradient(
+    to bottom,
+    rgba(24, 36, 12, 0.99)  0%,
+    rgba(15, 22,  7, 0.99) 55%,
+    rgba(10, 15,  4, 1.00) 100%
+  );
+  border-top: 1px solid rgba(93, 127, 50, 0.32);
 }
 
 /* Content width constraint + internal padding */
@@ -1033,7 +1036,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(192, 218, 148, 0.58);
   margin: 0 0 20px;
   user-select: none;
 }
@@ -1041,7 +1044,8 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 
 .pub-footer-diamond {
   font-size: 7px;
-  color: rgb(var(--pub-rgb, 74 222 128) / 0.80);
+  /* Fixed Iron brand green — not theme-dynamic, intentionally constant */
+  color: #5d7f32;
   line-height: 1;
 }
 
@@ -1060,7 +1064,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 .pub-footer-link {
   font-size: 10.5px;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(198, 222, 155, 0.68);
   text-decoration: none;
   padding: 4px 0;
   transition: color 0.18s ease;
@@ -1068,13 +1072,13 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 }
 [dir="rtl"] .pub-footer-link { letter-spacing: 0; }
 
-.pub-footer-link:hover { color: rgba(255, 255, 255, 0.92); }
+.pub-footer-link:hover { color: rgba(218, 240, 178, 0.94); }
 
 .pub-footer-link:focus-visible {
   outline: none;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(218, 240, 178, 0.94);
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.45);
+  text-decoration-color: rgba(93, 127, 50, 0.55);
   text-underline-offset: 3px;
 }
 
@@ -1082,7 +1086,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 .pub-footer-links li + li::before {
   content: '·';
   padding: 0 8px;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(93, 127, 50, 0.40);
   font-size: 12px;
   line-height: 1;
   display: inline-block;
@@ -1094,7 +1098,7 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
   font-size: 9.5px;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(148, 182, 96, 0.40);
   margin: 0;
 }
 [dir="rtl"] .pub-footer-copy { letter-spacing: 0.02em; }
