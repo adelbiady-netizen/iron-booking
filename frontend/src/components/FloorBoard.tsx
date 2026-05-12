@@ -89,8 +89,34 @@ const CANVAS_H = 800;
 
 function tableRadius(shape: string): string {
   if (shape === 'ROUND' || shape === 'OVAL') return '9999px';
-  if (shape === 'BOOTH') return '0 0 10px 10px';
+  if (shape === 'BOOTH') return '3px 3px 14px 14px';  // straight back, curved seat edge
   return '8px';
+}
+
+// Surface gradient per table shape — overhead light reads differently on round vs rectangular.
+// Round tables catch light centrally (radial); booths catch it from the back (top-down);
+// rectangular tables catch it from upper-left (angled). BLOCKED tables have no gradient.
+function tableGradient(shape: string, status: string): string | undefined {
+  if (status === 'BLOCKED') return undefined;
+  const isRound = shape === 'ROUND' || shape === 'OVAL';
+  const isBooth = shape === 'BOOTH';
+  if (isRound) {
+    if (status === 'OCCUPIED')      return 'radial-gradient(ellipse 62% 58% at 40% 36%, rgba(255,255,255,0.080) 0%, transparent 65%)';
+    if (status === 'RESERVED_SOON') return 'radial-gradient(ellipse 58% 54% at 40% 36%, rgba(255,255,255,0.046) 0%, transparent 68%)';
+    if (status === 'RESERVED')      return 'radial-gradient(ellipse 55% 50% at 40% 36%, rgba(255,255,255,0.030) 0%, transparent 70%)';
+    return                                  'radial-gradient(ellipse 52% 48% at 40% 36%, rgba(255,255,255,0.022) 0%, transparent 72%)';
+  }
+  if (isBooth) {
+    if (status === 'OCCUPIED')      return 'linear-gradient(180deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.008) 100%)';
+    if (status === 'RESERVED_SOON') return 'linear-gradient(180deg, rgba(255,255,255,0.032) 0%, transparent 100%)';
+    if (status === 'RESERVED')      return 'linear-gradient(180deg, rgba(255,255,255,0.020) 0%, transparent 100%)';
+    return                                  'linear-gradient(180deg, rgba(255,255,255,0.014) 0%, transparent 100%)';
+  }
+  // Rectangular / square — angled light from upper-left
+  if (status === 'OCCUPIED')      return 'linear-gradient(148deg, rgba(255,255,255,0.060) 0%, transparent 52%)';
+  if (status === 'RESERVED_SOON') return 'linear-gradient(148deg, rgba(255,255,255,0.034) 0%, transparent 54%)';
+  if (status === 'RESERVED')      return 'linear-gradient(148deg, rgba(255,255,255,0.022) 0%, transparent 58%)';
+  return                                  'linear-gradient(148deg, rgba(255,255,255,0.016) 0%, transparent 62%)';
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
@@ -566,7 +592,11 @@ export default function FloorBoard({
           >
             {/* Floor objects */}
             {floorObjs.map(o => {
-              const s = OBJ_STYLE[o.kind] ?? OBJ_STYLE['WALL'];
+              const s       = OBJ_STYLE[o.kind] ?? OBJ_STYLE['WALL'];
+              const isBar   = o.kind === 'BAR';
+              const isZone  = o.kind === 'ZONE';
+              const isDivider = o.kind === 'DIVIDER';
+              const isEntrance = o.kind === 'ENTRANCE';
               return (
                 <div
                   key={o.id}
@@ -574,14 +604,41 @@ export default function FloorBoard({
                     position: 'absolute',
                     left: o.posX, top: o.posY,
                     width: o.width, height: o.height,
-                    backgroundColor: s.bg,
-                    border: `1.5px solid ${s.border}`,
+                    // Zone is a floor marker — more transparent so the canvas shows through
+                    backgroundColor: isZone ? 'rgba(18,22,17,0.32)' : s.bg,
+                    // Per-kind surface gradients: bar counter catches overhead light from above;
+                    // zone/divider/entrance get a very faint highlight for architectural presence
+                    backgroundImage: isBar
+                      ? 'linear-gradient(180deg, rgba(200,100,40,0.22) 0%, rgba(0,0,0,0.20) 100%)'
+                      : isZone
+                      ? 'linear-gradient(148deg, rgba(255,255,255,0.014) 0%, transparent 55%)'
+                      : isEntrance
+                      ? 'linear-gradient(180deg, rgba(40,70,140,0.22) 0%, rgba(0,0,0,0.26) 100%)'
+                      : isDivider
+                      ? 'linear-gradient(148deg, rgba(255,255,255,0.020) 0%, transparent 60%)'
+                      : undefined,
+                    border: `${isZone ? 1 : 1.5}px solid ${s.border}`,
                     borderRadius: s.zone ? 8 : 3,
+                    // Bar: top edge highlight — the counter surface catches the overhead light
+                    boxShadow: isBar
+                      ? 'inset 0 1px 0 rgba(255,200,150,0.24), inset 0 -1px 0 rgba(0,0,0,0.30)'
+                      : undefined,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden',
                     pointerEvents: 'none',
                   }}
                 >
-                  <span style={{ fontSize: 10, color: 'rgb(var(--iron-text))', opacity: 0.8, userSelect: 'none', padding: '0 4px', textAlign: 'center' }}>
+                  <span style={{
+                    fontSize:      isBar ? 11 : 10,
+                    fontWeight:    isBar ? 600 : 400,
+                    color:         isBar ? 'rgba(255,220,180,0.90)' : 'rgb(var(--iron-text))',
+                    opacity:       isZone ? 0.45 : 0.80,
+                    userSelect:    'none',
+                    padding:       '0 4px',
+                    textAlign:     'center',
+                    letterSpacing: isBar ? '0.07em' : isZone ? '0.10em' : undefined,
+                    textTransform: isZone ? 'uppercase' : undefined,
+                  }}>
                     {o.label}
                   </span>
                 </div>
@@ -1211,9 +1268,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   }
 
   // Candlelight from within — occupied tables that aren't overdue feel warm and alive.
-  // The hairline top highlight simulates light bouncing off the tablecloth surface.
+  // Round tables: perimeter glow (top + bottom hairlines) simulates the tablecloth rim catching light.
+  // Rectangular/booth: top hairline only — the upper surface reflects the overhead source.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue) {
-    const innerGlow = 'inset 0 1px 0 rgba(134,239,172,0.09)';
+    const isRound = table.shape === 'ROUND' || table.shape === 'OVAL';
+    const innerGlow = isRound
+      ? 'inset 0 1px 0 rgba(134,239,172,0.12), inset 0 -1px 0 rgba(134,239,172,0.05)'
+      : 'inset 0 1px 0 rgba(134,239,172,0.09)';
     boxShadow = boxShadow ? `${boxShadow}, ${innerGlow}` : innerGlow;
   }
 
@@ -1237,19 +1298,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         borderRadius: tableRadius(table.shape),
         border: `${borderWidth}px solid ${borderColor}`,
         backgroundColor: bg,
-        // Material surface — angled light from upper-left, like a real table under overhead lighting.
-        // Occupied reads warmest; available recedes; pick/warn states are neutral (clarity first).
-        backgroundImage: !pickMode && !wlPickWarn ? (
-          table.liveStatus === 'OCCUPIED'
-            ? 'linear-gradient(148deg, rgba(255,255,255,0.060) 0%, transparent 52%)'
-            : table.liveStatus === 'RESERVED_SOON'
-            ? 'linear-gradient(148deg, rgba(255,255,255,0.034) 0%, transparent 54%)'
-            : table.liveStatus === 'RESERVED'
-            ? 'linear-gradient(148deg, rgba(255,255,255,0.022) 0%, transparent 58%)'
-            : table.liveStatus === 'AVAILABLE'
-            ? 'linear-gradient(148deg, rgba(255,255,255,0.016) 0%, transparent 62%)'
-            : undefined
-        ) : undefined,
+        // Material surface — gradient angle and shape vary by table type so overhead light
+        // reads correctly: radial for round, top-down for booths, angled for rectangular.
+        // Pick/warn states are neutral (clarity first — no decoration during selection).
+        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, table.liveStatus) : undefined,
         boxShadow,
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
