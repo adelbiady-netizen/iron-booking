@@ -471,7 +471,7 @@ export default function FloorBoard({
                 onMouseLeave={() => setHoveredSectionId(null)}
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                <span className="text-iron-muted text-xs">{formatSectionName(sec.name, locale)}</span>
+                <span className="text-iron-muted text-[11px]">{formatSectionName(sec.name, locale)}</span>
               </button>
             ))}
           </>
@@ -1116,7 +1116,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           fontSize: hasGuest ? 10 : 12,
           fontWeight: 600,
           color: hasGuest ? 'rgb(var(--iron-muted))' : table.liveStatus === 'BLOCKED' ? 'rgb(var(--iron-muted))' : 'rgb(var(--iron-text))',
-          opacity: hasGuest ? 0.65 : table.liveStatus === 'BLOCKED' ? 0.55 : 1,
+          opacity: hasGuest ? 0.65 : table.liveStatus === 'BLOCKED' ? 0.85 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           letterSpacing: hasGuest ? '0.02em' : undefined,
         }}>

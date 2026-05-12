@@ -859,7 +859,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
               {/* Status + badges */}
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${STATUS_PILL[res.status]}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
                 {res.returnedToListAt && (
@@ -916,7 +916,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               )}
               <button
                 onClick={onClose}
-                className="text-iron-muted hover:text-iron-text text-2xl leading-none"
+                className="text-iron-muted hover:text-iron-text text-xl leading-none"
                 aria-label="Close"
               >
                 ×

@@ -87,8 +87,8 @@ export default function TopBar({
     <header className="h-14 shrink-0 bg-iron-card border-b border-iron-border flex items-center px-4 gap-3">
       {/* Brand */}
       <div className="flex items-center gap-2 mr-1 shrink-0">
-        <div className="w-7 h-7 bg-iron-green rounded flex items-center justify-center shrink-0">
-          <span className="text-white font-bold text-xs">IB</span>
+        <div className="w-6 h-6 bg-iron-elevated border border-iron-border rounded-md flex items-center justify-center shrink-0">
+          <span className="text-iron-green-light font-bold text-[10px]">IB</span>
         </div>
         <span className="text-iron-text font-semibold text-sm tracking-tight hidden md:block">
           {T.topBar.brand}
@@ -129,18 +129,16 @@ export default function TopBar({
         <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
       </div>
 
-      {/* Now button — highlighted when not live */}
-      <button
-        onClick={onNow}
-        title="Jump to today's current time"
-        className={`text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors shrink-0 ${
-          isLive
-            ? 'border-iron-border text-iron-muted opacity-40 cursor-default'
-            : 'border-iron-green text-iron-green-light hover:bg-iron-green/10 cursor-pointer'
-        }`}
-      >
-        {T.topBar.nowBtn}
-      </button>
+      {/* Now button — only shown when not live; hiding it IS the "live" signal */}
+      {!isLive && (
+        <button
+          onClick={onNow}
+          title="Jump to today's current time"
+          className="text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors shrink-0 border-iron-green text-iron-green-light hover:bg-iron-green/10"
+        >
+          {T.topBar.nowBtn}
+        </button>
+      )}
 
       {/* Zoom control */}
       <div
@@ -210,7 +208,7 @@ export default function TopBar({
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}
-            className="text-iron-green text-xs border border-iron-green/40 px-3 py-1.5 rounded-md hover:bg-iron-green/10 transition-colors font-medium"
+            className="text-iron-muted text-xs border border-iron-border px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
           >
             {T.topBar.adminButton}
           </button>
