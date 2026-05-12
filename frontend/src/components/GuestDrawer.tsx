@@ -527,6 +527,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         </p>
 
         {/* Confirmation status */}
+        {res.isArrived && (
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+            <span className="text-teal-400 text-xs font-medium">{T.guestDrawer.guestArrived}</span>
+          </div>
+        )}
         {res.isRunningLate && (
           <div className="flex items-center gap-1.5 mb-1">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
@@ -661,6 +667,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             disabled={busy}
           />
         )}
+        {!res.isArrived && (
+          <ActionBtn
+            label={T.guestDrawer.actionMarkArrived}
+            cls={btnNeutral}
+            onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+            disabled={busy}
+          />
+        )}
         <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
         <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
       </>
@@ -696,6 +710,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             label={T.guestDrawer.actionSendSms}
             cls={btnNeutral}
             onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+            disabled={busy}
+          />
+        )}
+        {!res.isArrived && (
+          <ActionBtn
+            label={T.guestDrawer.actionMarkArrived}
+            cls={btnNeutral}
+            onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
             disabled={busy}
           />
         )}

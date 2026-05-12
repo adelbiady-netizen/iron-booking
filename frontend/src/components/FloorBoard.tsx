@@ -949,12 +949,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const sectionColor = table.section?.color ?? '#3f3f46';
 
   // Base (non-pick) colors
+  const isOverdue = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
+    : isOverdue ? 'rgba(239,68,68,0.14)'
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
 
   let borderColor = selected        ? '#22c55e'
     : combinedSelected ? '#3b82f6'
     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
+    : isOverdue      ? '#ef4444'
     : table.locked   ? '#f59e0b'
     : sectionColor;
 
@@ -1096,10 +1099,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
+        const nameColor = currentRes.isOverdue ? '#fca5a5' : 'var(--canvas-status-occupied)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 10, color: 'var(--canvas-status-occupied)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <p style={{ fontSize: 10, color: nameColor, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {currentRes.guestName}
               </p>
               {isCombined && (

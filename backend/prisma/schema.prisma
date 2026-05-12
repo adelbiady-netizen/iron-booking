@@ -345,6 +345,10 @@ model Reservation {
   isRunningLate  Boolean   @default(false)
   lateNotifiedAt DateTime?
 
+  // Host-marked physical arrival — guest is present but not yet seated
+  isArrived  Boolean   @default(false)
+  arrivedAt  DateTime?
+
   // Lifecycle timestamps
   confirmedAt  DateTime?
   remindedAt   DateTime?

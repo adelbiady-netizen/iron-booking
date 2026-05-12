@@ -218,15 +218,15 @@ export default function TableQuickPanel({
       return { cls: 'bg-amber-500/10 border-amber-500/25 text-amber-400', dot: 'bg-amber-400', label: T.tableQuickPanel.locked };
     }
     if (floorTable.liveStatus === 'OCCUPIED') {
+      const mr = floorTable.currentReservation?.minutesRemaining;
+      const isOverdue = mr !== undefined && mr < 0;
+      if (isOverdue) {
+        const label = T.tableQuickPanel.minOver(Math.abs(mr!));
+        return { cls: 'bg-red-900/20 border-red-700/30 text-red-400', dot: 'bg-red-400', label };
+      }
       let label = T.tableQuickPanel.statusOccupied;
-      if (res && isLiveView) {
-        const [rH, rM] = res.time.split(':').map(Number);
-        const [nH, nM] = nowTime.split(':').map(Number);
-        const elapsed   = (nH * 60 + nM) - (rH * 60 + rM);
-        const remaining = res.duration - elapsed;
-        label = remaining < 0
-          ? T.tableQuickPanel.minOver(Math.abs(remaining))
-          : T.tableQuickPanel.minLeft(remaining);
+      if (mr !== undefined && isLiveView) {
+        label = mr > 0 ? T.tableQuickPanel.minLeft(mr) : T.tableQuickPanel.statusOccupied;
       }
       return { cls: 'bg-iron-green/10 border-iron-green/25 text-iron-green-light', dot: 'bg-iron-green', label };
     }

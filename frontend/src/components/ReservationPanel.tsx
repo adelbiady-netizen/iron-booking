@@ -393,13 +393,16 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 3 — optional signal chips */}
-                    {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt) && (
+                    {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt) && (
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {r.occasion && (
                           <span className="text-xs text-iron-green-light font-medium">{r.occasion}</span>
                         )}
                         {r.isConfirmedByGuest && (
                           <span className="text-xs text-emerald-400 font-medium">{T.reservationPanel.confirmedTick}</span>
+                        )}
+                        {r.isArrived && (
+                          <span className="text-xs text-teal-400 font-medium">{T.reservationPanel.arrivedBadge}</span>
                         )}
                         {r.isRunningLate && (
                           <span className="text-xs text-orange-400 font-medium">{T.reservationPanel.runningLate}</span>

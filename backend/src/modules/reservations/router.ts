@@ -312,6 +312,15 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
   } catch (err) { next(err); }
 });
 
+// POST /reservations/:id/mark-arrived — host marks guest as physically present, not yet seated
+router.post('/:id/mark-arrived', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.markArrived(req.auth.restaurantId, p(req, 'id'), actorName(req));
+    res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
 // POST /reservations/:id/mark-confirmed — staff manually marks guest as confirmed
 router.post('/:id/mark-confirmed', async (req: Request, res: Response, next: NextFunction) => {
   try {

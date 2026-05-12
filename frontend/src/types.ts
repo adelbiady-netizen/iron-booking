@@ -69,6 +69,8 @@ export interface Reservation {
   isConfirmedByGuest: boolean;
   isRunningLate: boolean;
   lateNotifiedAt: string | null;
+  isArrived: boolean;
+  arrivedAt: string | null;
   confirmationToken: string | null;
   confirmationSentAt: string | null;
   confirmedAt: string | null;
@@ -99,6 +101,7 @@ export interface FloorTable extends Table {
   currentReservation: (Reservation & {
     minutesRemaining: number;
     expectedEndTime: string;   // seatedAt + duration, ISO — set by backend, always present
+    isOverdue: boolean;        // true when minutesRemaining < 0; host must manually complete
   }) | null;
   upcomingReservations: Array<Reservation & { minutesUntil: number }>;
 }
