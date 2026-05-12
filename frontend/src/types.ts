@@ -209,6 +209,10 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   backgroundMood:        string | null;
   backgroundColorHex:    string | null;
   backgroundGradientHex: string | null;
+  websiteUrl:    string | null;
+  instagramUrl:  string | null;
+  googleMapsUrl: string | null;
+  wazeUrl:       string | null;
 }
 
 export interface AdminUser {

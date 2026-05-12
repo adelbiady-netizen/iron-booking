@@ -308,7 +308,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
-  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '' });
+  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
   const [logoPreview,    setLogoPreview]    = useState<string | null>(null);
@@ -367,7 +367,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
-      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '' });
+      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '', websiteUrl: d.websiteUrl ?? '', instagramUrl: d.instagramUrl ?? '', googleMapsUrl: d.googleMapsUrl ?? '', wazeUrl: d.wazeUrl ?? '' });
       if (d.operatingHours?.length === 7) {
         setScheduleRows(d.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -596,6 +596,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         backgroundMood:        brandingForm.backgroundMood        || null,
         backgroundColorHex:    brandingForm.backgroundColorHex    || null,
         backgroundGradientHex: brandingForm.backgroundGradientHex || null,
+        websiteUrl:    brandingForm.websiteUrl    || null,
+        instagramUrl:  brandingForm.instagramUrl  || null,
+        googleMapsUrl: brandingForm.googleMapsUrl || null,
+        wazeUrl:       brandingForm.wazeUrl       || null,
       });
       setDetail(d => d ? {
         ...d,
@@ -610,6 +614,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         backgroundMood:        result.backgroundMood,
         backgroundColorHex:    result.backgroundColorHex,
         backgroundGradientHex: result.backgroundGradientHex,
+        websiteUrl:    result.websiteUrl,
+        instagramUrl:  result.instagramUrl,
+        googleMapsUrl: result.googleMapsUrl,
+        wazeUrl:       result.wazeUrl,
       } : d);
       setEditBranding(false);
       showToast('Branding saved');
@@ -1589,6 +1597,25 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               )}
             </div>
 
+            {/* Navigation & social links */}
+            <div className="space-y-3">
+              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">Navigation &amp; social links</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Website URL">
+                  <Input value={brandingForm.websiteUrl} onChange={e => setBrandingForm(f => ({ ...f, websiteUrl: e.target.value }))} placeholder="https://yourrestaurant.com" />
+                </Field>
+                <Field label="Instagram URL">
+                  <Input value={brandingForm.instagramUrl} onChange={e => setBrandingForm(f => ({ ...f, instagramUrl: e.target.value }))} placeholder="https://instagram.com/yourpage" />
+                </Field>
+                <Field label="Google Maps URL">
+                  <Input value={brandingForm.googleMapsUrl} onChange={e => setBrandingForm(f => ({ ...f, googleMapsUrl: e.target.value }))} placeholder="https://maps.google.com/?q=..." />
+                </Field>
+                <Field label="Waze URL">
+                  <Input value={brandingForm.wazeUrl} onChange={e => setBrandingForm(f => ({ ...f, wazeUrl: e.target.value }))} placeholder="https://waze.com/ul?ll=..." />
+                </Field>
+              </div>
+            </div>
+
             {/* Live preview */}
             <div>
               <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">Live preview</p>
@@ -1609,7 +1636,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
                 onClick={() => {
-                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '' });
+                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
                   setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setCoverPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setBrandingError(null);
@@ -1705,6 +1732,22 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     ? <div className="mt-1 rounded-md overflow-hidden border border-iron-border" style={{ height: 64 }}><img src={detail.coverImageUrl} alt="cover" className="w-full h-full object-cover" /></div>
                     : <span className="text-iron-muted italic">Not set</span>}
                 </dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Website</dt>
+                <dd className="text-iron-text text-xs truncate">{detail?.websiteUrl ? <a href={detail.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.websiteUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Instagram</dt>
+                <dd className="text-iron-text text-xs truncate">{detail?.instagramUrl ? <a href={detail.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.instagramUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Google Maps</dt>
+                <dd className="text-iron-text text-xs truncate">{detail?.googleMapsUrl ? <a href={detail.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.googleMapsUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Waze</dt>
+                <dd className="text-iron-text text-xs truncate">{detail?.wazeUrl ? <a href={detail.wazeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.wazeUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
             </dl>
           </div>

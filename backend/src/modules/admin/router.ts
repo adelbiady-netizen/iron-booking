@@ -301,6 +301,10 @@ const UpdateBrandingSchema = z.object({
   backgroundMood:        z.enum(['espresso','olive','cream','dark','warm']).nullable().optional(),
   backgroundColorHex:    z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   backgroundGradientHex: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  websiteUrl:    z.string().url().nullable().optional(),
+  instagramUrl:  z.string().url().nullable().optional(),
+  googleMapsUrl: z.string().url().nullable().optional(),
+  wazeUrl:       z.string().url().nullable().optional(),
 });
 
 // PATCH /admin/restaurants/:id/branding
@@ -322,6 +326,10 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
         backgroundMood:        req.body.backgroundMood        ?? null,
         backgroundColorHex:    req.body.backgroundColorHex    ?? null,
         backgroundGradientHex: req.body.backgroundGradientHex ?? null,
+        websiteUrl:    req.body.websiteUrl    ?? null,
+        instagramUrl:  req.body.instagramUrl  ?? null,
+        googleMapsUrl: req.body.googleMapsUrl ?? null,
+        wazeUrl:       req.body.wazeUrl       ?? null,
       },
     });
     res.json({
@@ -337,6 +345,10 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
       backgroundMood:        updated.backgroundMood,
       backgroundColorHex:    updated.backgroundColorHex,
       backgroundGradientHex: updated.backgroundGradientHex,
+      websiteUrl:    updated.websiteUrl,
+      instagramUrl:  updated.instagramUrl,
+      googleMapsUrl: updated.googleMapsUrl,
+      wazeUrl:       updated.wazeUrl,
     });
   } catch (err) { next(err); }
 });
