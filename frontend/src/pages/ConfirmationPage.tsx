@@ -4,6 +4,7 @@ import type { PublicReservation } from '../types';
 import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { PublicFooter } from '../components/PublicFooter';
 import { usePublicTheme } from '../utils/publicTheme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -339,9 +340,10 @@ export default function ConfirmationPage({ token }: Props) {
         <PageFooter
           websiteUrl={res?.restaurantWebsiteUrl ?? null}
           instagramUrl={res?.restaurantInstagramUrl ?? null}
-          restaurantName={identity?.name ?? null}
         />
       </div>
+
+      <PublicFooter visible={state.phase !== 'loading'} />
 
     </div>
   );
@@ -682,11 +684,10 @@ function InfoBlock({ label, icon, children }: { label: string; icon: React.React
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
-  websiteUrl: string | null; instagramUrl: string | null; restaurantName: string | null;
+function PageFooter({ websiteUrl, instagramUrl }: {
+  websiteUrl: string | null; instagramUrl: string | null;
 }) {
   const { t } = useTranslation();
-  const displayName = sanitizeName(restaurantName);
   const hasLinks = websiteUrl || instagramUrl;
   return (
     <div className="mt-6 pb-2 text-center">
@@ -744,9 +745,6 @@ function PageFooter({ websiteUrl, instagramUrl, restaurantName }: {
           </div>
         </>
       )}
-      <p className="text-white/[0.15] text-[10px] tracking-widest uppercase rtl:tracking-normal">
-        {displayName ? `${displayName} · ` : ''}{t('common.poweredBy')}
-      </p>
     </div>
   );
 }

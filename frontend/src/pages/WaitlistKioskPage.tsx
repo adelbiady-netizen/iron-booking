@@ -4,6 +4,7 @@ import type { PublicRestaurantProfile } from '../types';
 import { api } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { PublicFooter } from '../components/PublicFooter';
 import { usePublicTheme } from '../utils/publicTheme';
 
 interface Props { slug: string }
@@ -441,15 +442,10 @@ export default function WaitlistKioskPage({ slug }: Props) {
           </GlassCard>
         )}
 
-        {/* Powered by */}
-        <p
-          className="text-center"
-          style={{ color: 'rgba(255,255,255,0.14)', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase' }}
-        >
-          {t('common.poweredBy')}
-        </p>
-
       </div>
+
+      <PublicFooter visible={phase.phase !== 'loading' && phase.phase !== 'not-found'} />
+
     </div>
   );
 }

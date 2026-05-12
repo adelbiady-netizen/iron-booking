@@ -119,6 +119,17 @@
     "notFound": "מסעדה לא נמצאה",
     "notFoundDetail": ".קישור הקיוסק עשוי להיות לא תקין"
   },
+  "footer": {
+    "navLabel": "קישורים משפטיים ותמיכה",
+    "privacy": "מדיניות פרטיות",
+    "terms": "תנאי שירות",
+    "accessibility": "נגישות",
+    "contact": "צור קשר ותמיכה",
+    "cookie": "מדיניות עוגיות",
+    "cancellation": "מדיניות ביטול",
+    "noShow": "מדיניות אי-הגעה",
+    "copyright": "© {{year}} Iron Booking. כל הזכויות שמורות."
+  },
   "confirmation": {
     "actionConfirming": "מאשר את השולחן שלך…",
     "actionCancelling": "מבטל את ההזמנה שלך…",

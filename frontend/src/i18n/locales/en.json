@@ -117,6 +117,17 @@
     "notFound": "Restaurant not found",
     "notFoundDetail": "This kiosk link may be invalid."
   },
+  "footer": {
+    "navLabel": "Legal and support links",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "accessibility": "Accessibility",
+    "contact": "Contact & Support",
+    "cookie": "Cookie Policy",
+    "cancellation": "Cancellation Policy",
+    "noShow": "No-show Policy",
+    "copyright": "© {{year}} Iron Booking. All rights reserved."
+  },
   "confirmation": {
     "actionConfirming": "Confirming your table…",
     "actionCancelling": "Cancelling your reservation…",

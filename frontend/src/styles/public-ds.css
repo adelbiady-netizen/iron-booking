@@ -993,3 +993,107 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
   font-weight: 500;
   color: var(--pub-text-secondary);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Legal / trust footer  (.pub-footer)                                         */
+/* Shared by BookingPage, WaitlistKioskPage, ConfirmationPage.                 */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.pub-footer {
+  width: 100%;
+  max-width: 480px;
+  margin: 8px auto 0;
+  padding: 0 1.25rem 36px;
+  text-align: center;
+}
+
+/* Gradient hairline — visually bridges the page into the footer */
+.pub-footer-sep {
+  height: 1px;
+  margin: 0 auto 28px;
+  max-width: 300px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.08) 70%,
+    transparent 100%
+  );
+}
+
+/* ◆ IRON BOOKING wordmark */
+.pub-footer-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.18);
+  margin: 0 0 20px;
+  user-select: none;
+}
+[dir="rtl"] .pub-footer-brand { letter-spacing: 0.06em; }
+
+.pub-footer-diamond {
+  font-size: 7px;
+  color: rgb(var(--pub-rgb, 74 222 128) / 0.50);
+  line-height: 1;
+}
+
+/* Link row */
+.pub-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.pub-footer-link {
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.28);
+  text-decoration: none;
+  padding: 4px 0;
+  transition: color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+[dir="rtl"] .pub-footer-link { letter-spacing: 0; }
+
+.pub-footer-link:hover { color: rgba(255, 255, 255, 0.58); }
+
+.pub-footer-link:focus-visible {
+  outline: none;
+  color: rgba(255, 255, 255, 0.58);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.30);
+  text-underline-offset: 3px;
+}
+
+/* Dot separator between links via CSS — no extra markup */
+.pub-footer-links li + li::before {
+  content: '·';
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Copyright line */
+.pub-footer-copy {
+  font-size: 9.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.09);
+  margin: 0;
+}
+[dir="rtl"] .pub-footer-copy { letter-spacing: 0.02em; }

@@ -4,6 +4,7 @@ import type { PublicRestaurantProfile, PublicSlot, AvailabilityResponse, Booking
 import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { PublicFooter } from '../components/PublicFooter';
 import { usePublicTheme } from '../utils/publicTheme';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -458,13 +459,7 @@ export default function BookingPage({ slug }: Props) {
       </div>
 
       {/* Footer */}
-      {state.phase !== 'loading' && state.phase !== 'not-found' && (
-        <div className={`mt-6 ${fade(200).className}`} style={fade(200).style}>
-          <p className="text-white/[0.14] text-[10px] tracking-widest uppercase text-center rtl:tracking-normal">
-            {t('common.poweredBy')}
-          </p>
-        </div>
-      )}
+      <PublicFooter visible={state.phase !== 'loading' && state.phase !== 'not-found'} />
     </div>
   );
 }
