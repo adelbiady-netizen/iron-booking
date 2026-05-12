@@ -20,6 +20,7 @@
   /* Canvas map (hex — used in inline style backgroundColor) */
   --canvas-bg:              #100d0b;   /* warm deep dark — shadowed floor of a fine dining room */
   --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light     */
+  --canvas-grid:            rgba(255,255,255,0.028); /* architectural cross-grid lines */
   --canvas-table-bg:        #1c1c1e;
   --canvas-status-occupied: #86efac;   /* green-200 */
   --canvas-status-reserved: #60a5fa;   /* blue-400  */
@@ -41,6 +42,7 @@
   /* Canvas map */
   --canvas-bg:              #EAEDE6;
   --canvas-dot:             #C8CCC4;
+  --canvas-grid:            rgba(0,0,0,0.055); /* architectural cross-grid lines */
   --canvas-table-bg:        #FFFFFF;
   --canvas-status-occupied: #15803d;   /* green-700 */
   --canvas-status-reserved: #1d4ed8;   /* blue-700  */
@@ -54,7 +56,7 @@
 :root {
   --duration-fast:      100ms;    /* hover feedback, micro-responses          */
   --duration-service:   200ms;    /* state change acknowledgment              */
-  --duration-settle:    380ms;    /* surface/color settle — atmospheric shift */
+  --duration-settle:    480ms;    /* surface/color settle — atmospheric shift */
   --ease-hospitality: cubic-bezier(0.16, 1, 0.3, 1);  /* fast-start, long settle — no bounce */
 }
 

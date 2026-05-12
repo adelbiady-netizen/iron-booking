@@ -87,11 +87,11 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header className="h-14 shrink-0 bg-iron-card border-b border-iron-border flex items-center px-4 gap-3">
+    <header className="h-14 shrink-0 bg-iron-elevated flex items-center px-4 gap-3" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 28px rgba(0,0,0,0.50)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2 mr-1 shrink-0">
-        <div className="w-6 h-6 bg-iron-elevated border border-iron-border rounded-md flex items-center justify-center shrink-0">
-          <span className="text-iron-green-light font-bold text-[10px]">IB</span>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.22) 0%, rgba(75,95,42,0.12) 100%)', border: '1px solid rgba(111,138,60,0.25)', boxShadow: '0 0 10px rgba(111,138,60,0.10), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
+          <span className="text-iron-green-light font-bold text-[11px]">IB</span>
         </div>
         <span className="text-iron-text font-semibold text-sm tracking-tight hidden md:block">
           {T.topBar.brand}

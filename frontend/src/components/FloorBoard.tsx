@@ -27,10 +27,10 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
 
 const STATUS_BG: Record<string, string> = {
   AVAILABLE:     'rgb(var(--iron-card))',
-  OCCUPIED:      'rgba(22,163,74,0.25)',       // warmer, grounded
-  RESERVED_SOON: 'rgba(217,119,6,0.26)',        // warming — imminence energy
-  RESERVED:      'rgba(37,99,235,0.12)',         // calm, committed
-  BLOCKED:       'rgba(82,82,91,0.11)',           // intentionally withdrawn
+  OCCUPIED:      'rgba(22,163,74,0.34)',        // warmer, grounded
+  RESERVED_SOON: 'rgba(217,119,6,0.32)',         // warming — imminence energy
+  RESERVED:      'rgba(37,99,235,0.16)',          // calm, committed
+  BLOCKED:       'rgba(82,82,91,0.11)',            // intentionally withdrawn
 };
 
 interface Props {
@@ -327,6 +327,33 @@ export default function FloorBoard({
   // tables only when no layout exists yet (brand-new restaurant).
   const visibleTables = canvasTables.length > 0 ? canvasTables : dedupedTables;
 
+  // ── Section floor zones ────────────────────────────────────────────────────
+  // Faint colored bounding boxes behind each section — architectural identity.
+  // Only rendered when there are ≥2 tables in a section to avoid boxing singletons.
+  const PAD = 32;
+  const sectionFloorZones = (() => {
+    const bySection = new Map<string, { color: string; minX: number; minY: number; maxX: number; maxY: number; count: number }>();
+    for (const t of canvasTables) {
+      if (!t.section) continue;
+      const key = t.section.id;
+      const rx = t.posX + t.width;
+      const ry = t.posY + t.height;
+      if (!bySection.has(key)) {
+        bySection.set(key, { color: t.section.color, minX: t.posX, minY: t.posY, maxX: rx, maxY: ry, count: 1 });
+      } else {
+        const z = bySection.get(key)!;
+        z.minX = Math.min(z.minX, t.posX);
+        z.minY = Math.min(z.minY, t.posY);
+        z.maxX = Math.max(z.maxX, rx);
+        z.maxY = Math.max(z.maxY, ry);
+        z.count += 1;
+      }
+    }
+    return Array.from(bySection.entries())
+      .filter(([, z]) => z.count >= 2)
+      .map(([id, z]) => ({ id, color: z.color, minX: z.minX, minY: z.minY, maxX: z.maxX, maxY: z.maxY }));
+  })();
+
   // ── Section groups (grid fallback) ──────────────────────────────────────────
   const sectionMap = new Map<string, SectionGroup>();
   const noSection: FloorTable[] = [];
@@ -496,7 +523,7 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-4 px-4 py-2.5 border-b border-iron-border/70 bg-iron-card shrink-0 flex-wrap">
+      <div className="flex items-center gap-4 px-5 py-3 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.30)' }}>
         {/* Live service state — what's happening right now */}
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
@@ -595,13 +622,33 @@ export default function FloorBoard({
                 'radial-gradient(ellipse 38% 46% at 86% 74%, rgba(255,185,80,0.016) 0%, transparent 100%)',
                 // Entrance light — faint cool daylight from the front-left edge
                 'radial-gradient(ellipse 25% 52% at 7% 46%, rgba(180,210,255,0.008) 0%, transparent 100%)',
-                // Refined dot grid — tile grout, barely there
-                'radial-gradient(circle, var(--canvas-dot) 0.5px, transparent 0.5px)',
+                // Architectural cross-grid — horizontal lines (floor tile seams)
+                'linear-gradient(0deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
+                // Architectural cross-grid — vertical lines
+                'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
               ].join(', '),
-              backgroundSize: 'auto, auto, auto, 28px 28px',
+              backgroundSize: 'auto, auto, auto, 28px 28px, 28px 28px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
+            {/* Section floor zones — faint tinted bounding boxes for spatial identity */}
+            {positioned && sectionFloorZones.map(z => (
+              <div
+                key={z.id}
+                style={{
+                  position: 'absolute',
+                  left:   z.minX - PAD,
+                  top:    z.minY - PAD,
+                  width:  z.maxX - z.minX + PAD * 2,
+                  height: z.maxY - z.minY + PAD * 2,
+                  borderRadius: 20,
+                  border: `1px solid ${z.color}18`,
+                  background: `${z.color}05`,
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
+
             {/* Floor objects */}
             {floorObjs.map(o => {
               const s       = OBJ_STYLE[o.kind] ?? OBJ_STYLE['WALL'];
@@ -1026,9 +1073,9 @@ export default function FloorBoard({
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className={`text-base font-semibold tabular-nums ${color}`}>{value}</span>
-      <span className="text-iron-muted/70 text-[10px]">{label}</span>
+    <div className="flex items-baseline gap-1.5">
+      <span className={`text-xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
+      <span className="text-iron-muted/55 text-[9px] uppercase tracking-[0.08em] font-medium">{label}</span>
     </div>
   );
 }
