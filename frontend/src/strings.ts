@@ -74,6 +74,7 @@ export const T = {
     statAvailable:    'Available',
     statSeated:       'Seated',
     statArriving:     'Arriving',
+    statFreeing:      'Freeing',
     statReserved:     'Reserved',
     tableCount:       (n: number) => `${n} tables`,
     lockedTitle:      (name: string) => `${name} is locked`,

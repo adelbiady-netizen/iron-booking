@@ -390,7 +390,7 @@ export default function ReservationPanel({
                           <span className="text-iron-muted/25">·</span>
                           {(() => {
                             const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
-                            const urgent = minsUntil !== null && minsUntil > 0 && minsUntil <= 30;
+                            const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
                             return (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
                                 urgent

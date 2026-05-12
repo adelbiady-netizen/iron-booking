@@ -74,6 +74,7 @@ export const THe = {
     statAvailable:    'פנויים',
     statSeated:       'יושבים',
     statArriving:     'מגיעים',
+    statFreeing:      'מתפנים',
     statReserved:     'שמורים',
     tableCount:       (n: number) => `${n} שולחנות`,
     lockedTitle:      (name: string) => `${name} נעול`,

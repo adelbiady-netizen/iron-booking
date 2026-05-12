@@ -405,6 +405,16 @@ export default function FloorBoard({
   const reservedSoon = dedupedTables.filter(t => t.liveStatus === 'RESERVED_SOON').length;
   const reserved     = (reservations ?? []).filter(r => r.status === 'CONFIRMED' || r.status === 'PENDING').length;
 
+  // Tables that will free within 15 min — anticipation signal for upcoming capacity.
+  // Only meaningful on today's view where timers are live.
+  const todayStr   = new Date().toISOString().slice(0, 10);
+  const isToday    = !date || date === todayStr;
+  const freeingSoon = isToday ? dedupedTables.filter(t => {
+    if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation) return false;
+    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, Date.now());
+    return mr > 0 && mr <= 15;
+  }).length : 0;
+
   const positioned = hasPositions(dedupedTables);
 
   return (
@@ -453,6 +463,8 @@ export default function FloorBoard({
         {/* Live service state — what's happening right now */}
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
+        {/* Freeing soon — capacity returning within 15 min; quiet anticipation for the host */}
+        {freeingSoon > 0 && <Stat label={T.floorBoard.statFreeing} value={freeingSoon} color="text-amber-400/55" />}
         {/* Divider: live | upcoming */}
         <div className="w-px h-3 bg-iron-border/50 -mx-1" />
         {/* Upcoming — what's booked and what's open */}
@@ -1193,9 +1205,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                 })()}
               </p>
             )}
-            {/* Overdue turnover pressure — show who is waiting when this table needs to be freed */}
-            {isOverdue && !isSecondary && nextRes && (
-              <p style={{ marginTop: 2, fontSize: 9, color: '#fbbf24', opacity: 0.72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
+            {/* Turn-pressure hint — who is waiting for this table.
+                Overdue: assertive (0.72). Ending within 15 min: anticipatory (0.40).
+                Opacity gradient keeps urgency proportional without visual noise. */}
+            {!isSecondary && nextRes && (isOverdue || (isToday && mr > 0 && mr <= 15)) && (
+              <p style={{ marginTop: 2, fontSize: 9, color: '#fbbf24', opacity: isOverdue ? 0.72 : 0.40, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
                 → {nextRes.guestName} · {nextRes.time}
               </p>
             )}
