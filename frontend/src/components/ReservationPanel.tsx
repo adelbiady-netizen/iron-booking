@@ -397,7 +397,7 @@ export default function ReservationPanel({
                                   ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
                                   : 'bg-iron-border/15 border-iron-border/30 text-iron-muted'
                               }`}>
-                                {T.reservationPanel.noTableBadge}{urgent && minsUntil !== null ? ` · ${minsUntil}m` : ''}
+                                {T.reservationPanel.noTableBadge}{urgent && minsUntil !== null && !arrivalBadge ? ` · ${minsUntil}m` : ''}
                               </span>
                             );
                           })()}

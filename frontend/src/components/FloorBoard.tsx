@@ -463,8 +463,9 @@ export default function FloorBoard({
         {/* Live service state — what's happening right now */}
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
-        {/* Freeing soon — capacity returning within 15 min; quiet anticipation for the host */}
-        {freeingSoon > 0 && <Stat label={T.floorBoard.statFreeing} value={freeingSoon} color="text-amber-400/55" />}
+        {/* Freeing soon — only surfaces when capacity is actually tight (≤1 available).
+            Color is quiet green, not amber: this is good news, not a warning. */}
+        {freeingSoon > 0 && available <= 1 && <Stat label={T.floorBoard.statFreeing} value={freeingSoon} color="text-iron-green-light/50" />}
         {/* Divider: live | upcoming */}
         <div className="w-px h-3 bg-iron-border/50 -mx-1" />
         {/* Upcoming — what's booked and what's open */}
@@ -1207,8 +1208,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             )}
             {/* Turn-pressure hint — who is waiting for this table.
                 Overdue: assertive (0.72). Ending within 15 min: anticipatory (0.40).
-                Opacity gradient keeps urgency proportional without visual noise. */}
-            {!isSecondary && nextRes && (isOverdue || (isToday && mr > 0 && mr <= 15)) && (
+                Suppressed at mr ≤ 5: the red timer is already at max urgency; two warm
+                colors compete rather than add clarity. */}
+            {!isSecondary && nextRes && (isOverdue || (isToday && mr > 5 && mr <= 15)) && (
               <p style={{ marginTop: 2, fontSize: 9, color: '#fbbf24', opacity: isOverdue ? 0.72 : 0.40, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
                 → {nextRes.guestName} · {nextRes.time}
               </p>
@@ -1318,8 +1320,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </div>
       )}
 
-      {/* Turn count badge — only for non-AVAILABLE tables (badge means "N more turns after the current one") */}
-      {!pickMode && extraTurns > 0 && table.liveStatus !== 'AVAILABLE' && (
+      {/* Turn count badge — only for non-AVAILABLE, non-overdue tables.
+          On overdue tables the turn-pressure hint already names the next guest; +N is redundant noise. */}
+      {!pickMode && extraTurns > 0 && table.liveStatus !== 'AVAILABLE' && !isOverdue && (
         <span style={{
           position: 'absolute', top: 3, right: 3,
           fontSize: 9, fontWeight: 700, color: '#60a5fa',
