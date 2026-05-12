@@ -178,7 +178,7 @@ async function computePublicSlots(
       const hasConflict = reservations.some(r => {
         if (r.tableId !== table.id) return false;
         const rStart = parseTimeOnDate(date, r.time);
-        const rEnd   = addMinutes(rStart, r.duration + bufferMinutes);
+        const rEnd   = addMinutes(rStart, r.duration);
         return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
       });
       if (!hasConflict) {
@@ -364,7 +364,7 @@ async function executeBookingTransaction(
       return !reservations.some(r => {
         if (r.tableId !== table.id) return false;
         const rStart = parseTimeOnDate(date, r.time);
-        const rEnd   = addMinutes(rStart, r.duration + bufferMinutes);
+        const rEnd   = addMinutes(rStart, r.duration);
         return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
       });
     });

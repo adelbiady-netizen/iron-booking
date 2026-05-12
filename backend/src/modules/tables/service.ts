@@ -2,7 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, reservationOverlapsSlotTime, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -60,9 +60,14 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       };
     }
 
-    // Find seated reservation — matches primary tableId OR secondary combined tables
+    // Find seated reservation — matches primary tableId OR secondary combined tables.
+    // Guard with reservationOverlapsSlotTime so the table is only OCCUPIED while
+    // the turn is still active at slotTime; once the scheduled end passes the table
+    // becomes available again even if the guest hasn't been manually completed.
     const seated = reservations.find(
-      (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id)) && r.status === 'SEATED'
+      (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id))
+        && r.status === 'SEATED'
+        && reservationOverlapsSlotTime(r, date, slotTime)
     );
     if (seated) {
       // Occupancy timing is anchored to the actual seating moment (seatedAt),
