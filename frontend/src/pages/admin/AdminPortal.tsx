@@ -260,6 +260,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [editSettings,  setEditSettings]  = useState(false);
   const [settingsForm,  setSettingsForm]  = useState<WizardSettings>(DEFAULT_SETTINGS);
   const [settingsBusy,  setSettingsBusy]  = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // Add user state
   const [showAddUser,      setShowAddUser]      = useState(false);
@@ -510,13 +511,15 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   async function handleSaveSettings() {
     if (!selectedId) return;
     setSettingsBusy(true);
+    setSettingsError(null);
     try {
       const updated = await api.admin.restaurants.settings(selectedId, settingsForm as unknown as Record<string, unknown>);
       setDetail(d => d ? { ...d, settings: updated.settings } : d);
       setEditSettings(false);
       showToast(T.admin.settingsSaved);
-    } catch { /* ignore */ }
-    finally { setSettingsBusy(false); }
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Save failed');
+    } finally { setSettingsBusy(false); }
   }
 
   // ── WhatsApp credentials ──────────────────────────────────────────────────────
@@ -1066,9 +1069,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {editSettings ? (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
             {renderWizardStep2()}
+            {settingsError && (
+              <p className="text-red-400 text-xs">{settingsError}</p>
+            )}
             <div className="flex gap-3 pt-1">
               <button onClick={handleSaveSettings} disabled={settingsBusy} className={btnPrimary}>{settingsBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
-              <button onClick={() => setEditSettings(false)} className={btnSecondary}>{T.admin.cancelBtn}</button>
+              <button onClick={() => { setEditSettings(false); setSettingsError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
             </div>
           </div>
         ) : (
