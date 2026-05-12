@@ -308,10 +308,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     return new Date(y, mo - 1, d, h, m).getTime();
   }, [date, time]);
 
-  // True only when the board is in live-service view: today's date AND board
-  // time is within ±90 min of the wall-clock. When false (browsing future hours,
-  // future dates, past dates, or history) all arrival alerts are suppressed.
-  const isLiveView = isLiveServiceView(date, time);
+  // True only when the board is in live-service view: liveMode is active AND
+  // today's date AND board time is within ±90 min of the wall-clock.
+  // liveMode is set to false by every manual time-navigation handler, so
+  // advancing the clock forward (even within the ±90 min window) suppresses
+  // arrival alerts rather than flooding the panel with false LATE/NO_SHOW badges.
+  const isLiveView = liveMode && isLiveServiceView(date, time);
 
   // Derive live-synced objects from ID-based quickTable state.
   // Because these are computed from the live arrays they update automatically
