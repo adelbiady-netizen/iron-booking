@@ -27,10 +27,10 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
 
 const STATUS_BG: Record<string, string> = {
   AVAILABLE:     'rgb(var(--iron-card))',
-  OCCUPIED:      'rgba(22,163,74,0.20)',
-  RESERVED_SOON: 'rgba(217,119,6,0.20)',
-  RESERVED:      'rgba(37,99,235,0.15)',
-  BLOCKED:       'rgba(82,82,91,0.20)',
+  OCCUPIED:      'rgba(22,163,74,0.22)',       // warmer, grounded
+  RESERVED_SOON: 'rgba(217,119,6,0.26)',        // warming — imminence energy
+  RESERVED:      'rgba(37,99,235,0.12)',         // calm, committed
+  BLOCKED:       'rgba(82,82,91,0.11)',           // intentionally withdrawn
 };
 
 interface Props {
@@ -446,7 +446,7 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-iron-border bg-iron-card/50 shrink-0 flex-wrap">
+      <div className="flex items-center gap-4 px-4 py-2.5 border-b border-iron-border/70 bg-iron-card shrink-0 flex-wrap">
         <Stat label={T.floorBoard.statAvailable} value={available}      color="text-iron-muted" />
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
@@ -910,8 +910,8 @@ export default function FloorBoard({
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`text-sm font-semibold tabular-nums ${color}`}>{value}</span>
-      <span className="text-iron-muted text-xs">{label}</span>
+      <span className={`text-base font-semibold tabular-nums ${color}`}>{value}</span>
+      <span className="text-iron-muted/70 text-xs">{label}</span>
     </div>
   );
 }
@@ -951,7 +951,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Base (non-pick) colors
   const isOverdue = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
-    : isOverdue ? 'rgba(239,68,68,0.14)'
+    : isOverdue ? 'rgba(185,28,28,0.22)'     // deeper red — heavier, not alarming
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
 
   let borderColor = selected        ? '#22c55e'
@@ -971,10 +971,21 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
     : bestSuggestion
     ? '0 0 0 3px rgba(34,197,94,0.18), 0 0 10px rgba(34,197,94,0.12)'
+    : isOverdue ? '0 0 0 2px rgba(239,68,68,0.20)'   // subtle weight on overdue
     : table.locked ? '0 0 0 2px rgba(245,158,11,0.15)' : undefined;
 
   let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
   let cursor = 'pointer';
+
+  // Status-driven border refinements — RESERVED_SOON reads amber (imminent), BLOCKED reads muted (intentional absence)
+  if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
+    if (table.liveStatus === 'RESERVED_SOON') {
+      borderColor = 'rgba(217,119,6,0.90)';
+    } else if (table.liveStatus === 'BLOCKED') {
+      borderColor = 'rgba(82,82,91,0.40)';
+      borderWidth = 1;
+    }
+  }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
   if (waitlistAssignTarget) {
@@ -1040,6 +1051,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const currentRes = table.currentReservation;
   const displayRes = currentRes ?? nextRes ?? null;
 
+  // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
+  // and the table number becomes a secondary label
+  const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
+
   return (
     <button
       onClick={onClick}
@@ -1054,7 +1069,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         backgroundColor: bg,
         boxShadow,
         opacity,
-        padding: '5px 7px',
+        padding: '6px 8px',
         overflow: 'hidden',
         display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         textAlign: 'left',
@@ -1062,9 +1077,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         transition: 'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
       }}
     >
-      {/* Name + priority dot */}
+      {/* Table number — primary when empty, secondary label when a guest is present */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'rgb(var(--iron-text))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        <span style={{
+          fontSize: hasGuest ? 10 : 12,
+          fontWeight: hasGuest ? 500 : 600,
+          color: hasGuest ? 'rgb(var(--iron-muted))' : table.liveStatus === 'BLOCKED' ? 'rgb(var(--iron-muted))' : 'rgb(var(--iron-text))',
+          opacity: hasGuest ? 0.65 : table.liveStatus === 'BLOCKED' ? 0.55 : 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+          letterSpacing: hasGuest ? '0.02em' : undefined,
+        }}>
           {table.name}
         </span>
         {!pickMode && insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
@@ -1080,9 +1102,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         )}
       </div>
 
-      {/* Capacity */}
-      <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', lineHeight: 1.3, marginTop: 1 }}>
-        {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
+      {/* Capacity — wayfinding only; fades when guest name is primary */}
+      <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', opacity: hasGuest ? 0.40 : 0.65, lineHeight: 1.3, marginTop: 1 }}>
+        {table.minCovers}–{table.maxCovers}
       </span>
 
       {/* Pick mode: current-table label */}
@@ -1099,11 +1121,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = currentRes.isOverdue ? '#fca5a5' : 'var(--canvas-status-occupied)';
+        const nameColor = isOverdue ? '#fca5a5' : 'var(--canvas-status-occupied)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 10, color: nameColor, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <p style={{ fontSize: 12, color: nameColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {currentRes.guestName}
               </p>
               {isCombined && (
@@ -1113,7 +1135,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               )}
             </div>
             {!isSecondary && (
-              <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
+              <p style={{
+                fontSize: 11,
+                color: isOverdue ? '#fca5a5' : 'rgb(var(--iron-muted))',
+                opacity: isOverdue ? 1 : 0.80,
+                fontWeight: isOverdue ? 600 : 400,
+              }}>
                 {currentRes.partySize}
                 {isToday && <>{' · '}{mr > 5 ? T.floorBoard.mLeft(mr) : mr >= -5 ? T.floorBoard.ending : T.floorBoard.mOver(Math.abs(mr))}</>}
               </p>
@@ -1126,10 +1153,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
+        // RESERVED_SOON: amber (warming, imminent) — RESERVED: blue (calm, committed)
+        const guestColor = table.liveStatus === 'RESERVED_SOON'
+          ? '#fbbf24'
+          : 'var(--canvas-status-reserved)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 10, color: 'var(--canvas-status-reserved)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <p style={{ fontSize: 12, color: guestColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {displayRes.guestName}
               </p>
               {isCombined && (
@@ -1139,7 +1170,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               )}
             </div>
             {!isSecondary && nextRes && (
-              <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))' }}>
+              <p style={{ fontSize: 11, color: 'rgb(var(--iron-muted))', opacity: 0.75 }}>
                 {nextRes.partySize} · {nextRes.time}{isToday && nextRes.minutesUntil > 0 ? ` · ${T.floorBoard.inNMin(nextRes.minutesUntil)}` : ''}
               </p>
             )}
@@ -1149,8 +1180,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* BLOCKED */}
       {table.liveStatus === 'BLOCKED' && (
-        <p style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
-          {table.blockReason ?? 'Blocked'}
+        <p style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.55, marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', fontStyle: 'italic' }}>
+          {table.blockReason ?? 'blocked'}
         </p>
       )}
 
