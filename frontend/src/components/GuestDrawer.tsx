@@ -638,139 +638,172 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   function Actions() {
     if (res.status === 'PENDING') return (
       <>
-        <ActionBtn label={T.guestDrawer.actionConfirm}  cls={btnBlue}   onClick={() => run(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed)} disabled={busy} primary />
-        <ActionBtn
-          label={T.guestDrawer.actionSeat}
-          cls={btnGreen}
-          primary
-          onClick={() => {
-            if (onPickTables) {
-              openActionMapPicker('seat');
-            } else if (res.tableId) {
-              seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
-            } else {
-              setMode('seat');
-            }
-          }}
-          disabled={busy || isFutureReservation}
-          title={isFutureReservation ? T.guestDrawer.seatFutureDisabled : undefined}
-        />
-        {res.tableId && (
+        {/* Primary */}
+        <div className="flex gap-2">
+          <ActionBtn label={T.guestDrawer.actionConfirm} cls={btnBlue} onClick={() => run(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed)} disabled={busy} primary />
           <ActionBtn
-            label={T.guestDrawer.actionChangeTable}
-            cls={btnNeutral}
-            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
-            disabled={busy}
+            label={T.guestDrawer.actionSeat}
+            cls={btnGreen}
+            primary
+            onClick={() => {
+              if (onPickTables) {
+                openActionMapPicker('seat');
+              } else if (res.tableId) {
+                seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
+              } else {
+                setMode('seat');
+              }
+            }}
+            disabled={busy || isFutureReservation}
+            title={isFutureReservation ? T.guestDrawer.seatFutureDisabled : undefined}
           />
+        </div>
+        {isFutureReservation && (
+          <p className="text-xs text-iron-muted mt-1.5 px-0.5">{T.guestDrawer.seatFutureDisabled}</p>
         )}
-        {res.guestPhone && !res.isConfirmedByGuest && (
-          <ActionBtn
-            label={T.guestDrawer.actionSendSms}
-            cls={btnNeutral}
-            onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
-            disabled={busy}
-          />
-        )}
-        {!res.isArrived && (
-          <ActionBtn
-            label={T.guestDrawer.actionMarkArrived}
-            cls={btnNeutral}
-            onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
-            disabled={busy}
-          />
-        )}
-        <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
+        {/* Secondary */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {res.tableId && (
+            <ActionBtn
+              label={T.guestDrawer.actionChangeTable}
+              cls={btnNeutral}
+              onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
+              disabled={busy}
+            />
+          )}
+          {res.guestPhone && !res.isConfirmedByGuest && (
+            <ActionBtn
+              label={T.guestDrawer.actionSendSms}
+              cls={btnNeutral}
+              onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+              disabled={busy}
+            />
+          )}
+          {!res.isArrived && (
+            <ActionBtn
+              label={T.guestDrawer.actionMarkArrived}
+              cls={btnNeutral}
+              onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+              disabled={busy}
+            />
+          )}
+        </div>
+        {/* Destructive */}
+        <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-iron-border/30">
+          <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
+        </div>
       </>
     );
 
     if (res.status === 'CONFIRMED') return (
       <>
-        <ActionBtn
-          label={T.guestDrawer.actionSeat}
-          cls={btnGreen}
-          primary
-          onClick={() => {
-            if (onPickTables) {
-              openActionMapPicker('seat');
-            } else if (res.tableId) {
-              seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
-            } else {
-              setMode('seat');
-            }
-          }}
-          disabled={busy || isFutureReservation}
-          title={isFutureReservation ? T.guestDrawer.seatFutureDisabled : undefined}
-        />
-        {res.tableId && (
+        {/* Primary */}
+        <div className="flex gap-2">
           <ActionBtn
-            label={T.guestDrawer.actionChangeTable}
-            cls={btnNeutral}
-            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
-            disabled={busy}
+            label={T.guestDrawer.actionSeat}
+            cls={btnGreen}
+            primary
+            onClick={() => {
+              if (onPickTables) {
+                openActionMapPicker('seat');
+              } else if (res.tableId) {
+                seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
+              } else {
+                setMode('seat');
+              }
+            }}
+            disabled={busy || isFutureReservation}
+            title={isFutureReservation ? T.guestDrawer.seatFutureDisabled : undefined}
           />
+        </div>
+        {isFutureReservation && (
+          <p className="text-xs text-iron-muted mt-1.5 px-0.5">{T.guestDrawer.seatFutureDisabled}</p>
         )}
-        {res.guestPhone && !res.isConfirmedByGuest && (
-          <ActionBtn
-            label={T.guestDrawer.actionSendSms}
-            cls={btnNeutral}
-            onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
-            disabled={busy}
-          />
-        )}
-        {!res.isArrived && (
-          <ActionBtn
-            label={T.guestDrawer.actionMarkArrived}
-            cls={btnNeutral}
-            onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
-            disabled={busy}
-          />
-        )}
-        <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber}  onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionNoShow}   cls={btnAmber}  onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}  disabled={busy} />
-        <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}    onClick={() => setMode('cancel')} disabled={busy} />
+        {/* Secondary */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {res.tableId && (
+            <ActionBtn
+              label={T.guestDrawer.actionChangeTable}
+              cls={btnNeutral}
+              onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
+              disabled={busy}
+            />
+          )}
+          {res.guestPhone && !res.isConfirmedByGuest && (
+            <ActionBtn
+              label={T.guestDrawer.actionSendSms}
+              cls={btnNeutral}
+              onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+              disabled={busy}
+            />
+          )}
+          {!res.isArrived && (
+            <ActionBtn
+              label={T.guestDrawer.actionMarkArrived}
+              cls={btnNeutral}
+              onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+              disabled={busy}
+            />
+          )}
+          <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber} onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
+        </div>
+        {/* Destructive */}
+        <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-iron-border/30">
+          <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
+        </div>
       </>
     );
 
     if (res.status === 'SEATED') return (
       <>
-        <ActionBtn label={T.guestDrawer.actionComplete}  cls={btnGreen}   onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} primary />
-        <ActionBtn
-          label={T.guestDrawer.actionMoveTable}
-          cls={btnNeutral}
-          onClick={() => onPickTables ? openActionMapPicker('move') : setMode('move')}
-          disabled={busy}
-        />
-        {unseatConfirm ? (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-iron-muted">{T.guestDrawer.unseatConfirmText}</span>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
-                disabled={busy}
-                className="text-xs font-medium px-2.5 py-1 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40"
-              >
-                {T.guestDrawer.actionUnseat}
-              </button>
-              <button
-                onClick={() => setUnseatConfirm(false)}
-                disabled={busy}
-                className="text-xs text-iron-muted hover:text-iron-text transition-colors"
-              >
-                {T.guestDrawer.backLink}
-              </button>
+        {/* Primary */}
+        <div className="flex gap-2">
+          <ActionBtn label={T.guestDrawer.actionComplete} cls={btnGreen} onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} primary />
+        </div>
+        {/* Secondary */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <ActionBtn
+            label={T.guestDrawer.actionMoveTable}
+            cls={btnNeutral}
+            onClick={() => onPickTables ? openActionMapPicker('move') : setMode('move')}
+            disabled={busy}
+          />
+          {unseatConfirm ? (
+            <div className="flex flex-col gap-1.5 w-full">
+              <span className="text-xs text-iron-muted">{T.guestDrawer.unseatConfirmText}</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
+                  disabled={busy}
+                  className="text-xs font-medium px-2.5 py-1 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40"
+                >
+                  {T.guestDrawer.actionUnseat}
+                </button>
+                <button
+                  onClick={() => setUnseatConfirm(false)}
+                  disabled={busy}
+                  className="text-xs text-iron-muted hover:text-iron-text transition-colors"
+                >
+                  {T.guestDrawer.backLink}
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <ActionBtn label={T.guestDrawer.actionUnseat} cls={btnNeutral} onClick={() => setUnseatConfirm(true)} disabled={busy} />
-        )}
-        <ActionBtn label={T.guestDrawer.actionCancel}   cls={btnRed}     onClick={() => setMode('cancel')}  disabled={busy} />
+          ) : (
+            <ActionBtn label={T.guestDrawer.actionUnseat} cls={btnNeutral} onClick={() => setUnseatConfirm(true)} disabled={busy} />
+          )}
+        </div>
+        {/* Destructive */}
+        <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-iron-border/30">
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => setMode('cancel')} disabled={busy} />
+        </div>
       </>
     );
 
     if (['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status)) return (
       <>
-        <ActionBtn label={T.guestDrawer.actionUndo}   cls={btnNeutral} onClick={() => run(() => api.reservations.undo(res.id), T.guestDrawer.toastUndone)} disabled={busy} />
+        <ActionBtn label={T.guestDrawer.actionUndo} cls={btnNeutral} onClick={() => run(() => api.reservations.undo(res.id), T.guestDrawer.toastUndone)} disabled={busy} />
       </>
     );
 
@@ -1160,7 +1193,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div>
                   <Actions />
                 </div>
               )
