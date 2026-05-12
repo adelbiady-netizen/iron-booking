@@ -23,6 +23,7 @@ import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
 import ServiceReportPanel from '../components/ServiceReportPanel';
+import BulkConfirmModal from '../components/BulkConfirmModal';
 import TableQuickPanel from '../components/TableQuickPanel';
 
 type CreateMode = 'reservation' | 'walkin';
@@ -173,7 +174,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [waitlistAssignEntry,   setWaitlistAssignEntry]   = useState<WaitlistEntry | null>(null);
   const [waitlistAssignTableId, setWaitlistAssignTableId] = useState<string | null>(null);
 
-  const [showServiceReport, setShowServiceReport] = useState(false);
+  const [showServiceReport,   setShowServiceReport]   = useState(false);
+  const [showBulkConfirm,    setShowBulkConfirm]    = useState(false);
 
   // Compact table action panel — shown on floor map click before opening full GuestDrawer.
   // Stores IDs only so the panel always derives fresh data from the live reservations/floorTables
@@ -1159,6 +1161,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onAdminPortal={onAdminPortal}
         onGuestsPage={handleGuestsPage}
         onSwitchHost={onSwitchHost}
+        onBulkConfirm={() => setShowBulkConfirm(true)}
       />
 
       {/* Secondary toolbar */}
@@ -1491,6 +1494,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         <ServiceReportPanel
           initialDate={date}
           onClose={() => setShowServiceReport(false)}
+        />
+      )}
+
+      {showBulkConfirm && (
+        <BulkConfirmModal
+          date={date}
+          time={time}
+          reservations={reservations}
+          onClose={() => setShowBulkConfirm(false)}
+          onSuccess={showToast}
         />
       )}
 

@@ -57,8 +57,9 @@ export const T = {
     backToToday:    'Back to today',
     guestsButton:   'Guests',
     adminButton:    'Admin',
-    activeHost:     (name: string) => `Active Host: ${name}`,
-    switchHost:     'Switch Host',
+    activeHost:          (name: string) => `Active Host: ${name}`,
+    switchHost:          'Switch Host',
+    bulkConfirmButton:   'Confirmations',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -511,6 +512,23 @@ export const T = {
     arrivalSoon:      'Arriving soon',
     minOver:          (n: number) => `${n} min over`,
     minLeft:          (n: number) => `${n} min left`,
+  },
+
+  // ── BulkConfirmModal ──────────────────────────────────────────────────────
+  bulkConfirm: {
+    title:            'Send Confirmations',
+    subtitle:         'Today · PENDING & CONFIRMED · Has phone',
+    toggleNextTwo:    'Only next 2 hours',
+    eligibleCount:    (n: number) => `${n} guest${n === 1 ? '' : 's'} will receive a message`,
+    alreadyConfirmed: (n: number) => `${n} already confirmed by guest`,
+    cooldown:         (n: number) => `${n} sent within last hour`,
+    noEligible:       'No eligible guests to message right now',
+    sendButton:       (n: number) => `Send to ${n} guest${n === 1 ? '' : 's'}`,
+    sending:          'Sending…',
+    resultSent:       (n: number) => `✓ ${n} sent`,
+    resultFailed:     (n: number) => `✗ ${n} failed`,
+    sendError:        'Send failed — please try again',
+    close:            'Close',
   },
 
   // ── CallDrawer ─────────────────────────────────────────────────────────────

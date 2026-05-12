@@ -25,6 +25,7 @@ interface Props {
   onAdminPortal?: () => void;
   onGuestsPage?: () => void;
   onSwitchHost?: () => void;
+  onBulkConfirm?: () => void;
 }
 
 function SunIcon() {
@@ -72,6 +73,7 @@ export default function TopBar({
   onAdminPortal,
   onGuestsPage,
   onSwitchHost,
+  onBulkConfirm,
 }: Props) {
   const T = useT();
   const atMin  = zoom <= 75;
@@ -171,6 +173,16 @@ export default function TopBar({
           +
         </button>
       </div>
+
+      {/* Bulk confirmation — live operational action */}
+      {onBulkConfirm && (
+        <button
+          onClick={onBulkConfirm}
+          className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-iron-green/50 text-iron-green-light hover:bg-iron-green/10 transition-colors shrink-0"
+        >
+          {T.topBar.bulkConfirmButton}
+        </button>
+      )}
 
       <div className="flex-1" />
 

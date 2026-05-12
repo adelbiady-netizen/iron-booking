@@ -57,8 +57,9 @@ export const THe = {
     backToToday:    'חזרה להיום',
     guestsButton:   'אורחים',
     adminButton:    'ניהול',
-    activeHost:     (name: string) => `מארח פעיל: ${name}`,
-    switchHost:     'החלף מארח',
+    activeHost:          (name: string) => `מארח פעיל: ${name}`,
+    switchHost:          'החלף מארח',
+    bulkConfirmButton:   'אישורים',
   },
 
   // ── FloorBoard ─────────────────────────────────────────────────────────────
@@ -497,6 +498,23 @@ export const THe = {
     arrivalSoon:      'מגיע בקרוב',
     minOver:          (n: number) => `${n} דק׳ חריגה`,
     minLeft:          (n: number) => `${n} דק׳ נותרו`,
+  },
+
+  // ── BulkConfirmModal ──────────────────────────────────────────────────────
+  bulkConfirm: {
+    title:            'שליחת אישורים',
+    subtitle:         'היום · ממתין ומאושר · עם מספר טלפון',
+    toggleNextTwo:    'שעתיים הקרובות בלבד',
+    eligibleCount:    (n: number) => `${n} אורח${n === 1 ? '' : 'ים'} יקבל${n === 1 ? '' : 'ו'} הודעה`,
+    alreadyConfirmed: (n: number) => `${n} אישרו כבר`,
+    cooldown:         (n: number) => `${n} נשלח בשעה האחרונה`,
+    noEligible:       'אין אורחים מתאימים לשליחה כעת',
+    sendButton:       (n: number) => `שלח ל-${n} אורח${n === 1 ? '' : 'ים'}`,
+    sending:          'שולח…',
+    resultSent:       (n: number) => `✓ ${n} נשלחו`,
+    resultFailed:     (n: number) => `✗ ${n} נכשלו`,
+    sendError:        'שליחה נכשלה — נסה שוב',
+    close:            'סגור',
   },
 
   // ── CallDrawer ─────────────────────────────────────────────────────────────
