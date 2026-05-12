@@ -56,6 +56,9 @@ interface BrandingInput {
   primaryColor?: string | null;
   accentColor?: string | null;
   publicThemePreset?: string | null;
+  buttonStyle?: string | null;
+  cardStyle?: string | null;
+  backgroundMood?: string | null;
 }
 
 function hexToRgbChannels(hex: string): string | null {
@@ -65,8 +68,11 @@ function hexToRgbChannels(hex: string): string | null {
 }
 
 export function usePublicTheme(branding: BrandingInput | null | undefined) {
-  const primary = branding?.primaryColor;
-  const preset  = branding?.publicThemePreset;
+  const primary        = branding?.primaryColor;
+  const preset         = branding?.publicThemePreset;
+  const buttonStyle    = branding?.buttonStyle;
+  const cardStyle      = branding?.cardStyle;
+  const backgroundMood = branding?.backgroundMood;
 
   useEffect(() => {
     const key = (preset && preset in PRESET_RGB) ? (preset as PresetKey) : 'default';
@@ -78,12 +84,32 @@ export function usePublicTheme(branding: BrandingInput | null | undefined) {
     document.documentElement.style.setProperty('--pub-tracking', PRESET_TRACKING[key]);
     document.documentElement.style.setProperty('--pub-glow',     PRESET_GLOW[key]);
 
-    // Set data attribute so CSS preset selectors (e.g. [data-pub-preset="italiano"])
-    // can override tokens and component styles without JS coupling.
+    // data-pub-preset: CSS preset overrides (e.g. [data-pub-preset="italiano"])
     if (key !== 'default') {
       document.documentElement.setAttribute('data-pub-preset', key);
     } else {
       document.documentElement.removeAttribute('data-pub-preset');
+    }
+
+    // data-pub-btn: button border-radius style
+    if (buttonStyle) {
+      document.documentElement.setAttribute('data-pub-btn', buttonStyle);
+    } else {
+      document.documentElement.removeAttribute('data-pub-btn');
+    }
+
+    // data-pub-card: card surface style
+    if (cardStyle) {
+      document.documentElement.setAttribute('data-pub-card', cardStyle);
+    } else {
+      document.documentElement.removeAttribute('data-pub-card');
+    }
+
+    // data-pub-bg: background atmosphere mood
+    if (backgroundMood && backgroundMood !== 'dark') {
+      document.documentElement.setAttribute('data-pub-bg', backgroundMood);
+    } else {
+      document.documentElement.removeAttribute('data-pub-bg');
     }
 
     return () => {
@@ -92,6 +118,9 @@ export function usePublicTheme(branding: BrandingInput | null | undefined) {
       document.documentElement.style.removeProperty('--pub-tracking');
       document.documentElement.style.removeProperty('--pub-glow');
       document.documentElement.removeAttribute('data-pub-preset');
+      document.documentElement.removeAttribute('data-pub-btn');
+      document.documentElement.removeAttribute('data-pub-card');
+      document.documentElement.removeAttribute('data-pub-bg');
     };
-  }, [primary, preset]);
+  }, [primary, preset, buttonStyle, cardStyle, backgroundMood]);
 }

@@ -296,6 +296,9 @@ const UpdateBrandingSchema = z.object({
   logoUrl:           z.string().url().nullable().optional(),
   coverImageUrl:     z.string().url().nullable().optional(),
   heroVideoUrl:      z.string().url().nullable().optional(),
+  buttonStyle:       z.enum(['rounded','pill','sharp','luxury']).nullable().optional(),
+  cardStyle:         z.enum(['glass','solid','luxury-dark','soft-light']).nullable().optional(),
+  backgroundMood:    z.enum(['espresso','olive','cream','dark','warm']).nullable().optional(),
 });
 
 // PATCH /admin/restaurants/:id/branding
@@ -312,6 +315,9 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
         logoUrl:           req.body.logoUrl           ?? null,
         coverImageUrl:     req.body.coverImageUrl     ?? null,
         heroVideoUrl:      req.body.heroVideoUrl      ?? null,
+        buttonStyle:       req.body.buttonStyle       ?? null,
+        cardStyle:         req.body.cardStyle         ?? null,
+        backgroundMood:    req.body.backgroundMood    ?? null,
       },
     });
     res.json({
@@ -322,6 +328,9 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
       logoUrl:          updated.logoUrl,
       coverImageUrl:    updated.coverImageUrl,
       heroVideoUrl:     updated.heroVideoUrl,
+      buttonStyle:      updated.buttonStyle,
+      cardStyle:        updated.cardStyle,
+      backgroundMood:   updated.backgroundMood,
     });
   } catch (err) { next(err); }
 });

@@ -838,6 +838,125 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
 }
 
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Button style variants (data-pub-btn attribute)                               */
+/* Applied by publicTheme.ts; scoped to public guest pages only.               */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* pill — full pill buttons */
+[data-pub-btn="pill"] .pub-btn {
+  border-radius: 9999px;
+}
+[data-pub-btn="pill"] .pub-counter-btn {
+  border-radius: 9999px;
+}
+
+/* sharp — squared, architectural corners */
+[data-pub-btn="sharp"] .pub-btn {
+  border-radius: 4px;
+}
+[data-pub-btn="sharp"] .pub-counter-btn {
+  border-radius: 6px;
+}
+[data-pub-btn="sharp"] .pub-input,
+[data-pub-btn="sharp"] .pub-textarea {
+  border-radius: 4px;
+}
+[data-pub-btn="sharp"] .pub-chip {
+  border-radius: 6px;
+}
+
+/* luxury — refined with extra letter-spacing */
+[data-pub-btn="luxury"] .pub-btn {
+  border-radius: 6px;
+  letter-spacing: 0.13em;
+  font-weight: 600;
+}
+[dir="rtl"] [data-pub-btn="luxury"] .pub-btn {
+  letter-spacing: 0;
+}
+[data-pub-btn="luxury"] .pub-input,
+[data-pub-btn="luxury"] .pub-textarea {
+  border-radius: 6px;
+}
+
+/* rounded — explicit alias for default, no override needed */
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Card style variants (data-pub-card attribute)                               */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* solid — no blur, fully opaque dark surface */
+[data-pub-card="solid"] .pub-card {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(10,12,18,0.97);
+  border-color: rgba(255,255,255,0.07);
+}
+
+/* luxury-dark — near-black, thin warm gold border line */
+[data-pub-card="luxury-dark"] .pub-card {
+  backdrop-filter: blur(80px);
+  -webkit-backdrop-filter: blur(80px);
+  background: linear-gradient(160deg, rgba(8,7,5,0.96) 0%, rgba(6,5,3,0.98) 100%);
+  border-color: rgba(210,175,80,0.13);
+  box-shadow:
+    0 2px 0    rgba(210,175,80,0.06) inset,
+    1px 0 0    rgba(210,175,80,0.02) inset,
+    -1px 0 0   rgba(210,175,80,0.01) inset,
+    0 -1px 0   rgba(0,0,0,0.55)      inset,
+    0 48px 96px rgba(0,0,0,0.70),
+    0 18px 48px rgba(0,0,0,0.50);
+}
+
+/* soft-light — lighter glass, warmer tint */
+[data-pub-card="soft-light"] .pub-card {
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  background: linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.05) 100%);
+  border-color: rgba(255,255,255,0.16);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Background mood variants (data-pub-bg attribute)                            */
+/* Only .pub-atm-base is overridden; vignette and orb inherit naturally.       */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* espresso — rich dark brown, warm amber side glow */
+[data-pub-bg="espresso"] .pub-atm-base {
+  background:
+    radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 35% at 85% 108%, rgba(180,140,60,0.022) 0%, transparent 50%),
+    linear-gradient(168deg, #1c1710 0%, #140f09 40%, #0e0b06 100%);
+}
+
+/* olive — muted green-gray, earthy and calm */
+[data-pub-bg="olive"] .pub-atm-base {
+  background:
+    radial-gradient(ellipse 140% 55% at 50% -15%, rgb(var(--pub-rgb) / 0.09) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 40% at 15% 110%, rgba(80,100,60,0.030) 0%, transparent 50%),
+    linear-gradient(168deg, #111610 0%, #0c1009 40%, #080c06 100%);
+}
+
+/* cream — warm dark with cream top-light, parchment-like atmosphere */
+[data-pub-bg="cream"] .pub-atm-base {
+  background:
+    radial-gradient(ellipse 160% 60% at 50% -20%, rgba(248,240,215,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 40% at 10% 110%,  rgba(220,190,130,0.030) 0%, transparent 50%),
+    linear-gradient(170deg, #1a1710 0%, #120f09 40%, #0d0b06 100%);
+}
+
+/* warm — amber-dark, golden hour feel */
+[data-pub-bg="warm"] .pub-atm-base {
+  background:
+    radial-gradient(ellipse 150% 58% at 50% -18%, rgba(220,160,60,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 38% at 90% 112%,  rgba(200,130,40,0.025) 0%, transparent 50%),
+    linear-gradient(168deg, #1a1408 0%, #120e05 40%, #0d0a04 100%);
+}
+
+
 /* ── Utility: detail row (label + value pairs inside .pub-inset) ────────── */
 
 .pub-detail-row {

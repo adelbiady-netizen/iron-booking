@@ -82,8 +82,11 @@ model Restaurant {
   // Public guest-page branding
   primaryColor      String?  // hex, e.g. "#C9A84C"
   accentColor       String?  // hex, secondary accent
-  publicThemePreset String?  // "luxury" | "casual" | "family" | "nightlife" | "minimal" | "fineDining" | "mediterranean"
+  publicThemePreset String?  // "luxury" | "casual" | "family" | "nightlife" | "minimal" | "fineDining" | "mediterranean" | "italiano"
   heroVideoUrl      String?  // muted autoplay background video for the public booking page
+  buttonStyle       String?  // "rounded" | "pill" | "sharp" | "luxury"
+  cardStyle         String?  // "glass" | "solid" | "luxury-dark" | "soft-light"
+  backgroundMood    String?  // "espresso" | "olive" | "cream" | "dark" | "warm"
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -26,6 +26,9 @@ interface RestaurantIdentity {
   primaryColor: string | null;
   accentColor: string | null;
   publicThemePreset: string | null;
+  buttonStyle: string | null;
+  cardStyle: string | null;
+  backgroundMood: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -93,7 +96,7 @@ export default function ConfirmationPage({ token }: Props) {
     api.public.getReservation(token)
       .then(r => {
         if (aborted) return;
-        setIdentity({ name: r.restaurantName, logoUrl: r.restaurantLogoUrl, coverUrl: r.restaurantCoverImageUrl, primaryColor: r.restaurantPrimaryColor, accentColor: r.restaurantAccentColor, publicThemePreset: r.restaurantPublicThemePreset });
+        setIdentity({ name: r.restaurantName, logoUrl: r.restaurantLogoUrl, coverUrl: r.restaurantCoverImageUrl, primaryColor: r.restaurantPrimaryColor, accentColor: r.restaurantAccentColor, publicThemePreset: r.restaurantPublicThemePreset, buttonStyle: r.restaurantButtonStyle, cardStyle: r.restaurantCardStyle, backgroundMood: r.restaurantBackgroundMood });
         if (r.status === 'CANCELLED') {
           setState({ phase: 'cancelled' });
         } else if (r.isConfirmedByGuest && !r.isRunningLate) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api, ApiError } from '../../api';
 import { useT } from '../../i18n/useT';
 import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats } from '../../types';
@@ -53,47 +53,124 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-function BrandingPreviewCard({ primaryColor, logoUrl, restaurantName }: { primaryColor: string; logoUrl: string; restaurantName: string }) {
+// Visual tile selector for button/card/mood options
+function StyleTileGroup<T extends string>({
+  label, options, value, onChange,
+}: {
+  label: string;
+  options: { value: T; label: string; preview: ReactNode }[];
+  value: string;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs text-iron-muted mb-2">{label}</label>
+      <div className="grid grid-cols-4 gap-2">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border text-xs transition-colors ${
+              value === opt.value
+                ? 'border-iron-green bg-iron-green/10 text-iron-green'
+                : 'border-iron-border hover:border-iron-green/40 text-iron-muted hover:text-iron-text'
+            }`}
+          >
+            <div className="w-full h-8 rounded flex items-center justify-center overflow-hidden">
+              {opt.preview}
+            </div>
+            <span className="leading-tight text-center">{opt.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BrandingPreviewCard({
+  primaryColor, logoUrl, restaurantName, buttonStyle, cardStyle, backgroundMood,
+}: {
+  primaryColor: string; logoUrl: string; restaurantName: string;
+  buttonStyle: string; cardStyle: string; backgroundMood: string;
+}) {
   const hex = primaryColor || '#22C55E';
   const initial = restaurantName.charAt(0).toUpperCase();
+
+  // Derive button radius from style
+  const btnRadius = buttonStyle === 'pill' ? '9999px'
+    : buttonStyle === 'sharp' ? '4px'
+    : buttonStyle === 'luxury' ? '6px'
+    : '10px'; // rounded / default
+
+  // Derive card background from cardStyle
+  const cardBg = cardStyle === 'solid' ? 'rgba(10,12,18,0.97)'
+    : cardStyle === 'luxury-dark' ? 'rgba(8,7,5,0.97)'
+    : cardStyle === 'soft-light' ? 'rgba(255,255,255,0.09)'
+    : 'linear-gradient(160deg, rgba(14,18,30,0.80) 0%, rgba(7,9,18,0.88) 100%)';
+  const cardBorder = cardStyle === 'luxury-dark' ? 'rgba(210,175,80,0.18)'
+    : cardStyle === 'soft-light' ? 'rgba(255,255,255,0.18)'
+    : 'rgba(255,255,255,0.08)';
+
+  // Derive background from mood
+  const bgColor = backgroundMood === 'espresso' ? '#120e08'
+    : backgroundMood === 'olive' ? '#0c1009'
+    : backgroundMood === 'cream' ? '#141108'
+    : backgroundMood === 'warm' ? '#120e05'
+    : '#0b0f18'; // dark / default
+
   return (
     <div
       className="rounded-xl overflow-hidden border border-white/10"
-      style={{ background: 'linear-gradient(160deg, #0e1220 0%, #070912 100%)', padding: '20px' }}
+      style={{ background: bgColor, padding: '16px' }}
     >
-      <div className="flex flex-col items-center gap-3 mb-4">
+      {/* Restaurant header */}
+      <div className="flex flex-col items-center gap-2 mb-3">
         <div
-          className="w-14 h-14 rounded-full flex items-center justify-center border border-white/15"
-          style={{ background: 'rgba(16,20,34,0.72)' }}
+          className="w-12 h-12 rounded-full flex items-center justify-center border"
+          style={{ background: 'rgba(16,20,34,0.72)', borderColor: 'rgba(255,255,255,0.12)' }}
         >
           {logoUrl
-            ? <img src={logoUrl} alt="logo" className="object-contain h-8 max-w-[44px]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            : <span className="text-white/70 text-xl font-light">{initial}</span>}
+            ? <img src={logoUrl} alt="logo" className="object-contain h-7 max-w-[40px]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            : <span className="text-white/70 text-lg font-light">{initial}</span>}
         </div>
-        <p className="text-white/80 text-sm font-medium">{restaurantName}</p>
+        <p className="text-white/80 text-xs font-medium">{restaurantName}</p>
       </div>
-      <div className="flex flex-col gap-2">
-        {['7:00 PM', '7:30 PM', '8:00 PM'].map((slot, i) => (
-          <div
-            key={slot}
-            className="rounded-lg px-4 py-2.5 text-center text-sm font-medium"
-            style={i === 1 ? {
-              background: hex,
-              color: '#fff',
-              boxShadow: `0 0 18px ${hex}44`,
-            } : {
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'rgba(255,255,255,0.55)',
-            }}
-          >{slot}</div>
-        ))}
-      </div>
-      <div className="mt-4">
+
+      {/* Card surface preview */}
+      <div
+        className="rounded-xl p-3 mb-2"
+        style={{
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          backdropFilter: cardStyle === 'solid' ? 'none' : 'blur(20px)',
+        }}
+      >
+        {/* Time slots */}
+        <div className="flex flex-col gap-1.5 mb-2.5">
+          {['7:00 PM', '7:30 PM', '8:00 PM'].map((slot, i) => (
+            <div
+              key={slot}
+              className="px-3 py-1.5 text-center text-xs font-medium"
+              style={i === 1 ? {
+                background: hex,
+                color: '#fff',
+                borderRadius: btnRadius,
+                boxShadow: `0 0 12px ${hex}44`,
+              } : {
+                background: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                color: 'rgba(255,255,255,0.55)',
+                borderRadius: btnRadius,
+              }}
+            >{slot}</div>
+          ))}
+        </div>
+        {/* CTA button */}
         <div
-          className="w-full rounded-lg py-3 text-center text-sm font-semibold"
-          style={{ background: hex, color: '#fff', opacity: 0.9 }}
-        >Reserve table</div>
+          className="w-full py-2 text-center text-xs font-semibold"
+          style={{ background: hex, color: '#fff', borderRadius: btnRadius, letterSpacing: buttonStyle === 'luxury' ? '0.10em' : undefined }}
+        >Reserve a table</div>
       </div>
     </div>
   );
@@ -225,9 +302,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
-  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '' });
+  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '' });
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
+  const [logoPreview,    setLogoPreview]    = useState<string | null>(null);
+  const [coverPreview,   setCoverPreview]   = useState<string | null>(null);
 
   // Weekly schedule edit state
   const [editSchedule,  setEditSchedule]  = useState(false);
@@ -280,7 +359,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
-      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '' });
+      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '' });
       if (d.operatingHours?.length === 7) {
         setScheduleRows(d.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -501,6 +580,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         logoUrl:           brandingForm.logoUrl           || null,
         coverImageUrl:     brandingForm.coverImageUrl     || null,
         heroVideoUrl:      brandingForm.heroVideoUrl      || null,
+        buttonStyle:       brandingForm.buttonStyle       || null,
+        cardStyle:         brandingForm.cardStyle         || null,
+        backgroundMood:    brandingForm.backgroundMood    || null,
       });
       setDetail(d => d ? {
         ...d,
@@ -510,6 +592,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         logoUrl:           result.logoUrl,
         coverImageUrl:     result.coverImageUrl,
         heroVideoUrl:      result.heroVideoUrl,
+        buttonStyle:       result.buttonStyle,
+        cardStyle:         result.cardStyle,
+        backgroundMood:    result.backgroundMood,
       } : d);
       setEditBranding(false);
       showToast('Branding saved');
@@ -1219,49 +1304,91 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </select>
             </Field>
 
-            {/* Logo URL */}
-            <Field label="Logo URL (PNG/SVG, transparent background recommended)">
+            {/* Logo upload + URL fallback */}
+            <Field label="Logo (PNG/SVG, transparent background recommended)">
+              <div className="flex items-center gap-2 mb-2">
+                <label className="flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text cursor-pointer shrink-0">
+                  <input
+                    type="file"
+                    accept="image/png,image/svg+xml,image/webp,image/jpeg"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const url = URL.createObjectURL(file);
+                      if (logoPreview) URL.revokeObjectURL(logoPreview);
+                      setLogoPreview(url);
+                    }}
+                  />
+                  Choose file
+                </label>
+                <span className="text-iron-muted text-xs truncate">{logoPreview ? 'File selected (local preview)' : 'No file chosen'}</span>
+              </div>
               <Input
                 value={brandingForm.logoUrl}
                 onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
-                placeholder="https://cdn.example.com/logo.svg"
+                placeholder="Or paste CDN URL — https://cdn.example.com/logo.svg"
               />
-              {brandingForm.logoUrl && (
+              {(logoPreview || brandingForm.logoUrl) && (
                 <div className="mt-2 flex items-center gap-3">
                   <div className="w-16 h-16 rounded-lg border border-iron-border bg-iron-bg flex items-center justify-center overflow-hidden">
                     <img
-                      src={brandingForm.logoUrl}
+                      src={logoPreview ?? brandingForm.logoUrl}
                       alt="logo preview"
                       className="object-contain max-h-[52px] max-w-[56px]"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   </div>
-                  <span className="text-iron-muted text-xs">Logo preview</span>
+                  <div>
+                    <p className="text-iron-muted text-xs">{logoPreview ? 'Local preview only' : 'Saved URL preview'}</p>
+                    {logoPreview && <p className="text-[11px] text-amber-400 mt-0.5">Upload this file to your CDN, then paste the URL above to save it.</p>}
+                  </div>
                 </div>
               )}
             </Field>
 
-            {/* Cover image URL */}
-            <Field label="Cover / hero image URL (wide landscape, ≥1200px wide recommended)">
+            {/* Cover image upload + URL fallback */}
+            <Field label="Cover / hero image (wide landscape, ≥1200px wide recommended)">
+              <div className="flex items-center gap-2 mb-2">
+                <label className="flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text cursor-pointer shrink-0">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const url = URL.createObjectURL(file);
+                      if (coverPreview) URL.revokeObjectURL(coverPreview);
+                      setCoverPreview(url);
+                    }}
+                  />
+                  Choose file
+                </label>
+                <span className="text-iron-muted text-xs truncate">{coverPreview ? 'File selected (local preview)' : 'No file chosen'}</span>
+              </div>
               <Input
                 value={brandingForm.coverImageUrl}
                 onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
-                placeholder="https://cdn.example.com/cover.jpg"
+                placeholder="Or paste CDN URL — https://cdn.example.com/cover.jpg"
               />
-              {brandingForm.coverImageUrl && (
-                <div className="mt-2 rounded-lg overflow-hidden border border-iron-border" style={{ height: 96 }}>
-                  <img
-                    src={brandingForm.coverImageUrl}
-                    alt="cover preview"
-                    className="w-full h-full object-cover"
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
+              {(coverPreview || brandingForm.coverImageUrl) && (
+                <div className="mt-2">
+                  <div className="rounded-lg overflow-hidden border border-iron-border" style={{ height: 96 }}>
+                    <img
+                      src={coverPreview ?? brandingForm.coverImageUrl}
+                      alt="cover preview"
+                      className="w-full h-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  {coverPreview && <p className="text-[11px] text-amber-400 mt-1">Upload this file to your CDN, then paste the URL above to save it.</p>}
                 </div>
               )}
             </Field>
 
             {/* Hero video URL */}
-            <Field label="Hero video URL (muted autoplay over cover image; MP4 recommended)">
+            <Field label="Hero video URL (muted autoplay; MP4 recommended)">
               <Input
                 value={brandingForm.heroVideoUrl}
                 onChange={e => setBrandingForm(f => ({ ...f, heroVideoUrl: e.target.value }))}
@@ -1270,13 +1397,56 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <p className="text-[11px] text-iron-muted mt-1">Plays silently on the public booking page. Falls back to cover image if unavailable or on reduced-motion devices.</p>
             </Field>
 
+            {/* Button style */}
+            <StyleTileGroup
+              label="Button style"
+              value={brandingForm.buttonStyle}
+              onChange={v => setBrandingForm(f => ({ ...f, buttonStyle: v }))}
+              options={[
+                { value: 'rounded', label: 'Rounded', preview: <div className="w-full h-5 rounded-lg border border-current opacity-60" /> },
+                { value: 'pill',    label: 'Pill',    preview: <div className="w-full h-5 rounded-full border border-current opacity-60" /> },
+                { value: 'sharp',   label: 'Sharp',   preview: <div className="w-full h-5 rounded-sm border border-current opacity-60" /> },
+                { value: 'luxury',  label: 'Luxury',  preview: <div className="w-full h-5 rounded border border-amber-400/50 opacity-60 tracking-widest text-amber-400 text-[8px] flex items-center justify-center">RSRV</div> },
+              ]}
+            />
+
+            {/* Card style */}
+            <StyleTileGroup
+              label="Card style"
+              value={brandingForm.cardStyle}
+              onChange={v => setBrandingForm(f => ({ ...f, cardStyle: v }))}
+              options={[
+                { value: 'glass',        label: 'Glass',       preview: <div className="w-full h-6 rounded-lg" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))', border: '1px solid rgba(255,255,255,0.14)' }} /> },
+                { value: 'solid',        label: 'Solid',       preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(10,12,18,0.97)', border: '1px solid rgba(255,255,255,0.07)' }} /> },
+                { value: 'luxury-dark',  label: 'Luxury',      preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(6,5,3,0.97)', border: '1px solid rgba(210,175,80,0.30)' }} /> },
+                { value: 'soft-light',   label: 'Soft',        preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.22)' }} /> },
+              ]}
+            />
+
+            {/* Background mood */}
+            <StyleTileGroup
+              label="Background mood"
+              value={brandingForm.backgroundMood}
+              onChange={v => setBrandingForm(f => ({ ...f, backgroundMood: v }))}
+              options={[
+                { value: 'dark',     label: 'Dark',     preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#101520,#080a10)' }} /> },
+                { value: 'espresso', label: 'Espresso', preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#1c1710,#0e0b06)' }} /> },
+                { value: 'olive',    label: 'Olive',    preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#111610,#080c06)' }} /> },
+                { value: 'cream',    label: 'Cream',    preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#1a1710,#0d0b06)' }} /> },
+                { value: 'warm',     label: 'Warm',     preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#1a1408,#0d0a04)' }} /> },
+              ]}
+            />
+
             {/* Live preview */}
             <div>
               <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">Live preview</p>
               <BrandingPreviewCard
                 primaryColor={brandingForm.primaryColor}
-                logoUrl={brandingForm.logoUrl}
+                logoUrl={logoPreview ?? brandingForm.logoUrl}
                 restaurantName={detail?.name ?? 'Restaurant'}
+                buttonStyle={brandingForm.buttonStyle}
+                cardStyle={brandingForm.cardStyle}
+                backgroundMood={brandingForm.backgroundMood}
               />
             </div>
 
@@ -1285,7 +1455,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
                 onClick={() => {
-                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '' });
+                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '' });
+                  setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
+                  setCoverPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setBrandingError(null);
                 }}
                 className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text"
@@ -1340,6 +1512,18 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Theme preset</dt>
                 <dd className="text-iron-text capitalize">{detail?.publicThemePreset ?? <span className="text-iron-muted italic">None</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Button style</dt>
+                <dd className="text-iron-text capitalize">{detail?.buttonStyle ?? <span className="text-iron-muted italic">Default</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Card style</dt>
+                <dd className="text-iron-text capitalize">{detail?.cardStyle ?? <span className="text-iron-muted italic">Glass</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Background mood</dt>
+                <dd className="text-iron-text capitalize">{detail?.backgroundMood ?? <span className="text-iron-muted italic">Dark</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Logo</dt>
