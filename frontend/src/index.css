@@ -172,3 +172,27 @@ input[type="time"] {
 .animate-slide-in-left {
   animation: slide-in-left 0.18s ease-out forwards;
 }
+
+/* ── Live table presence ──────────────────────────────────────────────────── */
+/* Each keyframe targets a different operational state. Position-seeded       */
+/* animationDelay makes every table breathe at its own organic offset.        */
+
+@keyframes table-alive {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1;    }
+}
+
+@keyframes table-ending {
+  0%, 100% { opacity: 0.38; }
+  50%      { opacity: 0.80; }
+}
+
+@keyframes table-incoming {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.90; }
+}
+
+@keyframes table-tense {
+  0%, 100% { opacity: 0.40; }
+  50%      { opacity: 0.85; }
+}

@@ -539,7 +539,7 @@ export default function FloorBoard({
 
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
-        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 140px rgba(0,0,0,0.55), inset 0 0 50px rgba(0,0,0,0.28)' }}>
+        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 140px rgba(0,0,0,0.55), inset 0 0 50px rgba(0,0,0,0.28), inset 0 50px 70px -30px rgba(0,0,0,0.28)' }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
@@ -548,12 +548,14 @@ export default function FloorBoard({
               height: CANVAS_H,
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: [
-                // Ceiling light bloom — the room has a light source above the dining floor
+                // Primary ceiling bloom — centred overhead light source
                 'radial-gradient(ellipse 70% 58% at 50% 42%, var(--canvas-ambient) 0%, transparent 100%)',
+                // Secondary off-centre ambient — warmer fill from lower-right (kitchen warmth)
+                'radial-gradient(ellipse 30% 36% at 88% 70%, rgba(255,210,120,0.0045) 0%, transparent 100%)',
                 // Refined dot grid — blueprint precision, not developer grid
                 'radial-gradient(circle, var(--canvas-dot) 0.55px, transparent 0.55px)',
               ].join(', '),
-              backgroundSize: 'auto, 28px 28px',
+              backgroundSize: 'auto, auto, 28px 28px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
@@ -580,6 +582,9 @@ export default function FloorBoard({
                 </div>
               );
             })}
+
+            {/* Spatial energy field — warm occupied-cluster glow, cool overdue tinge */}
+            <SpatialEnergyField tables={canvasTables} />
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
@@ -953,6 +958,56 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
   );
 }
 
+// ── Spatial energy field ──────────────────────────────────────────────────────
+// SVG layer rendered between floor objects and table buttons. Occupied table
+// clusters emit a faint warm glow; overdue tables emit a cool red tinge.
+// Static (no animation) — represents accumulated room energy, not an alert.
+
+function SpatialEnergyField({ tables }: { tables: FloorTable[] }) {
+  const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
+  const overdue  = tables.filter(t => t.liveStatus === 'OCCUPIED' &&  (t.currentReservation?.isOverdue));
+  if (occupied.length === 0 && overdue.length === 0) return null;
+  return (
+    <svg
+      width={CANVAS_W} height={CANVAS_H}
+      style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 0 }}
+    >
+      <defs>
+        {occupied.map(t => {
+          const cx = t.posX + t.width  / 2;
+          const cy = t.posY + t.height / 2;
+          return (
+            <radialGradient key={`sf-a-${t.id}`} id={`sf-a-${t.id}`} cx={cx} cy={cy} r={180} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#86efac" stopOpacity={0.040} />
+              <stop offset="100%" stopColor="#86efac" stopOpacity={0}     />
+            </radialGradient>
+          );
+        })}
+        {overdue.map(t => {
+          const cx = t.posX + t.width  / 2;
+          const cy = t.posY + t.height / 2;
+          return (
+            <radialGradient key={`sf-t-${t.id}`} id={`sf-t-${t.id}`} cx={cx} cy={cy} r={160} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#ef4444" stopOpacity={0.030} />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity={0}     />
+            </radialGradient>
+          );
+        })}
+      </defs>
+      {occupied.map(t => {
+        const cx = t.posX + t.width  / 2;
+        const cy = t.posY + t.height / 2;
+        return <circle key={`sf-a-${t.id}`} cx={cx} cy={cy} r={180} fill={`url(#sf-a-${t.id})`} />;
+      })}
+      {overdue.map(t => {
+        const cx = t.posX + t.width  / 2;
+        const cy = t.posY + t.height / 2;
+        return <circle key={`sf-t-${t.id}`} cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`} />;
+      })}
+    </svg>
+  );
+}
+
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
 function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, date, hoveredResId }: {
@@ -1124,6 +1179,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // and the table number becomes a secondary label
   const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
 
+  const minutesRemaining = (currentRes && table.liveStatus === 'OCCUPIED')
+    ? minutesUntilEnd(currentRes.expectedEndTime, Date.now()) : null;
+  const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
+
+  // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
+  // Negative value means the animation has already been running for that duration.
+  const _animSeed = table.posX * 0.013 + table.posY * 0.017;
+
   return (
     <button
       onClick={onClick}
@@ -1166,6 +1229,44 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         transition: `opacity var(--duration-fast) ease-out, filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
     >
+      {/* ── Live presence overlays ──────────────────────────────────────────── */}
+      {/* Alive — occupied non-overdue tables breathe with a faint green warmth */}
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && (
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 90% 90% at 35% 35%, rgba(134,239,172,0.18) 0%, transparent 70%)',
+          animation: `table-alive 7s ease-in-out infinite`,
+          animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
+        }} />
+      )}
+      {/* Ending — tables about to free pulse with amber from the bottom edge */}
+      {!pickMode && isEndingSoon && (
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 80% 80% at 50% 88%, rgba(251,191,36,0.22) 0%, transparent 70%)',
+          animation: `table-ending 4.5s ease-in-out infinite`,
+          animationDelay: `-${(_animSeed % 4.5).toFixed(2)}s`,
+        }} />
+      )}
+      {/* Incoming — RESERVED_SOON tables glow from the top edge in anticipation */}
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'RESERVED_SOON' && (
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 80% 80% at 50% 12%, rgba(251,191,36,0.16) 0%, transparent 70%)',
+          animation: `table-incoming 5s ease-in-out infinite`,
+          animationDelay: `-${(_animSeed % 5.0).toFixed(2)}s`,
+        }} />
+      )}
+      {/* Tense — overdue tables pulse with a contained red ring */}
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && isOverdue && (
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+          boxShadow: 'inset 0 0 20px rgba(239,68,68,0.32)',
+          animation: `table-tense 3.5s ease-in-out infinite`,
+          animationDelay: `-${(_animSeed % 3.5).toFixed(2)}s`,
+        }} />
+      )}
+
       {/* Table number — primary when empty, secondary label when a guest is present */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
