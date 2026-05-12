@@ -415,6 +415,11 @@ export default function FloorBoard({
     return mr > 0 && mr <= 15;
   }).length : 0;
 
+  // Peripheral quieting: when the room is under pressure (waitlist + no room),
+  // available tables gently recede so active zones emerge without any explicit signal.
+  const underPressure = waitlist.length > 0 && available <= 2;
+  const quietIdle = underPressure && !pickMode && !waitlistAssignEntry && !combineMode && !reorganizeMode;
+
   const positioned = hasPositions(dedupedTables);
 
   return (
@@ -583,8 +588,8 @@ export default function FloorBoard({
               );
             })}
 
-            {/* Spatial energy field — warm occupied-cluster glow, cool overdue tinge */}
-            <SpatialEnergyField tables={canvasTables} />
+            {/* Spatial energy field — warm occupied-cluster glow, cool overdue tinge, arrival warmth */}
+            <SpatialEnergyField tables={canvasTables} underPressure={underPressure} />
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
@@ -630,6 +635,7 @@ export default function FloorBoard({
                   pickSelected={pickMode && pickSelection.includes(t.id)}
                   pickStatus={ps}
                   wlPickWarn={wlPickWarn === t.id}
+                  quietIdle={quietIdle}
                   hoveredResId={hoveredResId}
                 />
               );
@@ -963,10 +969,17 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 // clusters emit a faint warm glow; overdue tables emit a cool red tinge.
 // Static (no animation) — represents accumulated room energy, not an alert.
 
-function SpatialEnergyField({ tables }: { tables: FloorTable[] }) {
+function SpatialEnergyField({ tables, underPressure }: { tables: FloorTable[]; underPressure: boolean }) {
   const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
   const overdue  = tables.filter(t => t.liveStatus === 'OCCUPIED' &&  (t.currentReservation?.isOverdue));
-  if (occupied.length === 0 && overdue.length === 0) return null;
+  const incoming = tables.filter(t => t.liveStatus === 'RESERVED_SOON');
+  if (occupied.length === 0 && overdue.length === 0 && incoming.length === 0) return null;
+
+  // Under pressure the room feels denser — occupied clusters radiate more warmth
+  // so the host's eye is pulled toward active zones even faster.
+  const occStrength = underPressure ? 0.055 : 0.040;
+  const ovdStrength = underPressure ? 0.040 : 0.030;
+
   return (
     <svg
       width={CANVAS_W} height={CANVAS_H}
@@ -978,8 +991,8 @@ function SpatialEnergyField({ tables }: { tables: FloorTable[] }) {
           const cy = t.posY + t.height / 2;
           return (
             <radialGradient key={`sf-a-${t.id}`} id={`sf-a-${t.id}`} cx={cx} cy={cy} r={180} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#86efac" stopOpacity={0.040} />
-              <stop offset="100%" stopColor="#86efac" stopOpacity={0}     />
+              <stop offset="0%"   stopColor="#86efac" stopOpacity={occStrength} />
+              <stop offset="100%" stopColor="#86efac" stopOpacity={0}           />
             </radialGradient>
           );
         })}
@@ -988,8 +1001,18 @@ function SpatialEnergyField({ tables }: { tables: FloorTable[] }) {
           const cy = t.posY + t.height / 2;
           return (
             <radialGradient key={`sf-t-${t.id}`} id={`sf-t-${t.id}`} cx={cx} cy={cy} r={160} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#ef4444" stopOpacity={0.030} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0}     />
+              <stop offset="0%"   stopColor="#ef4444" stopOpacity={ovdStrength} />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity={0}           />
+            </radialGradient>
+          );
+        })}
+        {incoming.map(t => {
+          const cx = t.posX + t.width  / 2;
+          const cy = t.posY + t.height / 2;
+          return (
+            <radialGradient key={`sf-i-${t.id}`} id={`sf-i-${t.id}`} cx={cx} cy={cy} r={120} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#fbbf24" stopOpacity={0.018} />
+              <stop offset="100%" stopColor="#fbbf24" stopOpacity={0}     />
             </radialGradient>
           );
         })}
@@ -1004,13 +1027,18 @@ function SpatialEnergyField({ tables }: { tables: FloorTable[] }) {
         const cy = t.posY + t.height / 2;
         return <circle key={`sf-t-${t.id}`} cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`} />;
       })}
+      {incoming.map(t => {
+        const cx = t.posX + t.width  / 2;
+        const cy = t.posY + t.height / 2;
+        return <circle key={`sf-i-${t.id}`} cx={cx} cy={cy} r={120} fill={`url(#sf-i-${t.id})`} />;
+      })}
     </svg>
   );
 }
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, quietIdle = false, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -1032,6 +1060,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickStatus?: PickStatus;
   waitlistAssignTarget?: boolean;
   wlPickWarn?: boolean;
+  quietIdle?: boolean;
   date?: string;
   hoveredResId?: string | null;
 }) {
@@ -1043,6 +1072,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Base (non-pick) colors
   const isOverdue = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
+  const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
+    ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
+  const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
+
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(99,102,241,0.10)'
     : isOverdue ? 'rgba(185,28,28,0.22)'     // deeper red — heavier, not alarming
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
@@ -1070,10 +1103,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
   let cursor = 'pointer';
 
-  // Status-driven border refinements — RESERVED_SOON reads amber (imminent), BLOCKED reads muted (intentional absence)
+  // Status-driven border refinements
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (table.liveStatus === 'RESERVED_SOON') {
-      borderColor = 'rgba(217,119,6,0.72)';
+      borderColor = 'rgba(217,119,6,0.72)';           // amber — imminent arrival
+    } else if (isEndingSoon) {
+      borderColor = 'rgba(251,191,36,0.52)';           // warm readiness — the table is preparing to free
     } else if (table.liveStatus === 'BLOCKED') {
       borderColor = 'rgba(82,82,91,0.40)';
       borderWidth = 1;
@@ -1091,6 +1126,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // BLOCKED: intentional absence — near-ghost, clearly not in service
   if (table.liveStatus === 'BLOCKED' && !selected && !combinedSelected) {
     opacity = Math.min(opacity, 0.60);
+  }
+
+  // Peripheral quieting: when the room is under pressure, idle available tables gently
+  // recede so active zones emerge without any explicit signal or alert. 0.78 is enough
+  // to read "quiet" without feeling broken or dimmed.
+  if (quietIdle && table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && !selected) {
+    opacity = Math.min(opacity, 0.78);
   }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
@@ -1179,10 +1221,6 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // and the table number becomes a secondary label
   const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
 
-  const minutesRemaining = (currentRes && table.liveStatus === 'OCCUPIED')
-    ? minutesUntilEnd(currentRes.expectedEndTime, Date.now()) : null;
-  const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
-
   // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
   // Negative value means the animation has already been running for that duration.
   const _animSeed = table.posX * 0.013 + table.posY * 0.017;
@@ -1216,9 +1254,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
         // Drop-shadow is not clipped by overflow:hidden, unlike box-shadow.
+        // Shadow hierarchy mirrors operational priority: OCCUPIED comes forward most,
+        // RESERVED_SOON second (the next action zone), AVAILABLE recedes furthest.
         filter: dimmed ? undefined
-          : table.liveStatus === 'OCCUPIED'  ? 'drop-shadow(0 3px 10px rgba(0,0,0,0.62))'
-          : table.liveStatus === 'AVAILABLE' ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
+          : table.liveStatus === 'OCCUPIED'      ? 'drop-shadow(0 3px 10px rgba(0,0,0,0.62))'
+          : table.liveStatus === 'RESERVED_SOON' ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.54))'
+          : table.liveStatus === 'AVAILABLE'     ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
           : 'drop-shadow(0 2px 6px rgba(0,0,0,0.50))',
         opacity,
         padding: '6px 8px',
