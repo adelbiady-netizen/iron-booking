@@ -27,7 +27,7 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
 
 const STATUS_BG: Record<string, string> = {
   AVAILABLE:     'rgb(var(--iron-card))',
-  OCCUPIED:      'rgba(22,163,74,0.22)',       // warmer, grounded
+  OCCUPIED:      'rgba(22,163,74,0.25)',       // warmer, grounded
   RESERVED_SOON: 'rgba(217,119,6,0.26)',        // warming — imminence energy
   RESERVED:      'rgba(37,99,235,0.12)',         // calm, committed
   BLOCKED:       'rgba(82,82,91,0.11)',           // intentionally withdrawn
@@ -526,7 +526,7 @@ export default function FloorBoard({
 
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
-        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 70px rgba(0,0,0,0.28)' }}>
+        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{ boxShadow: 'inset 0 0 80px rgba(0,0,0,0.32)' }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
@@ -534,7 +534,7 @@ export default function FloorBoard({
               width: CANVAS_W,
               height: CANVAS_H,
               backgroundColor: 'var(--canvas-bg)',
-              backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 0.85px, transparent 0.85px)',
+              backgroundImage: 'radial-gradient(circle, var(--canvas-dot) 0.72px, transparent 0.72px)',
               backgroundSize: '30px 30px',
               userSelect: pickMode ? 'none' : undefined,
             }}
@@ -989,11 +989,24 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Status-driven border refinements — RESERVED_SOON reads amber (imminent), BLOCKED reads muted (intentional absence)
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (table.liveStatus === 'RESERVED_SOON') {
-      borderColor = 'rgba(217,119,6,0.90)';
+      borderColor = 'rgba(217,119,6,0.72)';
     } else if (table.liveStatus === 'BLOCKED') {
       borderColor = 'rgba(82,82,91,0.40)';
       borderWidth = 1;
     }
+  }
+
+  // AVAILABLE: recede — thinner border, section color at low opacity so empty tables don't compete
+  if (table.liveStatus === 'AVAILABLE' && !selected && !combinedSelected && !softHold && !table.locked) {
+    borderWidth = 1;
+    borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
+      ? sectionColor + '66'   // 40% opacity
+      : sectionColor;
+  }
+
+  // BLOCKED: intentional absence — near-ghost, clearly not in service
+  if (table.liveStatus === 'BLOCKED' && !selected && !combinedSelected) {
+    opacity = Math.min(opacity, 0.60);
   }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
@@ -1282,8 +1295,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </span>
       )}
 
-      {/* Section color dot */}
-      {!pickMode && table.section?.color && !table.locked && (
+      {/* Section color dot — only on available tables; occupied/reserved content speaks for itself */}
+      {!pickMode && table.section?.color && !table.locked && table.liveStatus === 'AVAILABLE' && (
         <span style={{
           position: 'absolute', bottom: 4, right: 4,
           width: 5, height: 5, borderRadius: '50%',
