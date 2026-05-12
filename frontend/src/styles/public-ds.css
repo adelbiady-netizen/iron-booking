@@ -1097,3 +1097,131 @@ button.pub-chip[aria-pressed="true"] { background: var(--pub-brand-subtle); bord
   margin: 0;
 }
 [dir="rtl"] .pub-footer-copy { letter-spacing: 0.02em; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Legal document pages  (.pub-legal-*)                                        */
+/* Used by /privacy, /terms, /accessibility, /contact                          */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Article container — same glass language as pub-card but wider, text-optimised */
+.pub-legal-article {
+  background: rgba(10, 13, 20, 0.74);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: var(--pub-radius, 12px);
+  padding: clamp(28px, 6vw, 52px);
+  margin-bottom: 8px;
+}
+
+/* Page title */
+.pub-legal-h1 {
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f2ece0;
+  margin: 0 0 6px;
+  line-height: 1.2;
+}
+
+/* "Last updated" meta line */
+.pub-legal-updated {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  margin: 0 0 28px;
+}
+[dir="rtl"] .pub-legal-updated { letter-spacing: 0; }
+
+/* V1 disclaimer banner */
+.pub-legal-disclaimer {
+  background: rgba(var(--pub-rgb, 245 158 11) / 0.08);
+  border: 1px solid rgba(var(--pub-rgb, 245 158 11) / 0.22);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px 14px;
+  margin-bottom: 32px;
+}
+
+/* Section heading (numbered: "1. Introduction") */
+.pub-legal-h2 {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgb(var(--pub-rgb, 74 222 128) / 0.65);
+  margin: 36px 0 12px;
+  padding-top: 4px;
+}
+[dir="rtl"] .pub-legal-h2 { letter-spacing: 0.04em; }
+
+/* First section needs less top margin */
+.pub-legal-article > .pub-legal-h2:first-of-type,
+.pub-legal-article > h1 + .pub-legal-h2,
+.pub-legal-article > h1 + p + .pub-legal-h2,
+.pub-legal-article > h1 + p + p + .pub-legal-h2 {
+  margin-top: 0;
+}
+
+/* Body text */
+.pub-legal-p {
+  font-size: 14.5px;
+  line-height: 1.80;
+  color: rgba(255, 255, 255, 0.60);
+  margin: 0 0 16px;
+}
+
+/* Bulleted list */
+.pub-legal-ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+.pub-legal-ul li {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.58);
+  padding-inline-start: 22px;
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.pub-legal-ul li::before {
+  content: '◆';
+  position: absolute;
+  inset-inline-start: 0;
+  font-size: 5.5px;
+  color: rgb(var(--pub-rgb, 74 222 128) / 0.45);
+  top: 8px;
+  line-height: 1;
+}
+
+/* Inline link */
+.pub-legal-a {
+  color: rgb(var(--pub-rgb, 74 222 128) / 0.82);
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--pub-rgb, 74 222 128) / 0.28);
+  text-underline-offset: 3px;
+  transition: color 0.18s, text-decoration-color 0.18s;
+}
+.pub-legal-a:hover {
+  color: rgb(var(--pub-rgb, 74 222 128));
+  text-decoration-color: rgb(var(--pub-rgb, 74 222 128) / 0.55);
+}
+.pub-legal-a:focus-visible {
+  outline: 2px solid rgb(var(--pub-rgb, 74 222 128) / 0.55);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Horizontal rule between content and cross-links */
+.pub-legal-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin: 32px 0 24px;
+}

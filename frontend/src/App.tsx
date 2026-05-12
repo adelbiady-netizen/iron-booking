@@ -9,6 +9,10 @@ import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
 import WaitlistKioskPage from './pages/WaitlistKioskPage';
 import HostSelectionScreen from './pages/HostSelectionScreen';
+import PrivacyPage from './pages/legal/PrivacyPage';
+import TermsPage from './pages/legal/TermsPage';
+import AccessibilityPage from './pages/legal/AccessibilityPage';
+import ContactPage from './pages/legal/ContactPage';
 import type { AuthState, UserRole } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -126,6 +130,11 @@ export default function App() {
   // ── Guest-facing routes ────────────────────────────────────────────────────
   // Returned BEFORE the scale/overflow container so mobile browsers can scroll
   // naturally. The overflow:hidden on the app shell clips guest page content.
+  if (path === '/privacy')      return <PrivacyPage />;
+  if (path === '/terms')        return <TermsPage />;
+  if (path === '/accessibility') return <AccessibilityPage />;
+  if (path === '/contact')      return <ContactPage />;
+
   if (path === '/confirm') {
     const token = new URLSearchParams(window.location.search).get('token');
     if (token) return <ConfirmationPage token={token} />;
