@@ -47,6 +47,34 @@
   color-scheme: light;
 }
 
+/* ── Hospitality easing system ────────────────────────────────────────────── */
+/* "The host should FEEL time passing. They should never NOTICE animation."   */
+
+:root {
+  --duration-fast:      100ms;    /* hover feedback, micro-responses          */
+  --duration-service:   200ms;    /* state change acknowledgment              */
+  --duration-settle:    380ms;    /* surface/color settle — atmospheric shift */
+  --ease-hospitality: cubic-bezier(0.16, 1, 0.3, 1);  /* fast-start, long settle — no bounce */
+}
+
+/* ── Micro-motion ─────────────────────────────────────────────────────────── */
+
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.animate-drawer-in {
+  animation: drawer-in 280ms var(--ease-hospitality) forwards;
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-backdrop-in {
+  animation: backdrop-in var(--duration-service) ease-out forwards;
+}
+
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 
 html, body, #root {

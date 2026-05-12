@@ -63,6 +63,7 @@ interface Props {
   allTables?: { id: string; name: string }[];
   onChooseTable?: (r: Reservation) => void;
   isLiveView?: boolean;
+  onHoverRow?: (id: string | null) => void;
 }
 
 export default function ReservationPanel({
@@ -71,7 +72,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onChooseTable, isLiveView,
+  onChooseTable, isLiveView, onHoverRow,
 }: Props) {
   const T = useT();
   const [tab,    setTab]    = useState<Tab>('reservations');
@@ -126,7 +127,7 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-l border-iron-border bg-iron-card">
+    <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-s border-iron-border bg-iron-card">
 
       {/* Tab bar + action buttons */}
       <div className="px-3 pt-3 pb-0 border-b border-iron-border">
@@ -134,7 +135,7 @@ export default function ReservationPanel({
           <div className="flex gap-1 flex-1">
             <button
               onClick={() => setTab('reservations')}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                 tab === 'reservations'
                   ? 'bg-iron-green text-white'
                   : 'text-iron-muted hover:text-iron-text'
@@ -144,7 +145,7 @@ export default function ReservationPanel({
             </button>
             <button
               onClick={() => setTab('waitlist')}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
                 tab === 'waitlist'
                   ? 'bg-iron-green text-white'
                   : 'text-iron-muted hover:text-iron-text'
@@ -165,13 +166,13 @@ export default function ReservationPanel({
             <>
               <button
                 onClick={onWalkIn}
-                className="text-xs font-medium px-3 py-1.5 rounded-md border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-iron-border/70 text-iron-muted hover:border-iron-green/60 hover:text-iron-text transition-colors"
               >
                 {T.reservationPanel.walkIn}
               </button>
               <button
                 onClick={onNewReservation}
-                className="text-xs font-semibold px-3 py-1.5 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-colors"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-colors"
               >
                 {T.reservationPanel.newReservation}
               </button>
@@ -186,7 +187,7 @@ export default function ReservationPanel({
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={T.reservationPanel.searchPlaceholder}
-            className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
+            className="w-full bg-iron-bg border border-iron-border/70 rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted/60 focus:outline-none focus:border-iron-green/60 transition-colors"
           />
           {tab === 'reservations' && (
             <div className="flex gap-1 flex-wrap">
@@ -194,7 +195,7 @@ export default function ReservationPanel({
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
-                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition-colors ${
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors ${
                     filter === f.value
                       ? 'bg-iron-green text-white font-semibold'
                       : 'text-iron-muted hover:text-iron-text'
@@ -341,18 +342,20 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/70 transition-colors ${rowBg}`}
+                  className={`w-full flex items-stretch border-b border-iron-border/40 transition-colors ${rowBg}`}
+                  onMouseEnter={() => onHoverRow?.(r.id)}
+                  onMouseLeave={() => onHoverRow?.(null)}
                 >
                   <button
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-3.5 py-4 min-w-0"
+                    className="flex-1 text-left px-3.5 py-3.5 min-w-0"
                   >
 
                     {/* Row 1 — name + badge */}
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <span className="text-iron-text text-lg font-bold truncate flex-1 leading-snug">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="text-iron-text text-[15px] font-semibold tracking-tight truncate flex-1 leading-snug">
                         {r.guestName}
                         {r.guest?.isVip && (
                           <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
@@ -361,31 +364,31 @@ export default function ReservationPanel({
                       {!r.guestPhone && (
                         <span
                           title={T.reservationPanel.noPhone}
-                          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-iron-border/40 text-iron-muted/50 font-medium"
+                          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-iron-border/40 text-iron-muted/40 font-medium"
                         >
                           ✆–
                         </span>
                       )}
-                      <span className={`text-xs px-2.5 py-1 rounded-md border font-semibold shrink-0 ${statusBadge.cls}`}>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold shrink-0 ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>
                     </div>
 
                     {/* Row 2 — time · guests · table */}
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-iron-text font-semibold tabular-nums">{r.time}</span>
-                      <span className="text-iron-muted/50">·</span>
+                      <span className="text-iron-text font-bold tabular-nums">{r.time}</span>
+                      <span className="text-iron-muted/25">·</span>
                       <span className="text-iron-muted">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/50">·</span>
+                          <span className="text-iron-muted/25">·</span>
                           <span className="text-iron-text font-medium">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/50">·</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-iron-border/20 border-iron-border/40 text-iron-muted font-medium">
+                          <span className="text-iron-muted/25">·</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-iron-border/15 border-iron-border/30 text-iron-muted font-medium">
                             {T.reservationPanel.noTableBadge}
                           </span>
                         </>
@@ -432,7 +435,7 @@ export default function ReservationPanel({
             })}
           </div>
 
-          <div className="px-3 py-2 border-t border-iron-border text-iron-muted text-xs text-center">
+          <div className="px-3 py-2.5 border-t border-iron-border/50 text-iron-muted/60 text-xs text-center">
             {T.reservationPanel.showing(visible.length, reservations.length)}
           </div>
         </>

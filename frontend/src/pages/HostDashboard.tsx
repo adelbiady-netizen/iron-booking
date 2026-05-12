@@ -132,6 +132,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [allTables,    setAllTables]    = useState<Table[]>([]);
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
   const [highlightId,       setHighlightId]       = useState<string | null>(null);
+  const [hoveredResId,      setHoveredResId]      = useState<string | null>(null);
   const reorganizeKeyRef = useRef(0);
   const [reorganizeConflict, setReorganizeConflict] = useState<{
     conflicts: ReorganizeConflict[];
@@ -1287,6 +1288,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onWaitlistConfirmSeat={handleWaitlistConfirmSeat}
           reorganizeMode={reorganizeMode}
           onReorganizeTableClick={handleReorganizeTableClick}
+          hoveredResId={hoveredResId}
         />
 
         <ReservationPanel
@@ -1317,6 +1319,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           allTables={allTables}
           onChooseTable={handleChooseTable}
           isLiveView={isLiveView}
+          onHoverRow={setHoveredResId}
         />
       </div>
       </BoardErrorBoundary>

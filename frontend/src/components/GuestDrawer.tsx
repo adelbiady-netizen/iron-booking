@@ -782,7 +782,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       {/* Backdrop — hidden during map pick so the floor is accessible */}
       {!(pickingOnMap || pickingForAction) && (
         <div
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-black/50 z-40 animate-backdrop-in"
           onClick={onClose}
         />
       )}
@@ -813,7 +813,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`}>
+      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`}>
 
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-iron-border/70 bg-iron-elevated shrink-0">

@@ -80,6 +80,8 @@ interface Props {
   // Management Reorganize Mode
   reorganizeMode?: boolean;
   onReorganizeTableClick?: (table: FloorTable) => void;
+  // Queue→floor hover relationship
+  hoveredResId?: string | null;
 }
 
 const CANVAS_W = 1500;
@@ -116,6 +118,7 @@ export default function FloorBoard({
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
+  hoveredResId,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -604,6 +607,7 @@ export default function FloorBoard({
                   pickSelected={pickMode && pickSelection.includes(t.id)}
                   pickStatus={ps}
                   wlPickWarn={wlPickWarn === t.id}
+                  hoveredResId={hoveredResId}
                 />
               );
             })}
@@ -922,7 +926,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, date }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -945,6 +949,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   waitlistAssignTarget?: boolean;
   wlPickWarn?: boolean;
   date?: string;
+  hoveredResId?: string | null;
 }) {
   const T = useT();
   const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
@@ -1055,6 +1060,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const currentRes = table.currentReservation;
   const displayRes = currentRes ?? nextRes ?? null;
 
+  // Queue→floor hover: soft emphasis when mouse is over the matching queue row
+  const isQueueHovered = !pickMode && !selected && !combinedSelected && !!hoveredResId && (
+    currentRes?.id === hoveredResId ||
+    table.upcomingReservations.some(r => r.id === hoveredResId)
+  );
+  if (isQueueHovered) {
+    borderWidth = Math.max(borderWidth, 1.5);
+    if (!boxShadow) boxShadow = '0 0 0 3px rgba(255,255,255,0.06)';
+    if (dimmed) opacity = Math.max(opacity, 0.55);
+  }
+
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
   // and the table number becomes a secondary label
   const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
@@ -1078,7 +1094,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         textAlign: 'left',
         cursor,
-        transition: 'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
+        transition: `opacity var(--duration-fast) ease-out, border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
     >
       {/* Table number — primary when empty, secondary label when a guest is present */}
@@ -1146,7 +1162,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                 fontWeight: isOverdue ? 600 : 400,
               }}>
                 {currentRes.partySize}
-                {isToday && <>{' · '}{mr > 5 ? T.floorBoard.mLeft(mr) : mr >= -5 ? T.floorBoard.ending : T.floorBoard.mOver(Math.abs(mr))}</>}
+                {isToday && (() => {
+                  const endTimeStr = new Date(currentRes.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const timerStr = mr > 20 ? endTimeStr
+                    : mr > 5   ? T.floorBoard.mLeft(mr)
+                    : mr >= -5 ? T.floorBoard.ending
+                    : T.floorBoard.mOver(Math.abs(mr));
+                  return <>{' · '}{timerStr}</>;
+                })()}
               </p>
             )}
           </div>
@@ -1175,7 +1198,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && nextRes && (
               <p style={{ fontSize: 11, color: 'rgb(var(--iron-muted))', opacity: 0.75 }}>
-                {nextRes.partySize} · {nextRes.time}{isToday && nextRes.minutesUntil > 0 ? ` · ${T.floorBoard.inNMin(nextRes.minutesUntil)}` : ''}
+                {nextRes.partySize} · {nextRes.time}{isToday && table.liveStatus === 'RESERVED_SOON' && nextRes.minutesUntil > 0 ? ` · ${T.floorBoard.inNMin(nextRes.minutesUntil)}` : ''}
               </p>
             )}
           </div>
