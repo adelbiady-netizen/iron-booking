@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "WebFetch(domain:www.ironbooking.com)",
+      "Bash(vercel --prod --yes)"
+    ]
+  }
+}

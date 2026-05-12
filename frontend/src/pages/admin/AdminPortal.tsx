@@ -91,11 +91,12 @@ function StyleTileGroup<T extends string>({
 
 function BrandingPreviewCard({
   primaryColor, logoUrl, restaurantName, buttonStyle, cardStyle, backgroundMood,
-  backgroundColorHex, backgroundGradientHex,
+  backgroundColorHex, backgroundGradientHex, coverImageUrl,
 }: {
   primaryColor: string; logoUrl: string; restaurantName: string;
   buttonStyle: string; cardStyle: string; backgroundMood: string;
   backgroundColorHex: string; backgroundGradientHex: string;
+  coverImageUrl?: string;
 }) {
   const hex = primaryColor || '#22C55E';
   const initial = restaurantName.charAt(0).toUpperCase();
@@ -113,7 +114,6 @@ function BrandingPreviewCard({
     : cardStyle === 'soft-light' ? 'rgba(255,255,255,0.18)'
     : 'rgba(255,255,255,0.08)';
 
-  // Custom color overrides mood preset in preview
   const bgStyle: React.CSSProperties = backgroundColorHex
     ? { background: backgroundGradientHex
         ? `linear-gradient(168deg, ${backgroundColorHex} 0%, ${backgroundGradientHex} 100%)`
@@ -125,57 +125,61 @@ function BrandingPreviewCard({
         : '#0b0f18' };
 
   return (
-    <div
-      className="rounded-xl overflow-hidden border border-white/10"
-      style={{ ...bgStyle, padding: '16px' }}
-    >
-      {/* Restaurant header */}
-      <div className="flex flex-col items-center gap-2 mb-3">
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center border"
-          style={{ background: 'rgba(16,20,34,0.72)', borderColor: 'rgba(255,255,255,0.12)' }}
-        >
-          {logoUrl
-            ? <img src={logoUrl} alt="logo" className="object-contain h-7 max-w-[40px]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            : <span className="text-white/70 text-lg font-light">{initial}</span>}
+    <div className="relative w-full h-full overflow-hidden" style={bgStyle}>
+      {/* Hero area */}
+      <div className="relative w-full" style={{ height: '42%' }}>
+        {coverImageUrl
+          ? <img src={coverImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          : <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(20,28,48,0.9),rgba(8,12,22,0.98))' }} />}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom,rgba(0,0,0,0.08) 0%,rgba(0,0,0,0.50) 70%,rgba(0,0,0,0.88) 100%)' }} />
+        <div className="absolute bottom-3 left-0 right-0 flex flex-col items-center">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center border mb-1.5" style={{ background: 'rgba(12,16,26,0.72)', borderColor: 'rgba(255,255,255,0.15)' }}>
+            {logoUrl
+              ? <img src={logoUrl} alt="logo" className="object-contain h-6 max-w-[32px]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              : <span className="text-white/70 text-sm font-light">{initial}</span>}
+          </div>
+          <p className="text-white/85 text-[10px] font-medium tracking-wide">{restaurantName}</p>
         </div>
-        <p className="text-white/80 text-xs font-medium">{restaurantName}</p>
       </div>
 
-      {/* Card surface preview */}
-      <div
-        className="rounded-xl p-3 mb-2"
-        style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          backdropFilter: cardStyle === 'solid' ? 'none' : 'blur(20px)',
-        }}
-      >
-        {/* Time slots */}
-        <div className="flex flex-col gap-1.5 mb-2.5">
-          {['7:00 PM', '7:30 PM', '8:00 PM'].map((slot, i) => (
-            <div
-              key={slot}
-              className="px-3 py-1.5 text-center text-xs font-medium"
-              style={i === 1 ? {
-                background: hex,
-                color: '#fff',
-                borderRadius: btnRadius,
-                boxShadow: `0 0 12px ${hex}44`,
-              } : {
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                color: 'rgba(255,255,255,0.55)',
-                borderRadius: btnRadius,
-              }}
-            >{slot}</div>
-          ))}
-        </div>
-        {/* CTA button */}
+      {/* Booking card */}
+      <div className="px-3 pt-3 pb-4">
         <div
-          className="w-full py-2 text-center text-xs font-semibold"
-          style={{ background: hex, color: '#fff', borderRadius: btnRadius, letterSpacing: buttonStyle === 'luxury' ? '0.10em' : undefined }}
-        >Reserve a table</div>
+          className="rounded-xl p-3"
+          style={{
+            background: cardBg,
+            border: `1px solid ${cardBorder}`,
+            backdropFilter: cardStyle === 'solid' ? 'none' : 'blur(20px)',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-white/35 text-[9px]">Tonight · 2 guests</span>
+            <span className="text-white/35 text-[9px]">◂ ▸</span>
+          </div>
+          <div className="flex flex-col gap-1.5 mb-2.5">
+            {['7:00 PM', '7:30 PM', '8:00 PM'].map((slot, i) => (
+              <div
+                key={slot}
+                className="px-3 py-1.5 text-center text-[10px] font-medium"
+                style={i === 1 ? {
+                  background: hex,
+                  color: '#fff',
+                  borderRadius: btnRadius,
+                  boxShadow: `0 0 10px ${hex}44`,
+                } : {
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  color: 'rgba(255,255,255,0.42)',
+                  borderRadius: btnRadius,
+                }}
+              >{slot}</div>
+            ))}
+          </div>
+          <div
+            className="w-full py-1.5 text-center text-[10px] font-semibold"
+            style={{ background: hex, color: '#fff', borderRadius: btnRadius, letterSpacing: buttonStyle === 'luxury' ? '0.10em' : undefined }}
+          >Reserve a table</div>
+        </div>
       </div>
     </div>
   );
@@ -1275,364 +1279,354 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
         {/* Public Branding */}
         {editBranding ? (
-          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-5">
-            <h3 className="font-medium">Public Page Branding</h3>
+          <div className="space-y-8">
 
-            {/* Colors + preset */}
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Primary color (hex)">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={brandingForm.primaryColor || '#22C55E'}
-                    onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))}
-                    className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer"
-                  />
-                  <Input
-                    value={brandingForm.primaryColor}
-                    onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))}
-                    placeholder="#22C55E"
-                  />
-                </div>
-              </Field>
-              <Field label="Accent color (hex)">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={brandingForm.accentColor || '#22C55E'}
-                    onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))}
-                    className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer"
-                  />
-                  <Input
-                    value={brandingForm.accentColor}
-                    onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))}
-                    placeholder="#45D4BE"
-                  />
-                </div>
-              </Field>
-            </div>
+            {/* Two-column layout: controls | phone preview */}
+            <div className="flex gap-8 items-start">
 
-            <Field label="Theme preset (overridden by custom color if set)">
-              <select
-                value={brandingForm.publicThemePreset}
-                onChange={e => setBrandingForm(f => ({ ...f, publicThemePreset: e.target.value }))}
-                className="w-full bg-iron-bg border border-iron-border rounded-md px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
-              >
-                <option value="">— No preset (Iron default) —</option>
-                <option value="italiano">Italiano (espresso · olive)</option>
-                <option value="fineDining">Elegant Dark</option>
-                <option value="luxury">Modern Luxury</option>
-                <option value="mediterranean">Mediterranean</option>
-                <option value="minimal">Japanese Minimal</option>
-                <option value="casual">Casual Warm</option>
-                <option value="family">Family (green)</option>
-                <option value="nightlife">Nightlife (purple)</option>
-              </select>
-            </Field>
+              {/* ── LEFT: Settings ─────────────────────────────────────────── */}
+              <div className="flex-1 min-w-0 space-y-10">
 
-            {/* Cloudinary config notice */}
-            {!cloudinaryConfigured() && (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300 space-y-1">
-                <p className="font-semibold">Image upload not configured</p>
-                <p className="text-amber-400/80">Add two env vars to your Vercel frontend project, then redeploy:</p>
-                <pre className="text-[10px] bg-black/20 rounded px-2 py-1 font-mono select-all">VITE_CLOUDINARY_CLOUD_NAME=your-cloud-name{'\n'}VITE_CLOUDINARY_UPLOAD_PRESET=your-unsigned-preset</pre>
-                <p className="text-amber-400/80">Get both for free at <span className="underline">cloudinary.com</span> → Settings → Upload presets (set mode: Unsigned).</p>
-                <p className="text-amber-400/80">Until then, paste a public image URL directly into the field below.</p>
-              </div>
-            )}
+                {/* Brand Identity */}
+                <section>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Brand Identity</p>
 
-            {/* Logo upload */}
-            <Field label="Logo (PNG/SVG/WEBP/JPG · max 2 MB · transparent background recommended)">
-              <div className="flex items-center gap-2 mb-2">
-                <label className={`flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 text-iron-muted cursor-pointer shrink-0 ${logoUpload.progress !== null ? 'opacity-50 pointer-events-none' : 'hover:bg-iron-bg hover:text-iron-text'}`}>
-                  <input
-                    type="file"
-                    accept="image/png,image/svg+xml,image/webp,image/jpeg"
-                    className="hidden"
-                    onChange={async e => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      // Always show local preview immediately
-                      if (logoPreview) URL.revokeObjectURL(logoPreview);
-                      setLogoPreview(URL.createObjectURL(file));
-                      setLogoUpload({ progress: null, error: null });
-                      // Validate
-                      const valErr = validateImageFile(file, 'logo');
-                      if (valErr) { setLogoUpload({ progress: null, error: valErr }); return; }
-                      // Upload if configured
-                      if (!cloudinaryConfigured()) return; // stay on local preview
-                      setLogoUpload({ progress: 0, error: null });
-                      try {
-                        const result = await uploadToCloudinary(
-                          file,
-                          `iron-booking/restaurants/${selectedId}/logo`,
-                          pct => setLogoUpload(u => ({ ...u, progress: pct })),
-                        );
-                        setBrandingForm(f => ({ ...f, logoUrl: result.secure_url }));
-                        setLogoUpload({ progress: null, error: null });
-                      } catch (err) {
-                        setLogoUpload({ progress: null, error: err instanceof Error ? err.message : 'Upload failed' });
-                      }
-                    }}
-                  />
-                  {logoUpload.progress !== null ? `Uploading ${logoUpload.progress}%` : 'Upload image'}
-                </label>
-                {logoUpload.progress !== null && (
-                  <div className="flex-1 h-1.5 bg-iron-border rounded-full overflow-hidden">
-                    <div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${logoUpload.progress}%` }} />
+                  {/* Logo */}
+                  <div className="flex items-start gap-4 mb-6">
+                    <div
+                      className="w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    >
+                      {(logoPreview || brandingForm.logoUrl) ? (
+                        <img src={logoPreview ?? brandingForm.logoUrl} alt="logo" className="object-contain max-h-[60px] max-w-[68px]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : (
+                        <span className="text-white/20 text-3xl font-extralight">{(detail?.name ?? 'R').charAt(0)}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-iron-text font-medium mb-0.5">Logo</p>
+                      <p className="text-[11px] text-iron-muted mb-2.5">PNG · SVG · WEBP · transparent background recommended</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className={`inline-flex items-center gap-1.5 text-xs border border-iron-border rounded-lg px-3 py-1.5 cursor-pointer ${logoUpload.progress !== null ? 'opacity-50 pointer-events-none' : 'hover:bg-iron-bg text-iron-muted hover:text-iron-text'}`}>
+                          <input type="file" accept="image/png,image/svg+xml,image/webp,image/jpeg" className="hidden"
+                            onChange={async e => {
+                              const file = e.target.files?.[0]; if (!file) return;
+                              if (logoPreview) URL.revokeObjectURL(logoPreview);
+                              setLogoPreview(URL.createObjectURL(file));
+                              setLogoUpload({ progress: null, error: null });
+                              const valErr = validateImageFile(file, 'logo');
+                              if (valErr) { setLogoUpload({ progress: null, error: valErr }); return; }
+                              if (!cloudinaryConfigured()) return;
+                              setLogoUpload({ progress: 0, error: null });
+                              try {
+                                const result = await uploadToCloudinary(file, `iron-booking/restaurants/${selectedId}/logo`, pct => setLogoUpload(u => ({ ...u, progress: pct })));
+                                setBrandingForm(f => ({ ...f, logoUrl: result.secure_url }));
+                                setLogoUpload({ progress: null, error: null });
+                              } catch (err) {
+                                setLogoUpload({ progress: null, error: err instanceof Error ? err.message : 'Upload failed' });
+                              }
+                            }}
+                          />
+                          {logoUpload.progress !== null ? `${logoUpload.progress}%` : '↑ Upload'}
+                        </label>
+                        {brandingForm.logoUrl && (
+                          <button type="button" onClick={() => { setBrandingForm(f => ({ ...f, logoUrl: '' })); setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); }} className="text-[11px] text-iron-muted hover:text-red-400 transition-colors">Remove</button>
+                        )}
+                      </div>
+                      {logoUpload.progress !== null && <div className="h-1 bg-iron-border rounded-full overflow-hidden mt-2"><div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${logoUpload.progress}%` }} /></div>}
+                      {logoUpload.error && <p className="text-[11px] text-red-400 mt-1">{logoUpload.error}</p>}
+                      <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">Or paste a public URL:</p>
+                      <Input value={brandingForm.logoUrl} onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))} placeholder="https://…" />
+                    </div>
                   </div>
-                )}
-              </div>
-              {logoUpload.error && <p className="text-[11px] text-red-400 mb-1">{logoUpload.error}</p>}
-              {(logoPreview || brandingForm.logoUrl) && (
-                <div className="mb-2 flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-lg border border-iron-border bg-iron-bg flex items-center justify-center overflow-hidden shrink-0">
-                    <img
-                      src={logoPreview ?? brandingForm.logoUrl}
-                      alt="logo preview"
-                      className="object-contain max-h-[52px] max-w-[56px]"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  </div>
-                  <div className="text-xs text-iron-muted">
-                    {brandingForm.logoUrl && !brandingForm.logoUrl.startsWith('blob:')
-                      ? <p className="text-iron-green text-[11px]">✓ Uploaded and saved</p>
-                      : !cloudinaryConfigured()
-                        ? <p className="text-amber-400 text-[11px]">Local preview · configure Cloudinary to upload</p>
-                        : null}
-                  </div>
-                </div>
-              )}
-              <p className="text-[11px] text-iron-muted mb-1">Advanced: paste a public URL directly</p>
-              <Input
-                value={brandingForm.logoUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
-                placeholder="https://res.cloudinary.com/… or any public URL"
-              />
-            </Field>
 
-            {/* Cover image upload */}
-            <Field label="Cover / hero image (PNG/JPG/WEBP · max 5 MB · ≥1200px wide recommended)">
-              <div className="flex items-center gap-2 mb-2">
-                <label className={`flex items-center gap-1.5 text-xs border border-iron-border rounded px-3 py-1.5 text-iron-muted cursor-pointer shrink-0 ${coverUpload.progress !== null ? 'opacity-50 pointer-events-none' : 'hover:bg-iron-bg hover:text-iron-text'}`}>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={async e => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (coverPreview) URL.revokeObjectURL(coverPreview);
-                      setCoverPreview(URL.createObjectURL(file));
-                      setCoverUpload({ progress: null, error: null });
-                      const valErr = validateImageFile(file, 'cover');
-                      if (valErr) { setCoverUpload({ progress: null, error: valErr }); return; }
-                      if (!cloudinaryConfigured()) return;
-                      setCoverUpload({ progress: 0, error: null });
-                      try {
-                        const result = await uploadToCloudinary(
-                          file,
-                          `iron-booking/restaurants/${selectedId}/cover`,
-                          pct => setCoverUpload(u => ({ ...u, progress: pct })),
-                        );
-                        setBrandingForm(f => ({ ...f, coverImageUrl: result.secure_url }));
-                        setCoverUpload({ progress: null, error: null });
-                      } catch (err) {
-                        setCoverUpload({ progress: null, error: err instanceof Error ? err.message : 'Upload failed' });
-                      }
-                    }}
-                  />
-                  {coverUpload.progress !== null ? `Uploading ${coverUpload.progress}%` : 'Upload image'}
-                </label>
-                {coverUpload.progress !== null && (
-                  <div className="flex-1 h-1.5 bg-iron-border rounded-full overflow-hidden">
-                    <div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${coverUpload.progress}%` }} />
+                  {/* Colors */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[11px] text-iron-muted mb-2">Primary color</p>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={brandingForm.primaryColor || '#22C55E'} onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
+                        <Input value={brandingForm.primaryColor} onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))} placeholder="#22C55E" className="font-mono text-xs" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-iron-muted mb-2">Accent color</p>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={brandingForm.accentColor || '#22C55E'} onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
+                        <Input value={brandingForm.accentColor} onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))} placeholder="#45D4BE" className="font-mono text-xs" />
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-              {coverUpload.error && <p className="text-[11px] text-red-400 mb-1">{coverUpload.error}</p>}
-              {(coverPreview || brandingForm.coverImageUrl) && (
-                <div className="mb-2">
-                  <div className="rounded-lg overflow-hidden border border-iron-border" style={{ height: 96 }}>
-                    <img
-                      src={coverPreview ?? brandingForm.coverImageUrl}
-                      alt="cover preview"
-                      className="w-full h-full object-cover"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  </div>
-                  {brandingForm.coverImageUrl && !brandingForm.coverImageUrl.startsWith('blob:') && (
-                    <p className="text-[11px] text-iron-green mt-1">✓ Uploaded and saved</p>
+                </section>
+
+                {/* Hero Media */}
+                <section>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Hero Media</p>
+
+                  {!cloudinaryConfigured() && (
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-300/80 mb-5 space-y-1">
+                      <p className="font-medium text-amber-300">Image upload not configured</p>
+                      <p className="text-amber-400/70">Add <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_CLOUD_NAME</code> and <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_UPLOAD_PRESET</code> to Vercel and redeploy. Until then, paste URLs directly.</p>
+                    </div>
                   )}
-                  {!cloudinaryConfigured() && coverPreview && (
-                    <p className="text-[11px] text-amber-400 mt-1">Local preview · configure Cloudinary to upload</p>
-                  )}
-                </div>
-              )}
-              <p className="text-[11px] text-iron-muted mb-1">Advanced: paste a public URL directly</p>
-              <Input
-                value={brandingForm.coverImageUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
-                placeholder="https://res.cloudinary.com/… or any public URL"
-              />
-            </Field>
 
-            {/* Hero video URL */}
-            <Field label="Hero video URL (muted autoplay; MP4 recommended)">
-              <Input
-                value={brandingForm.heroVideoUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, heroVideoUrl: e.target.value }))}
-                placeholder="https://cdn.example.com/hero.mp4"
-              />
-              <p className="text-[11px] text-iron-muted mt-1">Plays silently on the public booking page. Falls back to cover image if unavailable or on reduced-motion devices.</p>
-            </Field>
+                  {/* Cover image */}
+                  <div className="mb-5">
+                    <p className="text-xs text-iron-text font-medium mb-0.5">Cover image</p>
+                    <p className="text-[11px] text-iron-muted mb-3">Fills the cinematic hero section on the public page. Minimum 1200 px wide.</p>
+                    <div
+                      className="relative rounded-xl overflow-hidden border mb-3 group"
+                      style={{ height: 180, background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+                    >
+                      {(coverPreview || brandingForm.coverImageUrl) ? (
+                        <img src={coverPreview ?? brandingForm.coverImageUrl} alt="cover" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-iron-muted/30">
+                          <svg viewBox="0 0 24 24" className="w-8 h-8 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.2}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="9.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                          <span className="text-xs">No cover image</span>
+                        </div>
+                      )}
+                      <label className={`absolute inset-0 flex items-end justify-center pb-4 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${coverUpload.progress !== null ? 'pointer-events-none' : ''}`}>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                          onChange={async e => {
+                            const file = e.target.files?.[0]; if (!file) return;
+                            if (coverPreview) URL.revokeObjectURL(coverPreview);
+                            setCoverPreview(URL.createObjectURL(file));
+                            setCoverUpload({ progress: null, error: null });
+                            const valErr = validateImageFile(file, 'cover');
+                            if (valErr) { setCoverUpload({ progress: null, error: valErr }); return; }
+                            if (!cloudinaryConfigured()) return;
+                            setCoverUpload({ progress: 0, error: null });
+                            try {
+                              const result = await uploadToCloudinary(file, `iron-booking/restaurants/${selectedId}/cover`, pct => setCoverUpload(u => ({ ...u, progress: pct })));
+                              setBrandingForm(f => ({ ...f, coverImageUrl: result.secure_url }));
+                              setCoverUpload({ progress: null, error: null });
+                            } catch (err) {
+                              setCoverUpload({ progress: null, error: err instanceof Error ? err.message : 'Upload failed' });
+                            }
+                          }}
+                        />
+                        <span className="text-white text-xs font-medium bg-black/60 rounded-lg px-4 py-2">{coverUpload.progress !== null ? `Uploading ${coverUpload.progress}%` : '↑ Upload cover image'}</span>
+                      </label>
+                      {coverUpload.progress !== null && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
+                          <div className="h-full bg-iron-green transition-all" style={{ width: `${coverUpload.progress}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  {coverUpload.error && <p className="text-[11px] text-red-400 mt-2">{coverUpload.error}</p>}
+                    <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">Or paste a public URL:</p>
+                    <Input value={brandingForm.coverImageUrl} onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))} placeholder="https://…" className="text-xs" />
+                  </div>
 
-            {/* Button style */}
-            <StyleTileGroup
-              label="Button style"
-              value={brandingForm.buttonStyle}
-              onChange={v => setBrandingForm(f => ({ ...f, buttonStyle: v }))}
-              options={[
-                { value: 'rounded', label: 'Rounded', preview: <div className="w-full h-5 rounded-lg border border-current opacity-60" /> },
-                { value: 'pill',    label: 'Pill',    preview: <div className="w-full h-5 rounded-full border border-current opacity-60" /> },
-                { value: 'sharp',   label: 'Sharp',   preview: <div className="w-full h-5 rounded-sm border border-current opacity-60" /> },
-                { value: 'luxury',  label: 'Luxury',  preview: <div className="w-full h-5 rounded border border-amber-400/50 opacity-60 tracking-widest text-amber-400 text-[8px] flex items-center justify-center">RSRV</div> },
-              ]}
-            />
+                  {/* Hero video */}
+                  <div>
+                    <p className="text-xs text-iron-text font-medium mb-0.5">Hero video</p>
+                    <p className="text-[11px] text-iron-muted mb-2">Muted autoplay on public page. Falls back to cover image when unavailable.</p>
+                    <Input value={brandingForm.heroVideoUrl} onChange={e => setBrandingForm(f => ({ ...f, heroVideoUrl: e.target.value }))} placeholder="https://cdn.example.com/hero.mp4" className="text-xs" />
+                  </div>
+                </section>
 
-            {/* Card style */}
-            <StyleTileGroup
-              label="Card style"
-              value={brandingForm.cardStyle}
-              onChange={v => setBrandingForm(f => ({ ...f, cardStyle: v }))}
-              options={[
-                { value: 'glass',       label: 'Glass',   preview: <div className="w-full h-6 rounded-lg" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))', border: '1px solid rgba(255,255,255,0.14)' }} /> },
-                { value: 'solid',       label: 'Solid',   preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(10,12,18,0.97)', border: '1px solid rgba(255,255,255,0.07)' }} /> },
-                { value: 'luxury-dark', label: 'Luxury',  preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(6,5,3,0.97)', border: '1px solid rgba(210,175,80,0.30)' }} /> },
-                { value: 'soft-light',  label: 'Soft',    preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.22)' }} /> },
-              ]}
-            />
+                {/* Theme & Colors */}
+                <section>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Theme &amp; Colors</p>
 
-            {/* Background mood preset */}
-            <StyleTileGroup
-              label="Background mood (preset)"
-              value={brandingForm.backgroundMood}
-              onChange={v => setBrandingForm(f => ({ ...f, backgroundMood: v }))}
-              options={[
-                { value: 'dark',     label: 'Dark',     preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#101520,#080a10)' }} /> },
-                { value: 'espresso', label: 'Espresso', preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#1c1710,#0e0b06)' }} /> },
-                { value: 'olive',    label: 'Olive',    preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#111610,#080c06)' }} /> },
-                { value: 'cream',    label: 'Cream',    preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#1a1710,#0d0b06)' }} /> },
-                { value: 'warm',     label: 'Warm',     preview: <div className="w-full h-6 rounded" style={{ background: 'linear-gradient(135deg,#1a1408,#0d0a04)' }} /> },
-              ]}
-            />
+                  {/* Theme preset visual cards */}
+                  <div className="mb-7">
+                    <p className="text-xs text-iron-text font-medium mb-3">Theme preset</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {([
+                        { value: '',              label: 'Iron',      bg: 'linear-gradient(135deg,#10161e,#080c14)', accent: '#22C55E' },
+                        { value: 'italiano',      label: 'Italiano',  bg: 'linear-gradient(135deg,#1c1710,#0e0b06)', accent: '#b5792a' },
+                        { value: 'fineDining',    label: 'Elegant',   bg: 'linear-gradient(135deg,#0e0e12,#060609)', accent: '#c8b8f0' },
+                        { value: 'luxury',        label: 'Luxury',    bg: 'linear-gradient(135deg,#12100a,#060502)', accent: '#d4b45a' },
+                        { value: 'mediterranean', label: 'Med',       bg: 'linear-gradient(135deg,#0a1220,#060e1a)', accent: '#4fb8c8' },
+                        { value: 'minimal',       label: 'Minimal',   bg: 'linear-gradient(135deg,#0d0e10,#060708)', accent: '#e8e4dc' },
+                        { value: 'casual',        label: 'Casual',    bg: 'linear-gradient(135deg,#1a1208,#0e0b04)', accent: '#e89030' },
+                        { value: 'nightlife',     label: 'Night',     bg: 'linear-gradient(135deg,#120a1e,#080510)', accent: '#a060e0' },
+                      ] as Array<{ value: string; label: string; bg: string; accent: string }>).map(preset => (
+                        <button
+                          key={preset.value}
+                          type="button"
+                          onClick={() => setBrandingForm(f => ({ ...f, publicThemePreset: preset.value }))}
+                          className={`relative rounded-xl overflow-hidden border transition-all text-left ${brandingForm.publicThemePreset === preset.value ? 'border-iron-green ring-1 ring-iron-green/30' : 'border-white/8 hover:border-white/20'}`}
+                          style={{ height: 64 }}
+                        >
+                          <div className="absolute inset-0" style={{ background: preset.bg }} />
+                          <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5" style={{ background: 'linear-gradient(to top,rgba(0,0,0,0.72),transparent)' }}>
+                            <div className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: preset.accent }} />
+                              <span className="text-[10px] text-white/80 font-medium leading-none">{preset.label}</span>
+                            </div>
+                          </div>
+                          {brandingForm.publicThemePreset === preset.value && (
+                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-iron-green flex items-center justify-center">
+                              <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none" stroke="white" strokeWidth={2}><polyline points="1.5,5 4,7.5 8.5,2.5" /></svg>
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-            {/* Custom background color (overrides mood preset when set) */}
-            <div className="space-y-3">
-              <label className="block text-xs text-iron-muted">
-                Custom background color
-                <span className="ml-1 text-iron-muted/60">(overrides mood preset)</span>
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Base color (hex)">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={brandingForm.backgroundColorHex || '#0b0f18'}
-                      onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))}
-                      className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer shrink-0"
-                    />
-                    <Input
-                      value={brandingForm.backgroundColorHex}
-                      onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))}
-                      placeholder="#0b0f18"
-                    />
+                  {/* Background mood */}
+                  <div className="mb-6">
+                    <p className="text-xs text-iron-text font-medium mb-3">Background mood</p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {([
+                        { value: 'dark',     label: 'Dark',     bg: 'linear-gradient(135deg,#101520,#080a10)' },
+                        { value: 'espresso', label: 'Espresso', bg: 'linear-gradient(135deg,#1c1710,#0e0b06)' },
+                        { value: 'olive',    label: 'Olive',    bg: 'linear-gradient(135deg,#111610,#080c06)' },
+                        { value: 'cream',    label: 'Cream',    bg: 'linear-gradient(135deg,#1a1710,#0d0b06)' },
+                        { value: 'warm',     label: 'Warm',     bg: 'linear-gradient(135deg,#1a1408,#0d0a04)' },
+                      ] as Array<{ value: string; label: string; bg: string }>).map(mood => (
+                        <button
+                          key={mood.value}
+                          type="button"
+                          onClick={() => setBrandingForm(f => ({ ...f, backgroundMood: mood.value }))}
+                          className={`relative rounded-lg overflow-hidden border transition-all ${brandingForm.backgroundMood === mood.value ? 'border-iron-green' : 'border-white/8 hover:border-white/20'}`}
+                          style={{ height: 44 }}
+                        >
+                          <div className="absolute inset-0" style={{ background: mood.bg }} />
+                          <div className="absolute inset-x-0 bottom-0 flex justify-center pb-1">
+                            <span className="text-[9px] text-white/50">{mood.label}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom background */}
+                  <div>
+                    <p className="text-xs text-iron-text font-medium mb-1">Custom background <span className="text-iron-muted font-normal text-[11px]">(overrides mood preset)</span></p>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <p className="text-[10px] text-iron-muted mb-1.5">Base color</p>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={brandingForm.backgroundColorHex || '#0b0f18'} onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
+                          <Input value={brandingForm.backgroundColorHex} onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))} placeholder="#0b0f18" className="font-mono text-xs" />
+                          {brandingForm.backgroundColorHex && (
+                            <button type="button" onClick={() => setBrandingForm(f => ({ ...f, backgroundColorHex: '', backgroundGradientHex: '' }))} className="text-iron-muted hover:text-iron-text text-xs shrink-0" title="Clear">✕</button>
+                          )}
+                        </div>
+                        {brandingForm.backgroundColorHex && (() => {
+                          const m = brandingForm.backgroundColorHex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+                          if (!m) return null;
+                          const lum = [m[1], m[2], m[3]].reduce((acc, c, i) => {
+                            const v = parseInt(c, 16) / 255;
+                            return acc + (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i];
+                          }, 0);
+                          return lum > 0.12 ? <p className="text-[11px] text-amber-400 mt-1">⚠ Too light — white text may be unreadable</p> : null;
+                        })()}
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-iron-muted mb-1.5">Gradient end (optional)</p>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={brandingForm.backgroundGradientHex || brandingForm.backgroundColorHex || '#080a10'} onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
+                          <Input value={brandingForm.backgroundGradientHex} onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))} placeholder="#080a10" className="font-mono text-xs" />
+                        </div>
+                      </div>
+                    </div>
                     {brandingForm.backgroundColorHex && (
-                      <button
-                        type="button"
-                        onClick={() => setBrandingForm(f => ({ ...f, backgroundColorHex: '', backgroundGradientHex: '' }))}
-                        className="text-iron-muted hover:text-iron-text text-xs shrink-0"
-                        title="Clear custom color"
-                      >✕</button>
+                      <div className="rounded-xl h-8 mt-3 border border-white/8" style={{ background: brandingForm.backgroundGradientHex ? `linear-gradient(168deg,${brandingForm.backgroundColorHex} 0%,${brandingForm.backgroundGradientHex} 100%)` : brandingForm.backgroundColorHex }} />
                     )}
                   </div>
-                  {/* Contrast warning */}
-                  {brandingForm.backgroundColorHex && (() => {
-                    const m = brandingForm.backgroundColorHex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-                    if (!m) return null;
-                    const lum = [m[1], m[2], m[3]].reduce((acc, c, i) => {
-                      const v = parseInt(c, 16) / 255;
-                      return acc + (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i];
-                    }, 0);
-                    return lum > 0.12
-                      ? <p className="text-[11px] text-amber-400 mt-1">⚠ Background too light — white text may be unreadable. Use a value darker than #303030.</p>
-                      : null;
-                  })()}
-                </Field>
-                <Field label="Gradient end color (optional)">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={brandingForm.backgroundGradientHex || brandingForm.backgroundColorHex || '#080a10'}
-                      onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))}
-                      className="w-9 h-9 rounded border border-iron-border bg-transparent cursor-pointer shrink-0"
+                </section>
+
+                {/* Style */}
+                <section>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Style</p>
+                  <div className="space-y-5">
+                    <StyleTileGroup
+                      label="Button style"
+                      value={brandingForm.buttonStyle}
+                      onChange={v => setBrandingForm(f => ({ ...f, buttonStyle: v }))}
+                      options={[
+                        { value: 'rounded', label: 'Rounded', preview: <div className="w-full h-5 rounded-lg border border-current opacity-60" /> },
+                        { value: 'pill',    label: 'Pill',    preview: <div className="w-full h-5 rounded-full border border-current opacity-60" /> },
+                        { value: 'sharp',   label: 'Sharp',   preview: <div className="w-full h-5 rounded-sm border border-current opacity-60" /> },
+                        { value: 'luxury',  label: 'Luxury',  preview: <div className="w-full h-5 rounded border border-amber-400/50 opacity-60 tracking-widest text-amber-400 text-[8px] flex items-center justify-center">RSRV</div> },
+                      ]}
                     />
-                    <Input
-                      value={brandingForm.backgroundGradientHex}
-                      onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))}
-                      placeholder="#080a10"
+                    <StyleTileGroup
+                      label="Card style"
+                      value={brandingForm.cardStyle}
+                      onChange={v => setBrandingForm(f => ({ ...f, cardStyle: v }))}
+                      options={[
+                        { value: 'glass',       label: 'Glass',  preview: <div className="w-full h-6 rounded-lg" style={{ background: 'linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))', border: '1px solid rgba(255,255,255,0.14)' }} /> },
+                        { value: 'solid',       label: 'Solid',  preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(10,12,18,0.97)', border: '1px solid rgba(255,255,255,0.07)' }} /> },
+                        { value: 'luxury-dark', label: 'Luxury', preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(6,5,3,0.97)', border: '1px solid rgba(210,175,80,0.30)' }} /> },
+                        { value: 'soft-light',  label: 'Soft',   preview: <div className="w-full h-6 rounded-lg" style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.22)' }} /> },
+                      ]}
                     />
                   </div>
-                </Field>
-              </div>
-              {brandingForm.backgroundColorHex && (
+                </section>
+
+                {/* Social & Navigation */}
+                <section>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Social &amp; Navigation</p>
+                  <div className="space-y-2">
+                    {([
+                      { key: 'websiteUrl',    label: 'Website',     placeholder: 'https://yourrestaurant.com', icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> },
+                      { key: 'instagramUrl',  label: 'Instagram',   placeholder: 'https://instagram.com/yourpage', icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg> },
+                      { key: 'googleMapsUrl', label: 'Google Maps', placeholder: 'https://maps.google.com/?q=…', icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> },
+                      { key: 'wazeUrl',       label: 'Waze',        placeholder: 'https://waze.com/ul?ll=…', icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg> },
+                    ] as Array<{ key: keyof typeof brandingForm; label: string; placeholder: string; icon: ReactNode }>).map(({ key, label, placeholder, icon }) => (
+                      <div key={key} className="flex items-center gap-3 rounded-xl px-3 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span className="text-iron-muted/50 shrink-0">{icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-iron-muted/60 mb-0.5">{label}</p>
+                          <input
+                            value={brandingForm[key] as string}
+                            onChange={e => setBrandingForm(f => ({ ...f, [key]: e.target.value }))}
+                            placeholder={placeholder}
+                            className="w-full bg-transparent text-xs text-iron-text placeholder-iron-muted/30 focus:outline-none"
+                          />
+                        </div>
+                        {(brandingForm[key] as string) && <span className="text-iron-green text-[10px] shrink-0">✓</span>}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+              </div>{/* /left panel */}
+
+              {/* ── RIGHT: Phone mockup preview ─────────────────────────────── */}
+              <div className="w-[220px] shrink-0 sticky top-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-4">Live preview</p>
                 <div
-                  className="rounded-lg h-10 border border-white/10"
+                  className="relative rounded-[32px] overflow-hidden mx-auto"
                   style={{
-                    background: brandingForm.backgroundGradientHex
-                      ? `linear-gradient(168deg, ${brandingForm.backgroundColorHex} 0%, ${brandingForm.backgroundGradientHex} 100%)`
-                      : brandingForm.backgroundColorHex,
+                    width: 220,
+                    height: 440,
+                    border: '2px solid rgba(255,255,255,0.12)',
+                    boxShadow: '0 24px 60px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.05)',
+                    background: '#060810',
                   }}
-                />
-              )}
-            </div>
-
-            {/* Navigation & social links */}
-            <div className="space-y-3">
-              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">Navigation &amp; social links</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Website URL">
-                  <Input value={brandingForm.websiteUrl} onChange={e => setBrandingForm(f => ({ ...f, websiteUrl: e.target.value }))} placeholder="https://yourrestaurant.com" />
-                </Field>
-                <Field label="Instagram URL">
-                  <Input value={brandingForm.instagramUrl} onChange={e => setBrandingForm(f => ({ ...f, instagramUrl: e.target.value }))} placeholder="https://instagram.com/yourpage" />
-                </Field>
-                <Field label="Google Maps URL">
-                  <Input value={brandingForm.googleMapsUrl} onChange={e => setBrandingForm(f => ({ ...f, googleMapsUrl: e.target.value }))} placeholder="https://maps.google.com/?q=..." />
-                </Field>
-                <Field label="Waze URL">
-                  <Input value={brandingForm.wazeUrl} onChange={e => setBrandingForm(f => ({ ...f, wazeUrl: e.target.value }))} placeholder="https://waze.com/ul?ll=..." />
-                </Field>
+                >
+                  {/* Notch */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-5 rounded-b-xl z-20" style={{ background: '#060810' }} />
+                  <div className="absolute inset-0 overflow-hidden rounded-[30px]">
+                    <BrandingPreviewCard
+                      primaryColor={brandingForm.primaryColor}
+                      logoUrl={logoPreview ?? brandingForm.logoUrl}
+                      restaurantName={detail?.name ?? 'Restaurant'}
+                      buttonStyle={brandingForm.buttonStyle}
+                      cardStyle={brandingForm.cardStyle}
+                      backgroundMood={brandingForm.backgroundMood}
+                      backgroundColorHex={brandingForm.backgroundColorHex}
+                      backgroundGradientHex={brandingForm.backgroundGradientHex}
+                      coverImageUrl={coverPreview ?? brandingForm.coverImageUrl}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Live preview */}
-            <div>
-              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">Live preview</p>
-              <BrandingPreviewCard
-                primaryColor={brandingForm.primaryColor}
-                logoUrl={logoPreview ?? brandingForm.logoUrl}
-                restaurantName={detail?.name ?? 'Restaurant'}
-                buttonStyle={brandingForm.buttonStyle}
-                cardStyle={brandingForm.cardStyle}
-                backgroundMood={brandingForm.backgroundMood}
-                backgroundColorHex={brandingForm.backgroundColorHex}
-                backgroundGradientHex={brandingForm.backgroundGradientHex}
-              />
-            </div>
+            </div>{/* /two-column */}
 
-            {brandingError && <p className="text-xs text-red-400">{brandingError}</p>}
-            <div className="flex flex-wrap gap-3 pt-1">
+            {/* Action bar */}
+            {brandingError && <p className="text-xs text-red-400 mt-2">{brandingError}</p>}
+            <div className="flex flex-wrap gap-3 pt-6 border-t border-white/5 mt-2">
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
                 onClick={() => {
@@ -1645,12 +1639,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               >Reset branding</button>
               <button onClick={() => { setEditBranding(false); setBrandingError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
               {detail?.slug && (
-                <a
-                  href={`/book/${detail.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text"
-                >Preview public page ↗</a>
+                <a href={`/book/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text">Preview public page ↗</a>
               )}
             </div>
           </div>
@@ -1660,34 +1649,22 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <h3 className="font-medium">Public Page Branding</h3>
               <div className="flex items-center gap-2">
                 {detail?.slug && (
-                  <a
-                    href={`/book/${detail.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-                  >Preview ↗</a>
+                  <a href={`/book/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">Preview ↗</a>
                 )}
-                {isSuperAdmin && <button
-                  onClick={() => { setEditBranding(true); setBrandingError(null); }}
-                  className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-                >{T.admin.editBtn}</button>}
+                {isSuperAdmin && <button onClick={() => { setEditBranding(true); setBrandingError(null); }} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Primary color</dt>
                 <dd className="flex items-center gap-2">
-                  {detail?.primaryColor
-                    ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.primaryColor }} /><span className="text-iron-text font-mono text-xs">{detail.primaryColor}</span></>
-                    : <span className="text-iron-muted italic">Iron default</span>}
+                  {detail?.primaryColor ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.primaryColor }} /><span className="text-iron-text font-mono text-xs">{detail.primaryColor}</span></> : <span className="text-iron-muted italic">Iron default</span>}
                 </dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Accent color</dt>
                 <dd className="flex items-center gap-2">
-                  {detail?.accentColor
-                    ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.accentColor }} /><span className="text-iron-text font-mono text-xs">{detail.accentColor}</span></>
-                    : <span className="text-iron-muted italic">Not set</span>}
+                  {detail?.accentColor ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.accentColor }} /><span className="text-iron-text font-mono text-xs">{detail.accentColor}</span></> : <span className="text-iron-muted italic">Not set</span>}
                 </dd>
               </div>
               <div>
@@ -1709,29 +1686,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Custom background</dt>
                 <dd className="flex items-center gap-2">
-                  {detail?.backgroundColorHex
-                    ? <>
-                        <span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.backgroundGradientHex ? `linear-gradient(168deg, ${detail.backgroundColorHex}, ${detail.backgroundGradientHex})` : detail.backgroundColorHex }} />
-                        <span className="text-iron-text font-mono text-xs">{detail.backgroundColorHex}{detail.backgroundGradientHex ? ` → ${detail.backgroundGradientHex}` : ''}</span>
-                      </>
-                    : <span className="text-iron-muted italic">Not set</span>}
+                  {detail?.backgroundColorHex ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.backgroundGradientHex ? `linear-gradient(168deg,${detail.backgroundColorHex},${detail.backgroundGradientHex})` : detail.backgroundColorHex }} /><span className="text-iron-text font-mono text-xs">{detail.backgroundColorHex}{detail.backgroundGradientHex ? ` → ${detail.backgroundGradientHex}` : ''}</span></> : <span className="text-iron-muted italic">Not set</span>}
                 </dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Logo</dt>
-                <dd>
-                  {detail?.logoUrl
-                    ? <img src={detail.logoUrl} alt="logo" className="h-6 object-contain" />
-                    : <span className="text-iron-muted italic">Not set</span>}
-                </dd>
+                <dd>{detail?.logoUrl ? <img src={detail.logoUrl} alt="logo" className="h-6 object-contain" /> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-iron-muted text-xs mb-0.5">Cover image</dt>
-                <dd>
-                  {detail?.coverImageUrl
-                    ? <div className="mt-1 rounded-md overflow-hidden border border-iron-border" style={{ height: 64 }}><img src={detail.coverImageUrl} alt="cover" className="w-full h-full object-cover" /></div>
-                    : <span className="text-iron-muted italic">Not set</span>}
-                </dd>
+                <dd>{detail?.coverImageUrl ? <div className="mt-1 rounded-md overflow-hidden border border-iron-border" style={{ height: 64 }}><img src={detail.coverImageUrl} alt="cover" className="w-full h-full object-cover" /></div> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Website</dt>
