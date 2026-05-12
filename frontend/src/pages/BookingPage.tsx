@@ -195,10 +195,12 @@ export default function BookingPage({ slug }: Props) {
     style: { transitionDelay: `${delay}ms` } as React.CSSProperties,
   });
 
-  const hasCover = !!profile?.coverImageUrl;
+  const hasCover    = !!profile?.coverImageUrl;
+  const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const showVideo   = !!profile?.heroVideoUrl && !reducedMotion;
 
   return (
-    <div dir={dir} className="relative min-h-screen flex flex-col items-center overflow-x-hidden" style={{ paddingBottom: 'clamp(24px, 5vh, 64px)' }}>
+    <div dir={dir} className="relative flex flex-col overflow-x-hidden" style={{ background: '#090c12' }}>
       <AtmosphericBg />
 
       {/* Language switcher */}
@@ -206,24 +208,57 @@ export default function BookingPage({ slug }: Props) {
         <LanguageSwitcher variant="public" />
       </div>
 
-      {/* Restaurant hero */}
-      <div className={`w-full ${fade(0).className}`} style={fade(0).style}>
-        {hasCover && profile ? (
-          <BookingCoverHero profile={profile} />
-        ) : (
-          <div className="pt-10 px-4 w-full flex flex-col items-center">
-            <div className="w-full max-w-[500px]">
-              <BookingHeroFallback profile={profile} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main content */}
+      {/* ── Hero section — image + identity + booking card ───────────────────── */}
       <div
-        className={`w-full max-w-[500px] px-4 ${hasCover ? '-mt-16 relative z-10' : ''} ${fade(80).className}`}
-        style={fade(80).style}
+        className={`relative w-full overflow-hidden flex flex-col items-center min-h-[85vh] md:min-h-[75vh] ${fade(0).className}`}
+        style={{ ...fade(0).style, paddingBottom: 'clamp(40px, 7vh, 80px)' }}
       >
+        {/* Cover image layer */}
+        {hasCover && profile && (
+          <>
+            <img
+              src={profile.coverImageUrl!}
+              alt=""
+              aria-hidden="true"
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover', objectPosition: 'center',
+                transform: 'scale(1.04)', transformOrigin: 'center 40%',
+              }}
+            />
+            {showVideo && (
+              <video
+                src={profile.heroVideoUrl!}
+                autoPlay muted loop playsInline
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={e => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
+              />
+            )}
+            {/* Overlay: subtle top vignette → strong bottom fade */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(to bottom, rgba(5,8,12,0.30) 0%, rgba(5,8,12,0.42) 35%, rgba(5,8,12,0.78) 70%, rgba(5,8,12,0.97) 100%)',
+              }}
+            />
+          </>
+        )}
+
+        {/* Restaurant identity: logo + name */}
+        <div
+          className="relative z-10 w-full flex flex-col items-center px-4"
+          style={{ paddingTop: 'clamp(48px, 8vh, 80px)', marginBottom: 'clamp(20px, 3.5vh, 40px)' }}
+        >
+          <HeroIdentity profile={profile} />
+        </div>
+
+        {/* Booking card — floats inside the hero */}
+        <div
+          className={`relative z-10 w-full max-w-[500px] px-4 ${fade(80).className}`}
+          style={fade(80).style}
+        >
         {state.phase === 'loading' && (
           <GlassCard>
             <div role="status" aria-label={t('common.loading')}>
@@ -456,9 +491,10 @@ export default function BookingPage({ slug }: Props) {
             </div>
           </GlassCard>
         )}
-      </div>
+        </div>{/* /booking card */}
+      </div>{/* /hero section */}
 
-      {/* Footer */}
+      {/* Footer — starts after hero */}
       <PublicFooter
         visible={state.phase !== 'loading' && state.phase !== 'not-found'}
         restaurant={profile ? {
@@ -486,110 +522,37 @@ function AtmosphericBg() {
   );
 }
 
-// ─── Cover image hero ──────────────────────────────────────────────────────────
+// ─── Hero identity (logo + name, works with and without cover image) ───────────
 
-function BookingCoverHero({ profile }: { profile: PublicRestaurantProfile }) {
-  const displayName = profile.name;
-  const initial = displayName.charAt(0).toUpperCase();
-  const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const showVideo = !!profile.heroVideoUrl && !reducedMotion;
-
-  const heroH     = 'min(320px, 44vh)';
-  const bottomPos = 'min(72px, 10.5vh)';
-
-  return (
-    <div className="relative w-full" style={{ height: heroH }}>
-      <div className="absolute inset-0 overflow-hidden">
-        <img
-          src={profile.coverImageUrl!}
-          alt=""
-          className="w-full h-full object-cover"
-          style={{ transform: 'scale(1.04)', transformOrigin: 'center 40%' }}
-        />
-        {showVideo && (
-          <video
-            src={profile.heroVideoUrl!}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={e => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
-          />
-        )}
-      </div>
-      <div
-        className="absolute inset-0"
-        style={{
-          background: [
-            'linear-gradient(to bottom,',
-            '  rgba(9,12,18,0.10) 0%,',
-            '  rgba(9,12,18,0.30) 35%,',
-            '  rgba(9,12,18,0.72) 65%,',
-            '  rgba(9,12,18,1.00) 100%)',
-          ].join(' '),
-        }}
-      />
-      <div
-        className="absolute left-0 right-0 pointer-events-none"
-        style={{
-          bottom: '-64px', height: '128px',
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(9,12,18,0.55) 50%, rgba(9,12,18,0.92) 100%)',
-        }}
-      />
-      <div className="absolute left-0 right-0 flex flex-col items-center px-5" style={{ bottom: bottomPos }}>
-        <div className="relative flex items-center justify-center mb-3">
-          <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, transparent 65%)' }} />
-          {profile.logoUrl ? (
-            <div
-              className="relative flex items-center justify-center rounded-full backdrop-blur-xl w-[88px] h-[88px] sm:w-20 sm:h-20"
-              style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
-            >
-              <img src={profile.logoUrl} alt={displayName} className="object-contain h-[46px] sm:h-[42px]" style={{ maxWidth: '62px' }} />
-            </div>
-          ) : (
-            <div
-              className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none w-[88px] h-[88px] sm:w-20 sm:h-20"
-              style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
-            >
-              <span className="text-white/75 text-2xl font-light">{initial}</span>
-            </div>
-          )}
-        </div>
-        <h1 className="text-[1.3rem] font-medium tracking-[-0.018em] text-center" style={{ color: '#f2ece0', textShadow: '0 2px 20px rgba(0,0,0,0.80)' }}>
-          {displayName}
-        </h1>
-        {profile.cuisine && (
-          <p className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile.cuisine}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Gradient hero (no cover image) ───────────────────────────────────────────
-
-function BookingHeroFallback({ profile }: { profile: PublicRestaurantProfile | null }) {
+function HeroIdentity({ profile }: { profile: PublicRestaurantProfile | null }) {
   const displayName = profile?.name;
   const initial = displayName?.charAt(0).toUpperCase() ?? '◆';
 
   return (
-    <div className="text-center mb-5">
+    <div className="text-center">
       <div className="relative flex items-center justify-center mb-3">
-        <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.045) 0%, rgb(var(--pub-rgb) / 0.03) 50%, transparent 70%)' }} />
+        <div className="absolute rounded-full pointer-events-none" style={{ width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(255,255,255,0.055) 0%, transparent 65%)' }} />
         {profile?.logoUrl ? (
-          <img src={profile.logoUrl} alt={displayName} className="relative object-contain" style={{ height: '64px', maxWidth: '200px' }} />
+          <div
+            className="relative flex items-center justify-center rounded-full backdrop-blur-xl w-[88px] h-[88px] sm:w-20 sm:h-20"
+            style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.80)' }}
+          >
+            <img src={profile.logoUrl} alt={displayName} className="object-contain h-[46px] sm:h-[42px]" style={{ maxWidth: '62px' }} />
+          </div>
         ) : (
-          <div className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none w-[88px] h-[88px] sm:w-20 sm:h-20" style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.65)' }}>
+          <div
+            className="relative rounded-full flex items-center justify-center backdrop-blur-xl select-none w-[88px] h-[88px] sm:w-20 sm:h-20"
+            style={{ background: 'linear-gradient(145deg, rgba(16,20,34,0.72) 0%, rgba(6,8,16,0.82) 100%)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 12px 40px rgba(0,0,0,0.65)' }}
+          >
             <span className="text-white/75 text-2xl font-light">{initial}</span>
           </div>
         )}
       </div>
       {displayName && (
-        <h1 className="text-[1.4rem] font-medium tracking-[-0.020em]" style={{ color: '#f2ece0' }}>{displayName}</h1>
+        <h1 className="text-[1.4rem] font-medium tracking-[-0.020em]" style={{ color: '#f2ece0', textShadow: '0 2px 20px rgba(0,0,0,0.70)' }}>{displayName}</h1>
       )}
       {profile?.cuisine && (
-        <p className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.42)' }}>{profile.cuisine}</p>
+        <p className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile.cuisine}</p>
       )}
     </div>
   );
