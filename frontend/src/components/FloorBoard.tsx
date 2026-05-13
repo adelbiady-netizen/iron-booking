@@ -856,6 +856,7 @@ export default function FloorBoard({
                   .map(t => t.id)
               )}
               pickMode={pickMode}
+              timeWarmth={timeWarmth}
             />
 
             {canvasTables.map(t => {
@@ -1364,8 +1365,10 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
         })}
         {occupied.map(t => {
           const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+          const ps = t.currentReservation?.partySize ?? 4;
+          const outerR = Math.round(158 + ps * 5); // 2p: 168, 6p: 188, 10p: 208
           return (
-            <radialGradient key={`sf-ao-${t.id}`} id={`sf-ao-${t.id}`} cx={cx} cy={cy} r={180} gradientUnits="userSpaceOnUse">
+            <radialGradient key={`sf-ao-${t.id}`} id={`sf-ao-${t.id}`} cx={cx} cy={cy} r={outerR} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#86efac" stopOpacity={occOuter} />
               <stop offset="100%" stopColor="#86efac" stopOpacity={0} />
             </radialGradient>
@@ -1373,8 +1376,10 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
         })}
         {occupied.map(t => {
           const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+          const ps = t.currentReservation?.partySize ?? 4;
+          const innerR = Math.round(56 + ps * 2); // 2p: 60, 6p: 68, 10p: 76
           return (
-            <radialGradient key={`sf-ai-${t.id}`} id={`sf-ai-${t.id}`} cx={cx} cy={cy} r={68} gradientUnits="userSpaceOnUse">
+            <radialGradient key={`sf-ai-${t.id}`} id={`sf-ai-${t.id}`} cx={cx} cy={cy} r={innerR} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#86efac" stopOpacity={occInner} />
               <stop offset="100%" stopColor="#86efac" stopOpacity={0} />
             </radialGradient>
@@ -1469,12 +1474,29 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
       ))}
       {occupied.map(t => {
         const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
-        return <circle key={`sf-ao-${t.id}`} cx={cx} cy={cy} r={180} fill={`url(#sf-ao-${t.id})`} />;
+        const ps = t.currentReservation?.partySize ?? 4;
+        return <circle key={`sf-ao-${t.id}`} cx={cx} cy={cy} r={Math.round(158 + ps * 5)} fill={`url(#sf-ao-${t.id})`} />;
       })}
       {occupied.map(t => {
         const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
-        return <circle key={`sf-ai-${t.id}`} cx={cx} cy={cy} r={68}  fill={`url(#sf-ai-${t.id})`} />;
+        const ps = t.currentReservation?.partySize ?? 4;
+        return <circle key={`sf-ai-${t.id}`} cx={cx} cy={cy} r={Math.round(56 + ps * 2)} fill={`url(#sf-ai-${t.id})`} />;
       })}
+      {/* Social density — warm ellipses between nearby occupied table pairs.
+          Two active tables in proximity share warmth; the floor between them glows
+          with accumulated social energy — conversation, candle scatter, heat. */}
+      {occupied.length > 1 && occupied.flatMap((ti, i) =>
+        occupied.slice(i + 1).map((tj, j) => {
+          const dx = (ti.posX + ti.width / 2) - (tj.posX + tj.width / 2);
+          const dy = (ti.posY + ti.height / 2) - (tj.posY + tj.height / 2);
+          const d  = Math.sqrt(dx * dx + dy * dy);
+          if (d <= 0 || d >= 230) return null;
+          const mx  = (ti.posX + ti.width / 2 + tj.posX + tj.width / 2) / 2;
+          const my  = (ti.posY + ti.height / 2 + tj.posY + tj.height / 2) / 2;
+          const op  = ((1 - d / 230) * (occOuter * 0.48 + timeWarmth * 0.010)).toFixed(4);
+          return <ellipse key={`sf-sl-${i}-${j}`} cx={mx} cy={my} rx={85} ry={48} fill={`rgba(255,185,60,${op})`} />;
+        }).filter(Boolean)
+      )}
       {overdue.map(t => {
         const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
         return <circle key={`sf-t-${t.id}`}  cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`}  />;
@@ -1505,16 +1527,30 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
   );
 }
 
+// Deterministic per-chair pseudorandom — stable across renders, seeded by
+// table ID + chair index + slot so each chair has a consistent personality.
+function chairJitter(tableId: string, idx: number, slot: number): number {
+  let h = 5381 + slot * 53 + idx * 29;
+  for (let i = 0; i < tableId.length; i++) h = ((h << 5) + h) ^ tableId.charCodeAt(i);
+  h ^= h >>> 16; h = ((h * 0x45d9f3b) >>> 0); h ^= h >>> 16;
+  return (h & 0xffff) / 65535;
+}
+
 // ── Chair layer ───────────────────────────────────────────────────────────────
 // Semantic chair silhouettes rendered as SVG around each table perimeter.
 // Lives below table buttons in DOM order so chairs peek around table edges
 // without interfering with hit targets or the button's overflow:hidden.
 // Detail tier (useDots vs full capsule) proxies for zoom via table pixel area.
-function ChairLayer({ tables, dimmedTableIds, pickMode }: {
+function ChairLayer({ tables, dimmedTableIds, pickMode, timeWarmth }: {
   tables: FloorTable[];
   dimmedTableIds: Set<string>;
   pickMode: boolean;
+  timeWarmth: number;
 }) {
+  // At dinner service, unoccupied chair settings recede — social energy
+  // concentrates at active tables, empty settings become part of the shadow.
+  const quietLevel = 1 - timeWarmth * 0.22;
+
   return (
     <svg
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
@@ -1527,83 +1563,99 @@ function ChairLayer({ tables, dimmedTableIds, pickMode }: {
         const minDim = Math.min(table.width, table.height);
         if (minDim < 38) return null;
 
-        const area = table.width * table.height;
-        const useDots = minDim < 52;
-        const cW  = useDots ? 4  : area > 7000 ? 11 : 8;   // along edge
-        const cH  = useDots ? 4  : area > 7000 ?  7 : 5;   // perpendicular (depth)
-        const gap = 2.5;
-        const cRx = useDots ? cW / 2 : 2.5;
+        const area     = table.width * table.height;
+        const useDots  = minDim < 52;
+        const cW  = useDots ? 4  : area > 7000 ? 11 : 8;
+        const cH  = useDots ? 4  : area > 7000 ?  7 : 5;
+        const gap  = 2.5;
+        const cRx  = useDots ? cW / 2 : 2.5;
 
-        const isRound = table.shape === 'ROUND' || table.shape === 'OVAL';
-        const isBooth = table.shape === 'BOOTH';
-        const cx = table.posX + table.width / 2;
+        const isRound    = table.shape === 'ROUND' || table.shape === 'OVAL';
+        const isBooth    = table.shape === 'BOOTH';
+        const isOccupied = table.liveStatus === 'OCCUPIED';
+        const cx = table.posX + table.width  / 2;
         const cy = table.posY + table.height / 2;
 
         const seatCount =
-          table.liveStatus === 'OCCUPIED'
+          isOccupied
             ? (table.currentReservation?.partySize ?? table.minCovers)
           : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
             ? (table.upcomingReservations[0]?.partySize ?? table.minCovers)
           : table.minCovers;
         const displayCount = Math.max(2, Math.min(seatCount, table.maxCovers, 12));
-        const isActive = table.liveStatus === 'OCCUPIED' || table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
-        const filledCount = isActive ? displayCount : 0;
+        const isActive     = isOccupied || table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
+        const filledCount  = isActive ? displayCount : 0;
 
         const filledFill =
-          table.liveStatus === 'OCCUPIED'        ? 'rgba(134,239,172,0.38)'
+          isOccupied                              ? 'rgba(134,239,172,0.38)'
           : table.liveStatus === 'RESERVED_SOON' ? 'rgba(251,191,36,0.38)'
           : 'rgba(96,165,250,0.34)';
         const filledStroke =
-          table.liveStatus === 'OCCUPIED'        ? 'rgba(134,239,172,0.22)'
+          isOccupied                              ? 'rgba(134,239,172,0.22)'
           : table.liveStatus === 'RESERVED_SOON' ? 'rgba(251,191,36,0.22)'
           : 'rgba(96,165,250,0.20)';
-        const emptyFill   = 'rgba(63,63,70,0.50)';
-        const emptyStroke = 'rgba(82,82,91,0.30)';
+        const emptyFill   = `rgba(63,63,70,${(0.50 * quietLevel).toFixed(2)})`;
+        const emptyStroke = `rgba(82,82,91,${(0.30 * quietLevel).toFixed(2)})`;
+
+        // Occupied chairs carry lived-in irregularity — diners pull chairs in/out,
+        // lean sideways. Reserved chairs are pristine, set by service for arrival.
+        const jitterPx  = isOccupied && !useDots ? 1 : 0;
 
         type Chair = { x: number; y: number; w: number; h: number; rotDeg: number; filled: boolean };
         const chairs: Chair[] = [];
-        let seated = 0;
-        const mkChair = (x: number, y: number, w: number, h: number, rotDeg: number): Chair => ({
-          x, y, w, h, rotDeg, filled: seated++ < filledCount,
-        });
+        let seated = 0, ci = 0;
+        const mkChair = (x: number, y: number, w: number, h: number, rotDeg: number): Chair => {
+          const i = ci++;
+          return {
+            x:      x + (chairJitter(table.id, i, 0) - 0.5) * jitterPx * 2.8,
+            y:      y + (chairJitter(table.id, i, 1) - 0.5) * jitterPx * 2.8,
+            w, h,
+            rotDeg: rotDeg + (chairJitter(table.id, i, 2) - 0.5) * jitterPx * 7.5,
+            filled: seated++ < filledCount,
+          };
+        };
 
         if (isRound) {
-          const r   = (table.width + table.height) / 4;
+          const r    = (table.width + table.height) / 4;
           const dist = r + gap + cH / 2;
           for (let i = 0; i < displayCount; i++) {
             const ang = (i / displayCount) * Math.PI * 2 - Math.PI / 2;
-            chairs.push(mkChair(
-              cx + Math.cos(ang) * dist,
-              cy + Math.sin(ang) * dist,
-              cW, cH,
-              (ang + Math.PI / 2) * 180 / Math.PI,
-            ));
+            chairs.push(mkChair(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, cW, cH,
+              (ang + Math.PI / 2) * 180 / Math.PI));
           }
         } else if (isBooth) {
           const n  = Math.min(displayCount, Math.max(1, Math.floor((table.width - 8) / (cW + 5))));
           const sp = table.width / (n + 1);
-          for (let i = 0; i < n; i++) {
-            chairs.push(mkChair(table.posX + sp * (i + 1), table.posY - gap - cH / 2, cW, cH, 0));
-          }
+          for (let i = 0; i < n; i++) chairs.push(mkChair(table.posX + sp * (i + 1), table.posY - gap - cH / 2, cW, cH, 0));
         } else {
-          const maxFitH = Math.max(1, Math.floor((table.width  - 8) / (cW + 4)));
-          const maxFitV = Math.max(1, Math.floor((table.height - 8) / (cW + 4)));
-          const perTop  = Math.min(Math.ceil(displayCount / 2),  maxFitH);
-          const perBot  = Math.min(Math.floor(displayCount / 2), maxFitH);
-          const sideN   = displayCount - perTop - perBot;
-          const perLeft = Math.min(Math.ceil(sideN / 2),  maxFitV);
-          const perRight= Math.min(Math.floor(sideN / 2), maxFitV);
+          const maxFitH  = Math.max(1, Math.floor((table.width  - 8) / (cW + 4)));
+          const maxFitV  = Math.max(1, Math.floor((table.height - 8) / (cW + 4)));
+          const perTop   = Math.min(Math.ceil(displayCount  / 2),  maxFitH);
+          const perBot   = Math.min(Math.floor(displayCount / 2),  maxFitH);
+          const sideN    = displayCount - perTop - perBot;
+          const perLeft  = Math.min(Math.ceil(sideN  / 2),  maxFitV);
+          const perRight = Math.min(Math.floor(sideN / 2),  maxFitV);
 
-          for (let i = 0; i < perTop;   i++) chairs.push(mkChair(table.posX + (table.width  / (perTop   + 1)) * (i + 1), table.posY - gap - cH / 2,                           cW, cH, 0));
-          for (let i = 0; i < perBot;   i++) chairs.push(mkChair(table.posX + (table.width  / (perBot   + 1)) * (i + 1), table.posY + table.height + gap + cH / 2,             cW, cH, 0));
+          for (let i = 0; i < perTop;   i++) chairs.push(mkChair(table.posX + (table.width  / (perTop   + 1)) * (i + 1), table.posY - gap - cH / 2,                             cW, cH, 0));
+          for (let i = 0; i < perBot;   i++) chairs.push(mkChair(table.posX + (table.width  / (perBot   + 1)) * (i + 1), table.posY + table.height + gap + cH / 2,               cW, cH, 0));
           for (let i = 0; i < perLeft;  i++) chairs.push(mkChair(table.posX - gap - cH / 2,                              table.posY + (table.height / (perLeft  + 1)) * (i + 1), cW, cH, 90));
-          for (let i = 0; i < perRight; i++) chairs.push(mkChair(table.posX + table.width + gap + cH / 2,               table.posY + (table.height / (perRight + 1)) * (i + 1), cW, cH, 90));
+          for (let i = 0; i < perRight; i++) chairs.push(mkChair(table.posX + table.width + gap + cH / 2,                table.posY + (table.height / (perRight + 1)) * (i + 1), cW, cH, 90));
         }
 
         const tableOpacity = dimmedTableIds.has(table.id) ? 0.10 : pickMode ? 0.22 : 1;
 
+        // Floor warmth pool — occupied tables radiate soft amber warmth on the floor.
+        // Scaled by party size and dinner depth: more guests + later hour = warmer pool.
+        const warmthOp = isOccupied && !pickMode
+          ? (0.018 + (displayCount - 2) * 0.003 + timeWarmth * 0.007).toFixed(3) : null;
+
         return (
           <g key={`chairs-${table.id}`} opacity={tableOpacity}>
+            {warmthOp && (
+              <ellipse cx={cx} cy={cy + table.height * 0.10}
+                rx={table.width * 0.96} ry={table.height * 0.65}
+                fill={`rgba(255,172,50,${warmthOp})`} />
+            )}
             {chairs.map((c, idx) => (
               <rect
                 key={idx}
@@ -1922,6 +1974,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           background: 'radial-gradient(ellipse 90% 90% at 35% 35%, rgba(134,239,172,0.14) 0%, transparent 70%)',
           animation: `table-alive 7s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
+        }} />
+      )}
+      {/* Centerpiece warmth — static warm center simulating candle or floral catch.
+          Not animated; occupies no layout space; barely visible, only felt. */}
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && (
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 32% 28% at 50% 44%, rgba(255,205,85,0.10) 0%, transparent 100%)',
         }} />
       )}
       {/* Ending — tables about to free pulse with amber from the bottom edge */}
