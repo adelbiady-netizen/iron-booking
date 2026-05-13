@@ -396,14 +396,15 @@ function tableGradient(shape: string, status: string, cls: string): string | und
       return 'radial-gradient(ellipse 62% 58% at 40% 36%, rgba(255,255,255,0.060) 0%, transparent 65%), radial-gradient(ellipse 90% 30% at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 80%)';
     if (status === 'RESERVED')
       return 'radial-gradient(ellipse 58% 52% at 40% 36%, rgba(255,255,255,0.038) 0%, transparent 68%), radial-gradient(ellipse 60% 50% at 50% 50%, rgba(37,99,235,0.06) 0%, transparent 100%)';
-    // Available — VIP: marble grain; lounge: warmer catch; bar: cool stone; standard: warm walnut
+    // Available — VIP: marble grain + premium center; lounge: warm catch + intimate center;
+    //             bar: cool stone + slim mineral center; standard: warm walnut + calm center
     return isVip
-      ? 'radial-gradient(ellipse 52% 48% at 40% 33%, rgba(238,218,175,0.046) 0%, transparent 66%)'
+      ? 'radial-gradient(ellipse 52% 48% at 40% 33%, rgba(238,218,175,0.046) 0%, transparent 66%), radial-gradient(ellipse 22% 20% at 50% 50%, rgba(240,220,180,0.030) 0%, transparent 80%)'
       : cls === 'lounge'
-      ? 'radial-gradient(ellipse 58% 54% at 44% 38%, rgba(255,210,150,0.064) 0%, transparent 72%)'
+      ? 'radial-gradient(ellipse 58% 54% at 44% 38%, rgba(255,210,150,0.064) 0%, transparent 72%), radial-gradient(ellipse 30% 28% at 50% 52%, rgba(255,215,155,0.022) 0%, transparent 80%)'
       : cls === 'bar'
-      ? 'radial-gradient(ellipse 52% 48% at 42% 35%, rgba(190,185,175,0.044) 0%, transparent 68%)'
-      : 'radial-gradient(ellipse 55% 50% at 42% 35%, rgba(255,200,130,0.065) 0%, transparent 70%)';
+      ? 'radial-gradient(ellipse 52% 48% at 42% 35%, rgba(190,185,175,0.044) 0%, transparent 68%), radial-gradient(ellipse 20% 18% at 50% 50%, rgba(200,196,188,0.018) 0%, transparent 85%)'
+      : 'radial-gradient(ellipse 55% 50% at 42% 35%, rgba(255,200,130,0.065) 0%, transparent 70%), radial-gradient(ellipse 28% 25% at 50% 50%, rgba(255,205,140,0.022) 0%, transparent 80%)';
   }
 
   if (isBooth) {
@@ -414,8 +415,8 @@ function tableGradient(shape: string, status: string, cls: string): string | und
       return 'linear-gradient(180deg, rgba(255,255,255,0.038) 0%, transparent 60%), linear-gradient(180deg, rgba(251,191,36,0.055) 0%, transparent 50%)';
     if (status === 'RESERVED')
       return 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, transparent 60%), linear-gradient(145deg, rgba(37,99,235,0.04) 0%, transparent 70%)';
-    // Booth available: banquette warmth + deep shadow at seat back
-    return 'linear-gradient(180deg, rgba(255,200,130,0.048) 0%, transparent 50%), linear-gradient(0deg, rgba(0,0,0,0.14) 0%, transparent 24%)';
+    // Booth available: banquette warmth + deep shadow at seat back + subtle center catch
+    return 'linear-gradient(180deg, rgba(255,200,130,0.048) 0%, transparent 50%), linear-gradient(0deg, rgba(0,0,0,0.14) 0%, transparent 24%), radial-gradient(ellipse 55% 38% at 50% 38%, rgba(255,205,140,0.024) 0%, transparent 75%)';
   }
 
   // Rectangular / square
@@ -429,18 +430,19 @@ function tableGradient(shape: string, status: string, cls: string): string | und
     return 'linear-gradient(148deg, rgba(255,255,255,0.044) 0%, transparent 54%), linear-gradient(180deg, rgba(251,191,36,0.055) 0%, transparent 52%)';
   if (status === 'RESERVED')
     return 'linear-gradient(148deg, rgba(255,255,255,0.028) 0%, transparent 58%), linear-gradient(135deg, rgba(37,99,235,0.04) 0%, transparent 65%)';
-  // Available — VIP: marble grain; chef: industrial cool; communal: slate slab; lounge: warm plush; bar: cool counter; standard: warm walnut
+  // Available — VIP: marble grain + center depth; chef: industrial cool; communal: slate slab + horizontal band;
+  //             lounge: warm plush + center warmth; bar: cool counter + slim top; standard: warm walnut + calm center
   return isVip
-    ? 'linear-gradient(148deg, rgba(232,212,170,0.042) 0%, transparent 50%)'
+    ? 'linear-gradient(148deg, rgba(232,212,170,0.042) 0%, transparent 50%), radial-gradient(ellipse 36% 28% at 42% 44%, rgba(238,218,175,0.032) 0%, transparent 72%)'
     : cls === 'chef'
     ? 'linear-gradient(148deg, rgba(200,215,220,0.038) 0%, transparent 52%)'
     : cls === 'communal'
-    ? 'linear-gradient(148deg, rgba(190,200,215,0.036) 0%, transparent 58%)'
+    ? 'linear-gradient(148deg, rgba(190,200,215,0.036) 0%, transparent 58%), linear-gradient(90deg, transparent 10%, rgba(192,198,210,0.024) 40%, rgba(192,198,210,0.030) 50%, rgba(192,198,210,0.024) 60%, transparent 90%)'
     : cls === 'lounge'
-    ? 'linear-gradient(148deg, rgba(255,215,150,0.060) 0%, transparent 52%)'
+    ? 'linear-gradient(148deg, rgba(255,215,150,0.060) 0%, transparent 52%), radial-gradient(ellipse 55% 45% at 50% 52%, rgba(255,215,150,0.022) 0%, transparent 72%)'
     : cls === 'bar'
-    ? 'linear-gradient(148deg, rgba(190,185,175,0.038) 0%, transparent 52%)'
-    : 'linear-gradient(148deg, rgba(255,200,130,0.060) 0%, transparent 52%)';
+    ? 'linear-gradient(148deg, rgba(190,185,175,0.038) 0%, transparent 52%), linear-gradient(180deg, rgba(208,204,196,0.026) 0%, transparent 22%)'
+    : 'linear-gradient(148deg, rgba(255,200,130,0.060) 0%, transparent 52%), radial-gradient(ellipse 42% 32% at 50% 48%, rgba(255,205,138,0.024) 0%, transparent 75%)';
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
