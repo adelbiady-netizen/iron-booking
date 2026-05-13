@@ -687,14 +687,18 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         )}
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {res.tableId && (
-            <ActionBtn
-              label={(res.combinedTableIds?.length ?? 0) > 0 ? T.guestDrawer.actionChangeCombination : T.guestDrawer.actionChangeTable}
-              cls={btnNeutral}
-              onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
-              disabled={busy}
-            />
-          )}
+          <ActionBtn
+            label={
+              !res.tableId
+                ? T.guestDrawer.actionChooseTable
+                : (res.combinedTableIds?.length ?? 0) > 0
+                  ? T.guestDrawer.actionChangeCombination
+                  : T.guestDrawer.actionChangeTable
+            }
+            cls={btnNeutral}
+            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
+            disabled={busy}
+          />
           {res.guestPhone && !res.isConfirmedByGuest && (
             <ActionBtn
               label={T.guestDrawer.actionSendSms}
@@ -756,14 +760,18 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         )}
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {res.tableId && (
-            <ActionBtn
-              label={(res.combinedTableIds?.length ?? 0) > 0 ? T.guestDrawer.actionChangeCombination : T.guestDrawer.actionChangeTable}
-              cls={btnNeutral}
-              onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
-              disabled={busy}
-            />
-          )}
+          <ActionBtn
+            label={
+              !res.tableId
+                ? T.guestDrawer.actionChooseTable
+                : (res.combinedTableIds?.length ?? 0) > 0
+                  ? T.guestDrawer.actionChangeCombination
+                  : T.guestDrawer.actionChangeTable
+            }
+            cls={btnNeutral}
+            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
+            disabled={busy}
+          />
           {res.guestPhone && !res.isConfirmedByGuest && (
             <ActionBtn
               label={T.guestDrawer.actionSendSms}

@@ -115,7 +115,7 @@ type TableFamily = 'BOOTH' | 'BAR_SEATING' | 'LOUNGE' | 'VIP' | 'COMMUNAL' | 'RO
 function inferTableFamily(t: FloorTable): TableFamily {
   const combined = (t.name + ' ' + (t.section?.name ?? '')).toLowerCase();
   if (t.shape === 'BOOTH') return 'BOOTH';
-  if (/\bbar\b|counter|pass/.test(combined)) return 'BAR_SEATING';
+  if (/\bbar\b|counter|pass|high.top|hightop/.test(combined)) return 'BAR_SEATING';
   if (/lounge|cocktail|aperitif/.test(combined)) return 'LOUNGE';
   if (/vip|private|salon|presidential/.test(combined)) return 'VIP';
   if (t.maxCovers >= 8 && t.shape !== 'ROUND' && t.shape !== 'OVAL') return 'COMMUNAL';
@@ -372,8 +372,8 @@ const CANVAS_H = 800;
 
 function tableRadius(shape: string): string {
   if (shape === 'ROUND' || shape === 'OVAL') return '9999px';
-  if (shape === 'BOOTH') return '4px 4px 18px 18px';  // straight back, intentional seat curve
-  return '10px';  // less button-rectangle, more slab weight
+  if (shape === 'BOOTH') return '3px 3px 22px 22px';  // tight back rail, deeper seat arc
+  return '12px';  // softer premium corners — hospitality furniture, not a UI button
 }
 
 // Surface gradient per table shape — each material type and status implies a different light response.
@@ -2820,14 +2820,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     /\bchef\b|kitchen pass/.test(_clsStr) ? 'chef' :
     table.shape === 'BOOTH' ? 'booth' :
     /lounge|cocktail/.test(_clsStr) || (table.shape === 'ROUND' && table.maxCovers <= 2) ? 'lounge' :
-    /\bbar\b|counter|pass/.test(_clsStr) ? 'bar' :
+    /\bbar\b|counter|pass|high.top|hightop/.test(_clsStr) ? 'bar' :
     table.maxCovers >= 8 && table.shape !== 'ROUND' && table.shape !== 'OVAL' ? 'communal' :
     table.width * table.height > 9000 ? 'large' : 'standard';
 
-  // Family-aware corner radius — lounge tables get softer edges; communal/bar get sharper/slab feel.
-  const familyRadius = cls === 'lounge' && table.shape !== 'ROUND' && table.shape !== 'OVAL' ? '14px'
-    : cls === 'communal' ? '7px'
-    : cls === 'bar' ? '6px'
+  // Family-aware corner radius — each family's physical character expressed through edge geometry.
+  const familyRadius = cls === 'lounge' && table.shape !== 'ROUND' && table.shape !== 'OVAL' ? '18px'
+    : cls === 'communal' ? '5px'
+    : cls === 'bar' ? '5px'
     : tableRadius(table.shape);
 
   // Base (non-pick) colors
@@ -3002,7 +3002,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : table.liveStatus === 'RESERVED'
       // Reserved — cool surface catch + bottom depth + left blue bevel + right shadow
       ? 'inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 3px rgba(0,0,0,0.24), inset 1px 0 0 rgba(37,99,235,0.05), inset -1px 0 0 rgba(0,0,0,0.10)'
-      // Available — dark walnut resting: warm grain top edge + bottom AO + left grain bevel + right shadow
+      // Available — family material base at rest
+      : cls === 'communal'
+      // Slate slab: cooler top edge, heavier bottom AO — architectural mass, broader weight
+      ? 'inset 0 1px 0 rgba(200,205,215,0.07), inset 0 -3px 7px rgba(0,0,0,0.34), inset 1px 0 0 rgba(180,185,200,0.04), inset -1px 0 0 rgba(0,0,0,0.14)'
+      : cls === 'lounge'
+      // Plush warmth: generous amber catch, softer bottom — intimate, upholstered
+      ? 'inset 0 1px 0 rgba(255,210,150,0.12), inset 0 -1px 3px rgba(0,0,0,0.18), inset 1px 0 0 rgba(255,200,140,0.06), inset -1px 0 0 rgba(0,0,0,0.08)'
+      : cls === 'bar'
+      // Counter surface: cool mineral edge, slim depth — lighter, functional hardness
+      ? 'inset 0 1px 0 rgba(205,200,192,0.07), inset 0 -1px 3px rgba(0,0,0,0.20), inset 1px 0 0 rgba(195,190,182,0.04), inset -1px 0 0 rgba(0,0,0,0.09)'
+      // Standard walnut dining: warm grain top edge + bottom AO — stable neutral hospitality baseline
       : 'inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.28), inset 1px 0 0 rgba(255,200,130,0.05), inset -1px 0 0 rgba(0,0,0,0.12)';
 
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
@@ -3036,6 +3046,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       const loungeWarm = 'inset 0 1px 0 rgba(255,210,150,0.10)';
       boxShadow = boxShadow ? `${boxShadow}, ${loungeWarm}` : loungeWarm;
     }
+    if (cls === 'bar') {
+      // Counter hardness — cool mineral top catch; bar/high-top surfaces are denser, less grain
+      const barEdge = 'inset 0 1px 0 rgba(205,200,192,0.06)';
+      boxShadow = boxShadow ? `${boxShadow}, ${barEdge}` : barEdge;
+    }
   }
 
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
@@ -3063,6 +3078,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         ? 'drop-shadow(0 5px 18px rgba(0,0,0,0.68)) drop-shadow(0 2px 5px rgba(0,0,0,0.42))'
         : cls === 'lounge'
         ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.48)) drop-shadow(0 1px 3px rgba(0,0,0,0.28))'
+        : cls === 'bar'
+        ? 'drop-shadow(0 2px 9px rgba(0,0,0,0.50)) drop-shadow(0 1px 3px rgba(0,0,0,0.28))'
         : 'drop-shadow(0 3px 14px rgba(0,0,0,0.60)) drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
     : table.liveStatus === 'BLOCKED'
       ? 'drop-shadow(0 1px 5px rgba(0,0,0,0.30))'

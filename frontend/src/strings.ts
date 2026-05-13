@@ -367,6 +367,7 @@ export const T = {
     unseatConfirmText:    'This will remove the guest from the table and return the reservation to the list. Continue?',
     returnedToList:       'Returned to List',
     actionUnconfirm:      'Revert to pending',
+    actionChooseTable:       'Choose table',
     actionChangeTable:       'Change table',
     actionChangeCombination: 'Change combination',
     actionUndoArrival:       'Undo arrival',

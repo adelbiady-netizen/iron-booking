@@ -499,7 +499,15 @@ export default function TableQuickPanel({
                   {/* SECONDARY */}
                   <div className="flex flex-wrap gap-2">
                     {['PENDING', 'CONFIRMED'].includes(res.status) && (<>
-                      <Btn label={T.guestDrawer.actionMoveTable} cls={btnNeutral}
+                      <Btn
+                        label={
+                          !res.tableId
+                            ? T.guestDrawer.actionChooseTable
+                            : (res.combinedTableIds?.length ?? 0) > 0
+                              ? T.guestDrawer.actionChangeCombination
+                              : T.guestDrawer.actionChangeTable
+                        }
+                        cls={btnNeutral}
                         onClick={() => { onChangeTable(res); onClose(); }} />
                       {res.guestPhone && (
                         <Btn

@@ -362,6 +362,7 @@ export const THe = {
     unseatConfirmText:    'פעולה זו תסיר את האורח מהשולחן ותחזיר את ההזמנה לרשימה. להמשיך?',
     returnedToList:       'הוחזר לרשימה',
     actionUnconfirm:      'החזר לממתין',
+    actionChooseTable:       'בחר שולחן',
     actionChangeTable:       'שנה שולחן',
     actionChangeCombination: 'שנה שילוב שולחנות',
     actionUndoArrival:       'בטל הגעה',
