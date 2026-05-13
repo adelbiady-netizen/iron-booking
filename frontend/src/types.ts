@@ -322,6 +322,22 @@ export type FloorObjKind =
   | 'PLANTER' | 'HOST_STAND' | 'SERVICE_LANE' | 'LOUNGE_BOUNDARY' | 'VIP_ENCLOSURE'
   | 'CURVED_LOUNGE_BOUNDARY' | 'CURVED_BOOTH_SEGMENT';
 
+/**
+ * All named visual or geometric variants a map object kind supports.
+ * ARC_*, CURVED, U_SHAPE, L_SHAPE, and MODULAR are reserved for curved/modular furniture.
+ */
+export type VariantId =
+  // Universal
+  | 'DEFAULT'
+  // DIVIDER
+  | 'PANEL' | 'GLASS' | 'LOW' | 'GREENERY'
+  // BAR
+  | 'STRAIGHT' | 'ISLAND' | 'COUNTER'
+  // PLANTER
+  | 'POT' | 'ROW' | 'PRIVACY'
+  // Curved / modular furniture
+  | 'ARC_LEFT' | 'ARC_RIGHT' | 'U_SHAPE' | 'L_SHAPE' | 'CURVED' | 'MODULAR';
+
 export interface FloorObjectData {
   id: string;
   kind: FloorObjKind;
@@ -332,6 +348,8 @@ export interface FloorObjectData {
   height: number;
   rotation: number;
   color: string | null;
+  /** Explicit semantic variant. Optional — old saved objects omit this field. */
+  variant?: VariantId;
 }
 
 export interface GuestListItem {

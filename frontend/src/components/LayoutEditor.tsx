@@ -1231,7 +1231,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       {/* Floor object selected */}
       {selObj && selTables.length === 0 && (
         <div className="shrink-0 border-t border-iron-border bg-iron-card">
-          <ObjectInspector obj={selObj} />
+          <ObjectInspector obj={selObj} onPatch={patch => patchFloorObj(selObj.id, patch)} />
           <div className="flex items-center gap-4 px-4 py-2 flex-wrap">
             <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest shrink-0">
               {OBJ_META[selObj.kind].label}

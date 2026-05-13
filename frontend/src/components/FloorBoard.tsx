@@ -10,7 +10,7 @@ import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd } from '../utils/time';
 import { useAtmosphere } from '../hooks/useTimeWarmth';
-import { OBJECT_REGISTRY } from '../mapEngine';
+import { OBJECT_REGISTRY, resolveObjectVariant } from '../mapEngine';
 
 interface SectionGroup {
   id: string;
@@ -26,8 +26,9 @@ const SVG_RENDERED_KINDS = new Set<string>(
     .map(([kind]) => kind)
 );
 
-// ── Geometry-based variant inference ─────────────────────────────────────────
-// No backend field required. Future schema can replace with explicit `variant`.
+// ── Geometry-based appearance inference ──────────────────────────────────────
+// Drives visual style for DIVIDER / BAR / PLANTER from object dimensions.
+// CURVED_BOOTH_SEGMENT uses resolveObjectVariant() from mapEngine instead.
 
 function colorIsGreen(color: string | null): boolean {
   if (!color) return false;
@@ -56,12 +57,6 @@ function inferObjVariant(o: FloorObjectData): string {
       if (ratio > 5.0)  return 'STRAIGHT';
       if (ratio < 1.4)  return 'ISLAND';
       return 'COUNTER';
-    case 'CURVED_BOOTH_SEGMENT': {
-      const lbl = o.label.toLowerCase();
-      if (lbl.includes('left'))  return 'ARC_LEFT';
-      if (lbl.includes('right')) return 'ARC_RIGHT';
-      return 'CURVED';
-    }
     default:
       return 'DEFAULT';
   }
@@ -1692,7 +1687,7 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
         const x = o.posX, y = o.posY, w = o.width, h = o.height;
         const cx = x + w / 2;
         const cy = y + h / 2;
-        const variant = inferObjVariant(o);
+        const variant = resolveObjectVariant(o);
 
         // Geometry: generous back-corner radius; flat front corners for clean edge continuity
         const rxB  = Math.min(w, h) * 0.18;

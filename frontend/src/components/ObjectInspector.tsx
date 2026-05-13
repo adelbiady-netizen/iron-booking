@@ -1,6 +1,7 @@
-import type { FloorObjectData } from '../types';
+import type { FloorObjectData, VariantId } from '../types';
 import {
   getObjectDefinition,
+  getObjectAllowedVariants,
   canRotateObject,
   canResizeObject,
   canDeleteObject,
@@ -9,20 +10,27 @@ import {
   getObjectAttachmentPoints,
   getObjectArcDegrees,
   getObjectSegmentCount,
+  resolveObjectVariant,
 } from '../mapEngine';
 
 const ATTACHMENT_LABEL: Record<string, string> = {
   LEFT: 'Left', RIGHT: 'Right', TOP: 'Top', BOTTOM: 'Bottom', CENTER: 'Center',
 };
 
-// TODO: remove once FloorObjectData gains an explicit `variant` field.
-// Must stay in sync with the CURVED_BOOTH_SEGMENT case in FloorBoard inferObjVariant.
-function inferBoothVariantLabel(label: string): string {
-  const lbl = label.toLowerCase();
-  if (lbl.includes('left'))  return 'Arc Left';
-  if (lbl.includes('right')) return 'Arc Right';
-  return 'Curved';
-}
+const VARIANT_DISPLAY: Partial<Record<VariantId, string>> = {
+  DEFAULT:   'Default',
+  CURVED:    'Curved',
+  ARC_LEFT:  'Arc Left',
+  ARC_RIGHT: 'Arc Right',
+  U_SHAPE:   'U-Shape',
+  L_SHAPE:   'L-Shape',
+  MODULAR:   'Modular',
+};
+
+// Registry-driven selectable variants for CURVED_BOOTH_SEGMENT.
+// DEFAULT excluded — it's a fallback, not a user-facing choice.
+const BOOTH_SELECTABLE_VARIANTS = getObjectAllowedVariants('CURVED_BOOTH_SEGMENT')
+  .filter(v => v !== 'DEFAULT' && VARIANT_DISPLAY[v] !== undefined);
 
 function ModRow({ label, value }: { label: string; value: string }) {
   return (
@@ -51,9 +59,10 @@ function CapFlag({ active, label }: { active: boolean; label: string }) {
 
 interface Props {
   obj: FloorObjectData;
+  onPatch?: (patch: Partial<FloorObjectData>) => void;
 }
 
-export default function ObjectInspector({ obj }: Props) {
+export default function ObjectInspector({ obj, onPatch }: Props) {
   const def      = getObjectDefinition(obj.kind);
   const catStyle = CATEGORY_STYLE[def.category] ?? 'text-iron-muted border-iron-border/40';
 
@@ -93,13 +102,33 @@ export default function ObjectInspector({ obj }: Props) {
         <CapFlag active={canRenameObject(obj.kind)} label="Renameable" />
       </div>
 
-      {/* Variant hint — CURVED_BOOTH_SEGMENT only, read-only, label-inferred */}
+      {/* Variant selector — CURVED_BOOTH_SEGMENT only */}
       {obj.kind === 'CURVED_BOOTH_SEGMENT' && (
-        <div className="pt-1.5 border-t border-iron-border/25 space-y-0.5">
-          <ModRow label="Variant" value={inferBoothVariantLabel(obj.label)} />
-          <p className="text-[8px] text-iron-muted/30 leading-tight">
-            Inferred from label · temporary
-          </p>
+        <div className="pt-1.5 border-t border-iron-border/25 space-y-1">
+          <span className="text-[9px] text-iron-muted/45">Variant</span>
+          <div className="flex items-center gap-1">
+            {BOOTH_SELECTABLE_VARIANTS.map(v => {
+              const isActive = resolveObjectVariant(obj) === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => onPatch?.({ variant: v })}
+                  className={`text-[9px] px-2 py-0.5 rounded border transition-colors ${
+                    isActive
+                      ? 'border-iron-green text-iron-green-light bg-iron-green/10'
+                      : 'border-iron-border/40 text-iron-muted/50 hover:text-iron-text/60 hover:border-iron-border/60'
+                  }`}
+                >
+                  {VARIANT_DISPLAY[v]}
+                </button>
+              );
+            })}
+          </div>
+          {!obj.variant && (
+            <p className="text-[8px] text-iron-muted/30 leading-tight">
+              Temporary fallback may be inferred from label.
+            </p>
+          )}
         </div>
       )}
 

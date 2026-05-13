@@ -1,4 +1,7 @@
-import type { FloorObjKind } from '../types';
+import type { FloorObjKind, FloorObjectData, VariantId } from '../types';
+
+// Re-export so mapEngine/index.ts can forward VariantId without change.
+export type { VariantId } from '../types';
 
 // ── Canonical type vocabulary ─────────────────────────────────────────────────
 
@@ -42,34 +45,6 @@ export type MaterialId =
  */
 export type AttachmentPoint = 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM' | 'CENTER';
 
-/**
- * All named visual or geometric variants an object kind supports.
- * Current variants are used by existing objects; ARC_*, CURVED, U_SHAPE,
- * L_SHAPE, and MODULAR are reserved for future curved/modular furniture.
- */
-export type VariantId =
-  // Universal
-  | 'DEFAULT'
-  // DIVIDER
-  | 'PANEL'
-  | 'GLASS'
-  | 'LOW'
-  | 'GREENERY'
-  // BAR
-  | 'STRAIGHT'
-  | 'ISLAND'
-  | 'COUNTER'
-  // PLANTER
-  | 'POT'
-  | 'ROW'
-  | 'PRIVACY'
-  // Future curved / modular furniture (reserved)
-  | 'ARC_LEFT'
-  | 'ARC_RIGHT'
-  | 'U_SHAPE'
-  | 'L_SHAPE'
-  | 'CURVED'
-  | 'MODULAR';
 
 /**
  * Optional geometry descriptor for objects whose shape goes beyond a plain
@@ -627,4 +602,34 @@ export function getObjectArcDegrees(kind: MapObjectKind): number | undefined {
 
 export function getObjectSegmentCount(kind: MapObjectKind): number | undefined {
   return OBJECT_REGISTRY[kind].geometryHints?.segmentCount;
+}
+
+// ── Variant resolver ──────────────────────────────────────────────────────────
+
+/**
+ * Single frontend source of truth for resolving a floor object's visual variant.
+ *
+ * Priority:
+ *   1. Explicit persisted variant (obj.variant) — validated against allowedVariants.
+ *   2. Kind-specific label-based inference (temporary stopgap for CURVED_BOOTH_SEGMENT).
+ *   3. First entry in allowedVariants, or DEFAULT.
+ */
+export function resolveObjectVariant(obj: FloorObjectData): VariantId {
+  const allowed = OBJECT_REGISTRY[obj.kind].allowedVariants;
+
+  // 1. Explicit variant — trust only if the registry permits it for this kind.
+  if (obj.variant && allowed.includes(obj.variant)) {
+    return obj.variant;
+  }
+
+  // 2. Label-based inference — CURVED_BOOTH_SEGMENT only (temporary until variant persists).
+  if (obj.kind === 'CURVED_BOOTH_SEGMENT') {
+    const lbl = obj.label.toLowerCase();
+    if (lbl.includes('left'))  return 'ARC_LEFT';
+    if (lbl.includes('right')) return 'ARC_RIGHT';
+    return 'CURVED';
+  }
+
+  // 3. Safe fallback.
+  return allowed[0] ?? 'DEFAULT';
 }

@@ -18,6 +18,7 @@ export {
   supportsModularAttachment,
   getObjectArcDegrees,
   getObjectSegmentCount,
+  resolveObjectVariant,
 } from './objectRegistry';
 
 export type {
