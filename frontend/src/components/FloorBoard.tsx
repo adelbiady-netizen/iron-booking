@@ -21,6 +21,102 @@ interface SectionGroup {
 // Kinds rendered as SVG elements inside ArchLayer — filtered out of the HTML div block.
 const SVG_RENDERED_KINDS = new Set<string>(['PLANTER', 'SERVICE_LANE', 'LOUNGE_BOUNDARY', 'VIP_ENCLOSURE']);
 
+// ── Geometry-based variant inference ─────────────────────────────────────────
+// No backend field required. Future schema can replace with explicit `variant`.
+
+function colorIsGreen(color: string | null): boolean {
+  if (!color) return false;
+  const hex = color.replace('#', '');
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return g > r * 1.35 && g > b * 1.20 && g > 55;
+}
+
+function inferObjVariant(o: FloorObjectData): string {
+  const ratio = o.width / Math.max(o.height, 1);
+  const area  = o.width * o.height;
+  switch (o.kind) {
+    case 'DIVIDER':
+      if (colorIsGreen(o.color))       return 'GREENERY';
+      if (o.height < 14)               return 'LOW';
+      if (o.height < 24 && ratio > 3)  return 'GLASS';
+      return 'PANEL';
+    case 'PLANTER':
+      if (ratio > 2.8)  return 'ROW';
+      if (area > 3400)  return 'PRIVACY';
+      return 'POT';
+    case 'BAR':
+      if (ratio > 5.0)  return 'STRAIGHT';
+      if (ratio < 1.4)  return 'ISLAND';
+      return 'COUNTER';
+    default:
+      return 'DEFAULT';
+  }
+}
+
+// ── Material preset library ───────────────────────────────────────────────────
+// Reusable premium hospitality material language — inferred from stored `color`
+// hex until a future `material` field is added to the schema.
+// Each preset is [tintPrefix, accentPrefix, shadowPrefix] — open rgba() strings.
+
+type MaterialId =
+  | 'WALNUT' | 'SMOKED_STONE' | 'BRASS_EDGE'
+  | 'CHARCOAL_GLASS' | 'TERRACOTTA' | 'UPHOLSTERY'
+  | 'TERRACE_STONE' | 'DEFAULT';
+
+const MATERIAL_PRESETS: Record<MaterialId, readonly [string, string, string]> = {
+  WALNUT:         ['rgba(210,155,80,',  'rgba(155,105,26,', 'rgba(64,24,4,'   ],
+  SMOKED_STONE:   ['rgba(155,148,138,', 'rgba(100,98,92,',  'rgba(0,0,0,'     ],
+  BRASS_EDGE:     ['rgba(195,162,88,',  'rgba(165,135,60,', 'rgba(80,55,10,'  ],
+  CHARCOAL_GLASS: ['rgba(90,95,110,',   'rgba(60,65,80,',   'rgba(0,0,0,'     ],
+  TERRACOTTA:     ['rgba(180,80,40,',   'rgba(140,58,24,',  'rgba(64,20,8,'   ],
+  UPHOLSTERY:     ['rgba(80,55,38,',    'rgba(60,42,28,',   'rgba(16,8,4,'    ],
+  TERRACE_STONE:  ['rgba(130,128,120,', 'rgba(100,98,90,',  'rgba(0,0,0,'     ],
+  DEFAULT:        ['rgba(180,180,180,', 'rgba(120,120,130,','rgba(0,0,0,'     ],
+};
+
+function inferMaterial(color: string | null, kind: string): MaterialId {
+  if (!color) {
+    switch (kind) {
+      case 'BAR':        return 'WALNUT';
+      case 'HOST_STAND': return 'BRASS_EDGE';
+      case 'DIVIDER':    return 'CHARCOAL_GLASS';
+      case 'PLANTER':    return 'TERRACOTTA';
+      default:           return 'DEFAULT';
+    }
+  }
+  const hex = color.replace('#', '');
+  if (hex.length !== 6) return 'DEFAULT';
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  if (g > r * 1.35 && g > b * 1.20)                          return 'TERRACE_STONE';
+  if (r > 140 && g < r * 0.72 && b < r * 0.55)               return r > g * 1.8 ? 'TERRACOTTA' : 'WALNUT';
+  if (r > 155 && g > 118 && b < 82)                          return 'BRASS_EDGE';
+  if (r < 85  && g < 85  && b < 85 && Math.abs(r - b) < 22)  return 'SMOKED_STONE';
+  if (b > r * 1.12 && b > g * 1.12 && r < 100)               return 'CHARCOAL_GLASS';
+  if (r > 60 && g > 40 && b > 18 && r > g && g > b && r < 140) return 'UPHOLSTERY';
+  return 'DEFAULT';
+}
+
+// ── Table family inference ────────────────────────────────────────────────────
+// Inferred from shape + section/name keywords. Future schema can add explicit field.
+
+type TableFamily = 'BOOTH' | 'BAR_SEATING' | 'LOUNGE' | 'VIP' | 'COMMUNAL' | 'ROUND_DINING' | 'RECT_DINING';
+
+function inferTableFamily(t: FloorTable): TableFamily {
+  const combined = (t.name + ' ' + (t.section?.name ?? '')).toLowerCase();
+  if (t.shape === 'BOOTH') return 'BOOTH';
+  if (/\bbar\b|counter|pass/.test(combined)) return 'BAR_SEATING';
+  if (/lounge|cocktail|aperitif/.test(combined)) return 'LOUNGE';
+  if (/vip|private|salon|presidential/.test(combined)) return 'VIP';
+  if (t.maxCovers >= 8 && t.shape !== 'ROUND' && t.shape !== 'OVAL') return 'COMMUNAL';
+  if (t.shape === 'ROUND' || t.shape === 'OVAL') return 'ROUND_DINING';
+  return 'RECT_DINING';
+}
+
 interface ObjAppearance {
   bg: string;
   backgroundImage: string | undefined;
@@ -37,7 +133,31 @@ interface ObjAppearance {
 
 function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: number): ObjAppearance {
   switch (o.kind) {
-    case 'BAR':
+    case 'BAR': {
+      const variant = inferObjVariant(o);
+      if (variant === 'ISLAND') return {
+        // Stone/marble island counter — cool mineral surface, premium weight
+        bg: 'rgba(30,32,38,0.97)',
+        backgroundImage: [
+          'linear-gradient(180deg, rgba(200,196,190,0.066) 0%, rgba(160,156,148,0.020) 36%, rgba(0,0,0,0.36) 100%)',
+          'linear-gradient(90deg, rgba(255,255,255,0.030) 0%, transparent 24%, rgba(255,255,255,0.016) 54%, transparent 80%, rgba(0,0,0,0.20) 100%)',
+          'radial-gradient(ellipse 68% 28% at 50% 0%, rgba(220,216,210,0.040) 0%, transparent 100%)',
+        ].join(', '),
+        border: '1.5px solid rgba(118,114,106,0.82)',
+        borderRadius: 6,
+        boxShadow: [
+          'inset 0 2px 0 rgba(238,236,232,0.18)',
+          'inset 0 -3px 8px rgba(0,0,0,0.60)',
+          'inset 0 10px 28px rgba(0,0,0,0.22)',
+          '0 8px 44px rgba(0,0,0,0.94)',
+          '0 4px 22px rgba(0,0,0,0.48)',
+          `0 0 60px rgba(175,170,162,${(0.038 + timeWarmth * 0.018).toFixed(3)})`,
+        ].join(', '),
+        labelColor: 'rgba(218,214,206,0.88)',
+        labelSize: 11, labelWeight: 600, labelOpacity: 1,
+        labelLetterSpacing: '0.06em', labelTransform: undefined,
+      };
+      // STRAIGHT + COUNTER — warm walnut counter with brass rail
       return {
         bg: 'rgba(48,16,4,0.97)',
         backgroundImage: [
@@ -61,6 +181,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
         labelSize: 11, labelWeight: 600, labelOpacity: 1,
         labelLetterSpacing: '0.07em', labelTransform: undefined,
       };
+    }
     case 'ENTRANCE':
       return {
         bg: 'rgba(13,20,38,0.72)',
@@ -72,26 +193,68 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
         labelSize: 10, labelWeight: 500, labelOpacity: 0.90,
         labelLetterSpacing: undefined, labelTransform: undefined,
       };
-    case 'HOST_STAND':
+    case 'HOST_STAND': {
+      // Material is driven by o.color (e.g. walnut stand, brass-edge podium, smoked-stone lectern).
+      const mat     = MATERIAL_PRESETS[inferMaterial(o.color, o.kind)];
+      const [tint, accent] = mat;
       return {
         bg: 'rgba(8,6,4,0.97)',
         backgroundImage: [
           'linear-gradient(145deg, rgba(255,255,255,0.044) 0%, transparent 42%)',
-          'radial-gradient(ellipse 70% 55% at 50% 38%, rgba(255,195,100,0.048) 0%, transparent 80%)',
+          `radial-gradient(ellipse 70% 55% at 50% 38%, ${tint}0.044) 0%, transparent 80%)`,
         ].join(', '),
-        border: `1.5px solid rgba(195,162,88,${(0.50 + timeWarmth * 0.18).toFixed(2)})`,
+        border: `1.5px solid ${accent}${(0.50 + timeWarmth * 0.18).toFixed(2)})`,
         borderRadius: 6,
         boxShadow: [
-          `inset 0 1px 0 rgba(255,218,148,${(0.26 + timeWarmth * 0.12).toFixed(2)})`,
+          `inset 0 1px 0 ${tint}${(0.24 + timeWarmth * 0.10).toFixed(2)})`,
           'inset 0 -2px 6px rgba(0,0,0,0.70)',
           '0 4px 28px rgba(0,0,0,0.80)',
-          `0 0 38px rgba(195,162,88,${(0.05 + timeWarmth * 0.04).toFixed(3)})`,
+          `0 0 38px ${accent}${(0.05 + timeWarmth * 0.04).toFixed(3)})`,
         ].join(', '),
-        labelColor: `rgba(235,200,130,${(0.70 + timeWarmth * 0.18).toFixed(2)})`,
+        labelColor: `${tint}${(0.70 + timeWarmth * 0.18).toFixed(2)})`,
         labelSize: 10, labelWeight: 600, labelOpacity: 1,
         labelLetterSpacing: '0.08em', labelTransform: 'uppercase',
       };
-    case 'DIVIDER':
+    }
+    case 'DIVIDER': {
+      const variant = inferObjVariant(o);
+      if (variant === 'LOW') return {
+        bg: `rgba(48,50,60,${(0.60 + (1 - brightness) * 0.10).toFixed(2)})`,
+        backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.034) 0%, rgba(0,0,0,0.14) 100%)',
+        border: '1px solid rgba(68,70,84,0.66)',
+        borderRadius: 2,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 8px rgba(0,0,0,0.40)',
+        labelColor: 'rgb(var(--iron-text))',
+        labelSize: 9, labelWeight: 400, labelOpacity: 0.48,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+      if (variant === 'GLASS') return {
+        bg: 'rgba(36,44,68,0.34)',
+        backgroundImage: [
+          'linear-gradient(180deg, rgba(180,200,255,0.056) 0%, rgba(120,150,220,0.014) 100%)',
+          'linear-gradient(90deg, rgba(255,255,255,0.024) 0%, transparent 16%, transparent 84%, rgba(255,255,255,0.010) 100%)',
+        ].join(', '),
+        border: '1px solid rgba(108,140,220,0.32)',
+        borderRadius: 2,
+        boxShadow: '0 2px 20px rgba(0,0,0,0.40), inset 1px 0 0 rgba(188,212,255,0.10), inset -1px 0 0 rgba(0,0,0,0.18)',
+        labelColor: 'rgba(172,196,255,0.70)',
+        labelSize: 10, labelWeight: 400, labelOpacity: 0.72,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+      if (variant === 'GREENERY') return {
+        bg: 'rgba(12,32,10,0.74)',
+        backgroundImage: [
+          'linear-gradient(180deg, rgba(34,76,26,0.24) 0%, rgba(12,28,8,0.06) 60%, rgba(0,0,0,0.22) 100%)',
+          'radial-gradient(ellipse 52% 36% at 50% 26%, rgba(26,72,20,0.18) 0%, transparent 100%)',
+        ].join(', '),
+        border: '1px solid rgba(32,68,24,0.66)',
+        borderRadius: 4,
+        boxShadow: 'inset 0 1px 0 rgba(52,128,36,0.09), 0 3px 12px rgba(0,0,0,0.54)',
+        labelColor: 'rgba(92,174,72,0.78)',
+        labelSize: 10, labelWeight: 400, labelOpacity: 0.68,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+      // PANEL — solid divider (glass panel or stone partition)
       return {
         bg: 'rgba(46,48,58,0.62)',
         backgroundImage: [
@@ -105,6 +268,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
         labelSize: 10, labelWeight: 400, labelOpacity: 0.80,
         labelLetterSpacing: undefined, labelTransform: undefined,
       };
+    }
     case 'ZONE':
       return {
         bg: `rgba(18,22,16,${(0.28 + (1 - brightness) * 0.10).toFixed(2)})`,
@@ -920,6 +1084,7 @@ export default function FloorBoard({
             {/* Chair silhouettes — semantic furniture geometry around table perimeters */}
             <ChairLayer
               tables={canvasTables}
+              floorObjs={floorObjs}
               dimmedTableIds={new Set<string>(
                 canvasTables
                   .filter(t => !pickMode && (
@@ -1518,25 +1683,69 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
         );
       })}
 
-      {/* Planters — organic foliage masses anchored to terracotta pot bases */}
+      {/* Planters — variant-aware foliage rendering (POT / ROW / PRIVACY) */}
       {planters.map(o => {
         const cx      = o.posX + o.width  / 2;
         const cy      = o.posY + o.height / 2;
         const rx      = o.width  / 2;
         const ry      = o.height / 2;
         const leafOp  = 0.36 + timeWarmth * 0.06;
+        const variant = inferObjVariant(o);
+        const gXform  = o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined;
+
+        if (variant === 'ROW') {
+          // Long planter trough — evenly spaced plant clusters
+          const n  = Math.min(8, Math.max(2, Math.floor(o.width / 30)));
+          const sp = o.width / (n + 1);
+          return (
+            <g key={`arch-pltr-${o.id}`} transform={gXform}>
+              <rect x={o.posX} y={o.posY + o.height * 0.46} width={o.width} height={o.height * 0.50}
+                rx={3} fill="rgba(50,34,20,0.56)" stroke="rgba(70,50,30,0.26)" strokeWidth={0.5} />
+              {Array.from({ length: n }, (_, i) => {
+                const px = o.posX + sp * (i + 1);
+                const pr = o.height * (0.35 + chairJitter(o.id, i, 0) * 0.12);
+                return (
+                  <g key={i}>
+                    <ellipse cx={px} cy={o.posY + o.height * 0.28} rx={pr} ry={pr * 0.88}
+                      fill={`rgba(20,52,18,${(leafOp * (0.88 + chairJitter(o.id, i, 1) * 0.12)).toFixed(2)})`} />
+                    <ellipse cx={px - pr * 0.26} cy={o.posY + o.height * 0.18} rx={pr * 0.54} ry={pr * 0.48}
+                      fill={`rgba(30,68,24,${(leafOp * 0.62).toFixed(2)})`} />
+                  </g>
+                );
+              })}
+            </g>
+          );
+        }
+
+        if (variant === 'PRIVACY') {
+          // Dense privacy planting — hedge / living wall
+          return (
+            <g key={`arch-pltr-${o.id}`} transform={gXform}>
+              <rect x={o.posX} y={o.posY + o.height * 0.70} width={o.width} height={o.height * 0.28}
+                rx={2} fill="rgba(26,18,10,0.60)" stroke="rgba(46,32,18,0.22)" strokeWidth={0.5} />
+              <ellipse cx={cx}              cy={o.posY + ry * 0.80} rx={rx * 0.96} ry={ry * 0.78}
+                fill={`rgba(16,44,14,${leafOp.toFixed(2)})`} />
+              <ellipse cx={cx - rx * 0.30} cy={o.posY + ry * 0.62} rx={rx * 0.68} ry={ry * 0.58}
+                fill={`rgba(22,58,18,${(leafOp * 0.82).toFixed(2)})`} />
+              <ellipse cx={cx + rx * 0.28} cy={o.posY + ry * 0.58} rx={rx * 0.60} ry={ry * 0.52}
+                fill={`rgba(18,52,14,${(leafOp * 0.76).toFixed(2)})`} />
+              <ellipse cx={cx}              cy={o.posY + ry * 0.42} rx={rx * 0.72} ry={ry * 0.44}
+                fill={`rgba(28,68,22,${(leafOp * 0.68).toFixed(2)})`} />
+              <ellipse cx={cx}              cy={o.posY + ry * 0.96} rx={rx * 0.86} ry={ry * 0.18}
+                fill="rgba(0,12,0,0.30)" />
+            </g>
+          );
+        }
+
+        // POT — single container planter
         return (
-          <g key={`arch-pltr-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
-            {/* Pot base */}
+          <g key={`arch-pltr-${o.id}`} transform={gXform}>
             <rect x={o.posX + 4} y={o.posY + o.height * 0.55} width={o.width - 8} height={o.height * 0.42}
               rx={3} fill="rgba(58,40,28,0.54)" stroke="rgba(78,58,38,0.30)" strokeWidth={0.5} />
-            {/* Main foliage mass */}
             <ellipse cx={cx} cy={o.posY + ry * 0.80} rx={rx * 0.88} ry={ry * 0.68}
               fill={`rgba(18,48,20,${leafOp.toFixed(2)})`} />
-            {/* Secondary lighter cluster */}
             <ellipse cx={cx - rx * 0.22} cy={o.posY + ry * 0.64} rx={rx * 0.52} ry={ry * 0.44}
               fill={`rgba(28,68,26,${(leafOp * 0.70).toFixed(2)})`} />
-            {/* Shadow under-mass */}
             <ellipse cx={cx + rx * 0.14} cy={o.posY + ry * 0.92} rx={rx * 0.60} ry={ry * 0.32}
               fill="rgba(8,22,8,0.28)" />
           </g>
@@ -1918,8 +2127,9 @@ function chairJitter(tableId: string, idx: number, slot: number): number {
 // Lives below table buttons in DOM order so chairs peek around table edges
 // without interfering with hit targets or the button's overflow:hidden.
 // Detail tier (useDots vs full capsule) proxies for zoom via table pixel area.
-function ChairLayer({ tables, dimmedTableIds, pickMode, timeWarmth }: {
+function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }: {
   tables: FloorTable[];
+  floorObjs: FloorObjectData[];
   dimmedTableIds: Set<string>;
   pickMode: boolean;
   timeWarmth: number;
@@ -1942,10 +2152,15 @@ function ChairLayer({ tables, dimmedTableIds, pickMode, timeWarmth }: {
 
         const area     = table.width * table.height;
         const useDots  = minDim < 52;
-        const cW  = useDots ? 4  : area > 7000 ? 11 : 8;
-        const cH  = useDots ? 4  : area > 7000 ?  7 : 5;
-        const gap  = 2.5;
-        const cRx  = useDots ? cW / 2 : 2.5;
+        const family   = inferTableFamily(table);
+        // Bar-seating tables use circular stools (no chair back); lounge tables
+        // get a slightly wider gap for a relaxed feel.
+        const isBarSeating = family === 'BAR_SEATING';
+        const isLounge     = family === 'LOUNGE';
+        const cW  = useDots ? 4  : isBarSeating ? 7 : area > 7000 ? 11 : 8;
+        const cH  = useDots ? 4  : isBarSeating ? 7 : area > 7000 ?  7 : 5;
+        const gap  = isLounge ? 3.5 : 2.5;
+        const cRx  = useDots ? cW / 2 : isBarSeating ? cW / 2 : 2.5;
 
         const isRound    = table.shape === 'ROUND' || table.shape === 'OVAL';
         const isBooth    = table.shape === 'BOOTH';
@@ -2046,6 +2261,54 @@ function ChairLayer({ tables, dimmedTableIds, pickMode, timeWarmth }: {
                 strokeWidth={0.5}
                 transform={c.rotDeg !== 0 ? `rotate(${c.rotDeg}, ${c.x}, ${c.y})` : undefined}
               />
+            ))}
+          </g>
+        );
+      })}
+
+      {/* Bar stools — circular seat silhouettes along the customer-facing edge of BAR objects.
+          Wide bar → bottom edge; portrait bar → right edge; island bar → all four edges.
+          Hidden in pick mode to reduce visual noise during table selection. */}
+      {!pickMode && floorObjs.filter(o => o.kind === 'BAR').map(o => {
+        const sR       = 5;
+        const sGap     = 4;
+        const ratio    = o.width / Math.max(o.height, 1);
+        const isIsland = ratio < 1.4 && Math.min(o.width, o.height) > 70;
+        const sOpNum   = 0.30 * quietLevel;
+        const sFill    = `rgba(88,72,52,${sOpNum.toFixed(2)})`;
+        const sStroke  = `rgba(108,88,64,${(sOpNum * 0.68).toFixed(2)})`;
+        const stools: { cx: number; cy: number }[] = [];
+
+        if (isIsland) {
+          const nW = Math.min(12, Math.max(1, Math.floor((o.width  - 16) / (sR * 2 + sGap))));
+          const nH = Math.min(8,  Math.max(1, Math.floor((o.height - 16) / (sR * 2 + sGap))));
+          const spW = o.width  / (nW + 1);
+          const spH = o.height / (nH + 1);
+          for (let i = 0; i < nW; i++) {
+            stools.push({ cx: o.posX + spW * (i + 1), cy: o.posY - sGap - sR });
+            stools.push({ cx: o.posX + spW * (i + 1), cy: o.posY + o.height + sGap + sR });
+          }
+          for (let i = 0; i < nH; i++) {
+            stools.push({ cx: o.posX - sGap - sR,             cy: o.posY + spH * (i + 1) });
+            stools.push({ cx: o.posX + o.width + sGap + sR,   cy: o.posY + spH * (i + 1) });
+          }
+        } else if (ratio >= 1.4) {
+          const n  = Math.min(14, Math.max(1, Math.floor((o.width  - 16) / (sR * 2 + sGap))));
+          const sp = o.width / (n + 1);
+          for (let i = 0; i < n; i++)
+            stools.push({ cx: o.posX + sp * (i + 1), cy: o.posY + o.height + sGap + sR });
+        } else {
+          const n  = Math.min(10, Math.max(1, Math.floor((o.height - 16) / (sR * 2 + sGap))));
+          const sp = o.height / (n + 1);
+          for (let i = 0; i < n; i++)
+            stools.push({ cx: o.posX + o.width + sGap + sR, cy: o.posY + sp * (i + 1) });
+        }
+
+        return (
+          <g key={`bar-stools-${o.id}`}>
+            {stools.map((s, i) => (
+              <circle key={i} cx={s.cx} cy={s.cy} r={sR}
+                fill={sFill} stroke={sStroke} strokeWidth={0.5} />
             ))}
           </g>
         );
