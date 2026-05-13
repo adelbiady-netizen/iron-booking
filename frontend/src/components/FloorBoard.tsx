@@ -9,7 +9,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd } from '../utils/time';
-import { useTimeWarmth } from '../hooks/useTimeWarmth';
+import { useAtmosphere } from '../hooks/useTimeWarmth';
 
 interface SectionGroup {
   id: string;
@@ -167,7 +167,7 @@ export default function FloorBoard({
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
-  const timeWarmth = useTimeWarmth();
+  const { warmth: timeWarmth, brightness, gridFade } = useAtmosphere();
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
@@ -631,16 +631,50 @@ export default function FloorBoard({
 
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
+        (() => {
+          // ── Phase 20: Adaptive Day/Night canvas values ───────────────────
+          // All signals derived from { timeWarmth, brightness, gridFade } —
+          // no theme toggles, no visible modes. The room simply understands service.
+          const isDark = typeof document !== 'undefined'
+            ? document.documentElement.getAttribute('data-theme') !== 'light'
+            : true;
+
+          // Grid — most visible at morning (architectural), nearly gone at dinner/late-night
+          const gridAlpha  = isDark
+            ? 0.028 * (1 - gridFade * 0.90)
+            : 0.055 * (1 - gridFade * 0.70);
+          const gridRgb    = isDark ? '255,195,110' : '0,0,0';
+          const gridColor  = `rgba(${gridRgb},${gridAlpha.toFixed(4)})`;
+
+          // Vignette depth — architectural and open at daylight, cinematic at dinner
+          const vigBase1   = 0.60 + (1 - brightness) * 0.28;  // 0.60 morning → 0.85 night
+          const vigBase2   = 0.32 + (1 - brightness) * 0.24;  // 0.32 morning → 0.56 night
+          const vigRadius1 = Math.round(230 + (1 - brightness) * 50 + pressureScore * 18);
+          const vigRadius2 = Math.round(110 + (1 - brightness) * 20 + pressureScore * 10);
+
+          // Entrance light — stronger in daylight (cool natural light spills in)
+          const entranceAlpha = (0.008 + brightness * 0.014).toFixed(4);
+
+          // Ambient bloom — wider/diffuse at morning, focused/golden at dinner
+          const ambW = Math.round(72 + brightness * 14); // 86% morning → 72% dinner
+          const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
+          const ambG = Math.round(250 - timeWarmth * 25); // 250 morning → 225 dinner
+          const ambB = Math.round(235 - timeWarmth * 65); // 235 morning → 170 dinner
+          const ambA = (0.010 + brightness * 0.008 + timeWarmth * 0.006).toFixed(4);
+          // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
+          const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
+
+          return (
         <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{
-          // Cinematic vignette — pressure-modulated: outer darkness tightens as occupancy rises.
-          // The room "closes in" slightly under dense service — subconscious spatial focus.
+          // Day/night-aware vignette: open and architectural at daylight, cinematic at dinner.
+          // Pressure still tightens the room — both signals compound naturally.
           boxShadow: [
-            `inset 0 0 ${Math.round(280 + pressureScore * 18)}px rgba(0,0,0,${(0.85 + pressureScore * 0.035 + timeWarmth * 0.015).toFixed(3)})`,
-            `inset 0 0 ${Math.round(120 + pressureScore * 10)}px rgba(0,0,0,${(0.55 + pressureScore * 0.030 + timeWarmth * 0.010).toFixed(3)})`,
-            'inset 0 80px 100px -30px rgba(0,0,0,0.48)',
-            'inset 0 -30px 80px rgba(0,0,0,0.30)',
-            'inset 55px 0 80px rgba(0,0,0,0.22)',
-            'inset -55px 0 80px rgba(0,0,0,0.22)',
+            `inset 0 0 ${vigRadius1}px rgba(0,0,0,${(vigBase1 + pressureScore * 0.035 + timeWarmth * 0.012).toFixed(3)})`,
+            `inset 0 0 ${vigRadius2}px rgba(0,0,0,${(vigBase2 + pressureScore * 0.030 + timeWarmth * 0.008).toFixed(3)})`,
+            `inset 0 80px 100px -30px rgba(0,0,0,${(0.28 + (1 - brightness) * 0.22).toFixed(3)})`,
+            `inset 0 -30px 80px rgba(0,0,0,${(0.16 + (1 - brightness) * 0.16).toFixed(3)})`,
+            `inset 55px 0 80px rgba(0,0,0,${(0.12 + (1 - brightness) * 0.12).toFixed(3)})`,
+            `inset -55px 0 80px rgba(0,0,0,${(0.12 + (1 - brightness) * 0.12).toFixed(3)})`,
           ].join(', '),
         }}>
           <div
@@ -653,35 +687,38 @@ export default function FloorBoard({
               backgroundImage: [
                 // Primary chandelier bloom — warm center, premium room scale
                 'radial-gradient(ellipse 85% 68% at 50% 38%, var(--canvas-ambient) 0%, transparent 72%)',
-                // Secondary sconce — side light source offset from center, implies wall fixtures
+                // Secondary sconce — side fixture, offset from center
                 'radial-gradient(ellipse 40% 38% at 30% 65%, rgba(255,215,160,0.014) 0%, transparent 100%)',
-                // Kitchen/pass warmth — amber from back-right, heat from the service pass
+                // Kitchen/pass warmth — amber from back-right
                 'radial-gradient(ellipse 38% 46% at 86% 74%, rgba(255,185,80,0.016) 0%, transparent 100%)',
-                // Entrance light — faint cool daylight from the front-left edge
-                'radial-gradient(ellipse 25% 52% at 7% 46%, rgba(180,210,255,0.008) 0%, transparent 100%)',
-                // Wood grain — diagonal plank seams across the floor surface
+                // Entrance light — strengthens in daylight: cool natural light spilling in
+                `radial-gradient(ellipse 25% 52% at 7% 46%, rgba(180,210,255,${entranceAlpha}) 0%, transparent 100%)`,
+                // Wood grain — diagonal plank seams
                 'repeating-linear-gradient(15deg, transparent, transparent 28px, rgba(255,195,110,0.007) 28px, rgba(255,195,110,0.007) 30px)',
-                // Architectural cross-grid — horizontal tile seams
-                'linear-gradient(0deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
-                // Architectural cross-grid — vertical tile seams
-                'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
-                // Service density — amber center warmth, keyed to pressure. Transparent at rest.
+                // Grid H — suppressed by service phase: visible at morning, gone at dinner
+                `linear-gradient(0deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
+                // Grid V
+                `linear-gradient(90deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
+                // Service density — pressure + dinner warmth
                 `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.009 + timeWarmth * 0.006).toFixed(4)}) 0%, transparent 62%)`,
+                // Daylight architectural fill — warm skylight from above at morning,
+                // fades to nothing at dinner. Makes morning feel open, not dark.
+                `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,240,220,${(brightness * 0.022).toFixed(4)}) 0%, transparent 80%)`,
               ].join(', '),
-              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto',
+              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto, auto',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
             {/* Ambient breathing — chandelier bloom.
-                Pace: 14s at rest → 18s at peak dinner (room feels denser, more filled).
-                Color: neutral warm-white at morning → golden amber at dinner service.
-                Amplitude stays sub-perceptible; the drift is what makes it atmospheric. */}
+                Color drifts from neutral warm-white at morning to golden amber at dinner.
+                Ellipse widens to diffuse daylight at morning, focuses to candlelight at dinner.
+                Pace slows from 14s (morning clarity) to ~22s (dinner density). */}
             <div
               className="animate-ambient-breathe"
               style={{
                 position: 'absolute', inset: 0,
-                background: `radial-gradient(ellipse 72% 58% at 50% 36%, rgba(255,${Math.round(245 - timeWarmth * 20)},${Math.round(215 - timeWarmth * 45)},${(0.013 + timeWarmth * 0.008).toFixed(4)}) 0%, transparent 65%)`,
-                animationDuration: `${(14 + timeWarmth * 4).toFixed(1)}s`,
+                background: `radial-gradient(ellipse ${ambW}% ${ambH}% at 50% 36%, rgba(255,${ambG},${ambB},${ambA}) 0%, transparent 65%)`,
+                animationDuration: `${ambDuration}s`,
                 pointerEvents: 'none',
                 zIndex: 0,
               }}
@@ -840,6 +877,8 @@ export default function FloorBoard({
             )}
           </div>
         </div>
+          );
+        })()
       ) : (
         // ── Grouped grid (fallback when no positions saved) ────────────────────
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
