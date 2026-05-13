@@ -281,6 +281,8 @@ export const api = {
       request<Reservation>(`/reservations/${id}/mark-confirmed`, { method: 'POST' }),
     markArrived: (id: string) =>
       request<Reservation>(`/reservations/${id}/mark-arrived`, { method: 'POST' }),
+    unmarkArrived: (id: string) =>
+      request<Reservation>(`/reservations/${id}/unmark-arrived`, { method: 'POST' }),
     sendBulkConfirmations: (body: { date: string; timeFrom?: string; timeTo?: string }) =>
       request<{ sent: number; failed: string[]; total: number }>('/reservations/send-confirmations', {
         method: 'POST',

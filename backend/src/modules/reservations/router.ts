@@ -321,6 +321,15 @@ router.post('/:id/mark-arrived', async (req: Request, res: Response, next: NextF
   } catch (err) { next(err); }
 });
 
+// POST /reservations/:id/unmark-arrived — host undoes the arrival mark
+router.post('/:id/unmark-arrived', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.unmarkArrived(req.auth.restaurantId, p(req, 'id'), actorName(req));
+    res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
 // POST /reservations/:id/mark-confirmed — staff manually marks guest as confirmed
 router.post('/:id/mark-confirmed', async (req: Request, res: Response, next: NextFunction) => {
   try {

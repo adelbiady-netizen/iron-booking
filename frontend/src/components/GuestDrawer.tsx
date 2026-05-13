@@ -689,7 +689,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <div className="flex flex-wrap gap-1.5 mt-2">
           {res.tableId && (
             <ActionBtn
-              label={T.guestDrawer.actionChangeTable}
+              label={(res.combinedTableIds?.length ?? 0) > 0 ? T.guestDrawer.actionChangeCombination : T.guestDrawer.actionChangeTable}
               cls={btnNeutral}
               onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
               disabled={busy}
@@ -708,6 +708,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               label={T.guestDrawer.actionMarkArrived}
               cls={btnNeutral}
               onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+              disabled={busy}
+            />
+          )}
+          {res.isArrived && (
+            <ActionBtn
+              label={T.guestDrawer.actionUndoArrival}
+              cls={btnNeutral}
+              onClick={() => run(() => api.reservations.unmarkArrived(res.id), T.guestDrawer.actionUndoArrival)}
               disabled={busy}
             />
           )}
@@ -750,7 +758,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <div className="flex flex-wrap gap-1.5 mt-2">
           {res.tableId && (
             <ActionBtn
-              label={T.guestDrawer.actionChangeTable}
+              label={(res.combinedTableIds?.length ?? 0) > 0 ? T.guestDrawer.actionChangeCombination : T.guestDrawer.actionChangeTable}
               cls={btnNeutral}
               onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
               disabled={busy}
@@ -769,6 +777,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               label={T.guestDrawer.actionMarkArrived}
               cls={btnNeutral}
               onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+              disabled={busy}
+            />
+          )}
+          {res.isArrived && (
+            <ActionBtn
+              label={T.guestDrawer.actionUndoArrival}
+              cls={btnNeutral}
+              onClick={() => run(() => api.reservations.unmarkArrived(res.id), T.guestDrawer.actionUndoArrival)}
               disabled={busy}
             />
           )}

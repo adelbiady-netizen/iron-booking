@@ -647,6 +647,29 @@ export async function markArrived(
   });
 }
 
+export async function unmarkArrived(
+  restaurantId: string,
+  id: string,
+  actorName: string,
+) {
+  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  if (!['PENDING', 'CONFIRMED'].includes(r.status)) {
+    throw new BusinessRuleError(`Cannot undo arrival for a ${r.status} reservation`);
+  }
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.reservation.update({
+      where: { id },
+      data: { isArrived: false, arrivedAt: null },
+    });
+    await logActivity(tx, id, 'ARRIVAL_UNDONE', actorName, {
+      fromStatus: r.status,
+      toStatus:   r.status,
+      tableId:    r.tableId ?? null,
+    });
+    return updated;
+  });
+}
+
 export async function completeReservation(
   restaurantId: string,
   id: string,
