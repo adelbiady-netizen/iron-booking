@@ -133,7 +133,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
               }`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <p className="text-iron-text text-xs font-medium truncate">{entry.guestName}</p>
+                    <p className="text-iron-text text-xs font-semibold truncate">{entry.guestName}</p>
                     {readyNow && (
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-iron-green/30 text-iron-green-light shrink-0">
                         {T.waitlistPanel.etaReady}
@@ -301,7 +301,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0 mb-0.5">
-                    <p className="text-iron-text text-xs font-medium truncate">{entry.guestName}</p>
+                    <p className="text-iron-text text-xs font-semibold truncate">{entry.guestName}</p>
                     {entry.source === 'PUBLIC_ONLINE' && (
                       <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-400 shrink-0">
                         Online

@@ -119,7 +119,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         return (
           <div>
             <div className="flex items-center gap-1 min-w-0">
-              <p className="text-iron-text text-xs font-medium truncate flex-1">{currentRes.guestName}</p>
+              <p className="text-iron-text text-xs font-semibold truncate flex-1">{currentRes.guestName}</p>
               {isCombined && (
                 <span className="shrink-0 text-[8px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
               )}
@@ -142,7 +142,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         return (
           <div>
             <div className="flex items-center gap-1.5 min-w-0">
-              <p className="text-iron-text text-xs font-medium truncate flex-1">{displayRes.guestName}</p>
+              <p className="text-iron-text text-xs font-semibold truncate flex-1">{displayRes.guestName}</p>
               {isCombined && (
                 <span className="shrink-0 text-[8px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
               )}

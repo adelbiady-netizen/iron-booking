@@ -926,7 +926,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Party + table — compact secondary line */}
-              <div className="flex items-center gap-1.5 mt-2 text-iron-muted/70 text-xs">
+              <div className="flex items-center gap-1.5 mt-2 text-iron-muted/50 text-[11px]">
                 <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
