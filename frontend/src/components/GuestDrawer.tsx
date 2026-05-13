@@ -229,6 +229,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [busy, setBusy] = useState(false);
   const reorganizeKeyRef = useRef(0);
   const inflightRef = useRef(false);
+  const actionsRef = useRef<HTMLElement>(null);
+  const prevIsArrivedRef = useRef(res.isArrived);
   const [reorganizeModal, setReorganizeModal] = useState<{
     conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
     pendingTableId: string;
@@ -290,6 +292,15 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     });
     return () => { cancelled = true; };
   }, [res.id, res.status, res.tableId]);
+
+  // Scroll to the seating actions when a guest is just marked arrived,
+  // so the host's next step (Seat) is immediately in view.
+  useEffect(() => {
+    if (res.isArrived && !prevIsArrivedRef.current) {
+      actionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    prevIsArrivedRef.current = res.isArrived;
+  }, [res.isArrived]);
 
   function enterEdit() {
     setEditName(res.guestName);
@@ -1199,7 +1210,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {!['SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && <ConfirmationSection />}
 
           {/* Actions */}
-          <section className="border-t border-iron-border pt-4">
+          <section ref={actionsRef} className="border-t border-iron-border pt-4">
             <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-3">
               {T.guestDrawer.sectionActions}
             </p>

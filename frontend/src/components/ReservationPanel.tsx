@@ -298,7 +298,26 @@ export default function ReservationPanel({
               </div>
             )}
 
-            {!loading && visible.map(r => {
+            {!loading && (filter === 'ACTIVE'
+              ? (() => {
+                  const isImminent = (r: (typeof visible)[0]) =>
+                    !!nowTime && minutesUntilRes(r.time, nowTime) >= 0 && minutesUntilRes(r.time, nowTime) <= 30;
+                  const arrivedBucket = visible
+                    .filter(r => r.isArrived)
+                    .sort((a, b) => {
+                      if (a.arrivedAt && b.arrivedAt) return b.arrivedAt.localeCompare(a.arrivedAt);
+                      if (a.arrivedAt) return -1;
+                      if (b.arrivedAt) return 1;
+                      return a.time.localeCompare(b.time);
+                    });
+                  return [
+                    ...arrivedBucket,
+                    ...visible.filter(r => !r.isArrived && isImminent(r)),
+                    ...visible.filter(r => !r.isArrived && !isImminent(r)),
+                  ];
+                })()
+              : visible
+            ).map(r => {
               const aState  = !!isLiveView && !!nowTime ? arrivalState(r.time, r.status, nowTime) : null;
               const isStale = !!isLiveView && !!nowTime && isStaleReservation(r.time, r.status, nowTime);
 

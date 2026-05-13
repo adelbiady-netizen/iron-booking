@@ -143,6 +143,13 @@ export const THe = {
   // ── ActionBar ──────────────────────────────────────────────────────────────
   actionBar: {
     now: 'עכשיו',
+    walkInOpen:  'כניסות חופשיות · פתוח',
+    walkInTight: 'כניסות חופשיות · צפוף',
+    walkInFull:  'כניסות חופשיות · מלא',
+    sectionUnderPressure: (name: string) => `${name} · עומס כבד`,
+    sectionFillingUp:     (name: string) => `${name} · מתמלא`,
+    pacingEasing:     'רצפה · מתרוקנת',
+    pacingTightening: 'רצפה · מתמלאת',
   },
 
   // ── Arrival states ─────────────────────────────────────────────────────────

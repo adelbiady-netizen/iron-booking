@@ -5,11 +5,14 @@ import { useT } from '../i18n/useT';
 interface Props {
   insights: FloorInsight[];
   onItemClick: (insight: FloorInsight) => void;
+  walkInSignal?: 'OPEN' | 'TIGHT' | 'FULL';
+  sectionSignal?: string | null;
+  pacingSignal?: 'EASING' | 'TIGHTENING' | null;
 }
 
 const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
 
-export default function ActionBar({ insights, onItemClick }: Props) {
+export default function ActionBar({ insights, onItemClick, walkInSignal, sectionSignal, pacingSignal }: Props) {
   const T = useT();
   // Deduplicate: one item per reservationId (keeps highest priority)
   const seen = new Set<string>();
@@ -42,7 +45,7 @@ export default function ActionBar({ insights, onItemClick }: Props) {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  if (deduped.length === 0) return null;
+  if (deduped.length === 0 && !walkInSignal && !sectionSignal && !pacingSignal) return null;
 
   return (
     <div className="flex items-center gap-2 px-4 py-1.5 border-b border-iron-border bg-iron-card/80 overflow-x-auto shrink-0">
@@ -71,6 +74,39 @@ export default function ActionBar({ insights, onItemClick }: Props) {
           </kbd>
         </button>
       ))}
+      {(sectionSignal || pacingSignal || walkInSignal) && (
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {sectionSignal && (
+            <span className="text-[10px] px-2 py-0.5 rounded border text-iron-muted/55 border-iron-border/35 select-none">
+              {sectionSignal}
+            </span>
+          )}
+          {pacingSignal && (
+            <span className={`text-[10px] px-2 py-0.5 rounded border select-none ${
+              pacingSignal === 'EASING'
+                ? 'text-emerald-500/50 border-emerald-800/25'
+                : 'text-amber-400/55 border-amber-700/20'
+            }`}>
+              {pacingSignal === 'EASING' ? T.actionBar.pacingEasing : T.actionBar.pacingTightening}
+            </span>
+          )}
+          {walkInSignal && (
+            <span className={`text-[10px] px-2 py-0.5 rounded border select-none ${
+              walkInSignal === 'OPEN'
+                ? 'text-emerald-500/60 border-emerald-800/30'
+                : walkInSignal === 'TIGHT'
+                ? 'text-amber-400/60 border-amber-700/25'
+                : 'text-red-400/50 border-red-900/20'
+            }`}>
+              {walkInSignal === 'OPEN'
+                ? T.actionBar.walkInOpen
+                : walkInSignal === 'TIGHT'
+                ? T.actionBar.walkInTight
+                : T.actionBar.walkInFull}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

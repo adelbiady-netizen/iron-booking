@@ -143,6 +143,13 @@ export const T = {
   // ── ActionBar ──────────────────────────────────────────────────────────────
   actionBar: {
     now: 'Now',
+    walkInOpen:  'Walk-ins · Open',
+    walkInTight: 'Walk-ins · Tight',
+    walkInFull:  'Walk-ins · Full',
+    sectionUnderPressure: (name: string) => `${name} · Under pressure`,
+    sectionFillingUp:     (name: string) => `${name} · Filling up`,
+    pacingEasing:     'Floor · Easing',
+    pacingTightening: 'Floor · Tightening',
   },
 
   // ── Arrival states ─────────────────────────────────────────────────────────

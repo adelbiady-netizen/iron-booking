@@ -674,6 +674,60 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     computePressure(floorTables, reservations, time, operationalNow),
   [floorTables, reservations, time, operationalNow]);
 
+  // Section pressure: is any named section disproportionately loaded?
+  const sectionSignal = useMemo<string | null>(() => {
+    if (!isLiveView) return null;
+    const bySection = new Map<string, { name: string; tables: FloorTable[] }>();
+    for (const t of floorTables) {
+      if (!t.section || !t.isActive || t.liveStatus === 'BLOCKED') continue;
+      const k = t.section.id;
+      if (!bySection.has(k)) bySection.set(k, { name: t.section.name, tables: [] });
+      bySection.get(k)!.tables.push(t);
+    }
+    let bestMsg: string | null = null;
+    let bestScore = 0;
+    for (const { name, tables } of bySection.values()) {
+      if (tables.length < 2) continue;
+      const committed = tables.filter(t => t.liveStatus === 'OCCUPIED' || t.liveStatus === 'RESERVED_SOON').length;
+      const overdue   = tables.filter(t => t.currentReservation?.isOverdue).length;
+      const ratio     = committed / tables.length;
+      if (ratio < 0.60) continue;
+      const score = ratio + overdue * 0.15;
+      if (score <= bestScore) continue;
+      bestScore = score;
+      bestMsg = (ratio >= 0.75 || (ratio >= 0.65 && overdue >= 1))
+        ? T.actionBar.sectionUnderPressure(name)
+        : T.actionBar.sectionFillingUp(name);
+    }
+    return bestMsg;
+  }, [floorTables, isLiveView, T]);
+
+  // Walk-in viability: can the floor safely absorb walk-in guests right now?
+  const walkInSignal = useMemo<'OPEN' | 'TIGHT' | 'FULL'>(() => {
+    const safeTables = floorTables.filter(t =>
+      t.liveStatus === 'AVAILABLE' &&
+      !t.locked &&
+      !softHoldMap[t.id] &&
+      (!t.upcomingReservations[0] || t.upcomingReservations[0].minutesUntil >= 90)
+    );
+    if (safeTables.length === 0) return 'FULL';
+    if (safeTables.length === 1 || pressureInfo.arrivingSoonCount >= 2) return 'TIGHT';
+    return 'OPEN';
+  }, [floorTables, softHoldMap, pressureInfo.arrivingSoonCount]);
+
+  // Floor pacing: is the floor about to ease or tighten in the next ~20–30 min?
+  const pacingSignal = useMemo<'EASING' | 'TIGHTENING' | null>(() => {
+    if (!isLiveView) return null;
+    const freeingSoon    = pressureInfo.freeingSoonCount;
+    const arrivingSoon   = pressureInfo.arrivingSoonCount;
+    if (freeingSoon === 0 && arrivingSoon === 0) return null;
+    const activeWaitlist = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED').length;
+    const netFlow = freeingSoon - arrivingSoon;
+    if (netFlow < 0)                         return 'TIGHTENING';
+    if (netFlow > 0 && activeWaitlist < 2)   return 'EASING';
+    return null;
+  }, [pressureInfo.freeingSoonCount, pressureInfo.arrivingSoonCount, waitlist, isLiveView]);
+
   // Arrival-based insights for CONFIRMED late/at-risk guests (frontend-computed,
   // uses operational time, covers both assigned and unassigned reservations).
   const arrivalInsights = useMemo((): FloorInsight[] => {
@@ -1246,7 +1300,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         </div>
       </div>
 
-      <ActionBar insights={allInsights} onItemClick={handleActionBarClick} />
+      <ActionBar insights={allInsights} onItemClick={handleActionBarClick} walkInSignal={isLiveView ? walkInSignal : undefined} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
 
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
