@@ -127,28 +127,28 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-s border-iron-border bg-iron-card">
+    <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-s border-iron-border/30 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.03), -6px 0 28px rgba(0,0,0,0.32)' }}>
 
       {/* Tab bar + action buttons */}
-      <div className="px-3 pt-3 pb-0 border-b border-iron-border">
+      <div className="px-4 pt-3.5 pb-0 border-b border-iron-border/20" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.03)' }}>
         <div className="flex items-center gap-2 mb-2.5">
-          <div className="flex gap-1 flex-1">
+          <div className="flex gap-3 flex-1">
             <button
               onClick={() => setTab('reservations')}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+              className={`text-xs pb-2 pt-0.5 transition-colors border-b-2 ${
                 tab === 'reservations'
-                  ? 'bg-iron-green text-white'
-                  : 'text-iron-muted hover:text-iron-text'
+                  ? 'text-iron-text font-semibold border-iron-green-light/70'
+                  : 'text-iron-muted/50 font-medium hover:text-iron-muted/80 border-transparent'
               }`}
             >
               {T.reservationPanel.tabReservations}
             </button>
             <button
               onClick={() => setTab('waitlist')}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+              className={`text-xs pb-2 pt-0.5 transition-colors border-b-2 flex items-center gap-1.5 ${
                 tab === 'waitlist'
-                  ? 'bg-iron-green text-white'
-                  : 'text-iron-muted hover:text-iron-text'
+                  ? 'text-iron-text font-semibold border-iron-green-light/70'
+                  : 'text-iron-muted/50 font-medium hover:text-iron-muted/80 border-transparent'
               }`}
             >
               {T.reservationPanel.tabWaitlist}
@@ -166,13 +166,13 @@ export default function ReservationPanel({
             <>
               <button
                 onClick={onWalkIn}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-iron-border/70 text-iron-muted hover:border-iron-green/60 hover:text-iron-text transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-iron-border/30 text-iron-muted hover:border-iron-green/40 hover:text-iron-text transition-colors"
               >
                 {T.reservationPanel.walkIn}
               </button>
               <button
                 onClick={onNewReservation}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-colors"
               >
                 {T.reservationPanel.newReservation}
               </button>
@@ -187,7 +187,8 @@ export default function ReservationPanel({
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={T.reservationPanel.searchPlaceholder}
-            className="w-full bg-iron-bg border border-iron-border/70 rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted/60 focus:outline-none focus:border-iron-green/60 transition-colors"
+            className="w-full bg-iron-bg border border-iron-border/35 rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted/60 focus:outline-none focus:border-iron-green/50 transition-colors"
+            style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.20)' }}
           />
           {tab === 'reservations' && (
             <div className="flex gap-1 flex-wrap">
@@ -197,15 +198,13 @@ export default function ReservationPanel({
                   onClick={() => setFilter(f.value)}
                   className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors ${
                     filter === f.value
-                      ? 'bg-iron-green text-white font-semibold'
-                      : 'text-iron-muted hover:text-iron-text'
+                      ? 'text-iron-text font-medium'
+                      : 'text-iron-muted/45 font-medium hover:text-iron-muted/70'
                   }`}
                 >
                   {f.label}
                   {f.count !== undefined && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                      filter === f.value ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
-                    }`}>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-amber-500/20 text-amber-400">
                       {f.count}
                     </span>
                   )}
@@ -342,7 +341,7 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/40 transition-colors ${rowBg}`}
+                  className={`w-full flex items-stretch border-b border-white/[0.05] transition-colors ${rowBg}`}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
@@ -350,12 +349,12 @@ export default function ReservationPanel({
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-3.5 py-3.5 min-w-0"
+                    className="flex-1 text-left px-4 py-3.5 min-w-0"
                   >
 
                     {/* Row 1 — name + badge */}
                     <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className="text-iron-text text-[15px] font-semibold tracking-tight truncate flex-1 leading-snug">
+                      <span className="text-iron-text text-[14px] font-medium tracking-tight truncate flex-1 leading-snug">
                         {r.guestName}
                         {r.guest?.isVip && (
                           <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
@@ -377,17 +376,17 @@ export default function ReservationPanel({
                     {/* Row 2 — time · guests · table */}
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-iron-text font-bold tabular-nums">{r.time}</span>
-                      <span className="text-iron-muted/25">·</span>
-                      <span className="text-iron-muted">{T.common.guests(r.partySize)}</span>
+                      <span className="text-iron-muted/15">·</span>
+                      <span className="text-iron-muted/60 text-xs">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/25">·</span>
+                          <span className="text-iron-muted/15">·</span>
                           <span className="text-iron-text font-medium">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/25">·</span>
+                          <span className="text-iron-muted/15">·</span>
                           {(() => {
                             const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
                             const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
@@ -445,7 +444,7 @@ export default function ReservationPanel({
             })}
           </div>
 
-          <div className="px-3 py-2.5 border-t border-iron-border/50 text-iron-muted/60 text-xs text-center">
+          <div className="px-3 py-2.5 border-t border-white/[0.05] text-iron-muted/60 text-xs text-center">
             {T.reservationPanel.showing(visible.length, reservations.length)}
           </div>
         </>

@@ -59,7 +59,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
     <button
       onClick={onClick}
       title={title}
-      className="px-1.5 py-1.5 rounded border border-iron-border text-iron-muted hover:text-iron-text hover:border-iron-text/40 transition-colors text-xs leading-none select-none shrink-0"
+      className="px-1.5 py-1.5 rounded border border-iron-border/30 text-iron-muted hover:text-iron-text hover:border-iron-text/30 transition-colors text-xs leading-none select-none shrink-0"
     >
       {children}
     </button>
@@ -105,7 +105,7 @@ export default function TopBar({
           type="date"
           value={date}
           onChange={e => onDateChange(e.target.value)}
-          className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer"
+          className="bg-iron-bg border border-iron-border/30 rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green/50 transition-colors cursor-pointer"
         />
         <NavBtn onClick={onNextDay} title={T.topBar.nextDay}>›</NavBtn>
         {!isToday && (
@@ -127,7 +127,7 @@ export default function TopBar({
           type="time"
           value={time}
           onChange={e => onTimeChange(e.target.value)}
-          className="bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors cursor-pointer min-w-[7.5rem]"
+          className="bg-iron-bg border border-iron-border/30 rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green/50 transition-colors cursor-pointer min-w-[7.5rem]"
         />
         <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
       </div>
@@ -137,7 +137,7 @@ export default function TopBar({
         <button
           onClick={onNow}
           title="Jump to today's current time"
-          className="text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors shrink-0 border-iron-green text-iron-green-light hover:bg-iron-green/10"
+          className="text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors shrink-0 border-iron-green/30 text-iron-green-light hover:bg-iron-green/10"
         >
           {T.topBar.nowBtn}
         </button>
@@ -145,7 +145,7 @@ export default function TopBar({
 
       {/* Zoom control */}
       <div
-        className="flex items-center divide-x divide-iron-border border border-iron-border rounded-md overflow-hidden"
+        className="flex items-center divide-x divide-iron-border/30 border border-iron-border/20 rounded-md overflow-hidden"
         title={T.topBar.zoomTitle}
       >
         <button
@@ -179,7 +179,7 @@ export default function TopBar({
       {onBulkConfirm && (
         <button
           onClick={onBulkConfirm}
-          className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-iron-green/50 text-iron-green-light hover:bg-iron-green/10 transition-colors shrink-0"
+          className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-iron-green/25 text-iron-green-light hover:bg-iron-green/10 transition-colors shrink-0"
         >
           {T.topBar.bulkConfirmButton}
         </button>
@@ -207,7 +207,7 @@ export default function TopBar({
       <button
         onClick={onThemeChange}
         title={theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}
-        className="text-iron-muted hover:text-iron-text border border-iron-border rounded-md px-2 py-1.5 transition-colors"
+        className="text-iron-muted hover:text-iron-text border border-iron-border/30 rounded-md px-2 py-1.5 transition-colors"
       >
         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       </button>
@@ -217,7 +217,7 @@ export default function TopBar({
         {onGuestsPage && (
           <button
             onClick={onGuestsPage}
-            className="text-iron-muted text-xs border border-iron-border px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+            className="text-iron-muted text-xs border border-iron-border/20 px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/30 transition-colors font-medium"
           >
             {T.topBar.guestsButton}
           </button>
@@ -225,7 +225,7 @@ export default function TopBar({
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}
-            className="text-iron-muted text-xs border border-iron-border px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+            className="text-iron-muted text-xs border border-iron-border/20 px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/30 transition-colors font-medium"
           >
             {T.topBar.adminButton}
           </button>
@@ -233,7 +233,7 @@ export default function TopBar({
 
         {/* Active host badge (host-selection-aware sessions) */}
         {onSwitchHost ? (
-          <div className="hidden lg:flex items-center gap-1.5 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1">
+          <div className="hidden lg:flex items-center gap-1.5 bg-iron-bg border border-iron-border/20 rounded-md px-2.5 py-1">
             <span className="text-iron-muted text-xs leading-tight">{T.topBar.activeHost(userName)}</span>
             <span className="text-iron-border/60 text-xs">·</span>
             <button
@@ -262,7 +262,7 @@ export default function TopBar({
 
         <button
           onClick={onLogout}
-          className="text-iron-muted hover:text-iron-text text-xs border border-iron-border px-3 py-1.5 rounded-md transition-colors"
+          className="text-iron-muted hover:text-iron-text text-xs border border-iron-border/20 px-3 py-1.5 rounded-md transition-colors"
         >
           {T.topBar.signOut}
         </button>
