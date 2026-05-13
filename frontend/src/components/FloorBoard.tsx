@@ -10,6 +10,7 @@ import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd } from '../utils/time';
 import { useAtmosphere } from '../hooks/useTimeWarmth';
+import { OBJECT_REGISTRY } from '../mapEngine';
 
 interface SectionGroup {
   id: string;
@@ -18,8 +19,12 @@ interface SectionGroup {
   tables: FloorTable[];
 }
 
-// Kinds rendered as SVG elements inside ArchLayer — filtered out of the HTML div block.
-const SVG_RENDERED_KINDS = new Set<string>(['PLANTER', 'SERVICE_LANE', 'LOUNGE_BOUNDARY', 'VIP_ENCLOSURE']);
+// Derived from registry — no manual list to keep in sync.
+const SVG_RENDERED_KINDS = new Set<string>(
+  (Object.entries(OBJECT_REGISTRY) as [string, { renderMode: string }][])
+    .filter(([, def]) => def.renderMode === 'SVG')
+    .map(([kind]) => kind)
+);
 
 // ── Geometry-based variant inference ─────────────────────────────────────────
 // No backend field required. Future schema can replace with explicit `variant`.
@@ -1519,11 +1524,13 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
       });
   })();
 
-  const bars          = floorObjs.filter(o => o.kind === 'BAR');
-  const planters      = floorObjs.filter(o => o.kind === 'PLANTER');
-  const lanes         = floorObjs.filter(o => o.kind === 'SERVICE_LANE');
-  const loungeBounds  = floorObjs.filter(o => o.kind === 'LOUNGE_BOUNDARY');
-  const vipEnclosures = floorObjs.filter(o => o.kind === 'VIP_ENCLOSURE');
+  const bars               = floorObjs.filter(o => o.kind === 'BAR');
+  const planters           = floorObjs.filter(o => o.kind === 'PLANTER');
+  const lanes              = floorObjs.filter(o => o.kind === 'SERVICE_LANE');
+  const loungeBounds       = floorObjs.filter(o => o.kind === 'LOUNGE_BOUNDARY');
+  const curvedLoungeBounds = floorObjs.filter(o => o.kind === 'CURVED_LOUNGE_BOUNDARY');
+  const vipEnclosures      = floorObjs.filter(o => o.kind === 'VIP_ENCLOSURE');
+  const curvedBoothSegs    = floorObjs.filter(o => o.kind === 'CURVED_BOOTH_SEGMENT');
   const booths        = tables.filter(t => t.shape === 'BOOTH' && t.height >= 38);
 
   const woodOp1 = (0.022 + timeWarmth * 0.008).toFixed(3);
@@ -1627,6 +1634,34 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
         );
       })}
 
+      {/* Curved lounge boundary — elliptical soft zone, gold dashed perimeter */}
+      {curvedLoungeBounds.map(o => {
+        const cx      = o.posX + o.width  / 2;
+        const cy      = o.posY + o.height / 2;
+        const rx      = o.width  / 2;
+        const ry      = o.height / 2;
+        const fillOp  = (0.030 + timeWarmth * 0.014).toFixed(3);
+        const ringOp  = (0.052 + timeWarmth * 0.022).toFixed(3);
+        const outerOp = (0.024 + timeWarmth * 0.010).toFixed(3);
+        return (
+          <g key={`arch-clb-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
+            <ellipse cx={cx} cy={cy} rx={rx} ry={ry}
+              fill={`rgba(255,240,210,${fillOp})`} />
+            <ellipse cx={cx} cy={cy} rx={Math.max(4, rx - 5)} ry={Math.max(4, ry - 5)}
+              fill="none"
+              stroke={`rgba(195,162,88,${ringOp})`}
+              strokeWidth={0.85}
+              strokeDasharray="8 5"
+            />
+            <ellipse cx={cx} cy={cy} rx={rx + 4} ry={ry + 4}
+              fill="none"
+              stroke={`rgba(165,135,70,${outerOp})`}
+              strokeWidth={0.5}
+            />
+          </g>
+        );
+      })}
+
       {/* VIP enclosure — explicit gold ring placed as a floor object */}
       {vipEnclosures.map(o => {
         const cx       = o.posX + o.width  / 2;
@@ -1642,6 +1677,67 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
               fill="none" stroke={`rgba(195,162,88,${innerOp})`} strokeWidth={1.5} />
             <rect x={o.posX - 14} y={o.posY - 14} width={o.width + 28} height={o.height + 28} rx={20}
               fill="none" stroke={`rgba(165,135,70,${outerOp})`} strokeWidth={1} />
+          </g>
+        );
+      })}
+
+      {/* Curved booth segment — plan-view premium upholstered curved bench */}
+      {curvedBoothSegs.map(o => {
+        const x = o.posX, y = o.posY, w = o.width, h = o.height;
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const rx      = Math.min(w, h) * 0.20;
+        const backH   = Math.round(h * 0.36);
+        const seatH   = h - backH;
+        const seamY   = y + backH;
+        const seamDip = h * 0.06;
+        const tuftCount   = Math.max(2, Math.round(w / 36));
+        const tuftSpacing = (w - 24) / (tuftCount + 1);
+        const shadowOp  = (0.18 + timeWarmth * 0.04).toFixed(3);
+        const backOp    = (0.85 + timeWarmth * 0.08).toFixed(3);
+        const bodyOp    = (0.72 + timeWarmth * 0.10).toFixed(3);
+        const cushionOp = (0.52 + timeWarmth * 0.08).toFixed(3);
+        const seamOp    = (0.38 + timeWarmth * 0.08).toFixed(3);
+        const tuftOp    = (0.28 + timeWarmth * 0.06).toFixed(3);
+        const shineOp   = (0.055 + timeWarmth * 0.018).toFixed(3);
+        return (
+          <g key={`arch-cbs-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
+            {/* Drop shadow */}
+            <rect x={x + 2} y={y + 2} width={w} height={h} rx={rx}
+              fill={`rgba(3,2,1,${shadowOp})`} />
+            {/* Seat surface — full booth body */}
+            <rect x={x} y={y} width={w} height={h} rx={rx}
+              fill={`rgba(104,70,40,${bodyOp})`} />
+            {/* Cushion band — lighter seat highlight */}
+            <rect x={x + 4} y={y + backH} width={w - 8} height={seatH - 4} rx={rx * 0.5}
+              fill={`rgba(138,96,58,${cushionOp})`} />
+            {/* Back panel — dark walnut/leather */}
+            <rect x={x} y={y} width={w} height={backH + rx}
+              rx={rx}
+              fill={`rgba(68,44,24,${backOp})`} />
+            {/* Curved seam — gentle forward-curving arc between back and seat */}
+            <path
+              d={`M ${x + 8} ${seamY} Q ${cx} ${seamY + seamDip} ${x + w - 8} ${seamY}`}
+              fill="none"
+              stroke={`rgba(44,28,14,${seamOp})`}
+              strokeWidth={0.85}
+            />
+            {/* Tufting dots — premium upholstery detail */}
+            {Array.from({ length: tuftCount }, (_, i) => (
+              <ellipse key={i}
+                cx={x + 12 + tuftSpacing * (i + 1)}
+                cy={y + backH + seatH * 0.44}
+                rx={1.5} ry={1.2}
+                fill={`rgba(50,32,16,${tuftOp})`}
+              />
+            ))}
+            {/* Subtle top-edge highlight */}
+            <line
+              x1={x + rx} y1={y + 1}
+              x2={x + w - rx} y2={y + 1}
+              stroke={`rgba(215,175,128,${shineOp})`}
+              strokeWidth={0.6}
+            />
           </g>
         );
       })}

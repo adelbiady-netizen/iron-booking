@@ -319,7 +319,8 @@ export interface WaitlistEntry {
 
 export type FloorObjKind =
   | 'WALL' | 'DIVIDER' | 'BAR' | 'ENTRANCE' | 'ZONE'
-  | 'PLANTER' | 'HOST_STAND' | 'SERVICE_LANE' | 'LOUNGE_BOUNDARY' | 'VIP_ENCLOSURE';
+  | 'PLANTER' | 'HOST_STAND' | 'SERVICE_LANE' | 'LOUNGE_BOUNDARY' | 'VIP_ENCLOSURE'
+  | 'CURVED_LOUNGE_BOUNDARY' | 'CURVED_BOOTH_SEGMENT';
 
 export interface FloorObjectData {
   id: string;

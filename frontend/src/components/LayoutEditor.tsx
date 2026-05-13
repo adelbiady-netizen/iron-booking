@@ -4,6 +4,9 @@ import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName, formatFloorObjLabel } from '../utils/displayHelpers';
+import { getObjectDefinition, canResizeObject, canSelectObject, canRotateObject, canRenameObject, canDeleteObject, getSafePlacementForObject, clampObjectSizeToDefinition } from '../mapEngine';
+import ObjectInspector from './ObjectInspector';
+import ObjectPalette from './ObjectPalette';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function nowTime() {
@@ -48,18 +51,34 @@ const SIZE_PRESETS = [
   { label: 'XL 8-top', w: 160, h: 96,  min: 6, max: 8 },
 ] as const;
 
-const OBJ_META: Record<FloorObjKind, { label: string; w: number; h: number; color: string }> = {
-  WALL:            { label: 'Wall',            w: 200, h: 12,  color: '#71717a' },
-  DIVIDER:         { label: 'Divider',         w: 160, h: 8,   color: '#52525b' },
-  BAR:             { label: 'Bar',             w: 240, h: 60,  color: '#92400e' },
-  ENTRANCE:        { label: 'Entrance',        w: 80,  h: 40,  color: '#1e40af' },
-  ZONE:            { label: 'Zone',            w: 220, h: 160, color: '#374151' },
-  PLANTER:         { label: 'Planter',         w: 50,  h: 50,  color: '#166534' },
-  HOST_STAND:      { label: 'Host Stand',      w: 60,  h: 50,  color: '#78350f' },
-  SERVICE_LANE:    { label: 'Service Lane',    w: 200, h: 30,  color: '#374151' },
-  LOUNGE_BOUNDARY: { label: 'Lounge Boundary', w: 240, h: 160, color: '#78350f' },
-  VIP_ENCLOSURE:   { label: 'VIP Enclosure',   w: 240, h: 160, color: '#78350f' },
+const OBJ_DEFAULT_COLORS: Record<FloorObjKind, string> = {
+  WALL:            '#71717a',
+  DIVIDER:         '#52525b',
+  BAR:             '#92400e',
+  ENTRANCE:        '#1e40af',
+  ZONE:            '#374151',
+  PLANTER:         '#166534',
+  HOST_STAND:      '#78350f',
+  SERVICE_LANE:    '#374151',
+  LOUNGE_BOUNDARY:         '#78350f',
+  CURVED_LOUNGE_BOUNDARY:  '#78350f',
+  VIP_ENCLOSURE:           '#78350f',
+  CURVED_BOOTH_SEGMENT:    '#5c3d20',
 };
+
+function buildObjMeta(kind: FloorObjKind): { label: string; w: number; h: number; color: string } {
+  const def = getObjectDefinition(kind);
+  return { label: def.label, w: def.defaultWidth, h: def.defaultHeight, color: OBJ_DEFAULT_COLORS[kind] };
+}
+
+const ALL_OBJ_KINDS: FloorObjKind[] = [
+  'WALL', 'DIVIDER', 'BAR', 'ENTRANCE', 'ZONE',
+  'PLANTER', 'HOST_STAND', 'SERVICE_LANE', 'LOUNGE_BOUNDARY', 'CURVED_LOUNGE_BOUNDARY', 'VIP_ENCLOSURE',
+  'CURVED_BOOTH_SEGMENT',
+];
+
+const OBJ_META: Record<FloorObjKind, { label: string; w: number; h: number; color: string }> =
+  Object.fromEntries(ALL_OBJ_KINDS.map(k => [k, buildObjMeta(k)])) as Record<FloorObjKind, { label: string; w: number; h: number; color: string }>;
 
 const SNAP_CYCLE: Array<0 | 10 | 20 | 40> = [0, 10, 20, 40];
 
@@ -132,18 +151,6 @@ interface Props { onClose: () => void; onSaved: () => void; }
 export default function LayoutEditor({ onClose, onSaved }: Props) {
   const T = useT();
   const { locale } = useLocale();
-  const OBJ_LABELS: Record<FloorObjKind, string> = {
-    WALL:            T.layoutEditor.objWall,
-    DIVIDER:         T.layoutEditor.objDivider,
-    BAR:             T.layoutEditor.objBar,
-    ENTRANCE:        T.layoutEditor.objEntrance,
-    ZONE:            T.layoutEditor.objZone,
-    PLANTER:         T.layoutEditor.objPlanter,
-    HOST_STAND:      T.layoutEditor.objHostStand,
-    SERVICE_LANE:    T.layoutEditor.objServiceLane,
-    LOUNGE_BOUNDARY: T.layoutEditor.objLoungeBoundary,
-    VIP_ENCLOSURE:   T.layoutEditor.objVipEnclosure,
-  };
   const [tables,           setTables]           = useState<DraftTable[]>([]);
   const [sections,         setSections]         = useState<Section[]>([]);
   const [floorObjs,        setFloorObjs]        = useState<FloorObjectData[]>([]);
@@ -276,9 +283,12 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
           return { ...t, posX: nx, posY: ny, dirty: !t.isNew };
         }));
       } else if (d.kind === 'obj') {
-        const nx = snapped(Math.max(0, d.startPX + e.clientX - d.startMX));
-        const ny = snapped(Math.max(0, d.startPY + e.clientY - d.startMY));
-        setFloorObjs(prev => prev.map(o => o.id === d.id ? { ...o, posX: nx, posY: ny } : o));
+        setFloorObjs(prev => prev.map(o => {
+          if (o.id !== d.id) return o;
+          const nx = snapped(Math.max(0, Math.min(CANVAS_W - o.width,  d.startPX + e.clientX - d.startMX)));
+          const ny = snapped(Math.max(0, Math.min(CANVAS_H - o.height, d.startPY + e.clientY - d.startMY)));
+          return { ...o, posX: nx, posY: ny };
+        }));
       } else if (d.kind === 'marquee') {
         const { cx, cy } = canvasCoords(e);
         const x = Math.min(d.startCX, cx);
@@ -383,7 +393,11 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         if (selectedObjId) {
           setFloorObjs(prev => prev.map(o =>
             o.id === selectedObjId
-              ? { ...o, posX: Math.max(0, o.posX + dx), posY: Math.max(0, o.posY + dy) }
+              ? {
+                  ...o,
+                  posX: Math.max(0, Math.min(CANVAS_W - o.width,  o.posX + dx)),
+                  posY: Math.max(0, Math.min(CANVAS_H - o.height, o.posY + dy)),
+                }
               : o
           ));
         }
@@ -419,6 +433,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   const selTables = visible.filter(t => selectedIds.has(t.id));
   const singleSel = selTables.length === 1 ? selTables[0] : null;
   const selObj    = floorObjs.find(o => o.id === selectedObjId) ?? null;
+  const selDef    = selObj ? getObjectDefinition(selObj.kind) : null;
 
   // ── Table mutations ───────────────────────────────────────────────────────
 
@@ -562,12 +577,16 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   // ── Floor objects ─────────────────────────────────────────────────────────
 
   function addFloorObj(kind: FloorObjKind) {
-    const meta = OBJ_META[kind];
-    const idx  = floorObjs.length;
+    const def = getObjectDefinition(kind);
+    const activeTables = tables.filter(t => !t.deleted)
+      .map(t => ({ posX: t.posX, posY: t.posY, width: t.width, height: t.height }));
+    const pos = getSafePlacementForObject(
+      kind, floorObjs, activeTables, { width: CANVAS_W, height: CANVAS_H },
+    );
     const obj: FloorObjectData = {
-      id: newId(), kind, label: meta.label,
-      posX: 60 + (idx % 6) * 60, posY: 60 + Math.floor(idx / 6) * 80,
-      width: meta.w, height: meta.h,
+      id: newId(), kind, label: def.label,
+      posX: pos.x, posY: pos.y,
+      width: def.defaultWidth, height: def.defaultHeight,
       rotation: 0, color: null,
     };
     setFloorObjs(prev => [...prev, obj]);
@@ -825,20 +844,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
 
           {/* Floor objects */}
           <SideSection title={T.layoutEditor.sectionFloorObjs}>
-            <p className="text-iron-muted text-[10px] mb-2 leading-tight">
-              {T.layoutEditor.floorObjsHint}
-            </p>
-            <div className="grid grid-cols-2 gap-1 mb-2">
-              {(Object.keys(OBJ_META) as FloorObjKind[]).map(kind => (
-                <button
-                  key={kind}
-                  onClick={() => addFloorObj(kind)}
-                  className="text-[10px] py-1 px-1.5 rounded border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-green-light transition-colors text-left truncate"
-                >
-                  + {OBJ_LABELS[kind]}
-                </button>
-              ))}
-            </div>
+            <ObjectPalette onAdd={addFloorObj} />
             {floorObjs.length > 0 && (
               <div className="space-y-px">
                 {floorObjs.map(o => (
@@ -892,15 +898,18 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     position: 'absolute', left: o.posX, top: o.posY,
                     width: o.width, height: o.height,
                     backgroundColor: meta.color + (isZone ? '20' : 'bb'),
-                    border: `${isSel ? 2 : 1.5}px solid ${meta.color}${isSel ? '' : '88'}`,
+                    border: `${isSel ? 2 : 1.5}px solid ${isSel ? 'rgba(74,222,128,0.75)' : meta.color + '88'}`,
                     borderRadius: isZone ? 8 : 3,
                     cursor: 'grab',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: isSel ? `0 0 0 2px ${meta.color}55` : undefined,
+                    boxShadow: isSel ? '0 0 0 3px rgba(74,222,128,0.18)' : undefined,
+                    transform: o.rotation ? `rotate(${o.rotation}deg)` : undefined,
+                    transformOrigin: 'center center',
+                    transition: 'border-color 0.1s, box-shadow 0.1s',
                   }}
                   onMouseDown={e => {
                     e.preventDefault(); e.stopPropagation();
-                    setSelectedObjId(o.id); setSelectedIds(new Set());
+                    if (canSelectObject(o.kind)) { setSelectedObjId(o.id); setSelectedIds(new Set()); }
                     dragRef.current = { kind: 'obj', id: o.id, startMX: e.clientX, startMY: e.clientY, startPX: o.posX, startPY: o.posY };
                   }}
                 >
@@ -945,6 +954,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                   onMouseDown={e => {
                     e.preventDefault(); e.stopPropagation();
                     if (e.shiftKey) {
+                      setSelectedObjId(null);
                       setSelectedIds(prev => { const n = new Set(prev); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; });
                       return;
                     }
@@ -1220,27 +1230,73 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
 
       {/* Floor object selected */}
       {selObj && selTables.length === 0 && (
-        <div className="shrink-0 border-t border-iron-border bg-iron-card h-14 flex items-center gap-4 px-4">
-          <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest">
-            {OBJ_META[selObj.kind].label}
-          </span>
-          <Field label={T.layoutEditor.fieldLabel}>
-            <input value={selObj.label} onChange={e => patchFloorObj(selObj.id, { label: e.target.value })} className={inputCls + ' w-28'} />
-          </Field>
-          <Field label={T.layoutEditor.fieldW}>
-            <input type="number" min={20} max={800} value={selObj.width}
-              onChange={e => patchFloorObj(selObj.id, { width: Math.max(20, parseInt(e.target.value) || selObj.width) })}
-              className={inputCls + ' w-16 text-center'} />
-          </Field>
-          <Field label={T.layoutEditor.fieldH}>
-            <input type="number" min={8} max={600} value={selObj.height}
-              onChange={e => patchFloorObj(selObj.id, { height: Math.max(8, parseInt(e.target.value) || selObj.height) })}
-              className={inputCls + ' w-16 text-center'} />
-          </Field>
-          <button onClick={() => removeFloorObj(selObj.id)} className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors">
-            {T.layoutEditor.removeObject}
-          </button>
-          <button onClick={() => setSelectedObjId(null)} className="text-iron-muted hover:text-iron-text text-lg leading-none">×</button>
+        <div className="shrink-0 border-t border-iron-border bg-iron-card">
+          <ObjectInspector obj={selObj} />
+          <div className="flex items-center gap-4 px-4 py-2 flex-wrap">
+            <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest shrink-0">
+              {OBJ_META[selObj.kind].label}
+            </span>
+            {canRenameObject(selObj.kind) && (
+              <Field label={T.layoutEditor.fieldLabel}>
+                <input value={selObj.label} onChange={e => patchFloorObj(selObj.id, { label: e.target.value })} className={inputCls + ' w-28'} />
+              </Field>
+            )}
+            {canRotateObject(selObj.kind) && (
+              <Field label="Angle">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => patchFloorObj(selObj.id, { rotation: ((selObj.rotation - 15) % 360 + 360) % 360 })}
+                    title="Rotate left 15°"
+                    className={inputCls + ' px-1.5 py-1 text-iron-muted hover:text-iron-green-light select-none'}
+                  >↺</button>
+                  <span className="text-iron-text/60 text-xs font-mono w-9 text-center">{selObj.rotation}°</span>
+                  <button
+                    onClick={() => patchFloorObj(selObj.id, { rotation: (selObj.rotation + 15) % 360 })}
+                    title="Rotate right 15°"
+                    className={inputCls + ' px-1.5 py-1 text-iron-muted hover:text-iron-green-light select-none'}
+                  >↻</button>
+                </div>
+              </Field>
+            )}
+            {canResizeObject(selObj.kind) && (
+              <>
+                <Field label={T.layoutEditor.fieldW}>
+                  <input
+                    type="number"
+                    min={selDef!.minWidth}
+                    max={Math.min(selDef!.maxWidth, CANVAS_W - selObj.posX)}
+                    value={selObj.width}
+                    onChange={e => {
+                      const raw = parseInt(e.target.value) || selObj.width;
+                      const { width } = clampObjectSizeToDefinition(selObj.kind, raw, selObj.height);
+                      patchFloorObj(selObj.id, { width: Math.min(width, Math.max(selDef!.minWidth, CANVAS_W - selObj.posX)) });
+                    }}
+                    className={inputCls + ' w-16 text-center'}
+                  />
+                </Field>
+                <Field label={T.layoutEditor.fieldH}>
+                  <input
+                    type="number"
+                    min={selDef!.minHeight}
+                    max={Math.min(selDef!.maxHeight, CANVAS_H - selObj.posY)}
+                    value={selObj.height}
+                    onChange={e => {
+                      const raw = parseInt(e.target.value) || selObj.height;
+                      const { height } = clampObjectSizeToDefinition(selObj.kind, selObj.width, raw);
+                      patchFloorObj(selObj.id, { height: Math.min(height, Math.max(selDef!.minHeight, CANVAS_H - selObj.posY)) });
+                    }}
+                    className={inputCls + ' w-16 text-center'}
+                  />
+                </Field>
+              </>
+            )}
+            {canDeleteObject(selObj.kind) && (
+              <button onClick={() => removeFloorObj(selObj.id)} className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors shrink-0">
+                {T.layoutEditor.removeObject}
+              </button>
+            )}
+            <button onClick={() => setSelectedObjId(null)} className={`text-iron-muted hover:text-iron-text text-lg leading-none shrink-0 ${!canDeleteObject(selObj.kind) ? 'ml-auto' : ''}`}>×</button>
+          </div>
         </div>
       )}
 
