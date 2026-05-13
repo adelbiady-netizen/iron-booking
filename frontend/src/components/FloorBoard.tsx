@@ -89,40 +89,52 @@ const CANVAS_H = 800;
 
 function tableRadius(shape: string): string {
   if (shape === 'ROUND' || shape === 'OVAL') return '9999px';
-  if (shape === 'BOOTH') return '3px 3px 14px 14px';  // straight back, curved seat edge
-  return '8px';
+  if (shape === 'BOOTH') return '4px 4px 18px 18px';  // straight back, intentional seat curve
+  return '10px';  // less button-rectangle, more slab weight
 }
 
-// Surface gradient per table shape — overhead light reads differently on round vs rectangular.
-// Round tables catch light centrally (radial); booths catch it from the back (top-down);
-// rectangular tables catch it from upper-left (angled). BLOCKED tables have no gradient.
-// Warm golden base layer shared by all occupied tables — the faint warmth of candlelight
-// spread across a tablecloth. At ~1.5-2% opacity it is sub-perceptible individually,
-// but across a room of occupied tables it shifts the floor from cold to inhabited.
+// Surface gradient per table shape — each material type and status implies a different light response.
+// OCCUPIED_WARM: candle warmth across the tablecloth — at 6.5% it reads as inhabited, not tinted.
 const OCCUPIED_WARM = 'radial-gradient(ellipse 90% 85% at 50% 50%, rgba(255,200,80,0.065) 0%, transparent 100%)';
 
 function tableGradient(shape: string, status: string): string | undefined {
   if (status === 'BLOCKED') return undefined;
   const isRound = shape === 'ROUND' || shape === 'OVAL';
   const isBooth = shape === 'BOOTH';
+
   if (isRound) {
-    // Round tables: radial spotlight + warm candle base for occupied
-    if (status === 'OCCUPIED')      return `radial-gradient(ellipse 64% 60% at 40% 36%, rgba(255,255,255,0.13) 0%, transparent 62%), ${OCCUPIED_WARM}`;
-    if (status === 'RESERVED_SOON') return 'radial-gradient(ellipse 58% 54% at 40% 36%, rgba(255,255,255,0.046) 0%, transparent 68%)';
-    if (status === 'RESERVED')      return 'radial-gradient(ellipse 55% 50% at 40% 36%, rgba(255,255,255,0.030) 0%, transparent 70%)';
-    return                                  'radial-gradient(ellipse 52% 48% at 40% 36%, rgba(255,255,255,0.022) 0%, transparent 72%)';
+    // Occupied — warm stone: overhead spotlight + inhabited candle warmth
+    if (status === 'OCCUPIED')
+      return `radial-gradient(ellipse 64% 60% at 40% 36%, rgba(255,255,255,0.13) 0%, transparent 62%), ${OCCUPIED_WARM}`;
+    // Reserved soon — anticipatory warmth: white highlight + amber top-edge glow
+    if (status === 'RESERVED_SOON')
+      return 'radial-gradient(ellipse 62% 58% at 40% 36%, rgba(255,255,255,0.060) 0%, transparent 65%), radial-gradient(ellipse 90% 30% at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 80%)';
+    // Reserved — cool slate: white highlight + subtle blue depth center
+    if (status === 'RESERVED')
+      return 'radial-gradient(ellipse 58% 52% at 40% 36%, rgba(255,255,255,0.038) 0%, transparent 68%), radial-gradient(ellipse 60% 50% at 50% 50%, rgba(37,99,235,0.06) 0%, transparent 100%)';
+    // Available — dark walnut: warm grain catch from upper-left
+    return 'radial-gradient(ellipse 55% 50% at 42% 35%, rgba(255,200,130,0.055) 0%, transparent 70%)';
   }
+
   if (isBooth) {
-    if (status === 'OCCUPIED')      return `linear-gradient(180deg, rgba(255,255,255,0.065) 0%, rgba(255,255,255,0.010) 100%), ${OCCUPIED_WARM}`;
-    if (status === 'RESERVED_SOON') return 'linear-gradient(180deg, rgba(255,255,255,0.032) 0%, transparent 100%)';
-    if (status === 'RESERVED')      return 'linear-gradient(180deg, rgba(255,255,255,0.020) 0%, transparent 100%)';
-    return                                  'linear-gradient(180deg, rgba(255,255,255,0.014) 0%, transparent 100%)';
+    if (status === 'OCCUPIED')
+      return `linear-gradient(180deg, rgba(255,255,255,0.070) 0%, rgba(255,255,255,0.010) 100%), ${OCCUPIED_WARM}`;
+    if (status === 'RESERVED_SOON')
+      return 'linear-gradient(180deg, rgba(255,255,255,0.038) 0%, transparent 60%), linear-gradient(180deg, rgba(251,191,36,0.055) 0%, transparent 50%)';
+    if (status === 'RESERVED')
+      return 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, transparent 60%), linear-gradient(145deg, rgba(37,99,235,0.04) 0%, transparent 70%)';
+    return 'linear-gradient(180deg, rgba(255,200,130,0.042) 0%, transparent 55%)';
   }
-  // Rectangular / square — angled upper-left highlight + warm candle base for occupied
-  if (status === 'OCCUPIED')      return `linear-gradient(148deg, rgba(255,255,255,0.10) 0%, transparent 50%), ${OCCUPIED_WARM}`;
-  if (status === 'RESERVED_SOON') return 'linear-gradient(148deg, rgba(255,255,255,0.034) 0%, transparent 54%)';
-  if (status === 'RESERVED')      return 'linear-gradient(148deg, rgba(255,255,255,0.022) 0%, transparent 58%)';
-  return                                  'linear-gradient(148deg, rgba(255,255,255,0.016) 0%, transparent 62%)';
+
+  // Rectangular / square
+  if (status === 'OCCUPIED')
+    return `linear-gradient(148deg, rgba(255,255,255,0.10) 0%, transparent 50%), ${OCCUPIED_WARM}`;
+  if (status === 'RESERVED_SOON')
+    return 'linear-gradient(148deg, rgba(255,255,255,0.044) 0%, transparent 54%), linear-gradient(180deg, rgba(251,191,36,0.055) 0%, transparent 52%)';
+  if (status === 'RESERVED')
+    return 'linear-gradient(148deg, rgba(255,255,255,0.028) 0%, transparent 58%), linear-gradient(135deg, rgba(37,99,235,0.04) 0%, transparent 65%)';
+  // Available — dark walnut: angled warm grain from upper-left
+  return 'linear-gradient(148deg, rgba(255,200,130,0.050) 0%, transparent 52%)';
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
@@ -1370,15 +1382,34 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     if (dimmed) opacity = Math.max(opacity, 0.55);
   }
 
-  // Candlelight from within — occupied tables that aren't overdue feel warm and alive.
-  // Round tables: perimeter glow (top + bottom hairlines) simulates the tablecloth rim catching light.
-  // Rectangular/booth: top hairline only — the upper surface reflects the overhead source.
-  if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue) {
-    const isRound = table.shape === 'ROUND' || table.shape === 'OVAL';
-    const innerGlow = isRound
-      ? 'inset 0 1px 0 rgba(134,239,172,0.12), inset 0 -1px 0 rgba(134,239,172,0.05)'
-      : 'inset 0 1px 0 rgba(134,239,172,0.09)';
-    boxShadow = boxShadow ? `${boxShadow}, ${innerGlow}` : innerGlow;
+  // Material depth — every physical table has edge depth, a top-lit surface, and an AO bottom.
+  // Layered inset shadows simulate the thickness of a real table top seen from above.
+  // Suppressed during pick/warn states where clarity wins over atmosphere; BLOCKED is flat/withdrawn.
+  if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
+    const depthShadow = isOverdue
+      ? 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -2px 4px rgba(0,0,0,0.28)'
+      : table.liveStatus === 'OCCUPIED'
+      // Occupied — warm stone: bright top surface catch + deep bottom AO + brass left bevel + right depth
+      ? 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -2px 5px rgba(0,0,0,0.30), inset 1px 0 0 rgba(255,200,100,0.06), inset -1px 0 0 rgba(0,0,0,0.14)'
+      : table.liveStatus === 'RESERVED_SOON'
+      // Reserved soon — warm edge catch + bottom shadow + left amber bevel
+      ? 'inset 0 1px 0 rgba(255,200,100,0.09), inset 0 -2px 4px rgba(0,0,0,0.25), inset 1px 0 0 rgba(255,200,100,0.04), inset -1px 0 0 rgba(0,0,0,0.10)'
+      : table.liveStatus === 'RESERVED'
+      // Reserved — cool surface catch + bottom depth + right shadow
+      ? 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 3px rgba(0,0,0,0.22), inset -1px 0 0 rgba(0,0,0,0.08)'
+      // Available — dark walnut resting: warm grain top edge + bottom AO + left grain bevel + right shadow
+      : 'inset 0 1px 0 rgba(255,200,130,0.08), inset 0 -1px 3px rgba(0,0,0,0.24), inset 1px 0 0 rgba(255,200,130,0.04), inset -1px 0 0 rgba(0,0,0,0.10)';
+
+    boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
+
+    // Occupied non-overdue: green rim glow on top — tablecloth catching the overhead light
+    if (table.liveStatus === 'OCCUPIED' && !isOverdue) {
+      const tableIsRound = table.shape === 'ROUND' || table.shape === 'OVAL';
+      const rimGlow = tableIsRound
+        ? 'inset 0 1px 0 rgba(134,239,172,0.12), inset 0 -1px 0 rgba(134,239,172,0.05)'
+        : 'inset 0 1px 0 rgba(134,239,172,0.09)';
+      boxShadow = `${boxShadow}, ${rimGlow}`;
+    }
   }
 
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
@@ -1414,12 +1445,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // spotlight physics — a wide floor shadow beneath + a tight table-edge shadow.
         filter: dimmed ? undefined
           : table.liveStatus === 'OCCUPIED'
-            ? 'drop-shadow(0 5px 18px rgba(0,0,0,0.80)) drop-shadow(0 1px 5px rgba(0,0,0,0.52))'
+            // Wide floor shadow + tight contact AO + warm amber scatter (candlelight into floor)
+            ? 'drop-shadow(0 6px 22px rgba(0,0,0,0.85)) drop-shadow(0 2px 6px rgba(0,0,0,0.60)) drop-shadow(0 10px 30px rgba(180,130,40,0.14))'
           : table.liveStatus === 'RESERVED_SOON'
-            ? 'drop-shadow(0 3px 11px rgba(0,0,0,0.64)) drop-shadow(0 1px 3px rgba(0,0,0,0.40))'
+            ? 'drop-shadow(0 4px 14px rgba(0,0,0,0.70)) drop-shadow(0 1px 4px rgba(0,0,0,0.48))'
           : table.liveStatus === 'AVAILABLE'
-            ? 'drop-shadow(0 1px 4px rgba(0,0,0,0.38))'
-          : 'drop-shadow(0 2px 7px rgba(0,0,0,0.54))',
+            // Heavier grounding than before — tables need to sit INTO the floor
+            ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.32))'
+          : table.liveStatus === 'BLOCKED'
+            ? 'drop-shadow(0 1px 5px rgba(0,0,0,0.30))'
+          : 'drop-shadow(0 3px 12px rgba(0,0,0,0.62)) drop-shadow(0 1px 4px rgba(0,0,0,0.40))',
         opacity,
         padding: '6px 8px',
         overflow: 'hidden',
@@ -1517,7 +1552,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 2px rgba(0,0,0,0.60)' }}>
                 {currentRes.guestName}
               </p>
               {isCombined && (
@@ -1574,7 +1609,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: guestColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <p style={{ fontSize: 12, color: guestColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 2px rgba(0,0,0,0.60)' }}>
                 {displayRes.guestName}
               </p>
               {isCombined && (
