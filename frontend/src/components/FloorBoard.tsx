@@ -491,6 +491,20 @@ export default function FloorBoard({
   const underPressure = waitlist.length > 0 && available <= 2;
   const quietIdle = underPressure && !pickMode && !waitlistAssignEntry && !combineMode && !reorganizeMode;
 
+  // ── Service pressure score ─────────────────────────────────────────────────
+  // Continuous 0.0–1.0 signal from live data. Drives atmosphere only — no alerts.
+  // Components: room occupancy (40%), waitlist depth (30%), overdue weight (20%), wave size (10%).
+  const _overdueCount  = canvasTables.filter(t => t.currentReservation?.isOverdue).length;
+  const _waitingCount  = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED').length;
+  const pressureScore  = Math.min(1,
+    (canvasTables.filter(t => t.liveStatus === 'OCCUPIED').length / Math.max(canvasTables.length, 1)) * 0.40 +
+    Math.min(_waitingCount / 5, 1) * 0.30 +
+    Math.min(_overdueCount / 3, 1) * 0.20 +
+    Math.min(reservedSoon  / 4, 1) * 0.10
+  );
+  // quietFade: smooth opacity target for idle AVAILABLE tables — 0 = full, 0.4 = max recession.
+  const quietFade = quietIdle ? Math.max(0.10, pressureScore * 0.40) : 0;
+
   const positioned = hasPositions(dedupedTables);
 
   return (
@@ -616,15 +630,15 @@ export default function FloorBoard({
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
         <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{
-          // Cinematic vignette — deep peripheral darkness with directional depth.
-          // Wide outer shadow (cinema frame) + mid shadow (depth) + top-edge bar (threshold) + bottom fade.
+          // Cinematic vignette — pressure-modulated: outer darkness tightens as occupancy rises.
+          // The room "closes in" slightly under dense service — subconscious spatial focus.
           boxShadow: [
-            'inset 0 0 280px rgba(0,0,0,0.85)',          // deep cinematic frame
-            'inset 0 0 120px rgba(0,0,0,0.55)',           // mid atmospheric depth
-            'inset 0 80px 100px -30px rgba(0,0,0,0.48)', // ceiling threshold — top architectural edge
-            'inset 0 -30px 80px rgba(0,0,0,0.30)',        // floor fade at bottom
-            'inset 55px 0 80px rgba(0,0,0,0.22)',         // left wall recedes into dark
-            'inset -55px 0 80px rgba(0,0,0,0.22)',        // right wall recedes into dark
+            `inset 0 0 ${Math.round(280 + pressureScore * 30)}px rgba(0,0,0,${(0.85 + pressureScore * 0.06).toFixed(3)})`,
+            `inset 0 0 ${Math.round(120 + pressureScore * 15)}px rgba(0,0,0,${(0.55 + pressureScore * 0.05).toFixed(3)})`,
+            'inset 0 80px 100px -30px rgba(0,0,0,0.48)',
+            'inset 0 -30px 80px rgba(0,0,0,0.30)',
+            'inset 55px 0 80px rgba(0,0,0,0.22)',
+            'inset -55px 0 80px rgba(0,0,0,0.22)',
           ].join(', '),
         }}>
           <div
@@ -649,11 +663,25 @@ export default function FloorBoard({
                 'linear-gradient(0deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
                 // Architectural cross-grid — vertical tile seams
                 'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
+                // Service density — amber center warmth, keyed to pressure. Transparent at rest.
+                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.014).toFixed(4)}) 0%, transparent 62%)`,
               ].join(', '),
-              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px',
+              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
+            {/* Ambient breathing — chandelier heartbeat at 14s. Amplitude on a ~1.5% opacity
+                layer is sub-perceptible but makes the room feel inhabited, not frozen. */}
+            <div
+              className="animate-ambient-breathe"
+              style={{
+                position: 'absolute', inset: 0,
+                background: 'radial-gradient(ellipse 72% 58% at 50% 36%, rgba(255,245,215,0.016) 0%, transparent 65%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+
             {/* Section floor zones — faint tinted bounding boxes for spatial identity */}
             {positioned && sectionFloorZones.map(z => (
               <div
@@ -739,7 +767,7 @@ export default function FloorBoard({
             })}
 
             {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge */}
-            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} underPressure={underPressure} />
+            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} />
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
@@ -785,7 +813,7 @@ export default function FloorBoard({
                   pickSelected={pickMode && pickSelection.includes(t.id)}
                   pickStatus={ps}
                   wlPickWarn={wlPickWarn === t.id}
-                  quietIdle={quietIdle}
+                  quietFade={quietFade}
                   hoveredResId={hoveredResId}
                 />
               );
@@ -1118,18 +1146,36 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
+function SpatialEnergyField({ tables, floorObjs = [], pressureScore }: {
   tables: FloorTable[];
   floorObjs?: FloorObjectData[];
-  underPressure: boolean;
+  pressureScore: number;
 }) {
-  const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
-  const overdue  = tables.filter(t => t.liveStatus === 'OCCUPIED' &&  (t.currentReservation?.isOverdue));
-  const incoming = tables.filter(t => t.liveStatus === 'RESERVED_SOON');
-  const bars     = floorObjs.filter(o => o.kind === 'BAR');
+  const occupied  = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
+  const overdue   = tables.filter(t => t.liveStatus === 'OCCUPIED' &&   t.currentReservation?.isOverdue);
+  const bars      = floorObjs.filter(o => o.kind === 'BAR');
 
-  // Section zone ambients — each section with ≥2 positioned tables emits a faint
-  // tinted radial at its centroid. Creates spatial zone identity without explicit labels.
+  // Arrival wave — split RESERVED_SOON into imminent (≤20 min) vs upcoming.
+  // Imminent tables create stronger anticipatory pull; upcoming are calm forward energy.
+  const allIncoming = tables.filter(t => t.liveStatus === 'RESERVED_SOON');
+  const imminent    = allIncoming.filter(t => {
+    const mu = (t.upcomingReservations[0] as { minutesUntil?: number } | undefined)?.minutesUntil;
+    return typeof mu === 'number' && mu > 0 && mu <= 20;
+  });
+  const upcoming    = allIncoming.filter(t => {
+    const mu = (t.upcomingReservations[0] as { minutesUntil?: number } | undefined)?.minutesUntil;
+    return typeof mu !== 'number' || mu > 20;
+  });
+
+  // Turnover readying — occupied tables approaching end of booking.
+  // A different color (warm gold) from overdue (red): this is momentum, not alarm.
+  const readying = tables.filter(t => {
+    if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation || t.currentReservation.isOverdue) return false;
+    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, Date.now());
+    return mr > 0 && mr <= 20;
+  });
+
+  // Section zone ambients — each section with ≥2 tables emits a faint tinted centroid radial.
   const sectionZones = (() => {
     const map = new Map<string, { color: string; sumX: number; sumY: number; count: number; minX: number; minY: number; maxX: number; maxY: number }>();
     for (const t of tables) {
@@ -1152,21 +1198,22 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
     return Array.from(map.values())
       .filter(z => z.count >= 2)
       .map((z, i) => ({
-        id: i,
-        color: z.color,
-        cx: z.sumX / z.count,
-        cy: z.sumY / z.count,
+        id: i, color: z.color,
+        cx: z.sumX / z.count, cy: z.sumY / z.count,
         r: Math.max(130, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.60),
       }));
   })();
 
-  if (occupied.length === 0 && overdue.length === 0 && incoming.length === 0
-    && bars.length === 0 && sectionZones.length === 0) return null;
+  if (occupied.length === 0 && overdue.length === 0 && allIncoming.length === 0
+    && readying.length === 0 && bars.length === 0 && sectionZones.length === 0) return null;
 
-  // Double-radial for occupied: wide ambient (r=180) + tight spotlight (r=68).
-  const occOuter    = underPressure ? 0.092 : 0.072;
-  const occInner    = underPressure ? 0.068 : 0.055;
-  const ovdStrength = underPressure ? 0.050 : 0.038;
+  // Pressure-continuous glow intensities — occupancy pulls the room forward, never shouts.
+  const occOuter    = 0.072 + pressureScore * 0.040; // 0.072 → 0.112
+  const occInner    = 0.055 + pressureScore * 0.028; // 0.055 → 0.083
+  const ovdStrength = 0.038 + pressureScore * 0.022; // 0.038 → 0.060
+  const readyGlow   = 0.028 + pressureScore * 0.016; // 0.028 → 0.044
+  const secOpacity  = 0.038 + pressureScore * 0.018; // 0.038 → 0.056
+  const immGlow     = 0.038 + pressureScore * 0.015; // 0.038 → 0.053
 
   return (
     <svg
@@ -1174,96 +1221,111 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
       style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 0 }}
     >
       <defs>
-        {/* Section zone ambients — rendered at base layer, faintest signal */}
         {sectionZones.map(z => (
           <radialGradient key={`sf-sec-${z.id}`} id={`sf-sec-${z.id}`} cx={z.cx} cy={z.cy} r={z.r} gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor={z.color} stopOpacity={0.038} />
-            <stop offset="55%"  stopColor={z.color} stopOpacity={0.010} />
-            <stop offset="100%" stopColor={z.color} stopOpacity={0}     />
+            <stop offset="0%"   stopColor={z.color} stopOpacity={secOpacity} />
+            <stop offset="55%"  stopColor={z.color} stopOpacity={secOpacity * 0.28} />
+            <stop offset="100%" stopColor={z.color} stopOpacity={0} />
           </radialGradient>
         ))}
-        {/* Occupied outer ambient */}
         {occupied.map(t => {
-          const cx = t.posX + t.width  / 2;
-          const cy = t.posY + t.height / 2;
+          const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
           return (
             <radialGradient key={`sf-ao-${t.id}`} id={`sf-ao-${t.id}`} cx={cx} cy={cy} r={180} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#86efac" stopOpacity={occOuter} />
-              <stop offset="100%" stopColor="#86efac" stopOpacity={0}        />
+              <stop offset="100%" stopColor="#86efac" stopOpacity={0} />
             </radialGradient>
           );
         })}
-        {/* Occupied inner spotlight */}
         {occupied.map(t => {
-          const cx = t.posX + t.width  / 2;
-          const cy = t.posY + t.height / 2;
+          const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
           return (
             <radialGradient key={`sf-ai-${t.id}`} id={`sf-ai-${t.id}`} cx={cx} cy={cy} r={68} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#86efac" stopOpacity={occInner} />
-              <stop offset="100%" stopColor="#86efac" stopOpacity={0}        />
+              <stop offset="100%" stopColor="#86efac" stopOpacity={0} />
             </radialGradient>
           );
         })}
         {overdue.map(t => {
-          const cx = t.posX + t.width  / 2;
-          const cy = t.posY + t.height / 2;
+          const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
           return (
             <radialGradient key={`sf-t-${t.id}`} id={`sf-t-${t.id}`} cx={cx} cy={cy} r={160} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#ef4444" stopOpacity={ovdStrength} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0}           />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
             </radialGradient>
           );
         })}
-        {incoming.map(t => {
-          const cx = t.posX + t.width  / 2;
-          const cy = t.posY + t.height / 2;
+        {/* Readying — tables ending soon: warm gold, transitional energy, not alarm */}
+        {readying.map(t => {
+          const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
           return (
-            <radialGradient key={`sf-i-${t.id}`} id={`sf-i-${t.id}`} cx={cx} cy={cy} r={130} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#fbbf24" stopOpacity={0.022} />
-              <stop offset="100%" stopColor="#fbbf24" stopOpacity={0}     />
+            <radialGradient key={`sf-r-${t.id}`} id={`sf-r-${t.id}`} cx={cx} cy={cy} r={100} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#fbbf24" stopOpacity={readyGlow} />
+              <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
             </radialGradient>
           );
         })}
-        {/* Bar warmth — larger field, two-stop for richer falloff; anchor of the room */}
+        {/* Imminent — RESERVED_SOON arriving ≤20 min: stronger pull, warmer color */}
+        {imminent.map(t => {
+          const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+          return (
+            <radialGradient key={`sf-im-${t.id}`} id={`sf-im-${t.id}`} cx={cx} cy={cy} r={150} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#fb923c" stopOpacity={immGlow} />
+              <stop offset="60%"  stopColor="#fbbf24" stopOpacity={immGlow * 0.35} />
+              <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+            </radialGradient>
+          );
+        })}
+        {/* Upcoming — RESERVED_SOON more than 20 min away: calm forward energy */}
+        {upcoming.map(t => {
+          const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+          return (
+            <radialGradient key={`sf-i-${t.id}`} id={`sf-i-${t.id}`} cx={cx} cy={cy} r={110} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#fbbf24" stopOpacity={0.018} />
+              <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+            </radialGradient>
+          );
+        })}
         {bars.map(o => {
-          const cx = o.posX + o.width  / 2;
-          const cy = o.posY + o.height / 2;
+          const cx = o.posX + o.width / 2; const cy = o.posY + o.height / 2;
           return (
             <radialGradient key={`sf-bar-${o.id}`} id={`sf-bar-${o.id}`} cx={cx} cy={cy} r={200} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#d97706" stopOpacity={0.085} />
               <stop offset="50%"  stopColor="#d97706" stopOpacity={0.022} />
-              <stop offset="100%" stopColor="#d97706" stopOpacity={0}     />
+              <stop offset="100%" stopColor="#d97706" stopOpacity={0} />
             </radialGradient>
           );
         })}
       </defs>
-      {/* Section zones — bottom layer */}
       {sectionZones.map(z => (
         <circle key={`sf-sec-${z.id}`} cx={z.cx} cy={z.cy} r={z.r} fill={`url(#sf-sec-${z.id})`} />
       ))}
       {occupied.map(t => {
-        const cx = t.posX + t.width  / 2;
-        const cy = t.posY + t.height / 2;
+        const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
         return <circle key={`sf-ao-${t.id}`} cx={cx} cy={cy} r={180} fill={`url(#sf-ao-${t.id})`} />;
       })}
       {occupied.map(t => {
-        const cx = t.posX + t.width  / 2;
-        const cy = t.posY + t.height / 2;
+        const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
         return <circle key={`sf-ai-${t.id}`} cx={cx} cy={cy} r={68}  fill={`url(#sf-ai-${t.id})`} />;
       })}
       {overdue.map(t => {
-        const cx = t.posX + t.width  / 2;
-        const cy = t.posY + t.height / 2;
-        return <circle key={`sf-t-${t.id}`}  cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`} />;
+        const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+        return <circle key={`sf-t-${t.id}`}  cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`}  />;
       })}
-      {incoming.map(t => {
-        const cx = t.posX + t.width  / 2;
-        const cy = t.posY + t.height / 2;
-        return <circle key={`sf-i-${t.id}`}  cx={cx} cy={cy} r={130} fill={`url(#sf-i-${t.id})`} />;
+      {readying.map(t => {
+        const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+        return <circle key={`sf-r-${t.id}`}  cx={cx} cy={cy} r={100} fill={`url(#sf-r-${t.id})`}  />;
+      })}
+      {imminent.map(t => {
+        const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+        return <circle key={`sf-im-${t.id}`} cx={cx} cy={cy} r={150} fill={`url(#sf-im-${t.id})`} />;
+      })}
+      {upcoming.map(t => {
+        const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
+        return <circle key={`sf-i-${t.id}`}  cx={cx} cy={cy} r={110} fill={`url(#sf-i-${t.id})`}  />;
       })}
       {bars.map(o => {
-        const cx = o.posX + o.width  / 2;
-        const cy = o.posY + o.height / 2;
+        const cx = o.posX + o.width / 2; const cy = o.posY + o.height / 2;
         return <circle key={`sf-bar-${o.id}`} cx={cx} cy={cy} r={200} fill={`url(#sf-bar-${o.id})`} />;
       })}
     </svg>
@@ -1272,7 +1334,7 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, quietIdle = false, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -1294,7 +1356,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickStatus?: PickStatus;
   waitlistAssignTarget?: boolean;
   wlPickWarn?: boolean;
-  quietIdle?: boolean;
+  quietFade?: number;
   date?: string;
   hoveredResId?: string | null;
 }) {
@@ -1362,11 +1424,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     opacity = Math.min(opacity, 0.60);
   }
 
-  // Peripheral quieting: when the room is under pressure, idle available tables gently
-  // recede so active zones emerge without any explicit signal or alert. 0.78 is enough
-  // to read "quiet" without feeling broken or dimmed.
-  if (quietIdle && table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && !selected) {
-    opacity = Math.min(opacity, 0.78);
+  // Peripheral quieting — continuous, pressure-proportional recession of idle tables.
+  // At quietFade=0.10 → opacity ≤ 0.87 (barely visible). At 0.40 → ≤ 0.78 (matches prior binary).
+  // Active zones emerge without any explicit signal — the room does the talking.
+  if (quietFade > 0 && table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && !selected) {
+    opacity = Math.min(opacity, 0.90 - quietFade * 0.30);
   }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
