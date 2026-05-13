@@ -3169,12 +3169,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
           fontSize: hasGuest ? 10 : 12,
-          fontWeight: 600,
+          fontWeight: hasGuest ? 600 : 700,
           color: hasGuest ? 'rgb(var(--iron-muted))' : table.liveStatus === 'BLOCKED' ? 'rgb(var(--iron-muted))' : 'rgb(var(--iron-text))',
-          opacity: hasGuest ? 0.65 : table.liveStatus === 'BLOCKED' ? 0.85 : 1,
+          opacity: hasGuest ? 0.55 : table.liveStatus === 'BLOCKED' ? 0.85 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           letterSpacing: hasGuest ? '0.02em' : undefined,
-          textShadow: !hasGuest && table.liveStatus !== 'BLOCKED' ? '0 1px 2px rgba(0,0,0,0.40)' : undefined,
+          textShadow: hasGuest ? '0 1px 2px rgba(0,0,0,0.36)' : table.liveStatus !== 'BLOCKED' ? '0 1px 3px rgba(0,0,0,0.52)' : undefined,
         }}>
           {table.name}
         </span>
@@ -3193,7 +3193,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', opacity: 0.65, lineHeight: 1.3, marginTop: 1 }}>
+        <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', opacity: 0.52, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em' }}>
           {table.minCovers}–{table.maxCovers}
         </span>
       )}
@@ -3216,7 +3216,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 2px rgba(0,0,0,0.60)' }}>
+              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 3px rgba(0,0,0,0.72)', letterSpacing: '0.01em' }}>
                 {currentRes.guestName}
               </p>
               {isCombined && (
@@ -3227,7 +3227,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.50 }}>
+                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.58 }}>
                   {currentRes.partySize}
                 </span>
                 {isToday && (() => {
@@ -3240,7 +3240,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     : mr <= 20 ? '#fbbf24'
                     : 'rgb(var(--iron-muted))';
                   const timerWeight = isOverdue || mr <= 5 ? 700 : mr <= 20 ? 600 : 400;
-                  const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.75;
+                  const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.82;
                   return (
                     <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight, opacity: timerOpacity }}>
                       · {timerStr}
@@ -3273,7 +3273,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: guestColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 2px rgba(0,0,0,0.60)' }}>
+              <p style={{ fontSize: 12, color: guestColor, fontWeight: table.liveStatus === 'RESERVED_SOON' ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 3px rgba(0,0,0,0.72)', letterSpacing: '0.01em' }}>
                 {displayRes.guestName}
               </p>
               {isCombined && (
@@ -3284,7 +3284,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && nextRes && (
               <p style={{ marginTop: 1, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.60 }}>
+                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.66 }}>
                   {nextRes.partySize} · {nextRes.time}
                 </span>
                 {isToday && table.liveStatus === 'RESERVED_SOON' && nextRes.minutesUntil > 0 && (
