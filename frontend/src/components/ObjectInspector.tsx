@@ -15,6 +15,15 @@ const ATTACHMENT_LABEL: Record<string, string> = {
   LEFT: 'Left', RIGHT: 'Right', TOP: 'Top', BOTTOM: 'Bottom', CENTER: 'Center',
 };
 
+// TODO: remove once FloorObjectData gains an explicit `variant` field.
+// Must stay in sync with the CURVED_BOOTH_SEGMENT case in FloorBoard inferObjVariant.
+function inferBoothVariantLabel(label: string): string {
+  const lbl = label.toLowerCase();
+  if (lbl.includes('left'))  return 'Arc Left';
+  if (lbl.includes('right')) return 'Arc Right';
+  return 'Curved';
+}
+
 function ModRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -83,6 +92,16 @@ export default function ObjectInspector({ obj }: Props) {
         <CapFlag active={canDeleteObject(obj.kind)} label="Removable" />
         <CapFlag active={canRenameObject(obj.kind)} label="Renameable" />
       </div>
+
+      {/* Variant hint — CURVED_BOOTH_SEGMENT only, read-only, label-inferred */}
+      {obj.kind === 'CURVED_BOOTH_SEGMENT' && (
+        <div className="pt-1.5 border-t border-iron-border/25 space-y-0.5">
+          <ModRow label="Variant" value={inferBoothVariantLabel(obj.label)} />
+          <p className="text-[8px] text-iron-muted/30 leading-tight">
+            Inferred from label · temporary
+          </p>
+        </div>
+      )}
 
       {/* Modular geometry — only for objects that declare attachment points */}
       {supportsModularAttachment(obj.kind) && (() => {

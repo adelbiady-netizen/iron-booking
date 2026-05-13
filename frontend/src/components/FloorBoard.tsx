@@ -56,6 +56,12 @@ function inferObjVariant(o: FloorObjectData): string {
       if (ratio > 5.0)  return 'STRAIGHT';
       if (ratio < 1.4)  return 'ISLAND';
       return 'COUNTER';
+    case 'CURVED_BOOTH_SEGMENT': {
+      const lbl = o.label.toLowerCase();
+      if (lbl.includes('left'))  return 'ARC_LEFT';
+      if (lbl.includes('right')) return 'ARC_RIGHT';
+      return 'CURVED';
+    }
     default:
       return 'DEFAULT';
   }
@@ -1686,13 +1692,61 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
         const x = o.posX, y = o.posY, w = o.width, h = o.height;
         const cx = x + w / 2;
         const cy = y + h / 2;
-        const rx      = Math.min(w, h) * 0.20;
-        const backH   = Math.round(h * 0.36);
-        const seatH   = h - backH;
-        const seamY   = y + backH;
-        const seamDip = h * 0.06;
+        const variant = inferObjVariant(o);
+
+        // Geometry: generous back-corner radius; flat front corners for clean edge continuity
+        const rxB  = Math.min(w, h) * 0.18;
+        const rxF  = Math.min(w, h) * 0.06;
+        const fDip = h * 0.055;  // front face bows forward — signals open seating face
+        const backH = Math.round(h * 0.36);
+        const seatH = h - backH;
+        const seamY = y + backH;
+
+        // Variant-aware seam control point: ARC_LEFT/ARC_RIGHT shift the peak laterally
+        const sCtrlX = variant === 'ARC_LEFT'  ? cx - w * 0.14
+                     : variant === 'ARC_RIGHT' ? cx + w * 0.14
+                     : cx;
+        const sCtrlY = seamY + h * (variant === 'CURVED' ? 0.078 : 0.062);
+
+        // Front-face arc control: matches seam direction for arc-family variants
+        const fCtrlX = variant === 'ARC_LEFT'  ? cx - w * 0.10
+                     : variant === 'ARC_RIGHT' ? cx + w * 0.10
+                     : cx;
+
         const tuftCount   = Math.max(2, Math.round(w / 36));
         const tuftSpacing = (w - 24) / (tuftCount + 1);
+        // Tufting Y-cascade: creates a flowing row for directional arc variants
+        const tuftYStep   = variant === 'ARC_LEFT'  ? -1.2
+                          : variant === 'ARC_RIGHT' ?  1.2
+                          : 0;
+
+        // Outer silhouette: straight back, rounded back corners,
+        // flat front corners, convex forward-bowing open face
+        const bodyPath = [
+          `M ${x + rxB} ${y}`,
+          `L ${x + w - rxB} ${y}`,
+          `Q ${x + w} ${y} ${x + w} ${y + rxB}`,
+          `L ${x + w} ${y + h - rxF}`,
+          `Q ${x + w} ${y + h} ${x + w - rxF} ${y + h}`,
+          `Q ${fCtrlX} ${y + h + fDip} ${x + rxF} ${y + h}`,
+          `Q ${x} ${y + h} ${x} ${y + h - rxF}`,
+          `L ${x} ${y + rxB}`,
+          `Q ${x} ${y} ${x + rxB} ${y}`,
+          'Z',
+        ].join(' ');
+
+        // Back panel: shares top contour, straight cut at seamY
+        const backPath = [
+          `M ${x + rxB} ${y}`,
+          `L ${x + w - rxB} ${y}`,
+          `Q ${x + w} ${y} ${x + w} ${y + rxB}`,
+          `L ${x + w} ${y + backH}`,
+          `L ${x} ${y + backH}`,
+          `L ${x} ${y + rxB}`,
+          `Q ${x} ${y} ${x + rxB} ${y}`,
+          'Z',
+        ].join(' ');
+
         const shadowOp  = (0.18 + timeWarmth * 0.04).toFixed(3);
         const backOp    = (0.85 + timeWarmth * 0.08).toFixed(3);
         const bodyOp    = (0.72 + timeWarmth * 0.10).toFixed(3);
@@ -1700,41 +1754,38 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
         const seamOp    = (0.38 + timeWarmth * 0.08).toFixed(3);
         const tuftOp    = (0.28 + timeWarmth * 0.06).toFixed(3);
         const shineOp   = (0.055 + timeWarmth * 0.018).toFixed(3);
+
         return (
           <g key={`arch-cbs-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
             {/* Drop shadow */}
-            <rect x={x + 2} y={y + 2} width={w} height={h} rx={rx}
-              fill={`rgba(3,2,1,${shadowOp})`} />
+            <path d={bodyPath} fill={`rgba(3,2,1,${shadowOp})`} transform="translate(2,2)" />
             {/* Seat surface — full booth body */}
-            <rect x={x} y={y} width={w} height={h} rx={rx}
-              fill={`rgba(104,70,40,${bodyOp})`} />
-            {/* Cushion band — lighter seat highlight */}
-            <rect x={x + 4} y={y + backH} width={w - 8} height={seatH - 4} rx={rx * 0.5}
+            <path d={bodyPath} fill={`rgba(104,70,40,${bodyOp})`} />
+            {/* Cushion band */}
+            <rect x={x + 4} y={y + backH} width={w - 8} height={seatH - 4} rx={rxF * 2}
               fill={`rgba(138,96,58,${cushionOp})`} />
-            {/* Back panel — dark walnut/leather */}
-            <rect x={x} y={y} width={w} height={backH + rx}
-              rx={rx}
-              fill={`rgba(68,44,24,${backOp})`} />
-            {/* Curved seam — gentle forward-curving arc between back and seat */}
+            {/* Back panel */}
+            <path d={backPath} fill={`rgba(68,44,24,${backOp})`} />
+            {/* Variant-aware curved seam */}
             <path
-              d={`M ${x + 8} ${seamY} Q ${cx} ${seamY + seamDip} ${x + w - 8} ${seamY}`}
+              d={`M ${x + 8} ${seamY} Q ${sCtrlX} ${sCtrlY} ${x + w - 8} ${seamY}`}
               fill="none"
               stroke={`rgba(44,28,14,${seamOp})`}
               strokeWidth={0.85}
             />
-            {/* Tufting dots — premium upholstery detail */}
+            {/* Tufting with directional cascade */}
             {Array.from({ length: tuftCount }, (_, i) => (
               <ellipse key={i}
                 cx={x + 12 + tuftSpacing * (i + 1)}
-                cy={y + backH + seatH * 0.44}
+                cy={y + backH + seatH * 0.44 + tuftYStep * (i - (tuftCount - 1) / 2)}
                 rx={1.5} ry={1.2}
                 fill={`rgba(50,32,16,${tuftOp})`}
               />
             ))}
-            {/* Subtle top-edge highlight */}
+            {/* Top-edge highlight */}
             <line
-              x1={x + rx} y1={y + 1}
-              x2={x + w - rx} y2={y + 1}
+              x1={x + rxB} y1={y + 1}
+              x2={x + w - rxB} y2={y + 1}
               stroke={`rgba(215,175,128,${shineOp})`}
               strokeWidth={0.6}
             />
