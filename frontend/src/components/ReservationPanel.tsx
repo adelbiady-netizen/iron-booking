@@ -199,7 +199,7 @@ export default function ReservationPanel({
                   className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors ${
                     filter === f.value
                       ? 'text-iron-text font-medium'
-                      : 'text-iron-muted/45 font-medium hover:text-iron-muted/70'
+                      : 'text-iron-muted/55 font-medium hover:text-iron-muted/80'
                   }`}
                 >
                   {f.label}

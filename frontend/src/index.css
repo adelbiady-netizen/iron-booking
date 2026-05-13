@@ -202,23 +202,11 @@ input[type="time"] {
 /* ── Phase 17: Living hospitality intelligence ────────────────────────────── */
 
 /* Ambient breathing — chandelier bloom breathes at human scale. 14s means
-   no two tables ever sync. Amplitude on a 1.6% opacity layer ≈ 0.5% room
-   brightness delta — subconscious only. */
+   no two tables ever sync. Low point 0.72 keeps amplitude subconscious. */
 @keyframes ambient-breathe {
-  0%, 100% { opacity: 0.65; }
+  0%, 100% { opacity: 0.72; }
   50%      { opacity: 1;    }
 }
 .animate-ambient-breathe {
   animation: ambient-breathe 14s ease-in-out infinite;
-}
-
-/* Service density pulse — only surfaces when pressureScore > 0.
-   10s cycle on a near-transparent warm center — the room "leans forward"
-   as occupancy rises, without any explicit signal. */
-@keyframes service-pulse {
-  0%, 100% { opacity: 0.50; }
-  50%      { opacity: 1;    }
-}
-.animate-service-pulse {
-  animation: service-pulse 10s ease-in-out infinite;
 }

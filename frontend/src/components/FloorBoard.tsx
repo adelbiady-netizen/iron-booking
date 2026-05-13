@@ -27,7 +27,7 @@ const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> =
 
 const STATUS_BG: Record<string, string> = {
   AVAILABLE:     'rgba(38,30,20,0.97)',        // warm dark brown — distinct from floor, not floating
-  OCCUPIED:      'rgba(22,163,74,0.34)',        // warmer, grounded
+  OCCUPIED:      'rgba(22,163,74,0.28)',        // fill recedes — glow system carries the energy
   RESERVED_SOON: 'rgba(217,119,6,0.32)',         // warming — imminence energy
   RESERVED:      'rgba(37,99,235,0.16)',          // calm, committed
   BLOCKED:       'rgba(82,82,91,0.11)',            // intentionally withdrawn
@@ -633,8 +633,8 @@ export default function FloorBoard({
           // Cinematic vignette — pressure-modulated: outer darkness tightens as occupancy rises.
           // The room "closes in" slightly under dense service — subconscious spatial focus.
           boxShadow: [
-            `inset 0 0 ${Math.round(280 + pressureScore * 30)}px rgba(0,0,0,${(0.85 + pressureScore * 0.06).toFixed(3)})`,
-            `inset 0 0 ${Math.round(120 + pressureScore * 15)}px rgba(0,0,0,${(0.55 + pressureScore * 0.05).toFixed(3)})`,
+            `inset 0 0 ${Math.round(280 + pressureScore * 18)}px rgba(0,0,0,${(0.85 + pressureScore * 0.035).toFixed(3)})`,
+            `inset 0 0 ${Math.round(120 + pressureScore * 10)}px rgba(0,0,0,${(0.55 + pressureScore * 0.030).toFixed(3)})`,
             'inset 0 80px 100px -30px rgba(0,0,0,0.48)',
             'inset 0 -30px 80px rgba(0,0,0,0.30)',
             'inset 55px 0 80px rgba(0,0,0,0.22)',
@@ -664,7 +664,7 @@ export default function FloorBoard({
                 // Architectural cross-grid — vertical tile seams
                 'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
                 // Service density — amber center warmth, keyed to pressure. Transparent at rest.
-                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.014).toFixed(4)}) 0%, transparent 62%)`,
+                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.009).toFixed(4)}) 0%, transparent 62%)`,
               ].join(', '),
               backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto',
               userSelect: pickMode ? 'none' : undefined,
@@ -1208,12 +1208,12 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore }: {
     && readying.length === 0 && bars.length === 0 && sectionZones.length === 0) return null;
 
   // Pressure-continuous glow intensities — occupancy pulls the room forward, never shouts.
-  const occOuter    = 0.072 + pressureScore * 0.040; // 0.072 → 0.112
-  const occInner    = 0.055 + pressureScore * 0.028; // 0.055 → 0.083
-  const ovdStrength = 0.038 + pressureScore * 0.022; // 0.038 → 0.060
-  const readyGlow   = 0.028 + pressureScore * 0.016; // 0.028 → 0.044
-  const secOpacity  = 0.038 + pressureScore * 0.018; // 0.038 → 0.056
-  const immGlow     = 0.038 + pressureScore * 0.015; // 0.038 → 0.053
+  const occOuter    = 0.072 + pressureScore * 0.022; // 0.072 → 0.094
+  const occInner    = 0.055 + pressureScore * 0.014; // 0.055 → 0.069
+  const ovdStrength = 0.038 + pressureScore * 0.022; // 0.038 → 0.060 (overdue most prominent)
+  const readyGlow   = 0.026 + pressureScore * 0.012; // 0.026 → 0.038
+  const secOpacity  = 0.034 + pressureScore * 0.010; // 0.034 → 0.044
+  const immGlow     = 0.034 + pressureScore * 0.012; // 0.034 → 0.046
 
   return (
     <svg
@@ -1593,7 +1593,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 90% 90% at 35% 35%, rgba(134,239,172,0.18) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 90% 90% at 35% 35%, rgba(134,239,172,0.14) 0%, transparent 70%)',
           animation: `table-alive 7s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
         }} />
@@ -1603,8 +1603,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
           background: 'radial-gradient(ellipse 80% 80% at 50% 88%, rgba(251,191,36,0.22) 0%, transparent 70%)',
-          animation: `table-ending 4.5s ease-in-out infinite`,
-          animationDelay: `-${(_animSeed % 4.5).toFixed(2)}s`,
+          animation: `table-ending 6.5s ease-in-out infinite`,
+          animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
         }} />
       )}
       {/* Incoming — RESERVED_SOON tables glow from the top edge in anticipation */}
@@ -1621,8 +1621,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
           boxShadow: 'inset 0 0 20px rgba(239,68,68,0.32)',
-          animation: `table-tense 3.5s ease-in-out infinite`,
-          animationDelay: `-${(_animSeed % 3.5).toFixed(2)}s`,
+          animation: `table-tense 5.5s ease-in-out infinite`,
+          animationDelay: `-${(_animSeed % 5.5).toFixed(2)}s`,
         }} />
       )}
 
