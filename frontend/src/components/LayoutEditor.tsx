@@ -4,7 +4,7 @@ import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName, formatFloorObjLabel } from '../utils/displayHelpers';
-import { getObjectDefinition, canResizeObject, canSelectObject, canRotateObject, canRenameObject, canDeleteObject, getSafePlacementForObject, clampObjectSizeToDefinition } from '../mapEngine';
+import { getObjectDefinition, canResizeObject, canSelectObject, canRotateObject, canRenameObject, canDeleteObject, getSafePlacementForObject, clampObjectSizeToDefinition, resolveObjectVariant } from '../mapEngine';
 import ObjectInspector from './ObjectInspector';
 import ObjectPalette from './ObjectPalette';
 
@@ -81,6 +81,7 @@ const OBJ_META: Record<FloorObjKind, { label: string; w: number; h: number; colo
   Object.fromEntries(ALL_OBJ_KINDS.map(k => [k, buildObjMeta(k)])) as Record<FloorObjKind, { label: string; w: number; h: number; color: string }>;
 
 const SNAP_CYCLE: Array<0 | 10 | 20 | 40> = [0, 10, 20, 40];
+const COMPOSITION_HINT_THRESHOLD = 100; // px, edge-to-edge
 
 // Distinct palette — auto-assigned to new sections in order
 const SECTION_COLORS = [
@@ -94,12 +95,33 @@ function nextSectionColor(usedColors: string[]): string {
   return free ?? SECTION_COLORS[usedColors.length % SECTION_COLORS.length];
 }
 
+function boothEdgeDist(a: FloorObjectData, b: FloorObjectData): number {
+  const dx = Math.max(0, Math.max(a.posX, b.posX) - Math.min(a.posX + a.width,  b.posX + b.width));
+  const dy = Math.max(0, Math.max(a.posY, b.posY) - Math.min(a.posY + a.height, b.posY + b.height));
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function isRotationCompatible(a: number, b: number): boolean {
+  const diff = Math.abs((a - b + 360) % 360);
+  return diff <= 35 || diff >= 325;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function tableRadius(shape: ShapeType): string {
   if (shape === 'ROUND' || shape === 'OVAL') return '9999px';
-  if (shape === 'BOOTH') return '0 0 10px 10px';
-  return '8px';
+  if (shape === 'BOOTH') return '4px 4px 18px 18px';  // slight back-wall refinement + pronounced seat curve
+  return '10px';
+}
+
+// Warm walnut surface catch — editor tables are at rest (no live status), so light
+// response varies by geometry only: radial for round, top-lit for booth, diagonal for rectangular.
+function tableGradient(shape: ShapeType): string {
+  if (shape === 'ROUND' || shape === 'OVAL')
+    return 'radial-gradient(ellipse 58% 52% at 42% 35%, rgba(255,200,130,0.062) 0%, transparent 68%)';
+  if (shape === 'BOOTH')
+    return 'linear-gradient(180deg, rgba(255,255,255,0.062) 0%, rgba(255,255,255,0.006) 100%), linear-gradient(0deg, rgba(0,0,0,0.16) 0%, transparent 26%)';
+  return 'linear-gradient(148deg, rgba(255,200,130,0.058) 0%, transparent 52%)';
 }
 
 let clientSeq = 0;
@@ -198,12 +220,16 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   // last computed marquee rect in canvas coords — read by onUp for intersection
   const marqueeCoords = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
 
-  const snapRef       = useRef(snapGrid);
-  snapRef.current     = snapGrid;
-  const occupiedRef   = useRef(occupiedIds);
-  occupiedRef.current = occupiedIds;
-  const tablesRef     = useRef(tables);
-  tablesRef.current   = tables;
+  const snapRef        = useRef(snapGrid);
+  snapRef.current      = snapGrid;
+  const occupiedRef    = useRef(occupiedIds);
+  occupiedRef.current  = occupiedIds;
+  const tablesRef      = useRef(tables);
+  tablesRef.current    = tables;
+  const floorObjsRef   = useRef(floorObjs);
+  floorObjsRef.current = floorObjs;
+  // ghost preview element — positioned directly during booth drag, avoids per-frame React renders
+  const ghostRef       = useRef<HTMLDivElement>(null);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -289,6 +315,35 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
           const ny = snapped(Math.max(0, Math.min(CANVAS_H - o.height, d.startPY + e.clientY - d.startMY)));
           return { ...o, posX: nx, posY: ny };
         }));
+        // Ghost continuation preview — direct DOM update, no React re-render per frame
+        const ghost = ghostRef.current;
+        if (ghost) {
+          const dragged = floorObjsRef.current.find(o => o.id === d.id);
+          if (dragged?.kind === 'CURVED_BOOTH_SEGMENT') {
+            const curX = snapped(Math.max(0, Math.min(CANVAS_W - dragged.width,  d.startPX + e.clientX - d.startMX)));
+            const curY = snapped(Math.max(0, Math.min(CANVAS_H - dragged.height, d.startPY + e.clientY - d.startMY)));
+            const tempPos = { ...dragged, posX: curX, posY: curY };
+            const hasNeighbor = floorObjsRef.current.some(o =>
+              o.kind === 'CURVED_BOOTH_SEGMENT' && o.id !== d.id && boothEdgeDist(tempPos, o) < COMPOSITION_HINT_THRESHOLD
+            );
+            if (hasNeighbor) {
+              const v = resolveObjectVariant(dragged);
+              const baseDx = v === 'ARC_LEFT' ? -dragged.width : dragged.width;
+              const rad = (dragged.rotation * Math.PI) / 180;
+              const cos = Math.cos(rad);
+              const sin = Math.sin(rad);
+              ghost.style.display = 'block';
+              ghost.style.left    = `${Math.max(0, Math.min(curX + Math.round(baseDx * cos), CANVAS_W - dragged.width))}px`;
+              ghost.style.top     = `${Math.max(0, Math.min(curY + Math.round(baseDx * sin), CANVAS_H - dragged.height))}px`;
+              ghost.style.width   = `${dragged.width}px`;
+              ghost.style.height  = `${dragged.height}px`;
+            } else {
+              ghost.style.display = 'none';
+            }
+          } else {
+            ghost.style.display = 'none';
+          }
+        }
       } else if (d.kind === 'marquee') {
         const { cx, cy } = canvasCoords(e);
         const x = Math.min(d.startCX, cx);
@@ -312,8 +367,9 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       const d = dragRef.current;
       dragRef.current = null;
 
-      // Hide marquee overlay
+      // Hide marquee overlay and ghost preview
       if (marqueeElRef.current) marqueeElRef.current.style.display = 'none';
+      if (ghostRef.current)     ghostRef.current.style.display = 'none';
 
       if (d?.kind === 'tables') {
         const movedOccupied = Object.keys(d.origins).filter(id => occupiedRef.current.has(id));
@@ -434,6 +490,19 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   const singleSel = selTables.length === 1 ? selTables[0] : null;
   const selObj    = floorObjs.find(o => o.id === selectedObjId) ?? null;
   const selDef    = selObj ? getObjectDefinition(selObj.kind) : null;
+
+  const nearbyBooths = selObj?.kind === 'CURVED_BOOTH_SEGMENT'
+    ? floorObjs.filter(o =>
+        o.kind === 'CURVED_BOOTH_SEGMENT' &&
+        o.id !== selObj.id &&
+        boothEdgeDist(selObj, o) < COMPOSITION_HINT_THRESHOLD
+      )
+    : [];
+
+  const chainMembers = selObj?.kind === 'CURVED_BOOTH_SEGMENT'
+    ? nearbyBooths.filter(o => isRotationCompatible(selObj.rotation, o.rotation))
+    : [];
+  const chainCount = chainMembers.length;
 
   // ── Table mutations ───────────────────────────────────────────────────────
 
@@ -596,6 +665,40 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
 
   function patchFloorObj(id: string, patch: Partial<FloorObjectData>) {
     setFloorObjs(prev => prev.map(o => o.id === id ? { ...o, ...patch } : o));
+  }
+
+  function duplicateBoothSeg() {
+    if (!selObj || selObj.kind !== 'CURVED_BOOTH_SEGMENT') return;
+    // Direction of the offset vector in booth-local space, then rotated into canvas space.
+    // ARC_LEFT opens leftward; ARC_RIGHT opens rightward; CURVED keeps the original diagonal.
+    const variant = resolveObjectVariant(selObj);
+    let baseDx: number;
+    let baseDy: number;
+    switch (variant) {
+      case 'ARC_LEFT':  baseDx = -40; baseDy =   0; break;
+      case 'ARC_RIGHT': baseDx =  40; baseDy =   0; break;
+      default:          baseDx =  24; baseDy =  24; break;
+    }
+    const rad = (selObj.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const posX = Math.max(0, Math.min(selObj.posX + Math.round(baseDx * cos - baseDy * sin), CANVAS_W - selObj.width));
+    const posY = Math.max(0, Math.min(selObj.posY + Math.round(baseDx * sin + baseDy * cos), CANVAS_H - selObj.height));
+    const dup: FloorObjectData = {
+      id: newId(),
+      kind: selObj.kind,
+      label: selObj.label,
+      posX,
+      posY,
+      width: selObj.width,
+      height: selObj.height,
+      rotation: selObj.rotation,
+      color: selObj.color,
+      variant: selObj.variant,
+    };
+    setFloorObjs(prev => [...prev, dup]);
+    setSelectedObjId(dup.id);
+    setSelectedIds(new Set());
   }
 
   function removeFloorObj(id: string) {
@@ -886,6 +989,60 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               dragRef.current = { kind: 'marquee', startCX, startCY, additive: e.shiftKey };
             }}
           >
+            {/* Booth composition guidance — faint warm halo on compatible neighbors */}
+            {nearbyBooths.map(nb => (
+              <div
+                key={`bh-${nb.id}`}
+                style={{
+                  position: 'absolute',
+                  left: nb.posX - 5,
+                  top: nb.posY - 5,
+                  width: nb.width + 10,
+                  height: nb.height + 10,
+                  borderRadius: 7,
+                  border: '1.5px solid rgba(180, 130, 60, 0.22)',
+                  boxShadow: '0 0 0 5px rgba(180, 130, 60, 0.05), 0 0 20px rgba(180, 130, 60, 0.07)',
+                  backgroundColor: 'rgba(180, 130, 60, 0.03)',
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
+
+            {/* Chain awareness — ambient ring on selected booth + rotation-compatible neighbors */}
+            {selObj?.kind === 'CURVED_BOOTH_SEGMENT' && chainCount > 0 && (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: selObj.posX - 8,
+                    top: selObj.posY - 8,
+                    width: selObj.width + 16,
+                    height: selObj.height + 16,
+                    borderRadius: 9,
+                    border: '1px solid rgba(180, 130, 60, 0.30)',
+                    boxShadow: '0 0 0 6px rgba(180, 130, 60, 0.05), 0 0 24px rgba(180, 130, 60, 0.08)',
+                    pointerEvents: 'none',
+                  }}
+                />
+                {chainMembers.map(cm => (
+                  <div
+                    key={`chain-${cm.id}`}
+                    style={{
+                      position: 'absolute',
+                      left: cm.posX - 8,
+                      top: cm.posY - 8,
+                      width: cm.width + 16,
+                      height: cm.height + 16,
+                      borderRadius: 9,
+                      border: '1px solid rgba(180, 130, 60, 0.30)',
+                      boxShadow: '0 0 0 6px rgba(180, 130, 60, 0.05), 0 0 24px rgba(180, 130, 60, 0.08)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                ))}
+              </>
+            )}
+
             {/* Floor objects — rendered beneath tables */}
             {floorObjs.map(o => {
               const meta   = OBJ_META[o.kind];
@@ -927,11 +1084,12 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               const isHovered   = hoveredSectionId !== null && t.sectionId === hoveredSectionId;
               const isDimmed    = hoveredSectionId !== null && t.sectionId !== hoveredSectionId;
               const borderColor = isSel ? '#4ade80' : t.isActive ? secColor : '#f59e0b';
+              const depthShadow = '0 3px 10px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.24), inset 1px 0 0 rgba(255,200,130,0.04), inset -1px 0 0 rgba(0,0,0,0.11)';
               const glowShadow  = isSel
-                ? '0 0 0 3px rgba(74,222,128,0.25)'
+                ? `0 0 0 3px rgba(74,222,128,0.25), ${depthShadow}`
                 : isHovered
-                ? `0 0 0 3px ${secColor}55, 0 0 10px ${secColor}33`
-                : undefined;
+                ? `0 0 0 3px ${secColor}55, 0 0 10px ${secColor}33, ${depthShadow}`
+                : t.isActive ? depthShadow : undefined;
 
               return (
                 <div
@@ -941,8 +1099,9 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     left: t.posX, top: t.posY,
                     width: t.width, height: t.height,
                     borderRadius: tableRadius(t.shape),
-                    border: `2px solid ${borderColor}`,
+                    border: `${isSel ? 2 : 1.5}px solid ${borderColor}`,
                     backgroundColor: t.isActive ? 'rgb(var(--iron-card))' : 'rgba(245,158,11,0.07)',
+                    backgroundImage: t.isActive ? tableGradient(t.shape) : 'none',
                     opacity: isDimmed ? 0.25 : 1,
                     boxShadow: glowShadow,
                     cursor: 'grab',
@@ -984,9 +1143,9 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                   {occupiedIds.has(t.id) && (
                     <span className="absolute bottom-1 left-1 w-1.5 h-1.5 rounded-full bg-amber-400" title={T.layoutEditor.occupiedTitle} />
                   )}
-                  <span className="text-iron-text text-[11px] font-semibold leading-none px-1 truncate max-w-full">{t.name}</span>
+                  <span className="text-iron-text text-[11px] font-semibold leading-none px-1 truncate max-w-full" style={{ textShadow: t.isActive ? '0 1px 2px rgba(0,0,0,0.40)' : undefined }}>{t.name}</span>
                   <span className="text-iron-muted text-[9px] mt-0.5">{t.minCovers}–{t.maxCovers}</span>
-                  <span className="text-iron-muted/40 text-[8px]">{t.width}×{t.height}</span>
+                  <span className="text-iron-muted/25 text-[8px]">{t.width}×{t.height}</span>
                 </div>
               );
             })}
@@ -1000,6 +1159,19 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                 border: '1.5px dashed rgba(74,222,128,0.55)',
                 backgroundColor: 'rgba(74,222,128,0.06)',
                 borderRadius: 3,
+                pointerEvents: 'none',
+              }}
+            />
+            {/* Booth ghost continuation preview — always in DOM, shown only during booth drag near neighbors */}
+            <div
+              ref={ghostRef}
+              style={{
+                display: 'none',
+                position: 'absolute',
+                borderRadius: 4,
+                border: '1.5px dashed rgba(180, 130, 60, 0.28)',
+                backgroundColor: 'rgba(180, 130, 60, 0.06)',
+                boxShadow: '0 0 14px rgba(180, 130, 60, 0.07)',
                 pointerEvents: 'none',
               }}
             />
@@ -1231,7 +1403,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       {/* Floor object selected */}
       {selObj && selTables.length === 0 && (
         <div className="shrink-0 border-t border-iron-border bg-iron-card">
-          <ObjectInspector obj={selObj} onPatch={patch => patchFloorObj(selObj.id, patch)} />
+          <ObjectInspector obj={selObj} onPatch={patch => patchFloorObj(selObj.id, patch)} chainCount={chainCount} />
           <div className="flex items-center gap-4 px-4 py-2 flex-wrap">
             <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest shrink-0">
               {OBJ_META[selObj.kind].label}
@@ -1289,6 +1461,15 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                   />
                 </Field>
               </>
+            )}
+            {selObj.kind === 'CURVED_BOOTH_SEGMENT' && (
+              <button
+                onClick={duplicateBoothSeg}
+                title="Duplicate booth segment"
+                className="text-xs px-2.5 py-1 rounded border border-iron-border/50 text-iron-muted hover:text-iron-green-light hover:border-iron-green/40 transition-colors shrink-0"
+              >
+                Duplicate
+              </button>
             )}
             {canDeleteObject(selObj.kind) && (
               <button onClick={() => removeFloorObj(selObj.id)} className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors shrink-0">

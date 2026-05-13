@@ -369,8 +369,8 @@ function tableRadius(shape: string): string {
 }
 
 // Surface gradient per table shape — each material type and status implies a different light response.
-// OCCUPIED_WARM: candle warmth across the tablecloth — at 6.5% it reads as inhabited, not tinted.
-const OCCUPIED_WARM = 'radial-gradient(ellipse 90% 85% at 50% 50%, rgba(255,200,80,0.065) 0%, transparent 100%)';
+// OCCUPIED_WARM: candle warmth across the tablecloth — at 7.5% it reads as inhabited, not tinted.
+const OCCUPIED_WARM = 'radial-gradient(ellipse 90% 85% at 50% 50%, rgba(255,200,80,0.075) 0%, transparent 100%)';
 
 function tableGradient(shape: string, status: string, cls: string): string | undefined {
   if (status === 'BLOCKED') return undefined;
@@ -390,10 +390,10 @@ function tableGradient(shape: string, status: string, cls: string): string | und
       return 'radial-gradient(ellipse 58% 52% at 40% 36%, rgba(255,255,255,0.038) 0%, transparent 68%), radial-gradient(ellipse 60% 50% at 50% 50%, rgba(37,99,235,0.06) 0%, transparent 100%)';
     // Available — VIP: refined marble grain (cooler, more precise); lounge: warmer softer catch
     return isVip
-      ? 'radial-gradient(ellipse 52% 48% at 40% 33%, rgba(238,218,175,0.042) 0%, transparent 66%)'
+      ? 'radial-gradient(ellipse 52% 48% at 40% 33%, rgba(238,218,175,0.046) 0%, transparent 66%)'
       : cls === 'lounge'
-      ? 'radial-gradient(ellipse 58% 54% at 44% 38%, rgba(255,210,150,0.058) 0%, transparent 72%)'
-      : 'radial-gradient(ellipse 55% 50% at 42% 35%, rgba(255,200,130,0.055) 0%, transparent 70%)';
+      ? 'radial-gradient(ellipse 58% 54% at 44% 38%, rgba(255,210,150,0.064) 0%, transparent 72%)'
+      : 'radial-gradient(ellipse 55% 50% at 42% 35%, rgba(255,200,130,0.065) 0%, transparent 70%)';
   }
 
   if (isBooth) {
@@ -421,10 +421,10 @@ function tableGradient(shape: string, status: string, cls: string): string | und
     return 'linear-gradient(148deg, rgba(255,255,255,0.028) 0%, transparent 58%), linear-gradient(135deg, rgba(37,99,235,0.04) 0%, transparent 65%)';
   // Available — VIP: cooler refined grain; chef: industrial cool surface; standard: warm walnut
   return isVip
-    ? 'linear-gradient(148deg, rgba(232,212,170,0.036) 0%, transparent 50%)'
+    ? 'linear-gradient(148deg, rgba(232,212,170,0.042) 0%, transparent 50%)'
     : cls === 'chef'
-    ? 'linear-gradient(148deg, rgba(200,215,220,0.034) 0%, transparent 52%)'
-    : 'linear-gradient(148deg, rgba(255,200,130,0.050) 0%, transparent 52%)';
+    ? 'linear-gradient(148deg, rgba(200,215,220,0.038) 0%, transparent 52%)'
+    : 'linear-gradient(148deg, rgba(255,200,130,0.060) 0%, transparent 52%)';
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
@@ -2663,7 +2663,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       // Reserved — cool surface catch + bottom depth + right shadow
       ? 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 3px rgba(0,0,0,0.22), inset -1px 0 0 rgba(0,0,0,0.08)'
       // Available — dark walnut resting: warm grain top edge + bottom AO + left grain bevel + right shadow
-      : 'inset 0 1px 0 rgba(255,200,130,0.08), inset 0 -1px 3px rgba(0,0,0,0.24), inset 1px 0 0 rgba(255,200,130,0.04), inset -1px 0 0 rgba(0,0,0,0.10)';
+      : 'inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.26), inset 1px 0 0 rgba(255,200,130,0.05), inset -1px 0 0 rgba(0,0,0,0.12)';
 
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
 
@@ -2708,8 +2708,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       ? 'drop-shadow(0 4px 14px rgba(0,0,0,0.70)) drop-shadow(0 1px 4px rgba(0,0,0,0.48))'
     : table.liveStatus === 'AVAILABLE'
       ? cls === 'vip'
-        ? 'drop-shadow(0 4px 16px rgba(0,0,0,0.72)) drop-shadow(0 1px 4px rgba(0,0,0,0.45))'
-        : 'drop-shadow(0 2px 10px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.32))'
+        ? 'drop-shadow(0 4px 18px rgba(0,0,0,0.75)) drop-shadow(0 1px 4px rgba(0,0,0,0.48))'
+        : 'drop-shadow(0 3px 14px rgba(0,0,0,0.60)) drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
     : table.liveStatus === 'BLOCKED'
       ? 'drop-shadow(0 1px 5px rgba(0,0,0,0.30))'
     : 'drop-shadow(0 3px 12px rgba(0,0,0,0.62)) drop-shadow(0 1px 4px rgba(0,0,0,0.40))';
@@ -2803,6 +2803,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           opacity: hasGuest ? 0.65 : table.liveStatus === 'BLOCKED' ? 0.85 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           letterSpacing: hasGuest ? '0.02em' : undefined,
+          textShadow: !hasGuest && table.liveStatus !== 'BLOCKED' ? '0 1px 2px rgba(0,0,0,0.40)' : undefined,
         }}>
           {table.name}
         </span>

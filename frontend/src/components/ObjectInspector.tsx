@@ -32,6 +32,14 @@ const VARIANT_DISPLAY: Partial<Record<VariantId, string>> = {
 const BOOTH_SELECTABLE_VARIANTS = getObjectAllowedVariants('CURVED_BOOTH_SEGMENT')
   .filter(v => v !== 'DEFAULT' && VARIANT_DISPLAY[v] !== undefined);
 
+// Cycle order for the quick-cycle action. Must stay a subset of BOOTH_SELECTABLE_VARIANTS.
+const BOOTH_CYCLE: VariantId[] = ['CURVED', 'ARC_LEFT', 'ARC_RIGHT'];
+
+function nextBoothVariant(current: VariantId): VariantId {
+  const idx = BOOTH_CYCLE.indexOf(current);
+  return BOOTH_CYCLE[idx === -1 ? 0 : (idx + 1) % BOOTH_CYCLE.length];
+}
+
 function ModRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -60,9 +68,10 @@ function CapFlag({ active, label }: { active: boolean; label: string }) {
 interface Props {
   obj: FloorObjectData;
   onPatch?: (patch: Partial<FloorObjectData>) => void;
+  chainCount?: number;
 }
 
-export default function ObjectInspector({ obj, onPatch }: Props) {
+export default function ObjectInspector({ obj, onPatch, chainCount = 0 }: Props) {
   const def      = getObjectDefinition(obj.kind);
   const catStyle = CATEGORY_STYLE[def.category] ?? 'text-iron-muted border-iron-border/40';
 
@@ -123,12 +132,29 @@ export default function ObjectInspector({ obj, onPatch }: Props) {
                 </button>
               );
             })}
+            <button
+              onClick={() => onPatch?.({ variant: nextBoothVariant(resolveObjectVariant(obj)) })}
+              title="Cycle variant"
+              className="text-[9px] px-1.5 py-0.5 rounded border border-iron-border/30 text-iron-muted/40 hover:text-iron-green-light hover:border-iron-green/40 transition-colors ml-1 font-mono"
+            >
+              ↻
+            </button>
           </div>
           {!obj.variant && (
             <p className="text-[8px] text-iron-muted/30 leading-tight">
               Temporary fallback may be inferred from label.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Chain composition summary — CURVED_BOOTH_SEGMENT only, when part of a local chain */}
+      {obj.kind === 'CURVED_BOOTH_SEGMENT' && chainCount > 0 && (
+        <div className="pt-1 border-t border-iron-border/20 flex items-center gap-2">
+          <span className="text-[9px] text-iron-muted/45">Composition</span>
+          <span className="text-[9px] text-iron-text/55 font-medium">
+            {chainCount} nearby {chainCount === 1 ? 'segment' : 'segments'}
+          </span>
         </div>
       )}
 
