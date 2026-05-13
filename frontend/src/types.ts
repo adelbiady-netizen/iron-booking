@@ -317,7 +317,9 @@ export interface WaitlistEntry {
   flexibleTime: boolean;
 }
 
-export type FloorObjKind = 'WALL' | 'DIVIDER' | 'BAR' | 'ENTRANCE' | 'ZONE';
+export type FloorObjKind =
+  | 'WALL' | 'DIVIDER' | 'BAR' | 'ENTRANCE' | 'ZONE'
+  | 'PLANTER' | 'HOST_STAND' | 'SERVICE_LANE' | 'LOUNGE_BOUNDARY' | 'VIP_ENCLOSURE';
 
 export interface FloorObjectData {
   id: string;

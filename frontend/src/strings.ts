@@ -657,11 +657,16 @@ export const T = {
     errorSection:       'Failed to save section',
     errorSave:          'Save failed',
     // Floor object type labels
-    objWall:     'Wall',
-    objDivider:  'Divider',
-    objBar:      'Bar',
-    objEntrance: 'Entrance',
-    objZone:     'Zone',
+    objWall:           'Wall',
+    objDivider:        'Divider',
+    objBar:            'Bar',
+    objEntrance:       'Entrance',
+    objZone:           'Zone',
+    objPlanter:        'Planter',
+    objHostStand:      'Host Stand',
+    objServiceLane:    'Service Lane',
+    objLoungeBoundary: 'Lounge Boundary',
+    objVipEnclosure:   'VIP Enclosure',
   },
 
   // ── Flow Control ───────────────────────────────────────────────────────────

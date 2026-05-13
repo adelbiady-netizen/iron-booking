@@ -49,11 +49,16 @@ const SIZE_PRESETS = [
 ] as const;
 
 const OBJ_META: Record<FloorObjKind, { label: string; w: number; h: number; color: string }> = {
-  WALL:     { label: 'Wall',     w: 200, h: 12,  color: '#71717a' },
-  DIVIDER:  { label: 'Divider',  w: 160, h: 8,   color: '#52525b' },
-  BAR:      { label: 'Bar',      w: 240, h: 60,  color: '#92400e' },
-  ENTRANCE: { label: 'Entrance', w: 80,  h: 40,  color: '#1e40af' },
-  ZONE:     { label: 'Zone',     w: 220, h: 160, color: '#374151' },
+  WALL:            { label: 'Wall',            w: 200, h: 12,  color: '#71717a' },
+  DIVIDER:         { label: 'Divider',         w: 160, h: 8,   color: '#52525b' },
+  BAR:             { label: 'Bar',             w: 240, h: 60,  color: '#92400e' },
+  ENTRANCE:        { label: 'Entrance',        w: 80,  h: 40,  color: '#1e40af' },
+  ZONE:            { label: 'Zone',            w: 220, h: 160, color: '#374151' },
+  PLANTER:         { label: 'Planter',         w: 50,  h: 50,  color: '#166534' },
+  HOST_STAND:      { label: 'Host Stand',      w: 60,  h: 50,  color: '#78350f' },
+  SERVICE_LANE:    { label: 'Service Lane',    w: 200, h: 30,  color: '#374151' },
+  LOUNGE_BOUNDARY: { label: 'Lounge Boundary', w: 240, h: 160, color: '#78350f' },
+  VIP_ENCLOSURE:   { label: 'VIP Enclosure',   w: 240, h: 160, color: '#78350f' },
 };
 
 const SNAP_CYCLE: Array<0 | 10 | 20 | 40> = [0, 10, 20, 40];
@@ -128,11 +133,16 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const OBJ_LABELS: Record<FloorObjKind, string> = {
-    WALL:     T.layoutEditor.objWall,
-    DIVIDER:  T.layoutEditor.objDivider,
-    BAR:      T.layoutEditor.objBar,
-    ENTRANCE: T.layoutEditor.objEntrance,
-    ZONE:     T.layoutEditor.objZone,
+    WALL:            T.layoutEditor.objWall,
+    DIVIDER:         T.layoutEditor.objDivider,
+    BAR:             T.layoutEditor.objBar,
+    ENTRANCE:        T.layoutEditor.objEntrance,
+    ZONE:            T.layoutEditor.objZone,
+    PLANTER:         T.layoutEditor.objPlanter,
+    HOST_STAND:      T.layoutEditor.objHostStand,
+    SERVICE_LANE:    T.layoutEditor.objServiceLane,
+    LOUNGE_BOUNDARY: T.layoutEditor.objLoungeBoundary,
+    VIP_ENCLOSURE:   T.layoutEditor.objVipEnclosure,
   };
   const [tables,           setTables]           = useState<DraftTable[]>([]);
   const [sections,         setSections]         = useState<Section[]>([]);

@@ -18,13 +18,117 @@ interface SectionGroup {
   tables: FloorTable[];
 }
 
-const OBJ_STYLE: Record<string, { bg: string; border: string; zone: boolean }> = {
-  WALL:     { bg: 'rgba(58,60,68,0.72)',  border: 'rgba(78,80,90,0.82)',   zone: false },
-  DIVIDER:  { bg: 'rgba(46,48,58,0.62)',  border: 'rgba(66,68,80,0.75)',   zone: false },
-  BAR:      { bg: 'rgba(120,44,16,0.72)', border: 'rgba(150,52,18,0.90)',  zone: false },
-  ENTRANCE: { bg: 'rgba(13,20,38,0.72)',  border: 'rgba(28,54,128,0.84)',  zone: false },
-  ZONE:     { bg: 'rgba(18,22,17,0.58)',  border: 'rgba(44,54,40,0.62)',   zone: true  },
-};
+// Kinds rendered as SVG elements inside ArchLayer — filtered out of the HTML div block.
+const SVG_RENDERED_KINDS = new Set<string>(['PLANTER', 'SERVICE_LANE', 'LOUNGE_BOUNDARY', 'VIP_ENCLOSURE']);
+
+interface ObjAppearance {
+  bg: string;
+  backgroundImage: string | undefined;
+  border: string;
+  borderRadius: number;
+  boxShadow: string | undefined;
+  labelColor: string;
+  labelSize: number;
+  labelWeight: number;
+  labelOpacity: number;
+  labelLetterSpacing: string | undefined;
+  labelTransform: React.CSSProperties['textTransform'];
+}
+
+function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: number): ObjAppearance {
+  switch (o.kind) {
+    case 'BAR':
+      return {
+        bg: 'rgba(48,16,4,0.97)',
+        backgroundImage: [
+          'linear-gradient(180deg, rgba(240,118,44,0.34) 0%, rgba(160,58,14,0.10) 44%, rgba(0,0,0,0.46) 100%)',
+          'linear-gradient(90deg, rgba(255,240,200,0.06) 0%, transparent 20%, rgba(255,220,155,0.04) 52%, transparent 78%, rgba(0,0,0,0.30) 100%)',
+          'radial-gradient(ellipse 88% 28% at 50% 0%, rgba(255,215,95,0.10) 0%, transparent 100%)',
+        ].join(', '),
+        border: '1.5px solid rgba(155,105,26,0.96)',
+        borderRadius: 4,
+        boxShadow: [
+          'inset 0 2px 0 rgba(255,218,148,0.54)',
+          'inset 0 -3px 8px rgba(0,0,0,0.64)',
+          'inset 2px 0 0 rgba(255,205,118,0.22)',
+          'inset -2px 0 0 rgba(0,0,0,0.40)',
+          'inset 0 10px 28px rgba(0,0,0,0.28)',
+          '0 8px 44px rgba(0,0,0,0.94)',
+          '0 4px 22px rgba(64,24,4,0.72)',
+          `0 0 70px rgba(180,105,20,${(0.07 + timeWarmth * 0.04).toFixed(3)})`,
+        ].join(', '),
+        labelColor: 'rgba(255,220,180,0.90)',
+        labelSize: 11, labelWeight: 600, labelOpacity: 1,
+        labelLetterSpacing: '0.07em', labelTransform: undefined,
+      };
+    case 'ENTRANCE':
+      return {
+        bg: 'rgba(13,20,38,0.72)',
+        backgroundImage: 'linear-gradient(180deg, rgba(80,120,220,0.30) 0%, rgba(40,70,140,0.18) 45%, rgba(0,0,0,0.34) 100%)',
+        border: '1.5px solid rgba(28,54,128,0.84)',
+        borderRadius: 3,
+        boxShadow: '0 2px 20px rgba(28,54,128,0.42), inset 0 -2px 0 rgba(100,140,255,0.18)',
+        labelColor: 'rgba(148,174,255,0.88)',
+        labelSize: 10, labelWeight: 500, labelOpacity: 0.90,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+    case 'HOST_STAND':
+      return {
+        bg: 'rgba(8,6,4,0.97)',
+        backgroundImage: [
+          'linear-gradient(145deg, rgba(255,255,255,0.044) 0%, transparent 42%)',
+          'radial-gradient(ellipse 70% 55% at 50% 38%, rgba(255,195,100,0.048) 0%, transparent 80%)',
+        ].join(', '),
+        border: `1.5px solid rgba(195,162,88,${(0.50 + timeWarmth * 0.18).toFixed(2)})`,
+        borderRadius: 6,
+        boxShadow: [
+          `inset 0 1px 0 rgba(255,218,148,${(0.26 + timeWarmth * 0.12).toFixed(2)})`,
+          'inset 0 -2px 6px rgba(0,0,0,0.70)',
+          '0 4px 28px rgba(0,0,0,0.80)',
+          `0 0 38px rgba(195,162,88,${(0.05 + timeWarmth * 0.04).toFixed(3)})`,
+        ].join(', '),
+        labelColor: `rgba(235,200,130,${(0.70 + timeWarmth * 0.18).toFixed(2)})`,
+        labelSize: 10, labelWeight: 600, labelOpacity: 1,
+        labelLetterSpacing: '0.08em', labelTransform: 'uppercase',
+      };
+    case 'DIVIDER':
+      return {
+        bg: 'rgba(46,48,58,0.62)',
+        backgroundImage: [
+          'linear-gradient(180deg, rgba(255,255,255,0.052) 0%, rgba(255,255,255,0.012) 30%, rgba(0,0,0,0.16) 86%, rgba(0,0,0,0.32) 100%)',
+          'linear-gradient(90deg, rgba(255,255,255,0.014) 0%, transparent 30%, transparent 68%, rgba(0,0,0,0.10) 100%)',
+        ].join(', '),
+        border: '1.5px solid rgba(66,68,80,0.75)',
+        borderRadius: 3,
+        boxShadow: '0 2px 16px rgba(0,0,0,0.56), inset 1px 0 0 rgba(255,255,255,0.06), inset -1px 0 0 rgba(0,0,0,0.24)',
+        labelColor: 'rgb(var(--iron-text))',
+        labelSize: 10, labelWeight: 400, labelOpacity: 0.80,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+    case 'ZONE':
+      return {
+        bg: `rgba(18,22,16,${(0.28 + (1 - brightness) * 0.10).toFixed(2)})`,
+        backgroundImage: 'radial-gradient(ellipse 75% 65% at 50% 42%, rgba(255,240,210,0.030) 0%, rgba(255,220,160,0.012) 58%, transparent 82%)',
+        border: '1px solid rgba(44,54,40,0.62)',
+        borderRadius: 12,
+        boxShadow: 'inset 0 0 28px rgba(0,0,0,0.30)',
+        labelColor: 'rgb(var(--iron-text))',
+        labelSize: 10, labelWeight: 400, labelOpacity: 0.45,
+        labelLetterSpacing: '0.10em', labelTransform: 'uppercase',
+      };
+    default: // WALL + any unrecognised kind
+      return {
+        bg: `rgba(58,60,68,${(0.66 + (1 - brightness) * 0.10).toFixed(2)})`,
+        backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.044) 0%, rgba(255,255,255,0.008) 28%, rgba(0,0,0,0.22) 100%)',
+        border: '1.5px solid rgba(78,80,90,0.82)',
+        borderRadius: 3,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -2px 0 rgba(0,0,0,0.58), 0 4px 20px rgba(0,0,0,0.70), 0 1px 4px rgba(0,0,0,0.82)',
+        labelColor: 'rgb(var(--iron-text))',
+        labelSize: 10, labelWeight: 400, labelOpacity: 0.80,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+  }
+}
 
 const STATUS_BG: Record<string, string> = {
   AVAILABLE:     'rgba(38,30,20,0.97)',        // warm dark brown — distinct from floor, not floating
@@ -770,13 +874,10 @@ export default function FloorBoard({
               />
             ))}
 
-            {/* Floor objects */}
-            {floorObjs.map(o => {
-              const s       = OBJ_STYLE[o.kind] ?? OBJ_STYLE['WALL'];
-              const isBar   = o.kind === 'BAR';
-              const isZone  = o.kind === 'ZONE';
-              const isDivider = o.kind === 'DIVIDER';
-              const isEntrance = o.kind === 'ENTRANCE';
+            {/* Floor objects — SVG-rendered kinds (PLANTER / SERVICE_LANE / LOUNGE_BOUNDARY / VIP_ENCLOSURE)
+                are handled inside ArchLayer. Only HTML-renderable kinds appear here. */}
+            {floorObjs.filter(o => !SVG_RENDERED_KINDS.has(o.kind)).map(o => {
+              const a = getObjAppearance(o, timeWarmth, brightness);
               return (
                 <div
                   key={o.id}
@@ -784,66 +885,28 @@ export default function FloorBoard({
                     position: 'absolute',
                     left: o.posX, top: o.posY,
                     width: o.width, height: o.height,
-                    backgroundColor: isZone ? 'rgba(20,24,18,0.35)' : isBar ? 'rgba(48,16,4,0.97)' : s.bg,
-                    backgroundImage: isBar
-                      // Bar: aged walnut counter face + brass rail lamp catch + grain variation
-                      ? [
-                          'linear-gradient(180deg, rgba(240,118,44,0.34) 0%, rgba(160,58,14,0.10) 44%, rgba(0,0,0,0.46) 100%)',
-                          'linear-gradient(90deg, rgba(255,240,200,0.06) 0%, transparent 20%, rgba(255,220,155,0.04) 52%, transparent 78%, rgba(0,0,0,0.30) 100%)',
-                          'radial-gradient(ellipse 88% 28% at 50% 0%, rgba(255,215,95,0.10) 0%, transparent 100%)',
-                        ].join(', ')
-                      : isZone
-                      // Zone: warm light pool — a designated dining area under overhead light
-                      ? 'radial-gradient(ellipse 75% 65% at 50% 42%, rgba(255,240,210,0.030) 0%, rgba(255,220,160,0.012) 58%, transparent 82%)'
-                      : isEntrance
-                      // Entrance: threshold architecture — cool light from outside, dark sill below
-                      ? 'linear-gradient(180deg, rgba(80,120,220,0.30) 0%, rgba(40,70,140,0.18) 45%, rgba(0,0,0,0.34) 100%)'
-                      : isDivider
-                      // Divider: glass/stone panel — bright top edge, dark base, slight edge bevel
-                      ? [
-                          'linear-gradient(180deg, rgba(255,255,255,0.052) 0%, rgba(255,255,255,0.012) 30%, rgba(0,0,0,0.16) 86%, rgba(0,0,0,0.32) 100%)',
-                          'linear-gradient(90deg, rgba(255,255,255,0.014) 0%, transparent 30%, transparent 68%, rgba(0,0,0,0.10) 100%)',
-                        ].join(', ')
-                      // Wall: top-lit cap edge — ceiling light catching the wall surface
-                      : 'linear-gradient(180deg, rgba(255,255,255,0.044) 0%, rgba(255,255,255,0.008) 28%, rgba(0,0,0,0.22) 100%)',
-                    border: isBar
-                      ? '1.5px solid rgba(155,105,26,0.96)'
-                      : `${isZone ? 1 : 1.5}px solid ${s.border}`,
-                    borderRadius: isBar ? 4 : s.zone ? 12 : 3,
-                    boxShadow: isBar
-                      ? [
-                          'inset 0 2px 0 rgba(255,218,148,0.54)',   // brass rail top — polished catch
-                          'inset 0 -3px 8px rgba(0,0,0,0.64)',      // counter thickness AO
-                          'inset 2px 0 0 rgba(255,205,118,0.22)',   // left bevel catch
-                          'inset -2px 0 0 rgba(0,0,0,0.40)',        // right edge shadow
-                          'inset 0 10px 28px rgba(0,0,0,0.28)',     // dark bar interior depth
-                          '0 8px 44px rgba(0,0,0,0.94)',            // heavy floor footprint — anchor weight
-                          '0 4px 22px rgba(64,24,4,0.72)',          // mahogany scatter into floor
-                          '0 0 70px rgba(180,105,20,0.07)',         // room-level warmth radiation
-                        ].join(', ')
-                      : isEntrance
-                      ? '0 2px 20px rgba(28,54,128,0.42), inset 0 -2px 0 rgba(100,140,255,0.18)'
-                      : isDivider
-                      ? '0 2px 16px rgba(0,0,0,0.56), inset 1px 0 0 rgba(255,255,255,0.06), inset -1px 0 0 rgba(0,0,0,0.24)'
-                      : isZone
-                      ? 'inset 0 0 28px rgba(0,0,0,0.30)'
-                      // Wall: bright cap edge + deep foot shadow + floor projection
-                      : 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -2px 0 rgba(0,0,0,0.58), 0 4px 20px rgba(0,0,0,0.70), 0 1px 4px rgba(0,0,0,0.82)',
+                    backgroundColor:  a.bg,
+                    backgroundImage:  a.backgroundImage,
+                    border:           a.border,
+                    borderRadius:     a.borderRadius,
+                    boxShadow:        a.boxShadow,
+                    transform:        o.rotation ? `rotate(${o.rotation}deg)` : undefined,
+                    transformOrigin:  o.rotation ? 'center center' : undefined,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
                     pointerEvents: 'none',
                   }}
                 >
                   <span style={{
-                    fontSize:      isBar ? 11 : 10,
-                    fontWeight:    isBar ? 600 : 400,
-                    color:         isBar ? 'rgba(255,220,180,0.90)' : 'rgb(var(--iron-text))',
-                    opacity:       isZone ? 0.45 : 0.80,
+                    fontSize:      a.labelSize,
+                    fontWeight:    a.labelWeight,
+                    color:         a.labelColor,
+                    opacity:       a.labelOpacity,
                     userSelect:    'none',
                     padding:       '0 4px',
                     textAlign:     'center',
-                    letterSpacing: isBar ? '0.07em' : isZone ? '0.10em' : undefined,
-                    textTransform: isZone ? 'uppercase' : undefined,
+                    letterSpacing: a.labelLetterSpacing,
+                    textTransform: a.labelTransform,
                   }}>
                     {o.label}
                   </span>
@@ -1291,8 +1354,12 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
       });
   })();
 
-  const bars   = floorObjs.filter(o => o.kind === 'BAR');
-  const booths = tables.filter(t => t.shape === 'BOOTH' && t.height >= 38);
+  const bars          = floorObjs.filter(o => o.kind === 'BAR');
+  const planters      = floorObjs.filter(o => o.kind === 'PLANTER');
+  const lanes         = floorObjs.filter(o => o.kind === 'SERVICE_LANE');
+  const loungeBounds  = floorObjs.filter(o => o.kind === 'LOUNGE_BOUNDARY');
+  const vipEnclosures = floorObjs.filter(o => o.kind === 'VIP_ENCLOSURE');
+  const booths        = tables.filter(t => t.shape === 'BOOTH' && t.height >= 38);
 
   const woodOp1 = (0.022 + timeWarmth * 0.008).toFixed(3);
   const woodOp2 = (0.012 + timeWarmth * 0.004).toFixed(3);
@@ -1375,6 +1442,106 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
           />
         </g>
       ))}
+
+      {/* Lounge boundary — dashed gold rope enclosure, marks a premium zone perimeter */}
+      {loungeBounds.map(o => {
+        const cx   = o.posX + o.width  / 2;
+        const cy   = o.posY + o.height / 2;
+        const fillOp  = (0.032 + timeWarmth * 0.014).toFixed(3);
+        const ringOp  = (0.052 + timeWarmth * 0.022).toFixed(3);
+        const outerOp = (0.026 + timeWarmth * 0.010).toFixed(3);
+        return (
+          <g key={`arch-lb-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
+            <rect x={o.posX} y={o.posY} width={o.width} height={o.height} rx={16}
+              fill={`rgba(255,240,210,${fillOp})`} />
+            <rect x={o.posX + 4} y={o.posY + 4} width={o.width - 8} height={o.height - 8} rx={13}
+              fill="none" stroke={`rgba(195,162,88,${ringOp})`} strokeWidth={0.8} strokeDasharray="8 5" />
+            <rect x={o.posX - 3} y={o.posY - 3} width={o.width + 6} height={o.height + 6} rx={18}
+              fill="none" stroke={`rgba(165,135,70,${outerOp})`} strokeWidth={0.5} />
+          </g>
+        );
+      })}
+
+      {/* VIP enclosure — explicit gold ring placed as a floor object */}
+      {vipEnclosures.map(o => {
+        const cx       = o.posX + o.width  / 2;
+        const cy       = o.posY + o.height / 2;
+        const ambOp    = (0.048 + timeWarmth * 0.020).toFixed(3);
+        const innerOp  = (0.072 + timeWarmth * 0.028).toFixed(3);
+        const outerOp  = (0.030 + timeWarmth * 0.012).toFixed(3);
+        return (
+          <g key={`arch-vipe-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
+            <rect x={o.posX - 14} y={o.posY - 14} width={o.width + 28} height={o.height + 28} rx={22}
+              fill={`rgba(8,5,2,${ambOp})`} />
+            <rect x={o.posX - 6} y={o.posY - 6} width={o.width + 12} height={o.height + 12} rx={14}
+              fill="none" stroke={`rgba(195,162,88,${innerOp})`} strokeWidth={1.5} />
+            <rect x={o.posX - 14} y={o.posY - 14} width={o.width + 28} height={o.height + 28} rx={20}
+              fill="none" stroke={`rgba(165,135,70,${outerOp})`} strokeWidth={1} />
+          </g>
+        );
+      })}
+
+      {/* Service lanes — floor-level directional walkways with chevron flow markers */}
+      {lanes.map(o => {
+        const cx         = o.posX + o.width  / 2;
+        const cy         = o.posY + o.height / 2;
+        const laneOp     = (0.08 + brightness * 0.04).toFixed(3);
+        const chevronOp  = (0.10 + brightness * 0.04).toFixed(3);
+        const isVertical = o.height > o.width;
+        const span       = isVertical ? o.height : o.width;
+        const nChevrons  = Math.max(1, Math.floor(span / 40));
+        return (
+          <g key={`arch-lane-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
+            <rect x={o.posX} y={o.posY} width={o.width} height={o.height} rx={2}
+              fill={`rgba(120,120,140,${laneOp})`}
+              stroke={`rgba(140,140,160,${(parseFloat(laneOp) * 0.80).toFixed(3)})`}
+              strokeWidth={0.5} strokeDasharray="4 4"
+            />
+            {Array.from({ length: nChevrons }, (_, i) => {
+              const t = nChevrons > 1 ? i / (nChevrons - 1) : 0.5;
+              if (isVertical) {
+                const y = o.posY + 12 + (o.height - 24) * t;
+                return (
+                  <path key={i} d={`M ${cx - 6} ${y - 3} L ${cx} ${y + 3} L ${cx + 6} ${y - 3}`}
+                    fill="none" stroke={`rgba(160,160,180,${chevronOp})`} strokeWidth={0.8}
+                  />
+                );
+              }
+              const x = o.posX + 12 + (o.width - 24) * t;
+              return (
+                <path key={i} d={`M ${x - 3} ${cy - 6} L ${x + 3} ${cy} L ${x - 3} ${cy + 6}`}
+                  fill="none" stroke={`rgba(160,160,180,${chevronOp})`} strokeWidth={0.8}
+                />
+              );
+            })}
+          </g>
+        );
+      })}
+
+      {/* Planters — organic foliage masses anchored to terracotta pot bases */}
+      {planters.map(o => {
+        const cx      = o.posX + o.width  / 2;
+        const cy      = o.posY + o.height / 2;
+        const rx      = o.width  / 2;
+        const ry      = o.height / 2;
+        const leafOp  = 0.36 + timeWarmth * 0.06;
+        return (
+          <g key={`arch-pltr-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
+            {/* Pot base */}
+            <rect x={o.posX + 4} y={o.posY + o.height * 0.55} width={o.width - 8} height={o.height * 0.42}
+              rx={3} fill="rgba(58,40,28,0.54)" stroke="rgba(78,58,38,0.30)" strokeWidth={0.5} />
+            {/* Main foliage mass */}
+            <ellipse cx={cx} cy={o.posY + ry * 0.80} rx={rx * 0.88} ry={ry * 0.68}
+              fill={`rgba(18,48,20,${leafOp.toFixed(2)})`} />
+            {/* Secondary lighter cluster */}
+            <ellipse cx={cx - rx * 0.22} cy={o.posY + ry * 0.64} rx={rx * 0.52} ry={ry * 0.44}
+              fill={`rgba(28,68,26,${(leafOp * 0.70).toFixed(2)})`} />
+            {/* Shadow under-mass */}
+            <ellipse cx={cx + rx * 0.14} cy={o.posY + ry * 0.92} rx={rx * 0.60} ry={ry * 0.32}
+              fill="rgba(8,22,8,0.28)" />
+          </g>
+        );
+      })}
 
       {/* Booth backing — banquette structural wall behind each booth */}
       {booths.map(t => (
