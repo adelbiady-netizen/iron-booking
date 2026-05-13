@@ -379,6 +379,33 @@ export default function TableQuickPanel({
                 )}
               </div>
 
+              {/* ── TURN TIMING ────────────────────────────────────────────── */}
+              {floorTable.liveStatus === 'OCCUPIED' && res.status === 'SEATED' && isLiveView && floorTable.currentReservation && (() => {
+                const cr = floorTable.currentReservation!;
+                const mr = cr.minutesRemaining;
+                const freeAt = new Date(cr.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div className="flex justify-between text-xs">
+                    {cr.isOverdue ? (
+                      <>
+                        <span className="text-red-400/70">Turn</span>
+                        <span className="text-red-400/80 tabular-nums">~{Math.abs(mr)} min over · was {freeAt}</span>
+                      </>
+                    ) : mr <= 20 ? (
+                      <>
+                        <span className="text-amber-400/70">Turn</span>
+                        <span className="text-amber-300/80 tabular-nums">Free in ~{mr} min · {freeAt}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-iron-muted">Turn</span>
+                        <span className="text-iron-text/60 tabular-nums">Free around {freeAt}</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* ── NOTES ──────────────────────────────────────────────────── */}
               <div className="space-y-1.5">
                 {/* Host note — tap to edit */}

@@ -170,6 +170,8 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
           'linear-gradient(180deg, rgba(240,118,44,0.34) 0%, rgba(160,58,14,0.10) 44%, rgba(0,0,0,0.46) 100%)',
           'linear-gradient(90deg, rgba(255,240,200,0.06) 0%, transparent 20%, rgba(255,220,155,0.04) 52%, transparent 78%, rgba(0,0,0,0.30) 100%)',
           'radial-gradient(ellipse 88% 28% at 50% 0%, rgba(255,215,95,0.10) 0%, transparent 100%)',
+          // Counter-surface overhead reflection — faint spotlight on the flat working surface
+          'radial-gradient(ellipse 56% 10% at 50% 46%, rgba(255,210,108,0.030) 0%, transparent 100%)',
         ].join(', '),
         border: '1.5px solid rgba(155,105,26,0.96)',
         borderRadius: 4,
@@ -191,10 +193,14 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
     case 'ENTRANCE':
       return {
         bg: 'rgba(13,20,38,0.72)',
-        backgroundImage: 'linear-gradient(180deg, rgba(80,120,220,0.30) 0%, rgba(40,70,140,0.18) 45%, rgba(0,0,0,0.34) 100%)',
+        backgroundImage: [
+          'linear-gradient(180deg, rgba(80,120,220,0.30) 0%, rgba(40,70,140,0.18) 45%, rgba(0,0,0,0.34) 100%)',
+          // Top surface catch — faint sky-blue strip like natural light bleeding in from outside
+          'linear-gradient(180deg, rgba(130,175,255,0.038) 0%, transparent 18%)',
+        ].join(', '),
         border: '1.5px solid rgba(28,54,128,0.84)',
         borderRadius: 3,
-        boxShadow: '0 2px 20px rgba(28,54,128,0.42), inset 0 -2px 0 rgba(100,140,255,0.18)',
+        boxShadow: '0 2px 20px rgba(28,54,128,0.42), inset 0 -2px 0 rgba(100,140,255,0.18), inset 0 1px 0 rgba(148,182,255,0.13)',
         labelColor: 'rgba(148,174,255,0.88)',
         labelSize: 10, labelWeight: 500, labelOpacity: 0.90,
         labelLetterSpacing: undefined, labelTransform: undefined,
@@ -213,6 +219,8 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
         borderRadius: 6,
         boxShadow: [
           `inset 0 1px 0 ${tint}${(0.24 + timeWarmth * 0.10).toFixed(2)})`,
+          // Left-bevel catch — podium side edge catching ambient room light
+          `inset 1px 0 0 ${tint}${(0.08 + timeWarmth * 0.04).toFixed(2)})`,
           'inset 0 -2px 6px rgba(0,0,0,0.70)',
           '0 4px 28px rgba(0,0,0,0.80)',
           `0 0 38px ${accent}${(0.05 + timeWarmth * 0.04).toFixed(3)})`,
@@ -388,11 +396,13 @@ function tableGradient(shape: string, status: string, cls: string): string | und
       return 'radial-gradient(ellipse 62% 58% at 40% 36%, rgba(255,255,255,0.060) 0%, transparent 65%), radial-gradient(ellipse 90% 30% at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 80%)';
     if (status === 'RESERVED')
       return 'radial-gradient(ellipse 58% 52% at 40% 36%, rgba(255,255,255,0.038) 0%, transparent 68%), radial-gradient(ellipse 60% 50% at 50% 50%, rgba(37,99,235,0.06) 0%, transparent 100%)';
-    // Available — VIP: refined marble grain (cooler, more precise); lounge: warmer softer catch
+    // Available — VIP: marble grain; lounge: warmer catch; bar: cool stone; standard: warm walnut
     return isVip
       ? 'radial-gradient(ellipse 52% 48% at 40% 33%, rgba(238,218,175,0.046) 0%, transparent 66%)'
       : cls === 'lounge'
       ? 'radial-gradient(ellipse 58% 54% at 44% 38%, rgba(255,210,150,0.064) 0%, transparent 72%)'
+      : cls === 'bar'
+      ? 'radial-gradient(ellipse 52% 48% at 42% 35%, rgba(190,185,175,0.044) 0%, transparent 68%)'
       : 'radial-gradient(ellipse 55% 50% at 42% 35%, rgba(255,200,130,0.065) 0%, transparent 70%)';
   }
 
@@ -412,18 +422,24 @@ function tableGradient(shape: string, status: string, cls: string): string | und
   if (status === 'OCCUPIED')
     return isVip
       ? `linear-gradient(148deg, rgba(255,255,255,0.14) 0%, transparent 46%), ${OCCUPIED_WARM}`
-      : cls === 'large'
+      : (cls === 'large' || cls === 'communal')
       ? `linear-gradient(148deg, rgba(255,255,255,0.10) 0%, transparent 56%), ${OCCUPIED_WARM}`
       : `linear-gradient(148deg, rgba(255,255,255,0.10) 0%, transparent 50%), ${OCCUPIED_WARM}`;
   if (status === 'RESERVED_SOON')
     return 'linear-gradient(148deg, rgba(255,255,255,0.044) 0%, transparent 54%), linear-gradient(180deg, rgba(251,191,36,0.055) 0%, transparent 52%)';
   if (status === 'RESERVED')
     return 'linear-gradient(148deg, rgba(255,255,255,0.028) 0%, transparent 58%), linear-gradient(135deg, rgba(37,99,235,0.04) 0%, transparent 65%)';
-  // Available — VIP: cooler refined grain; chef: industrial cool surface; standard: warm walnut
+  // Available — VIP: marble grain; chef: industrial cool; communal: slate slab; lounge: warm plush; bar: cool counter; standard: warm walnut
   return isVip
     ? 'linear-gradient(148deg, rgba(232,212,170,0.042) 0%, transparent 50%)'
     : cls === 'chef'
     ? 'linear-gradient(148deg, rgba(200,215,220,0.038) 0%, transparent 52%)'
+    : cls === 'communal'
+    ? 'linear-gradient(148deg, rgba(190,200,215,0.036) 0%, transparent 58%)'
+    : cls === 'lounge'
+    ? 'linear-gradient(148deg, rgba(255,215,150,0.060) 0%, transparent 52%)'
+    : cls === 'bar'
+    ? 'linear-gradient(148deg, rgba(190,185,175,0.038) 0%, transparent 52%)'
     : 'linear-gradient(148deg, rgba(255,200,130,0.060) 0%, transparent 52%)';
 }
 
@@ -796,6 +812,19 @@ export default function FloorBoard({
   // quietFade: smooth opacity target for idle AVAILABLE tables — 0 = full, 0.4 = max recession.
   const quietFade = quietIdle ? Math.max(0.10, pressureScore * 0.40) : 0;
 
+  // ── Service energy ──────────────────────────────────────────────────────────
+  // Normalized 0–1 live-floor-activity signal. Unlike pressureScore (which weights
+  // waitlist depth and wave size), serviceEnergy tracks only what is physically
+  // alive on the floor right now: occupied density, overdue tension, arrival wave.
+  // Used to micro-modulate ambient warmth — the room feels calmer when empty,
+  // slightly richer and more inhabited during active service.
+  const _occupiedCount = canvasTables.filter(t => t.liveStatus === 'OCCUPIED').length;
+  const serviceEnergy  = Math.min(1,
+    (_occupiedCount  / Math.max(canvasTables.length, 1)) * 0.70 +
+    Math.min(_overdueCount / 4, 1) * 0.18 +
+    Math.min(reservedSoon  / 5, 1) * 0.12
+  );
+
   const positioned = hasPositions(dedupedTables);
 
   return (
@@ -949,7 +978,7 @@ export default function FloorBoard({
           const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
           const ambG = Math.round(250 - timeWarmth * 25); // 250 morning → 225 dinner
           const ambB = Math.round(235 - timeWarmth * 65); // 235 morning → 170 dinner
-          const ambA = (0.010 + brightness * 0.008 + timeWarmth * 0.006).toFixed(4);
+          const ambA = (0.010 + brightness * 0.008 + timeWarmth * 0.006 + serviceEnergy * 0.004).toFixed(4);
           // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
@@ -988,14 +1017,14 @@ export default function FloorBoard({
                 `linear-gradient(0deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
                 // Grid V
                 `linear-gradient(90deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
-                // Service density — pressure + dinner warmth
-                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.009 + timeWarmth * 0.006).toFixed(4)}) 0%, transparent 62%)`,
+                // Service density — pressure + dinner warmth + live floor activity
+                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.009 + timeWarmth * 0.006 + serviceEnergy * 0.004).toFixed(4)}) 0%, transparent 62%)`,
                 // Daylight architectural fill — warm skylight from above at morning,
                 // fades to nothing at dinner. Makes morning feel open, not dark.
                 `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,240,220,${(brightness * 0.022).toFixed(4)}) 0%, transparent 80%)`,
-                // Floor-level warmth — warm stone absorbing dinner heat. Rises from below the canvas.
-                // Invisible at morning, a faint golden wash at peak dinner service.
-                `radial-gradient(ellipse 70% 35% at 50% 104%, rgba(200,158,96,${(timeWarmth * 0.016).toFixed(4)}) 0%, transparent 70%)`,
+                // Floor-level warmth — warm stone absorbing dinner heat + service activity.
+                // Invisible at morning/empty, a faint golden wash at peak dinner + full service.
+                `radial-gradient(ellipse 70% 35% at 50% 104%, rgba(200,158,96,${(timeWarmth * 0.016 + serviceEnergy * 0.006).toFixed(4)}) 0%, transparent 70%)`,
               ].join(', '),
               backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto, auto, auto',
               userSelect: pickMode ? 'none' : undefined,
@@ -1085,7 +1114,7 @@ export default function FloorBoard({
             })}
 
             {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge */}
-            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} brightness={brightness} />
+            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} brightness={brightness} serviceEnergy={serviceEnergy} />
 
             {/* Chair silhouettes — semantic furniture geometry around table perimeters */}
             <ChairLayer
@@ -1579,7 +1608,46 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
           <stop offset="0%"   stopColor={`rgba(6,4,2,${wallS})`} />
           <stop offset="100%" stopColor="rgba(6,4,2,0)" />
         </linearGradient>
+        {/* Shared blur for object grounding shadows — same soft-ellipse approach as table floor shadows */}
+        <filter id="arch-gnd-blur" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" />
+        </filter>
       </defs>
+
+      {/* ── Object grounding shadows ─────────────────────────────────────────
+          Blurred ellipses beneath physical floor objects, using the same pattern
+          as table floor-plane shadows in SpatialEnergyField. Rendered first
+          (bottom of all SVG layers) so objects and tables sit on top.
+          Only physical, mass-carrying kinds: BAR, HOST_STAND, PLANTER,
+          DIVIDER, ENTRANCE. Zone markers and lane markings are excluded. */}
+      {floorObjs.filter(o =>
+        o.kind === 'BAR' || o.kind === 'HOST_STAND' ||
+        o.kind === 'PLANTER' || o.kind === 'DIVIDER' || o.kind === 'ENTRANCE'
+      ).map(o => {
+        const cx = o.posX + o.width  / 2;
+        const cy = o.posY + o.height * 0.82;
+        let rx: number, ry: number, op: number;
+        if (o.kind === 'BAR') {
+          rx = o.width * 0.72; ry = Math.max(6, o.height * 0.26); op = 0.055;
+        } else if (o.kind === 'HOST_STAND') {
+          rx = o.width * 0.70; ry = Math.max(5, o.height * 0.28); op = 0.048;
+        } else if (o.kind === 'PLANTER') {
+          rx = o.width * 0.68; ry = Math.max(5, o.height * 0.26); op = 0.042;
+        } else if (o.kind === 'DIVIDER') {
+          rx = o.width * 0.80; ry = Math.max(4, o.height * 0.24); op = 0.032;
+        } else {
+          // ENTRANCE
+          rx = o.width * 0.62; ry = Math.max(4, o.height * 0.20); op = 0.022;
+        }
+        return (
+          <ellipse
+            key={`arch-gnd-${o.id}`}
+            cx={cx} cy={cy} rx={rx} ry={ry}
+            fill="#000" fillOpacity={op}
+            filter="url(#arch-gnd-blur)"
+          />
+        );
+      })}
 
       {/* Floor material zones — each section type has a distinct floor material */}
       {sectionBoxes.map(sec => {
@@ -1843,6 +1911,13 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
             <g key={`arch-pltr-${o.id}`} transform={gXform}>
               <rect x={o.posX} y={o.posY + o.height * 0.46} width={o.width} height={o.height * 0.50}
                 rx={3} fill="rgba(50,34,20,0.56)" stroke="rgba(70,50,30,0.26)" strokeWidth={0.5} />
+              {/* Trough rim highlight — warm amber line where overhead light grazes the container edge */}
+              <line
+                x1={o.posX + 3}           y1={o.posY + o.height * 0.46}
+                x2={o.posX + o.width - 3} y2={o.posY + o.height * 0.46}
+                stroke={`rgba(245,198,138,${(leafOp * 0.16).toFixed(3)})`}
+                strokeWidth={0.65}
+              />
               {Array.from({ length: n }, (_, i) => {
                 const px = o.posX + sp * (i + 1);
                 const pr = o.height * (0.35 + chairJitter(o.id, i, 0) * 0.12);
@@ -1873,6 +1948,9 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
                 fill={`rgba(18,52,14,${(leafOp * 0.76).toFixed(2)})`} />
               <ellipse cx={cx}              cy={o.posY + ry * 0.42} rx={rx * 0.72} ry={ry * 0.44}
                 fill={`rgba(28,68,22,${(leafOp * 0.68).toFixed(2)})`} />
+              {/* Foliage light catch — overhead light reflecting off canopy crown */}
+              <ellipse cx={cx} cy={o.posY + ry * 0.26} rx={rx * 0.52} ry={ry * 0.13}
+                fill={`rgba(58,122,44,${(leafOp * 0.22).toFixed(3)})`} />
               <ellipse cx={cx}              cy={o.posY + ry * 0.96} rx={rx * 0.86} ry={ry * 0.18}
                 fill="rgba(0,12,0,0.30)" />
             </g>
@@ -1884,8 +1962,18 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
           <g key={`arch-pltr-${o.id}`} transform={gXform}>
             <rect x={o.posX + 4} y={o.posY + o.height * 0.55} width={o.width - 8} height={o.height * 0.42}
               rx={3} fill="rgba(58,40,28,0.54)" stroke="rgba(78,58,38,0.30)" strokeWidth={0.5} />
+            {/* Pot rim highlight — warm terracotta line at container lip */}
+            <line
+              x1={o.posX + 6}           y1={o.posY + o.height * 0.55}
+              x2={o.posX + o.width - 6} y2={o.posY + o.height * 0.55}
+              stroke={`rgba(208,162,112,${(leafOp * 0.17).toFixed(3)})`}
+              strokeWidth={0.65}
+            />
             <ellipse cx={cx} cy={o.posY + ry * 0.80} rx={rx * 0.88} ry={ry * 0.68}
               fill={`rgba(18,48,20,${leafOp.toFixed(2)})`} />
+            {/* Foliage light catch — overhead light catch on top-most leaf mass */}
+            <ellipse cx={cx} cy={o.posY + ry * 0.58} rx={rx * 0.48} ry={ry * 0.12}
+              fill={`rgba(50,112,40,${(leafOp * 0.20).toFixed(3)})`} />
             <ellipse cx={cx - rx * 0.22} cy={o.posY + ry * 0.64} rx={rx * 0.52} ry={ry * 0.44}
               fill={`rgba(28,68,26,${(leafOp * 0.70).toFixed(2)})`} />
             <ellipse cx={cx + rx * 0.14} cy={o.posY + ry * 0.92} rx={rx * 0.60} ry={ry * 0.32}
@@ -1966,12 +2054,13 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth, brightness }: {
+function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth, brightness, serviceEnergy }: {
   tables: FloorTable[];
   floorObjs?: FloorObjectData[];
   pressureScore: number;
   timeWarmth: number;
   brightness: number;
+  serviceEnergy: number;
 }) {
   const occupied  = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
   const overdue   = tables.filter(t => t.liveStatus === 'OCCUPIED' &&   t.currentReservation?.isOverdue);
@@ -2036,6 +2125,38 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
 
   if (tables.length === 0 && bars.length === 0 && entrances.length === 0) return null;
 
+  // Family cluster floor ambients — group hospitality tables by family into zone blobs.
+  // Skips generic RECT_DINING / ROUND_DINING / BOOTH families; only lounge/VIP/bar/communal
+  // carry distinct spatial character worth expressing as a floor-level ambient zone.
+  const familyClusters = (() => {
+    const map = new Map<string, { sumX: number; sumY: number; count: number; minX: number; minY: number; maxX: number; maxY: number }>();
+    for (const t of tables) {
+      if (t.liveStatus === 'BLOCKED') continue;
+      const fam = inferTableFamily(t);
+      if (fam === 'RECT_DINING' || fam === 'ROUND_DINING' || fam === 'BOOTH') continue;
+      const cx = t.posX + t.width  / 2;
+      const cy = t.posY + t.height / 2;
+      if (!map.has(fam)) {
+        map.set(fam, { sumX: cx, sumY: cy, count: 1,
+          minX: t.posX, minY: t.posY, maxX: t.posX + t.width, maxY: t.posY + t.height });
+      } else {
+        const z = map.get(fam)!;
+        z.sumX += cx; z.sumY += cy; z.count++;
+        z.minX = Math.min(z.minX, t.posX);
+        z.minY = Math.min(z.minY, t.posY);
+        z.maxX = Math.max(z.maxX, t.posX + t.width);
+        z.maxY = Math.max(z.maxY, t.posY + t.height);
+      }
+    }
+    return Array.from(map.entries()).map(([fam, z]) => ({
+      fam,
+      cx: z.sumX / z.count,
+      cy: z.sumY / z.count,
+      // Generous radius — extends well past the cluster bounds to create zone-level falloff.
+      r: Math.max(180, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.90 + 120),
+    }));
+  })();
+
   // Glow intensities — dual-modulated by operational pressure and dinner service phase.
   // Pressure (occupancy/waitlist) pulls urgency; timeWarmth pulls atmospheric depth.
   // Dinner adds ~14% to occupied glow baseline — the room glows warmer, not brighter.
@@ -2043,7 +2164,7 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
   const occInner    = 0.055 + pressureScore * 0.014 + timeWarmth * 0.007; // 0.055 → 0.076
   const ovdStrength = 0.038 + pressureScore * 0.022; // unchanged — overdue is operational, not atmospheric
   const readyGlow   = 0.026 + pressureScore * 0.012;
-  const secOpacity  = 0.034 + pressureScore * 0.010;
+  const secOpacity  = 0.034 + pressureScore * 0.010 + serviceEnergy * 0.005;
   const immGlow     = 0.034 + pressureScore * 0.012;
   // Bar glow deepens at dinner — service pass gets busier, radiates more ambient warmth.
   const barOuter    = 0.085 + timeWarmth * 0.030; // 0.085 → 0.115
@@ -2055,6 +2176,36 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
   const zoneCharOp: Record<string, number>  = { vip: 0.038, terrace: 0.022, lounge: 0.032 };
   const zoneCharRf: Record<string, number>  = { vip: 0.68,  terrace: 1.22,  lounge: 0.88  };
   const zoneCharCol: Record<string, string> = { vip: '#94a3b8', terrace: '#bae6fd', lounge: '#d97706' };
+
+  // Neighborhood cohesion — subconscious warmth bridge between nearby same-section
+  // active table pairs. Fills the visual gap where energy is building between seats.
+  // OCCUPIED↔OCCUPIED pairs are already richer via the social-density pass below;
+  // this covers OCCUPIED↔RESERVED_SOON and RESERVED_SOON↔RESERVED_SOON — the
+  // anticipatory in-between where a section is filling up but not yet fully alive.
+  const cohesionPairs = (() => {
+    const result: Array<{ mx: number; my: number; op: string }> = [];
+    const cohActive = tables.filter(t =>
+      (t.liveStatus === 'OCCUPIED' || t.liveStatus === 'RESERVED_SOON') && t.section
+    );
+    for (let i = 0; i < cohActive.length; i++) {
+      for (let j = i + 1; j < cohActive.length; j++) {
+        const ti = cohActive[i], tj = cohActive[j];
+        if (!ti.section || !tj.section || ti.section.id !== tj.section.id) continue;
+        if (ti.liveStatus === 'OCCUPIED' && tj.liveStatus === 'OCCUPIED') continue;
+        const cxi = ti.posX + ti.width / 2, cyi = ti.posY + ti.height / 2;
+        const cxj = tj.posX + tj.width / 2, cyj = tj.posY + tj.height / 2;
+        const dx = cxi - cxj, dy = cyi - cyj;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d <= 0 || d >= 260) continue;
+        result.push({
+          mx: (cxi + cxj) / 2,
+          my: (cyi + cyj) / 2,
+          op: ((1 - d / 260) * (0.008 + serviceEnergy * 0.003)).toFixed(4),
+        });
+      }
+    }
+    return result;
+  })();
 
   return (
     <svg
@@ -2176,7 +2327,70 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
             </radialGradient>
           );
         })}
+        {/* ── Architectural floor depth ─────────────────────────────────────────
+            Surface catch: a very faint tilted linear (left-center → right-upper)
+            simulating an angled overhead light source grazing the floor material.
+            Warm amber catch on the left (near kitchen/service warmth), barely-
+            perceptible cool slate on the right. At peak dinner the warm end lifts
+            slightly. Both stops are below 0.010 — the effect is felt, not seen. */}
+        <linearGradient id="sf-floor-catch"
+          x1="0" y1={CANVAS_H * 0.55} x2={CANVAS_W} y2={CANVAS_H * 0.28}
+          gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor="#C89050" stopOpacity={(0.005 + timeWarmth * 0.003 + serviceEnergy * 0.002).toFixed(4)} />
+          <stop offset="42%"  stopColor="#C89050" stopOpacity={0} />
+          <stop offset="58%"  stopColor="#788098" stopOpacity={0} />
+          <stop offset="100%" stopColor="#788098" stopOpacity={(0.006 + timeWarmth * 0.002).toFixed(4)} />
+        </linearGradient>
+        {/* Family cluster zone ambients — hospitality families emit characteristic floor tints.
+            Lounge: warm amber haze (wider spread, social warmth).
+            VIP: deep gold (contained, intimate).
+            Bar: focused amber (tight, functional).
+            Communal: cool slate (architectural weight, slight separation from warm zones). */}
+        {familyClusters.map(c => {
+          // Per-family atmosphere personality — Phase 73.
+          // op0: base opacity. warmMod: timeWarmth sensitivity. seMod: serviceEnergy sensitivity.
+          // midStop/midFade: gradient falloff shape. rFactor: zone radius scale.
+          let stopColor: string;
+          let op0: number, warmMod: number, seMod: number;
+          let midStop: string, midFade: number, rFactor: number;
+          if (c.fam === 'LOUNGE') {
+            // Softer, broader — social warmth that diffuses across the zone.
+            stopColor = '#FFB050'; op0 = 0.012; warmMod = 0.007; seMod = 0.003;
+            midStop = '65%'; midFade = 0.42; rFactor = 1.12;
+          } else if (c.fam === 'VIP') {
+            // Intimate, contained — richer gold that pools close and falls off quickly.
+            stopColor = '#C09830'; op0 = 0.011; warmMod = 0.006; seMod = 0.002;
+            midStop = '45%'; midFade = 0.28; rFactor = 0.82;
+          } else if (c.fam === 'BAR_SEATING') {
+            // Energetic, service-responsive — bar warmth peaks hard when the floor is live.
+            stopColor = '#C89440'; op0 = 0.011; warmMod = 0.007; seMod = 0.005;
+            midStop = '55%'; midFade = 0.36; rFactor = 0.92;
+          } else {
+            // COMMUNAL — warm neutral, social but grounded, never dominant.
+            stopColor = '#7A7A88'; op0 = 0.008; warmMod = 0.003; seMod = 0.002;
+            midStop = '55%'; midFade = 0.38; rFactor = 1.00;
+          }
+          const op = op0 + timeWarmth * warmMod + serviceEnergy * seMod;
+          const gr = Math.round(c.r * rFactor);
+          return (
+            <radialGradient key={`sf-fam-${c.fam}`} id={`sf-fam-${c.fam}`}
+              cx={c.cx} cy={c.cy} r={gr} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"      stopColor={stopColor} stopOpacity={op}           />
+              <stop offset={midStop} stopColor={stopColor} stopOpacity={op * midFade} />
+              <stop offset="100%"    stopColor={stopColor} stopOpacity={0}            />
+            </radialGradient>
+          );
+        })}
       </defs>
+      {/* ── Architectural floor depth — rendered first (bottom of all SVG layers) ──
+          Surface catch rect + family zone circles sit below shadows, section glows,
+          and all operational indicators. They ground the space without competing
+          with tables, chairs, or any status information. */}
+      <rect x={0} y={0} width={CANVAS_W} height={CANVAS_H} fill="url(#sf-floor-catch)" />
+      {familyClusters.map(c => {
+        const rFactor = c.fam === 'VIP' ? 0.82 : c.fam === 'LOUNGE' ? 1.12 : c.fam === 'BAR_SEATING' ? 0.92 : 1.00;
+        return <circle key={`sf-fam-${c.fam}`} cx={c.cx} cy={c.cy} r={Math.round(c.r * rFactor)} fill={`url(#sf-fam-${c.fam})`} />;
+      })}
       {/* Floor plane shadows — every table sits on a physical surface. Occupied heaviest. */}
       {tables.map(t => {
         const cx  = t.posX + t.width  / 2;
@@ -2199,6 +2413,11 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
       {/* Zone character overlays — rendered above section ambient, below table glows */}
       {sectionZones.filter(z => z.personality !== 'main').map(z => (
         <circle key={`sf-zc-${z.id}`} cx={z.cx} cy={z.cy} r={z.r * (zoneCharRf[z.personality] ?? 1)} fill={`url(#sf-zc-${z.id})`} />
+      ))}
+      {/* Neighborhood cohesion — faint warmth bridging nearby active same-section pairs.
+          Softens the subconscious isolation between tables filling up together. */}
+      {cohesionPairs.map((p, k) => (
+        <ellipse key={`sf-nc-${k}`} cx={p.mx} cy={p.my} rx={68} ry={40} fill={`rgba(210,160,55,${p.op})`} />
       ))}
       {occupied.map(t => {
         const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
@@ -2287,6 +2506,68 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
       height={CANVAS_H}
       viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
     >
+      {/* ── Family ambient lighting ──────────────────────────────────────────
+          Restrained warmth pooling around hospitality zones. Lounge emits
+          warm amber (wider, softer), VIP deep gold (intimate, contained),
+          bar focused warm (tight, functional), communal cool slate (architectural).
+          AVAILABLE at very low opacity; occupied slightly elevated. Suppressed
+          during pick mode. Rendered bottom-most so all operational elements
+          (chairs, status glows, labels) draw on top. */}
+      {!pickMode && tables.map(table => {
+        if (table.liveStatus === 'BLOCKED') return null;
+        const minDim = Math.min(table.width, table.height);
+        if (minDim < 38) return null;
+
+        const fam     = inferTableFamily(table);
+        const isOccF  = table.liveStatus === 'OCCUPIED';
+        const isAvF   = table.liveStatus === 'AVAILABLE';
+        if (!isOccF && !isAvF) return null;
+
+        const fcx = table.posX + table.width  / 2;
+        const fcy = table.posY + table.height / 2 + table.height * 0.12;
+
+        let ambColor: string;
+        let rx: number;
+        let ry: number;
+        let op: number;
+
+        if (fam === 'LOUNGE') {
+          ambColor = 'rgba(255,185,90,';
+          rx = table.width  * 1.30;
+          ry = table.height * 1.00;
+          op = isAvF ? 0.012 + timeWarmth * 0.008 : 0.018 + timeWarmth * 0.012;
+        } else if (fam === 'VIP') {
+          ambColor = 'rgba(200,155,55,';
+          rx = table.width  * 1.05;
+          ry = table.height * 0.82;
+          op = isAvF ? 0.009 + timeWarmth * 0.006 : 0.014 + timeWarmth * 0.008;
+        } else if (fam === 'BAR_SEATING') {
+          ambColor = 'rgba(215,165,75,';
+          rx = table.width  * 0.92;
+          ry = table.height * 0.68;
+          op = isAvF ? 0.010 + timeWarmth * 0.007 : 0.016 + timeWarmth * 0.009;
+        } else if (fam === 'COMMUNAL') {
+          ambColor = 'rgba(115,128,148,';
+          rx = table.width  * 1.10;
+          ry = table.height * 0.75;
+          op = isAvF ? 0.007 + timeWarmth * 0.003 : 0.011 + timeWarmth * 0.004;
+        } else {
+          return null;
+        }
+
+        return (
+          <ellipse
+            key={`famb-${table.id}`}
+            cx={fcx}
+            cy={fcy}
+            rx={rx}
+            ry={ry}
+            fill={`${ambColor}${op.toFixed(3)})`}
+            opacity={dimmedTableIds.has(table.id) ? 0.10 : 1}
+          />
+        );
+      })}
+
       {tables.map(table => {
         if (table.liveStatus === 'BLOCKED') return null;
         const minDim = Math.min(table.width, table.height);
@@ -2299,10 +2580,11 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
         // get a slightly wider gap for a relaxed feel.
         const isBarSeating = family === 'BAR_SEATING';
         const isLounge     = family === 'LOUNGE';
-        const cW  = useDots ? 4  : isBarSeating ? 7 : area > 7000 ? 11 : 8;
-        const cH  = useDots ? 4  : isBarSeating ? 7 : area > 7000 ?  7 : 5;
-        const gap  = isLounge ? 3.5 : 2.5;
-        const cRx  = useDots ? cW / 2 : isBarSeating ? cW / 2 : 2.5;
+        const cW  = useDots ? 4  : isBarSeating ? 7 : area > 7000 ? 13 : 11;
+        const cH  = useDots ? 4  : isBarSeating ? 7 : area > 7000 ? 10 :  8;
+        const gap  = isLounge ? 4.5 : 3.5;
+        // Lounge chairs get fully oval rx for a softer, relaxed silhouette.
+        const cRx  = useDots ? cW / 2 : isBarSeating ? cW / 2 : isLounge ? cW / 2 : 2.5;
 
         const isRound    = table.shape === 'ROUND' || table.shape === 'OVAL';
         const isBooth    = table.shape === 'BOOTH';
@@ -2330,6 +2612,18 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
           : 'rgba(96,165,250,0.20)';
         const emptyFill   = `rgba(63,63,70,${(0.50 * quietLevel).toFixed(2)})`;
         const emptyStroke = `rgba(82,82,91,${(0.30 * quietLevel).toFixed(2)})`;
+
+        // Chair anatomy: a narrow backrest strip at the outer edge (away from table) +
+        // seat pad body. Backrest is more opaque — it's the solid structural element.
+        // Bar-seating and dots use the seat pad only (no backrest differentiation).
+        const filledBack = isOccupied
+          ? 'rgba(134,239,172,0.55)' : table.liveStatus === 'RESERVED_SOON'
+          ? 'rgba(251,191,36,0.55)'  : 'rgba(96,165,250,0.50)';
+        const emptyBack  = `rgba(63,63,70,${(0.68 * quietLevel).toFixed(2)})`;
+        const backH      = useDots || isBarSeating ? 0 : Math.round(cH * 0.35);
+        const seatH      = cH - backH;
+        // Seat rx: slightly less rounded than the backrest for a seat-pad feel.
+        const seatRx     = useDots ? cW / 2 : isBarSeating ? cW / 2 : isLounge ? cW / 2 : Math.max(1, cRx - 1);
 
         // Occupied chairs carry lived-in irregularity — diners pull chairs in/out,
         // lean sideways. Reserved chairs are pristine, set by service for arrival.
@@ -2370,10 +2664,12 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
           const perLeft  = Math.min(Math.ceil(sideN  / 2),  maxFitV);
           const perRight = Math.min(Math.floor(sideN / 2),  maxFitV);
 
-          for (let i = 0; i < perTop;   i++) chairs.push(mkChair(table.posX + (table.width  / (perTop   + 1)) * (i + 1), table.posY - gap - cH / 2,                             cW, cH, 0));
-          for (let i = 0; i < perBot;   i++) chairs.push(mkChair(table.posX + (table.width  / (perBot   + 1)) * (i + 1), table.posY + table.height + gap + cH / 2,               cW, cH, 0));
-          for (let i = 0; i < perLeft;  i++) chairs.push(mkChair(table.posX - gap - cH / 2,                              table.posY + (table.height / (perLeft  + 1)) * (i + 1), cW, cH, 90));
-          for (let i = 0; i < perRight; i++) chairs.push(mkChair(table.posX + table.width + gap + cH / 2,                table.posY + (table.height / (perRight + 1)) * (i + 1), cW, cH, 90));
+          // Rotations chosen so local y=-cH/2 always points AWAY from the table —
+          // this is where the backrest strip renders, ensuring backrests face outward.
+          for (let i = 0; i < perTop;   i++) chairs.push(mkChair(table.posX + (table.width  / (perTop   + 1)) * (i + 1), table.posY - gap - cH / 2,                             cW, cH,   0));
+          for (let i = 0; i < perBot;   i++) chairs.push(mkChair(table.posX + (table.width  / (perBot   + 1)) * (i + 1), table.posY + table.height + gap + cH / 2,               cW, cH, 180));
+          for (let i = 0; i < perLeft;  i++) chairs.push(mkChair(table.posX - gap - cH / 2,                              table.posY + (table.height / (perLeft  + 1)) * (i + 1), cW, cH, 270));
+          for (let i = 0; i < perRight; i++) chairs.push(mkChair(table.posX + table.width + gap + cH / 2,                table.posY + (table.height / (perRight + 1)) * (i + 1), cW, cH,  90));
         }
 
         const tableOpacity = dimmedTableIds.has(table.id) ? 0.10 : pickMode ? 0.22 : 1;
@@ -2390,20 +2686,37 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
                 rx={table.width * 0.96} ry={table.height * 0.65}
                 fill={`rgba(255,172,50,${warmthOp})`} />
             )}
-            {chairs.map((c, idx) => (
-              <rect
-                key={idx}
-                x={c.x - c.w / 2}
-                y={c.y - c.h / 2}
-                width={c.w}
-                height={c.h}
-                rx={cRx}
-                fill={c.filled ? filledFill : emptyFill}
-                stroke={c.filled ? filledStroke : emptyStroke}
-                strokeWidth={0.5}
-                transform={c.rotDeg !== 0 ? `rotate(${c.rotDeg}, ${c.x}, ${c.y})` : undefined}
-              />
-            ))}
+            {chairs.map((c, idx) => {
+              const bFill = c.filled ? filledBack   : emptyBack;
+              const sFill = c.filled ? filledFill   : emptyFill;
+              const sStk  = c.filled ? filledStroke : emptyStroke;
+              return (
+                <g key={idx} transform={`translate(${c.x},${c.y}) rotate(${c.rotDeg})`}>
+                  {/* Backrest — outer edge strip, always faces away from the table */}
+                  {backH > 0 && (
+                    <rect
+                      x={-c.w / 2 + 0.5}
+                      y={-c.h / 2}
+                      width={c.w - 1}
+                      height={backH}
+                      rx={cRx}
+                      fill={bFill}
+                    />
+                  )}
+                  {/* Seat pad — inner portion, faces towards the table */}
+                  <rect
+                    x={-c.w / 2}
+                    y={-c.h / 2 + backH}
+                    width={c.w}
+                    height={seatH}
+                    rx={seatRx}
+                    fill={sFill}
+                    stroke={sStk}
+                    strokeWidth={0.75}
+                  />
+                </g>
+              );
+            })}
           </g>
         );
       })}
@@ -2449,8 +2762,14 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
         return (
           <g key={`bar-stools-${o.id}`}>
             {stools.map((s, i) => (
-              <circle key={i} cx={s.cx} cy={s.cy} r={sR}
-                fill={sFill} stroke={sStroke} strokeWidth={0.5} />
+              <g key={i}>
+                {/* Seat ring — slightly larger than original for visual presence */}
+                <circle cx={s.cx} cy={s.cy} r={sR + 1}
+                  fill={sFill} stroke={sStroke} strokeWidth={0.75} />
+                {/* Center post — stool pedestal detail */}
+                <circle cx={s.cx} cy={s.cy} r={2}
+                  fill={sStroke} />
+              </g>
             ))}
           </g>
         );
@@ -2501,7 +2820,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     /\bchef\b|kitchen pass/.test(_clsStr) ? 'chef' :
     table.shape === 'BOOTH' ? 'booth' :
     /lounge|cocktail/.test(_clsStr) || (table.shape === 'ROUND' && table.maxCovers <= 2) ? 'lounge' :
+    /\bbar\b|counter|pass/.test(_clsStr) ? 'bar' :
+    table.maxCovers >= 8 && table.shape !== 'ROUND' && table.shape !== 'OVAL' ? 'communal' :
     table.width * table.height > 9000 ? 'large' : 'standard';
+
+  // Family-aware corner radius — lounge tables get softer edges; communal/bar get sharper/slab feel.
+  const familyRadius = cls === 'lounge' && table.shape !== 'ROUND' && table.shape !== 'OVAL' ? '14px'
+    : cls === 'communal' ? '7px'
+    : cls === 'bar' ? '6px'
+    : tableRadius(table.shape);
 
   // Base (non-pick) colors
   const isOverdue = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
@@ -2516,6 +2843,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
     bg = 'rgba(22,14,6,0.98)';
   }
+  // Family-specific AVAILABLE base materials — each family reads differently at rest
+  if (cls === 'communal' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
+    bg = 'rgba(16,17,20,0.97)';   // cool architectural slate — slab mass at rest
+  }
+  if (cls === 'lounge' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
+    bg = 'rgba(24,14,8,0.97)';    // warm plush — deeper amber base, feels upholstered
+  }
+  if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
+    bg = 'rgba(18,15,11,0.97)';   // dark mahogany counter — dense, functional
+  }
 
   let borderColor = selected        ? '#22c55e'
     : combinedSelected ? '#3b82f6'
@@ -2527,7 +2864,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
 
   let boxShadow: string | undefined = selected
-    ? '0 0 0 3px rgba(34,197,94,0.25)'
+    ? '0 0 0 3px rgba(34,197,94,0.30), 0 0 8px rgba(34,197,94,0.10)'
     : combinedSelected
     ? '0 0 0 3px rgba(59,130,246,0.30)'
     : softHold && table.liveStatus === 'AVAILABLE'
@@ -2544,6 +2881,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (table.liveStatus === 'RESERVED_SOON') {
       borderColor = 'rgba(217,119,6,0.72)';           // amber — imminent arrival
+    } else if (table.liveStatus === 'RESERVED') {
+      borderColor = 'rgba(59,130,246,0.40)';           // cool blue — calm, committed
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.52)';           // warm readiness — the table is preparing to free
     } else if (table.liveStatus === 'BLOCKED') {
@@ -2552,9 +2891,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     }
   }
 
-  // AVAILABLE: recede — thinner border, section color at low opacity so empty tables don't compete
+  // AVAILABLE: recede — thinner border, section color at low opacity so empty tables don't compete.
+  // Communal carries slightly more edge weight (structural presence); lounge recedes further (softness).
   if (table.liveStatus === 'AVAILABLE' && !selected && !combinedSelected && !softHold && !table.locked) {
-    borderWidth = 1;
+    borderWidth = cls === 'communal' ? 1.5 : cls === 'lounge' ? 0.75 : 1;
     borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
       ? sectionColor + '66'   // 40% opacity
       : sectionColor;
@@ -2655,15 +2995,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       ? 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -2px 4px rgba(0,0,0,0.28)'
       : table.liveStatus === 'OCCUPIED'
       // Occupied — warm stone: bright top surface catch + deep bottom AO + brass left bevel + right depth
-      ? 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -2px 5px rgba(0,0,0,0.30), inset 1px 0 0 rgba(255,200,100,0.06), inset -1px 0 0 rgba(0,0,0,0.14)'
+      ? 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 5px rgba(0,0,0,0.30), inset 1px 0 0 rgba(255,200,100,0.08), inset -1px 0 0 rgba(0,0,0,0.14)'
       : table.liveStatus === 'RESERVED_SOON'
       // Reserved soon — warm edge catch + bottom shadow + left amber bevel
-      ? 'inset 0 1px 0 rgba(255,200,100,0.09), inset 0 -2px 4px rgba(0,0,0,0.25), inset 1px 0 0 rgba(255,200,100,0.04), inset -1px 0 0 rgba(0,0,0,0.10)'
+      ? 'inset 0 1px 0 rgba(255,200,100,0.11), inset 0 -2px 4px rgba(0,0,0,0.27), inset 1px 0 0 rgba(255,200,100,0.04), inset -1px 0 0 rgba(0,0,0,0.10)'
       : table.liveStatus === 'RESERVED'
-      // Reserved — cool surface catch + bottom depth + right shadow
-      ? 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 3px rgba(0,0,0,0.22), inset -1px 0 0 rgba(0,0,0,0.08)'
+      // Reserved — cool surface catch + bottom depth + left blue bevel + right shadow
+      ? 'inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 3px rgba(0,0,0,0.24), inset 1px 0 0 rgba(37,99,235,0.05), inset -1px 0 0 rgba(0,0,0,0.10)'
       // Available — dark walnut resting: warm grain top edge + bottom AO + left grain bevel + right shadow
-      : 'inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.26), inset 1px 0 0 rgba(255,200,130,0.05), inset -1px 0 0 rgba(0,0,0,0.12)';
+      : 'inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.28), inset 1px 0 0 rgba(255,200,130,0.05), inset -1px 0 0 rgba(0,0,0,0.12)';
 
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
 
@@ -2671,8 +3011,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     if (table.liveStatus === 'OCCUPIED' && !isOverdue) {
       const tableIsRound = table.shape === 'ROUND' || table.shape === 'OVAL';
       const rimGlow = tableIsRound
-        ? 'inset 0 1px 0 rgba(134,239,172,0.12), inset 0 -1px 0 rgba(134,239,172,0.05)'
-        : 'inset 0 1px 0 rgba(134,239,172,0.09)';
+        ? 'inset 0 1px 0 rgba(134,239,172,0.14), inset 0 -1px 0 rgba(134,239,172,0.06)'
+        : 'inset 0 1px 0 rgba(134,239,172,0.11)';
       boxShadow = `${boxShadow}, ${rimGlow}`;
     }
     // Class-specific material refinements — surface catch and structural depth vary by table type
@@ -2685,6 +3025,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       // Banquette back creates deep AO at the seat join — the back wall is always darker
       const boothAO = 'inset 0 -4px 12px rgba(0,0,0,0.34)';
       boxShadow = boxShadow ? `${boxShadow}, ${boothAO}` : boothAO;
+    }
+    if (cls === 'communal') {
+      // Slab mass — communal tables are architecturally heavy; deeper bottom AO anchors the weight
+      const slabDepth = 'inset 0 -3px 8px rgba(0,0,0,0.32)';
+      boxShadow = boxShadow ? `${boxShadow}, ${slabDepth}` : slabDepth;
+    }
+    if (cls === 'lounge') {
+      // Plush warmth — golden top-edge catch; the surface catches light softly like upholstery
+      const loungeWarm = 'inset 0 1px 0 rgba(255,210,150,0.10)';
+      boxShadow = boxShadow ? `${boxShadow}, ${loungeWarm}` : loungeWarm;
     }
   }
 
@@ -2709,6 +3059,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : table.liveStatus === 'AVAILABLE'
       ? cls === 'vip'
         ? 'drop-shadow(0 4px 18px rgba(0,0,0,0.75)) drop-shadow(0 1px 4px rgba(0,0,0,0.48))'
+        : cls === 'communal'
+        ? 'drop-shadow(0 5px 18px rgba(0,0,0,0.68)) drop-shadow(0 2px 5px rgba(0,0,0,0.42))'
+        : cls === 'lounge'
+        ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.48)) drop-shadow(0 1px 3px rgba(0,0,0,0.28))'
         : 'drop-shadow(0 3px 14px rgba(0,0,0,0.60)) drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
     : table.liveStatus === 'BLOCKED'
       ? 'drop-shadow(0 1px 5px rgba(0,0,0,0.30))'
@@ -2724,7 +3078,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         position: 'absolute',
         left: table.posX, top: table.posY,
         width: table.width, height: table.height,
-        borderRadius: tableRadius(table.shape),
+        borderRadius: familyRadius,
         border: `${borderWidth}px solid ${borderColor}`,
         backgroundColor: bg,
         // Material surface — gradient angle and shape vary by table type so overhead light
