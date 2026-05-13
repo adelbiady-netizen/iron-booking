@@ -672,13 +672,16 @@ export default function FloorBoard({
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
-            {/* Ambient breathing — chandelier heartbeat at 14s. Amplitude on a ~1.5% opacity
-                layer is sub-perceptible but makes the room feel inhabited, not frozen. */}
+            {/* Ambient breathing — chandelier bloom.
+                Pace: 14s at rest → 18s at peak dinner (room feels denser, more filled).
+                Color: neutral warm-white at morning → golden amber at dinner service.
+                Amplitude stays sub-perceptible; the drift is what makes it atmospheric. */}
             <div
               className="animate-ambient-breathe"
               style={{
                 position: 'absolute', inset: 0,
-                background: `radial-gradient(ellipse 72% 58% at 50% 36%, rgba(255,245,215,${(0.013 + timeWarmth * 0.008).toFixed(4)}) 0%, transparent 65%)`,
+                background: `radial-gradient(ellipse 72% 58% at 50% 36%, rgba(255,${Math.round(245 - timeWarmth * 20)},${Math.round(215 - timeWarmth * 45)},${(0.013 + timeWarmth * 0.008).toFixed(4)}) 0%, transparent 65%)`,
+                animationDuration: `${(14 + timeWarmth * 4).toFixed(1)}s`,
                 pointerEvents: 'none',
                 zIndex: 0,
               }}
@@ -769,7 +772,7 @@ export default function FloorBoard({
             })}
 
             {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge */}
-            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} />
+            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} />
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
@@ -1148,10 +1151,11 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-function SpatialEnergyField({ tables, floorObjs = [], pressureScore }: {
+function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth }: {
   tables: FloorTable[];
   floorObjs?: FloorObjectData[];
   pressureScore: number;
+  timeWarmth: number;
 }) {
   const occupied  = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
   const overdue   = tables.filter(t => t.liveStatus === 'OCCUPIED' &&   t.currentReservation?.isOverdue);
@@ -1209,13 +1213,19 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore }: {
   if (occupied.length === 0 && overdue.length === 0 && allIncoming.length === 0
     && readying.length === 0 && bars.length === 0 && sectionZones.length === 0) return null;
 
-  // Pressure-continuous glow intensities — occupancy pulls the room forward, never shouts.
-  const occOuter    = 0.072 + pressureScore * 0.022; // 0.072 → 0.094
-  const occInner    = 0.055 + pressureScore * 0.014; // 0.055 → 0.069
-  const ovdStrength = 0.038 + pressureScore * 0.022; // 0.038 → 0.060 (overdue most prominent)
-  const readyGlow   = 0.026 + pressureScore * 0.012; // 0.026 → 0.038
-  const secOpacity  = 0.034 + pressureScore * 0.010; // 0.034 → 0.044
-  const immGlow     = 0.034 + pressureScore * 0.012; // 0.034 → 0.046
+  // Glow intensities — dual-modulated by operational pressure and dinner service phase.
+  // Pressure (occupancy/waitlist) pulls urgency; timeWarmth pulls atmospheric depth.
+  // Dinner adds ~14% to occupied glow baseline — the room glows warmer, not brighter.
+  const occOuter    = 0.072 + pressureScore * 0.022 + timeWarmth * 0.010; // 0.072 → 0.104 at dinner/pressure peak
+  const occInner    = 0.055 + pressureScore * 0.014 + timeWarmth * 0.007; // 0.055 → 0.076
+  const ovdStrength = 0.038 + pressureScore * 0.022; // unchanged — overdue is operational, not atmospheric
+  const readyGlow   = 0.026 + pressureScore * 0.012;
+  const secOpacity  = 0.034 + pressureScore * 0.010;
+  const immGlow     = 0.034 + pressureScore * 0.012;
+  // Bar glow deepens at dinner — service pass gets busier, radiates more ambient warmth.
+  const barOuter    = 0.085 + timeWarmth * 0.030; // 0.085 → 0.115
+  const barMid      = 0.022 + timeWarmth * 0.010; // 0.022 → 0.032
+  const barRadius   = Math.round(200 + timeWarmth * 40); // 200 → 240
 
   return (
     <svg
@@ -1291,9 +1301,9 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore }: {
         {bars.map(o => {
           const cx = o.posX + o.width / 2; const cy = o.posY + o.height / 2;
           return (
-            <radialGradient key={`sf-bar-${o.id}`} id={`sf-bar-${o.id}`} cx={cx} cy={cy} r={200} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#d97706" stopOpacity={0.085} />
-              <stop offset="50%"  stopColor="#d97706" stopOpacity={0.022} />
+            <radialGradient key={`sf-bar-${o.id}`} id={`sf-bar-${o.id}`} cx={cx} cy={cy} r={barRadius} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#d97706" stopOpacity={barOuter} />
+              <stop offset="50%"  stopColor="#d97706" stopOpacity={barMid} />
               <stop offset="100%" stopColor="#d97706" stopOpacity={0} />
             </radialGradient>
           );
@@ -1328,7 +1338,7 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore }: {
       })}
       {bars.map(o => {
         const cx = o.posX + o.width / 2; const cy = o.posY + o.height / 2;
-        return <circle key={`sf-bar-${o.id}`} cx={cx} cy={cy} r={200} fill={`url(#sf-bar-${o.id})`} />;
+        return <circle key={`sf-bar-${o.id}`} cx={cx} cy={cy} r={barRadius} fill={`url(#sf-bar-${o.id})`} />;
       })}
     </svg>
   );
