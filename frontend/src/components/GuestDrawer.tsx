@@ -464,6 +464,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   }
 
   async function seatWithReorganizeCheck(tableId: string, combinedIds: string[], toastMsg: string) {
+    // Hard guard: never fire the seat API without a valid table.
+    // Routes to picker instead so the host can assign one.
+    if (!tableId) {
+      if (onPickTables) openActionMapPicker('seat');
+      else setMode('seat');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -661,12 +668,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             cls={btnGreen}
             primary
             onClick={() => {
-              if (onPickTables) {
+              if (!res.tableId) {
+                // No table assigned — must pick one before seating
+                if (onPickTables) openActionMapPicker('seat');
+                else setMode('seat');
+              } else if (onPickTables) {
                 openActionMapPicker('seat');
-              } else if (res.tableId) {
-                seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
               } else {
-                setMode('seat');
+                seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
               }
             }}
             disabled={busy || isFutureReservation}
@@ -720,12 +729,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             cls={btnGreen}
             primary
             onClick={() => {
-              if (onPickTables) {
+              if (!res.tableId) {
+                // No table assigned — must pick one before seating
+                if (onPickTables) openActionMapPicker('seat');
+                else setMode('seat');
+              } else if (onPickTables) {
                 openActionMapPicker('seat');
-              } else if (res.tableId) {
-                seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
               } else {
-                setMode('seat');
+                seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(tableName(res.tableId)));
               }
             }}
             disabled={busy || isFutureReservation}
