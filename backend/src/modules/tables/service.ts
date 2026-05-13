@@ -767,6 +767,7 @@ export async function batchSaveFloorObjects(
     height: number;
     rotation?: number;
     color?: string | null;
+    variant?: string;
   }>
 ) {
   return prisma.$transaction(async (tx) => {
@@ -783,6 +784,7 @@ export async function batchSaveFloorObjects(
         height: o.height,
         rotation: o.rotation ?? 0,
         color: o.color ?? null,
+        variant: o.variant ?? null,
       })),
     });
     return tx.floorObject.findMany({ where: { restaurantId }, orderBy: { createdAt: 'asc' } });

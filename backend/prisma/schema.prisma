@@ -521,6 +521,7 @@ model FloorObject {
   height       Float        @default(20)
   rotation     Float        @default(0)
   color        String?
+  variant      String?
 
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -537,6 +538,13 @@ enum FloorObjKind {
   BAR
   ENTRANCE
   ZONE
+  PLANTER
+  HOST_STAND
+  SERVICE_LANE
+  LOUNGE_BOUNDARY
+  VIP_ENCLOSURE
+  CURVED_LOUNGE_BOUNDARY
+  CURVED_BOOTH_SEGMENT
 }
 
 // ─── Call Logs (Link telephony webhook) ──────────────────────────────────────

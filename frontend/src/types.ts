@@ -348,8 +348,8 @@ export interface FloorObjectData {
   height: number;
   rotation: number;
   color: string | null;
-  /** Explicit semantic variant. Optional — old saved objects omit this field. */
-  variant?: VariantId;
+  /** Explicit semantic variant. Optional — null when unset (as returned from DB), undefined for new unsaved objects. */
+  variant?: VariantId | null;
 }
 
 export interface GuestListItem {

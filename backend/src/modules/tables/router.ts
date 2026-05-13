@@ -160,7 +160,12 @@ router.get('/floor-objects', async (req: Request, res: Response, next: NextFunct
 });
 
 const FloorObjectItemSchema = z.object({
-  kind: z.enum(['WALL', 'DIVIDER', 'BAR', 'ENTRANCE', 'ZONE']),
+  kind: z.enum([
+    'WALL', 'DIVIDER', 'BAR', 'ENTRANCE', 'ZONE',
+    'PLANTER', 'HOST_STAND', 'SERVICE_LANE',
+    'LOUNGE_BOUNDARY', 'VIP_ENCLOSURE',
+    'CURVED_LOUNGE_BOUNDARY', 'CURVED_BOOTH_SEGMENT',
+  ]),
   label: z.string().min(1),
   posX: z.number(),
   posY: z.number(),
@@ -168,6 +173,7 @@ const FloorObjectItemSchema = z.object({
   height: z.number().min(1),
   rotation: z.number().optional(),
   color: z.string().nullable().optional(),
+  variant: z.string().optional(),
 });
 
 const BatchFloorObjectsSchema = z.object({
