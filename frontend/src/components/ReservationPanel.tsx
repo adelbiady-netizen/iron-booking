@@ -305,7 +305,7 @@ export default function ReservationPanel({
                   const arrivedBucket = visible
                     .filter(r => r.isArrived)
                     .sort((a, b) => {
-                      if (a.arrivedAt && b.arrivedAt) return b.arrivedAt.localeCompare(a.arrivedAt);
+                      if (a.arrivedAt && b.arrivedAt) return a.arrivedAt.localeCompare(b.arrivedAt);
                       if (a.arrivedAt) return -1;
                       if (b.arrivedAt) return 1;
                       return a.time.localeCompare(b.time);
