@@ -618,7 +618,14 @@ export default function FloorBoard({
         <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{
           // Cinematic vignette — deep peripheral darkness with directional depth.
           // Wide outer shadow (cinema frame) + mid shadow (depth) + top-edge bar (threshold) + bottom fade.
-          boxShadow: 'inset 0 0 220px rgba(0,0,0,0.80), inset 0 0 90px rgba(0,0,0,0.48), inset 0 65px 90px -20px rgba(0,0,0,0.42), inset 0 -18px 55px rgba(0,0,0,0.22)',
+          boxShadow: [
+            'inset 0 0 280px rgba(0,0,0,0.85)',          // deep cinematic frame
+            'inset 0 0 120px rgba(0,0,0,0.55)',           // mid atmospheric depth
+            'inset 0 80px 100px -30px rgba(0,0,0,0.48)', // ceiling threshold — top architectural edge
+            'inset 0 -30px 80px rgba(0,0,0,0.30)',        // floor fade at bottom
+            'inset 55px 0 80px rgba(0,0,0,0.22)',         // left wall recedes into dark
+            'inset -55px 0 80px rgba(0,0,0,0.22)',        // right wall recedes into dark
+          ].join(', '),
         }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
@@ -628,8 +635,10 @@ export default function FloorBoard({
               height: CANVAS_H,
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: [
-                // Chandelier bloom — visible warm center, premium room scale
+                // Primary chandelier bloom — warm center, premium room scale
                 'radial-gradient(ellipse 85% 68% at 50% 38%, var(--canvas-ambient) 0%, transparent 72%)',
+                // Secondary sconce — side light source offset from center, implies wall fixtures
+                'radial-gradient(ellipse 40% 38% at 30% 65%, rgba(255,215,160,0.014) 0%, transparent 100%)',
                 // Kitchen/pass warmth — amber from back-right, heat from the service pass
                 'radial-gradient(ellipse 38% 46% at 86% 74%, rgba(255,185,80,0.016) 0%, transparent 100%)',
                 // Entrance light — faint cool daylight from the front-left edge
@@ -641,7 +650,7 @@ export default function FloorBoard({
                 // Architectural cross-grid — vertical tile seams
                 'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
               ].join(', '),
-              backgroundSize: 'auto, auto, auto, 30px 30px, 28px 28px, 28px 28px',
+              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
@@ -655,9 +664,9 @@ export default function FloorBoard({
                   top:    z.minY - PAD,
                   width:  z.maxX - z.minX + PAD * 2,
                   height: z.maxY - z.minY + PAD * 2,
-                  borderRadius: 20,
-                  border: `1px solid ${z.color}18`,
-                  background: `${z.color}05`,
+                  borderRadius: 24,
+                  border: `1px solid ${z.color}22`,
+                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}0C 0%, ${z.color}04 60%, transparent 85%)`,
                   pointerEvents: 'none',
                 }}
               />
@@ -677,24 +686,35 @@ export default function FloorBoard({
                     position: 'absolute',
                     left: o.posX, top: o.posY,
                     width: o.width, height: o.height,
-                    // Zone is a floor marker — more transparent so the canvas shows through
-                    backgroundColor: isZone ? 'rgba(18,22,17,0.32)' : s.bg,
-                    // Per-kind surface gradients: bar counter catches overhead light from above;
-                    // zone/divider/entrance get a very faint highlight for architectural presence
+                    backgroundColor: isZone ? 'rgba(20,24,18,0.35)' : isBar ? 'rgba(96,38,10,0.88)' : s.bg,
                     backgroundImage: isBar
-                      ? 'linear-gradient(180deg, rgba(200,100,40,0.22) 0%, rgba(0,0,0,0.20) 100%)'
+                      // Bar counter: warm mahogany surface + overhead lamp catch + left edge warmth
+                      ? [
+                          'linear-gradient(180deg, rgba(225,112,45,0.30) 0%, rgba(150,55,18,0.08) 50%, rgba(0,0,0,0.32) 100%)',
+                          'linear-gradient(90deg, rgba(255,230,180,0.08) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.20) 100%)',
+                        ].join(', ')
                       : isZone
-                      ? 'linear-gradient(148deg, rgba(255,255,255,0.014) 0%, transparent 55%)'
+                      // Zone: warm center pool — like a well-lit dining area seen from above
+                      ? 'radial-gradient(ellipse 75% 65% at 50% 45%, rgba(255,240,210,0.022) 0%, transparent 75%)'
                       : isEntrance
                       ? 'linear-gradient(180deg, rgba(40,70,140,0.22) 0%, rgba(0,0,0,0.26) 100%)'
                       : isDivider
                       ? 'linear-gradient(148deg, rgba(255,255,255,0.020) 0%, transparent 60%)'
                       : undefined,
-                    border: `${isZone ? 1 : 1.5}px solid ${s.border}`,
-                    borderRadius: s.zone ? 8 : 3,
-                    // Bar: top edge highlight — the counter surface catches the overhead light
+                    border: isBar
+                      ? '1.5px solid rgba(175,68,22,0.95)'
+                      : `${isZone ? 1 : 1.5}px solid ${s.border}`,
+                    borderRadius: isBar ? 4 : s.zone ? 12 : 3,
+                    // Bar: brass top highlight + counter depth + side bevels + floor shadow footprint
                     boxShadow: isBar
-                      ? 'inset 0 1px 0 rgba(255,200,150,0.24), inset 0 -1px 0 rgba(0,0,0,0.30)'
+                      ? [
+                          'inset 0 2px 0 rgba(255,218,165,0.40)',
+                          'inset 0 -2px 6px rgba(0,0,0,0.52)',
+                          'inset 2px 0 0 rgba(255,200,130,0.16)',
+                          'inset -2px 0 0 rgba(0,0,0,0.30)',
+                          '0 6px 32px rgba(0,0,0,0.75)',
+                          '0 3px 16px rgba(96,38,10,0.55)',
+                        ].join(', ')
                       : undefined,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
@@ -1095,9 +1115,8 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 }
 
 // ── Spatial energy field ──────────────────────────────────────────────────────
-// SVG layer rendered between floor objects and table buttons. Occupied table
-// clusters emit a faint warm glow; overdue tables emit a cool red tinge.
-// Static (no animation) — represents accumulated room energy, not an alert.
+// SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
+// All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
 function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
   tables: FloorTable[];
@@ -1109,13 +1128,44 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
   const incoming = tables.filter(t => t.liveStatus === 'RESERVED_SOON');
   const bars     = floorObjs.filter(o => o.kind === 'BAR');
 
-  if (occupied.length === 0 && overdue.length === 0 && incoming.length === 0 && bars.length === 0) return null;
+  // Section zone ambients — each section with ≥2 positioned tables emits a faint
+  // tinted radial at its centroid. Creates spatial zone identity without explicit labels.
+  const sectionZones = (() => {
+    const map = new Map<string, { color: string; sumX: number; sumY: number; count: number; minX: number; minY: number; maxX: number; maxY: number }>();
+    for (const t of tables) {
+      if (!t.section) continue;
+      const cx = t.posX + t.width  / 2;
+      const cy = t.posY + t.height / 2;
+      const key = t.section.id;
+      if (!map.has(key)) {
+        map.set(key, { color: t.section.color, sumX: cx, sumY: cy, count: 1,
+          minX: t.posX, minY: t.posY, maxX: t.posX + t.width, maxY: t.posY + t.height });
+      } else {
+        const z = map.get(key)!;
+        z.sumX += cx; z.sumY += cy; z.count++;
+        z.minX = Math.min(z.minX, t.posX);
+        z.minY = Math.min(z.minY, t.posY);
+        z.maxX = Math.max(z.maxX, t.posX + t.width);
+        z.maxY = Math.max(z.maxY, t.posY + t.height);
+      }
+    }
+    return Array.from(map.values())
+      .filter(z => z.count >= 2)
+      .map((z, i) => ({
+        id: i,
+        color: z.color,
+        cx: z.sumX / z.count,
+        cy: z.sumY / z.count,
+        r: Math.max(130, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.60),
+      }));
+  })();
 
-  // Double-radial for occupied tables: wide ambient field (r=180) + tight spotlight (r=68).
-  // Simulates a real restaurant spotlight — brightest at the table, fading into the dark floor.
-  // Under pressure both layers intensify so active zones visually emerge faster.
-  const occOuter = underPressure ? 0.092 : 0.072;
-  const occInner = underPressure ? 0.068 : 0.055;
+  if (occupied.length === 0 && overdue.length === 0 && incoming.length === 0
+    && bars.length === 0 && sectionZones.length === 0) return null;
+
+  // Double-radial for occupied: wide ambient (r=180) + tight spotlight (r=68).
+  const occOuter    = underPressure ? 0.092 : 0.072;
+  const occInner    = underPressure ? 0.068 : 0.055;
   const ovdStrength = underPressure ? 0.050 : 0.038;
 
   return (
@@ -1124,7 +1174,15 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
       style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 0 }}
     >
       <defs>
-        {/* Occupied outer ambient — warm service-zone energy radiating into the floor */}
+        {/* Section zone ambients — rendered at base layer, faintest signal */}
+        {sectionZones.map(z => (
+          <radialGradient key={`sf-sec-${z.id}`} id={`sf-sec-${z.id}`} cx={z.cx} cy={z.cy} r={z.r} gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor={z.color} stopOpacity={0.038} />
+            <stop offset="55%"  stopColor={z.color} stopOpacity={0.010} />
+            <stop offset="100%" stopColor={z.color} stopOpacity={0}     />
+          </radialGradient>
+        ))}
+        {/* Occupied outer ambient */}
         {occupied.map(t => {
           const cx = t.posX + t.width  / 2;
           const cy = t.posY + t.height / 2;
@@ -1135,7 +1193,7 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
             </radialGradient>
           );
         })}
-        {/* Occupied inner spotlight — the table surface itself catches the overhead beam */}
+        {/* Occupied inner spotlight */}
         {occupied.map(t => {
           const cx = t.posX + t.width  / 2;
           const cy = t.posY + t.height / 2;
@@ -1166,19 +1224,23 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
             </radialGradient>
           );
         })}
-        {/* Bar warmth — amber anchor zone; the bar radiates hospitality warmth
-            that draws the host's eye as a spatial focal point even when quiet */}
+        {/* Bar warmth — larger field, two-stop for richer falloff; anchor of the room */}
         {bars.map(o => {
           const cx = o.posX + o.width  / 2;
           const cy = o.posY + o.height / 2;
           return (
-            <radialGradient key={`sf-bar-${o.id}`} id={`sf-bar-${o.id}`} cx={cx} cy={cy} r={150} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#d97706" stopOpacity={0.062} />
+            <radialGradient key={`sf-bar-${o.id}`} id={`sf-bar-${o.id}`} cx={cx} cy={cy} r={200} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#d97706" stopOpacity={0.085} />
+              <stop offset="50%"  stopColor="#d97706" stopOpacity={0.022} />
               <stop offset="100%" stopColor="#d97706" stopOpacity={0}     />
             </radialGradient>
           );
         })}
       </defs>
+      {/* Section zones — bottom layer */}
+      {sectionZones.map(z => (
+        <circle key={`sf-sec-${z.id}`} cx={z.cx} cy={z.cy} r={z.r} fill={`url(#sf-sec-${z.id})`} />
+      ))}
       {occupied.map(t => {
         const cx = t.posX + t.width  / 2;
         const cy = t.posY + t.height / 2;
@@ -1187,22 +1249,22 @@ function SpatialEnergyField({ tables, floorObjs = [], underPressure }: {
       {occupied.map(t => {
         const cx = t.posX + t.width  / 2;
         const cy = t.posY + t.height / 2;
-        return <circle key={`sf-ai-${t.id}`} cx={cx} cy={cy} r={68} fill={`url(#sf-ai-${t.id})`} />;
+        return <circle key={`sf-ai-${t.id}`} cx={cx} cy={cy} r={68}  fill={`url(#sf-ai-${t.id})`} />;
       })}
       {overdue.map(t => {
         const cx = t.posX + t.width  / 2;
         const cy = t.posY + t.height / 2;
-        return <circle key={`sf-t-${t.id}`} cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`} />;
+        return <circle key={`sf-t-${t.id}`}  cx={cx} cy={cy} r={160} fill={`url(#sf-t-${t.id})`} />;
       })}
       {incoming.map(t => {
         const cx = t.posX + t.width  / 2;
         const cy = t.posY + t.height / 2;
-        return <circle key={`sf-i-${t.id}`} cx={cx} cy={cy} r={130} fill={`url(#sf-i-${t.id})`} />;
+        return <circle key={`sf-i-${t.id}`}  cx={cx} cy={cy} r={130} fill={`url(#sf-i-${t.id})`} />;
       })}
       {bars.map(o => {
         const cx = o.posX + o.width  / 2;
         const cy = o.posY + o.height / 2;
-        return <circle key={`sf-bar-${o.id}`} cx={cx} cy={cy} r={150} fill={`url(#sf-bar-${o.id})`} />;
+        return <circle key={`sf-bar-${o.id}`} cx={cx} cy={cy} r={200} fill={`url(#sf-bar-${o.id})`} />;
       })}
     </svg>
   );
