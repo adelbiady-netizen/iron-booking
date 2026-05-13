@@ -694,7 +694,7 @@ export default function FloorBoard({
                 // Entrance light — strengthens in daylight: cool natural light spilling in
                 `radial-gradient(ellipse 25% 52% at 7% 46%, rgba(180,210,255,${entranceAlpha}) 0%, transparent 100%)`,
                 // Wood grain — diagonal plank seams
-                'repeating-linear-gradient(15deg, transparent, transparent 28px, rgba(255,195,110,0.007) 28px, rgba(255,195,110,0.007) 30px)',
+                'repeating-linear-gradient(15deg, transparent, transparent 28px, rgba(255,195,110,0.009) 28px, rgba(255,195,110,0.009) 30px)',
                 // Grid H — suppressed by service phase: visible at morning, gone at dinner
                 `linear-gradient(0deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
                 // Grid V
@@ -704,8 +704,11 @@ export default function FloorBoard({
                 // Daylight architectural fill — warm skylight from above at morning,
                 // fades to nothing at dinner. Makes morning feel open, not dark.
                 `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,240,220,${(brightness * 0.022).toFixed(4)}) 0%, transparent 80%)`,
+                // Floor-level warmth — warm stone absorbing dinner heat. Rises from below the canvas.
+                // Invisible at morning, a faint golden wash at peak dinner service.
+                `radial-gradient(ellipse 70% 35% at 50% 104%, rgba(200,158,96,${(timeWarmth * 0.016).toFixed(4)}) 0%, transparent 70%)`,
               ].join(', '),
-              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto, auto',
+              backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto, auto, auto',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
@@ -764,28 +767,34 @@ export default function FloorBoard({
                           'linear-gradient(90deg, rgba(255,230,180,0.08) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.20) 100%)',
                         ].join(', ')
                       : isZone
-                      // Zone: warm center pool — like a well-lit dining area seen from above
-                      ? 'radial-gradient(ellipse 75% 65% at 50% 45%, rgba(255,240,210,0.022) 0%, transparent 75%)'
+                      // Zone: warm light pool — like a designated dining zone caught under overhead light
+                      ? 'radial-gradient(ellipse 75% 65% at 50% 42%, rgba(255,240,210,0.030) 0%, rgba(255,220,160,0.012) 58%, transparent 82%)'
                       : isEntrance
-                      ? 'linear-gradient(180deg, rgba(40,70,140,0.22) 0%, rgba(0,0,0,0.26) 100%)'
+                      // Entrance: threshold architecture — cool light from outside, dark sill below
+                      ? 'linear-gradient(180deg, rgba(80,120,220,0.30) 0%, rgba(40,70,140,0.18) 45%, rgba(0,0,0,0.34) 100%)'
                       : isDivider
-                      ? 'linear-gradient(148deg, rgba(255,255,255,0.020) 0%, transparent 60%)'
+                      ? 'linear-gradient(148deg, rgba(255,255,255,0.024) 0%, transparent 55%)'
                       : undefined,
                     border: isBar
                       ? '1.5px solid rgba(175,68,22,0.95)'
                       : `${isZone ? 1 : 1.5}px solid ${s.border}`,
                     borderRadius: isBar ? 4 : s.zone ? 12 : 3,
-                    // Bar: brass top highlight + counter depth + side bevels + floor shadow footprint
                     boxShadow: isBar
                       ? [
                           'inset 0 2px 0 rgba(255,218,165,0.40)',
                           'inset 0 -2px 6px rgba(0,0,0,0.52)',
                           'inset 2px 0 0 rgba(255,200,130,0.16)',
                           'inset -2px 0 0 rgba(0,0,0,0.30)',
-                          '0 6px 32px rgba(0,0,0,0.75)',
+                          '0 6px 36px rgba(0,0,0,0.82)',
                           '0 3px 16px rgba(96,38,10,0.55)',
                         ].join(', ')
-                      : undefined,
+                      : isEntrance
+                      ? '0 2px 20px rgba(28,54,128,0.42), inset 0 -2px 0 rgba(100,140,255,0.18)'
+                      : isDivider
+                      ? '0 2px 14px rgba(0,0,0,0.52), inset 1px 0 0 rgba(255,255,255,0.05), inset -1px 0 0 rgba(0,0,0,0.22)'
+                      : isZone
+                      ? 'inset 0 0 28px rgba(0,0,0,0.30)'
+                      : '0 2px 10px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.05)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
                     pointerEvents: 'none',
@@ -809,7 +818,7 @@ export default function FloorBoard({
             })}
 
             {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge */}
-            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} />
+            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} brightness={brightness} />
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
@@ -1190,15 +1199,17 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth }: {
+function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth, brightness }: {
   tables: FloorTable[];
   floorObjs?: FloorObjectData[];
   pressureScore: number;
   timeWarmth: number;
+  brightness: number;
 }) {
   const occupied  = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
   const overdue   = tables.filter(t => t.liveStatus === 'OCCUPIED' &&   t.currentReservation?.isOverdue);
   const bars      = floorObjs.filter(o => o.kind === 'BAR');
+  const entrances = floorObjs.filter(o => o.kind === 'ENTRANCE');
 
   // Arrival wave — split RESERVED_SOON into imminent (≤20 min) vs upcoming.
   // Imminent tables create stronger anticipatory pull; upcoming are calm forward energy.
@@ -1222,14 +1233,14 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth 
 
   // Section zone ambients — each section with ≥2 tables emits a faint tinted centroid radial.
   const sectionZones = (() => {
-    const map = new Map<string, { color: string; sumX: number; sumY: number; count: number; minX: number; minY: number; maxX: number; maxY: number }>();
+    const map = new Map<string, { color: string; name: string; sumX: number; sumY: number; count: number; minX: number; minY: number; maxX: number; maxY: number }>();
     for (const t of tables) {
       if (!t.section) continue;
       const cx = t.posX + t.width  / 2;
       const cy = t.posY + t.height / 2;
       const key = t.section.id;
       if (!map.has(key)) {
-        map.set(key, { color: t.section.color, sumX: cx, sumY: cy, count: 1,
+        map.set(key, { color: t.section.color, name: t.section.name, sumX: cx, sumY: cy, count: 1,
           minX: t.posX, minY: t.posY, maxX: t.posX + t.width, maxY: t.posY + t.height });
       } else {
         const z = map.get(key)!;
@@ -1242,15 +1253,21 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth 
     }
     return Array.from(map.values())
       .filter(z => z.count >= 2)
-      .map((z, i) => ({
-        id: i, color: z.color,
-        cx: z.sumX / z.count, cy: z.sumY / z.count,
-        r: Math.max(130, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.60),
-      }));
+      .map((z, i) => {
+        const n = z.name.toLowerCase();
+        const personality =
+          /vip|private|salon|exclusive|presidential/.test(n) ? 'vip' as const :
+          /terrace|garden|outdoor|patio|rooftop|pergola/.test(n) ? 'terrace' as const :
+          /lounge|cocktail|aperitif/.test(n) ? 'lounge' as const : 'main' as const;
+        return {
+          id: i, color: z.color, personality,
+          cx: z.sumX / z.count, cy: z.sumY / z.count,
+          r: Math.max(130, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.60),
+        };
+      });
   })();
 
-  if (occupied.length === 0 && overdue.length === 0 && allIncoming.length === 0
-    && readying.length === 0 && bars.length === 0 && sectionZones.length === 0) return null;
+  if (tables.length === 0 && bars.length === 0 && entrances.length === 0) return null;
 
   // Glow intensities — dual-modulated by operational pressure and dinner service phase.
   // Pressure (occupancy/waitlist) pulls urgency; timeWarmth pulls atmospheric depth.
@@ -1265,6 +1282,12 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth 
   const barOuter    = 0.085 + timeWarmth * 0.030; // 0.085 → 0.115
   const barMid      = 0.022 + timeWarmth * 0.010; // 0.022 → 0.032
   const barRadius   = Math.round(200 + timeWarmth * 40); // 200 → 240
+  // Entrance cool zone — stronger during daylight when natural light spills in from outside.
+  const entranceAmbient = 0.025 + brightness * 0.018;
+  // Zone character — secondary color radius factors per personality
+  const zoneCharOp: Record<string, number>  = { vip: 0.038, terrace: 0.022, lounge: 0.032 };
+  const zoneCharRf: Record<string, number>  = { vip: 0.68,  terrace: 1.22,  lounge: 0.88  };
+  const zoneCharCol: Record<string, string> = { vip: '#94a3b8', terrace: '#bae6fd', lounge: '#d97706' };
 
   return (
     <svg
@@ -1272,6 +1295,10 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth 
       style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 0 }}
     >
       <defs>
+        {/* Shared blur filter for floor-plane shadow ellipses */}
+        <filter id="sf-shadow-blur" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="7" />
+        </filter>
         {sectionZones.map(z => (
           <radialGradient key={`sf-sec-${z.id}`} id={`sf-sec-${z.id}`} cx={z.cx} cy={z.cy} r={z.r} gradientUnits="userSpaceOnUse">
             <stop offset="0%"   stopColor={z.color} stopOpacity={secOpacity} />
@@ -1279,6 +1306,24 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth 
             <stop offset="100%" stopColor={z.color} stopOpacity={0} />
           </radialGradient>
         ))}
+        {/* Zone character overlays — VIP feels private+cool, terrace feels airy, lounge feels warm */}
+        {sectionZones.filter(z => z.personality !== 'main').map(z => (
+          <radialGradient key={`sf-zc-${z.id}`} id={`sf-zc-${z.id}`} cx={z.cx} cy={z.cy} r={z.r * (zoneCharRf[z.personality] ?? 1)} gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor={zoneCharCol[z.personality] ?? 'transparent'} stopOpacity={zoneCharOp[z.personality] ?? 0} />
+            <stop offset="100%" stopColor={zoneCharCol[z.personality] ?? 'transparent'} stopOpacity={0} />
+          </radialGradient>
+        ))}
+        {/* Entrance arrival fields — cool blue, implying fresh air from outside */}
+        {entrances.map(o => {
+          const cx = o.posX + o.width / 2, cy = o.posY + o.height / 2;
+          return (
+            <radialGradient key={`sf-ent-${o.id}`} id={`sf-ent-${o.id}`} cx={cx} cy={cy} r={268} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#bfdbfe" stopOpacity={entranceAmbient} />
+              <stop offset="42%"  stopColor="#93c5fd" stopOpacity={entranceAmbient * 0.28} />
+              <stop offset="100%" stopColor="#93c5fd" stopOpacity={0} />
+            </radialGradient>
+          );
+        })}
         {occupied.map(t => {
           const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
           return (
@@ -1348,8 +1393,28 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth 
           );
         })}
       </defs>
+      {/* Floor plane shadows — every table sits on a physical surface. Occupied heaviest. */}
+      {tables.map(t => {
+        const cx  = t.posX + t.width  / 2;
+        const cy  = t.posY + t.height * 0.80;
+        const rx  = t.width  * 0.74;
+        const ry  = t.height * 0.36;
+        const op  = t.liveStatus === 'OCCUPIED'      ? 0.052
+                  : t.liveStatus === 'RESERVED_SOON' ? 0.034
+                  : t.liveStatus === 'RESERVED'       ? 0.028 : 0.018;
+        return <ellipse key={`sf-shd-${t.id}`} cx={cx} cy={cy} rx={rx} ry={ry} fill="#000" fillOpacity={op} filter="url(#sf-shadow-blur)" />;
+      })}
+      {/* Entrance arrival zones — cool ambient field implying outside air */}
+      {entrances.map(o => {
+        const cx = o.posX + o.width / 2, cy = o.posY + o.height / 2;
+        return <circle key={`sf-ent-${o.id}`} cx={cx} cy={cy} r={268} fill={`url(#sf-ent-${o.id})`} />;
+      })}
       {sectionZones.map(z => (
         <circle key={`sf-sec-${z.id}`} cx={z.cx} cy={z.cy} r={z.r} fill={`url(#sf-sec-${z.id})`} />
+      ))}
+      {/* Zone character overlays — rendered above section ambient, below table glows */}
+      {sectionZones.filter(z => z.personality !== 'main').map(z => (
+        <circle key={`sf-zc-${z.id}`} cx={z.cx} cy={z.cy} r={z.r * (zoneCharRf[z.personality] ?? 1)} fill={`url(#sf-zc-${z.id})`} />
       ))}
       {occupied.map(t => {
         const cx = t.posX + t.width / 2; const cy = t.posY + t.height / 2;
