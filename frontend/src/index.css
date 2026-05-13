@@ -43,6 +43,7 @@
   --canvas-bg:              #EAEDE6;
   --canvas-dot:             #C8CCC4;
   --canvas-grid:            rgba(0,0,0,0.055); /* architectural cross-grid lines */
+  --canvas-ambient:         rgba(255,240,200,0.075); /* warm daylight chandelier — more opaque than dark, less contrast to overcome */
   --canvas-table-bg:        #FFFFFF;
   --canvas-status-occupied: #15803d;   /* green-700 */
   --canvas-status-reserved: #1d4ed8;   /* blue-700  */

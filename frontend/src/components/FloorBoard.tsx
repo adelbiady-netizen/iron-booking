@@ -919,8 +919,8 @@ export default function FloorBoard({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
           <div
-            className="fixed z-50 bg-iron-card border border-iron-border rounded-lg shadow-xl py-1 min-w-[10rem]"
-            style={{ left: ctxMenu.x, top: ctxMenu.y }}
+            className="fixed z-50 bg-iron-elevated border border-iron-border/55 rounded-xl py-1 min-w-[10rem]"
+            style={{ left: ctxMenu.x, top: ctxMenu.y, boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.32)' }}
           >
             <div className="px-3 py-1 border-b border-iron-border/50 mb-1">
               <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">{ctxMenu.table.name}</span>
@@ -947,7 +947,7 @@ export default function FloorBoard({
       {/* Locked table warning */}
       {lockedWarning && !pickMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-72 space-y-3">
+          <div className="bg-iron-elevated border border-iron-border/50 rounded-xl p-5 w-72 space-y-3" style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.40)' }}>
             <div>
               <p className="text-iron-text text-sm font-semibold">{T.floorBoard.lockedTitle(lockedWarning.name)}</p>
               {lockedWarning.lockReason && (
@@ -981,7 +981,7 @@ export default function FloorBoard({
       {/* Soft hold warning */}
       {softHoldWarning && !pickMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-iron-card border border-iron-border rounded-xl shadow-2xl p-5 w-72 space-y-3">
+          <div className="bg-iron-elevated border border-iron-border/50 rounded-xl p-5 w-72 space-y-3" style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.40)' }}>
             <div>
               <p className="text-iron-text text-sm font-semibold">
                 {T.flowControl.softHoldTitle(softHoldWarning.entry.guestName)}
@@ -1502,7 +1502,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   );
   if (isQueueHovered) {
     borderWidth = Math.max(borderWidth, 1.5);
-    if (!boxShadow) boxShadow = '0 0 0 3px rgba(255,255,255,0.06)';
+    if (!boxShadow) boxShadow = '0 0 0 3px rgba(255,255,255,0.09)';
     if (dimmed) opacity = Math.max(opacity, 0.55);
   }
 
