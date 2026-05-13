@@ -59,7 +59,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
     <button
       onClick={onClick}
       title={title}
-      className="px-1.5 py-1.5 rounded border border-iron-border/30 text-iron-muted hover:text-iron-text hover:border-iron-text/30 transition-colors text-xs leading-none select-none shrink-0"
+      className="flex items-center justify-center min-w-[32px] min-h-[32px] px-2 py-1.5 rounded border border-iron-border/30 text-iron-muted hover:text-iron-text hover:border-iron-text/30 transition-colors text-xs leading-none select-none shrink-0 touch-manipulation"
     >
       {children}
     </button>

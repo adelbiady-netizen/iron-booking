@@ -9,6 +9,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd } from '../utils/time';
+import { useTimeWarmth } from '../hooks/useTimeWarmth';
 
 interface SectionGroup {
   id: string;
@@ -166,6 +167,7 @@ export default function FloorBoard({
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
+  const timeWarmth = useTimeWarmth();
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
@@ -633,8 +635,8 @@ export default function FloorBoard({
           // Cinematic vignette — pressure-modulated: outer darkness tightens as occupancy rises.
           // The room "closes in" slightly under dense service — subconscious spatial focus.
           boxShadow: [
-            `inset 0 0 ${Math.round(280 + pressureScore * 18)}px rgba(0,0,0,${(0.85 + pressureScore * 0.035).toFixed(3)})`,
-            `inset 0 0 ${Math.round(120 + pressureScore * 10)}px rgba(0,0,0,${(0.55 + pressureScore * 0.030).toFixed(3)})`,
+            `inset 0 0 ${Math.round(280 + pressureScore * 18)}px rgba(0,0,0,${(0.85 + pressureScore * 0.035 + timeWarmth * 0.015).toFixed(3)})`,
+            `inset 0 0 ${Math.round(120 + pressureScore * 10)}px rgba(0,0,0,${(0.55 + pressureScore * 0.030 + timeWarmth * 0.010).toFixed(3)})`,
             'inset 0 80px 100px -30px rgba(0,0,0,0.48)',
             'inset 0 -30px 80px rgba(0,0,0,0.30)',
             'inset 55px 0 80px rgba(0,0,0,0.22)',
@@ -664,7 +666,7 @@ export default function FloorBoard({
                 // Architectural cross-grid — vertical tile seams
                 'linear-gradient(90deg, transparent 27.5px, var(--canvas-grid) 27.5px, var(--canvas-grid) 28px, transparent 28px)',
                 // Service density — amber center warmth, keyed to pressure. Transparent at rest.
-                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.009).toFixed(4)}) 0%, transparent 62%)`,
+                `radial-gradient(ellipse 58% 52% at 50% 42%, rgba(255,190,60,${(pressureScore * 0.009 + timeWarmth * 0.006).toFixed(4)}) 0%, transparent 62%)`,
               ].join(', '),
               backgroundSize: 'auto, auto, auto, auto, 30px 30px, 28px 28px, 28px 28px, auto',
               userSelect: pickMode ? 'none' : undefined,
@@ -676,7 +678,7 @@ export default function FloorBoard({
               className="animate-ambient-breathe"
               style={{
                 position: 'absolute', inset: 0,
-                background: 'radial-gradient(ellipse 72% 58% at 50% 36%, rgba(255,245,215,0.016) 0%, transparent 65%)',
+                background: `radial-gradient(ellipse 72% 58% at 50% 36%, rgba(255,245,215,${(0.013 + timeWarmth * 0.008).toFixed(4)}) 0%, transparent 65%)`,
                 pointerEvents: 'none',
                 zIndex: 0,
               }}

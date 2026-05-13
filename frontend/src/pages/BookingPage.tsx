@@ -1146,29 +1146,40 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
   const { isRTL, intlLocale }  = useLocale();
   return (
     <GlassCard>
-      <div className="text-center mb-7">
+      {/* Confirmation icon */}
+      <div className="text-center mb-5">
         <div className="pub-outcome-icon pub-outcome-icon--brand" aria-hidden="true">✓</div>
-        <h2 className="text-white text-2xl font-semibold tracking-tight mb-1">
+        <h2 className="text-white text-2xl font-semibold tracking-tight mb-1.5">
           {t('booking.confirmed.title')}
         </h2>
-        <p className="text-white/40 text-sm">
+        <p className="text-[13px]" style={{ color: 'var(--pub-text-tertiary)' }}>
           {t(result.status === 'CONFIRMED' ? 'booking.confirmed.confirmedSub' : 'booking.confirmed.pendingSub')}
         </p>
       </div>
 
-      <div className="pub-inset mb-6 text-center">
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] mb-1 rtl:tracking-normal" style={{ color: 'var(--pub-text-muted)' }}>
+      {/* Ceremonial date display — open air, no bounding box */}
+      <div
+        className="text-center py-6 mb-5"
+        style={{ borderTop: '1px solid var(--pub-border-0)', borderBottom: '1px solid var(--pub-border-0)' }}
+      >
+        <p
+          className="text-[10px] font-medium uppercase tracking-[0.22em] rtl:tracking-normal mb-3"
+          style={{ color: 'var(--pub-text-muted)' }}
+        >
           {fmtDateLong(result.date, intlLocale)}
         </p>
-        <p className="text-white text-[2rem] font-light leading-none mb-2" style={{ letterSpacing: '-0.03em' }}>
+        <p
+          className="font-light leading-none mb-4"
+          style={{ fontSize: 'clamp(2.2rem, 7vw, 2.8rem)', letterSpacing: '-0.035em', color: 'var(--pub-text-warm)' }}
+        >
           {fmtTime(result.time, isRTL)}
         </p>
-        <p style={{ color: 'var(--pub-text-tertiary)', fontSize: 'var(--pub-size-md)' }}>
-          {t('common.guestCount', { count: result.partySize })}
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <span className="pub-chip">{t('common.guestCount', { count: result.partySize })}</span>
           {result.status === 'PENDING' && (
-            <span className="ms-2 text-amber-400/80">· {t('booking.confirmed.pendingBadge')}</span>
+            <span className="pub-chip pub-chip--warning">{t('booking.confirmed.pendingBadge')}</span>
           )}
-        </p>
+        </div>
       </div>
 
       {profile?.address && (

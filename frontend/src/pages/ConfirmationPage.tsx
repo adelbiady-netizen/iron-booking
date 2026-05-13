@@ -259,10 +259,10 @@ export default function ConfirmationPage({ token }: Props) {
           return (
             <GlassCard>
               <OutcomeIcon variant="confirmed" />
-              <h1 className="text-white text-2xl font-semibold text-center tracking-tight mb-1">
+              <h1 className="text-white text-[1.6rem] font-semibold text-center tracking-tight mb-1.5" style={{ letterSpacing: '-0.022em' }}>
                 {t('confirmation.confirmedTitle', { weekday: fmtWeekday(r.date, intlLocale) })}
               </h1>
-              <p className="text-sm text-center" style={{ color: 'var(--pub-text-muted)', marginBottom: 'clamp(16px, 3vh, 32px)' }}>
+              <p className="text-[13px] text-center" style={{ color: 'var(--pub-text-tertiary)', marginBottom: 'clamp(16px, 3vh, 32px)' }}>
                 {t('confirmation.confirmedSub', { time: fmtTime(r.time, isRTL) })}
               </p>
               <DateHero date={r.date} time={r.time} partySize={r.partySize} occasion={r.occasion} />
@@ -572,7 +572,7 @@ function DateHero({ date, time, partySize, occasion }: {
       >
         {fmtMonthDay(date, intlLocale)}
       </p>
-      <p className="text-[19px] font-light tracking-wide" style={{ color: 'var(--pub-text-secondary)', marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmtTime(time, isRTL)}</p>
+      <p className="font-light" style={{ fontSize: 'clamp(1.35rem, 4.5vw, 1.65rem)', letterSpacing: '-0.01em', color: 'var(--pub-text-secondary)', marginBottom: 'clamp(14px, 2.5vh, 24px)' }}>{fmtTime(time, isRTL)}</p>
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
         <Chip>{t('common.guestCount', { count: partySize })}</Chip>
