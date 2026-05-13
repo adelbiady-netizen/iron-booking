@@ -39,9 +39,9 @@ function inferObjVariant(o: FloorObjectData): string {
   const area  = o.width * o.height;
   switch (o.kind) {
     case 'DIVIDER':
-      if (colorIsGreen(o.color))       return 'GREENERY';
-      if (o.height < 14)               return 'LOW';
-      if (o.height < 24 && ratio > 3)  return 'GLASS';
+      if (colorIsGreen(o.color))              return 'GREENERY';
+      if (o.height < 6)                       return 'LOW';       // only sub-6px floor strips
+      if (o.height >= 20 && ratio > 4.0)      return 'GLASS';    // tall wide screen (h≥20, ratio>4)
       return 'PANEL';
     case 'PLANTER':
       if (ratio > 2.8)  return 'ROW';
