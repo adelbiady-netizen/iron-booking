@@ -727,6 +727,16 @@ export default function FloorBoard({
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
+            {/* Architectural environment — walls, floor materials, booth backings, VIP enclosures */}
+            {positioned && (
+              <ArchLayer
+                tables={canvasTables}
+                floorObjs={floorObjs}
+                timeWarmth={timeWarmth}
+                brightness={brightness}
+              />
+            )}
+
             {/* Ambient breathing — chandelier bloom.
                 Color drifts from neutral warm-white at morning to golden amber at dinner.
                 Ellipse widens to diffuse daylight at morning, focuses to candlelight at dinner.
@@ -1231,6 +1241,206 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
       <span className={`text-xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
       <span className="text-iron-muted/55 text-[9px] uppercase tracking-[0.08em] font-medium">{label}</span>
     </div>
+  );
+}
+
+// ── Architectural environment layer ──────────────────────────────────────────
+// Deepest visual layer: room walls, floor material zoning, booth backings,
+// VIP enclosures, and bar framing. Goes before all other SVG layers.
+function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
+  tables: FloorTable[];
+  floorObjs: FloorObjectData[];
+  timeWarmth: number;
+  brightness: number;
+}) {
+  const sectionBoxes = (() => {
+    const map = new Map<string, {
+      name: string; color: string;
+      minX: number; minY: number; maxX: number; maxY: number; count: number;
+    }>();
+    for (const t of tables) {
+      if (!t.section) continue;
+      const sid = t.section.id;
+      const x2 = t.posX + t.width, y2 = t.posY + t.height;
+      if (!map.has(sid)) {
+        map.set(sid, { name: t.section.name, color: t.section.color,
+          minX: t.posX, minY: t.posY, maxX: x2, maxY: y2, count: 1 });
+      } else {
+        const z = map.get(sid)!;
+        z.minX = Math.min(z.minX, t.posX); z.minY = Math.min(z.minY, t.posY);
+        z.maxX = Math.max(z.maxX, x2);     z.maxY = Math.max(z.maxY, y2);
+        z.count++;
+      }
+    }
+    const PAD = 26;
+    return Array.from(map.entries())
+      .filter(([, z]) => z.count >= 2)
+      .map(([id, z]) => {
+        const n = z.name.toLowerCase();
+        const personality =
+          /vip|private|salon|exclusive|presidential/.test(n) ? 'vip' as const :
+          /terrace|garden|outdoor|patio|rooftop|pergola/.test(n) ? 'terrace' as const :
+          /lounge|cocktail|aperitif/.test(n) ? 'lounge' as const :
+          /bar|counter|pass/.test(n) ? 'bar' as const : 'main' as const;
+        return {
+          id, color: z.color, personality,
+          x: z.minX - PAD, y: z.minY - PAD,
+          w: (z.maxX - z.minX) + PAD * 2,
+          h: (z.maxY - z.minY) + PAD * 2,
+        };
+      });
+  })();
+
+  const bars   = floorObjs.filter(o => o.kind === 'BAR');
+  const booths = tables.filter(t => t.shape === 'BOOTH' && t.height >= 38);
+
+  const woodOp1 = (0.022 + timeWarmth * 0.008).toFixed(3);
+  const woodOp2 = (0.012 + timeWarmth * 0.004).toFixed(3);
+  const wallT   = (0.70 + (1 - brightness) * 0.18).toFixed(2);
+  const wallS   = (0.60 + (1 - brightness) * 0.15).toFixed(2);
+  const wallB   = (0.54 + (1 - brightness) * 0.12).toFixed(2);
+
+  if (tables.length === 0) return null;
+
+  return (
+    <svg
+      width={CANVAS_W} height={CANVAS_H}
+      style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
+    >
+      <defs>
+        <pattern id="arch-wood" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(14)">
+          <line x1="0"  y1="0" x2="0"  y2="28" stroke={`rgba(210,165,90,${woodOp1})`} strokeWidth="1.2" />
+          <line x1="9"  y1="0" x2="9"  y2="28" stroke={`rgba(195,148,78,${woodOp2})`} strokeWidth="0.5" />
+          <line x1="19" y1="0" x2="19" y2="28" stroke={`rgba(200,152,80,${woodOp2})`} strokeWidth="0.5" />
+        </pattern>
+        <pattern id="arch-stone" x="0" y="0" width="44" height="44" patternUnits="userSpaceOnUse">
+          <line x1="0"  y1="0"  x2="44" y2="0"  stroke="rgba(155,148,138,0.020)" strokeWidth="0.5" />
+          <line x1="0"  y1="22" x2="44" y2="22" stroke="rgba(145,138,128,0.012)" strokeWidth="0.5" />
+          <line x1="0"  y1="0"  x2="0"  y2="44" stroke="rgba(155,148,138,0.018)" strokeWidth="0.5" />
+          <line x1="22" y1="0"  x2="22" y2="44" stroke="rgba(145,138,128,0.010)" strokeWidth="0.5" />
+        </pattern>
+        <pattern id="arch-intimate" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0"  y1="0" x2="0"  y2="22" stroke="rgba(130,105,75,0.024)" strokeWidth="0.8" />
+          <line x1="11" y1="0" x2="11" y2="22" stroke="rgba(110,88,62,0.014)"  strokeWidth="0.5" />
+        </pattern>
+        <linearGradient id="arch-wall-t" x1="0" y1="0" x2="0" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallT})`} />
+          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
+        </linearGradient>
+        <linearGradient id="arch-wall-b" x1="0" y1={CANVAS_H} x2="0" y2={CANVAS_H - 40} gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallB})`} />
+          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
+        </linearGradient>
+        <linearGradient id="arch-wall-l" x1="0" y1="0" x2="44" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallS})`} />
+          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
+        </linearGradient>
+        <linearGradient id="arch-wall-r" x1={CANVAS_W} y1="0" x2={CANVAS_W - 44} y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallS})`} />
+          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
+        </linearGradient>
+      </defs>
+
+      {/* Floor material zones — each section type has a distinct floor material */}
+      {sectionBoxes.map(sec => {
+        const pat =
+          sec.personality === 'terrace' || sec.personality === 'bar' ? 'arch-stone'
+          : sec.personality === 'lounge' || sec.personality === 'vip' ? 'arch-intimate'
+          : 'arch-wood';
+        return (
+          <g key={`arch-floor-${sec.id}`}>
+            <rect x={sec.x} y={sec.y} width={sec.w} height={sec.h} rx={10} fill={`url(#${pat})`} />
+            {(sec.personality === 'lounge' || sec.personality === 'vip') && (
+              <rect
+                x={sec.x - 10} y={sec.y - 10} width={sec.w + 20} height={sec.h + 20} rx={14}
+                fill={`rgba(8,5,2,${(0.052 + timeWarmth * 0.022).toFixed(3)})`}
+              />
+            )}
+          </g>
+        );
+      })}
+
+      {/* VIP enclosure — gold architectural ring, double-layered */}
+      {sectionBoxes.filter(s => s.personality === 'vip').map(sec => (
+        <g key={`arch-vip-${sec.id}`}>
+          <rect x={sec.x - 6}  y={sec.y - 6}  width={sec.w + 12} height={sec.h + 12} rx={14}
+            fill="none"
+            stroke={`rgba(195,162,88,${(0.058 + timeWarmth * 0.022).toFixed(3)})`}
+            strokeWidth={1.5}
+          />
+          <rect x={sec.x - 14} y={sec.y - 14} width={sec.w + 28} height={sec.h + 28} rx={18}
+            fill="none"
+            stroke={`rgba(165,135,70,${(0.025 + timeWarmth * 0.010).toFixed(3)})`}
+            strokeWidth={1}
+          />
+        </g>
+      ))}
+
+      {/* Booth backing — banquette structural wall behind each booth */}
+      {booths.map(t => (
+        <g key={`arch-booth-${t.id}`}>
+          <rect
+            x={t.posX - 5} y={t.posY - 20}
+            width={t.width + 10} height={18}
+            rx={3}
+            fill={`rgba(16,10,5,${(0.60 + timeWarmth * 0.08).toFixed(2)})`}
+            stroke={`rgba(88,60,36,${(0.26 + timeWarmth * 0.07).toFixed(2)})`}
+            strokeWidth={1}
+          />
+          <line
+            x1={t.posX - 3} y1={t.posY - 20}
+            x2={t.posX + t.width + 3} y2={t.posY - 20}
+            stroke={`rgba(255,195,115,${(0.044 + timeWarmth * 0.020).toFixed(3)})`}
+            strokeWidth={1}
+          />
+        </g>
+      ))}
+
+      {/* Bar counter ring — brass architectural presence around bar objects */}
+      {bars.map(o => {
+        const cx = o.posX + o.width  / 2;
+        const cy = o.posY + o.height / 2;
+        const rx = o.width  / 2 + 28;
+        const ry = o.height / 2 + 28;
+        return (
+          <g key={`arch-bar-${o.id}`}>
+            <ellipse cx={cx} cy={cy} rx={rx * 1.55} ry={ry * 1.35} fill="url(#arch-stone)" />
+            <ellipse cx={cx} cy={cy} rx={rx} ry={ry}
+              fill="none"
+              stroke={`rgba(200,162,78,${(0.042 + timeWarmth * 0.018).toFixed(3)})`}
+              strokeWidth={1.5}
+            />
+            <ellipse cx={cx} cy={cy} rx={rx * 1.28} ry={ry * 1.28}
+              fill="none"
+              stroke={`rgba(175,140,62,${(0.020 + timeWarmth * 0.010).toFixed(3)})`}
+              strokeWidth={0.8}
+            />
+          </g>
+        );
+      })}
+
+      {/* Terrace vegetation — abstract planter strip as spatial boundary softener */}
+      {sectionBoxes.filter(s => s.personality === 'terrace').map(sec => (
+        <g key={`arch-veg-${sec.id}`}>
+          <rect x={sec.x + 10} y={sec.y - 9} width={sec.w - 20} height={13} rx={4}
+            fill="rgba(20,42,16,0.42)" stroke="rgba(36,60,28,0.20)" strokeWidth={0.5}
+          />
+          <ellipse cx={sec.x + sec.w / 2} cy={sec.y - 16} rx={sec.w * 0.42} ry={9}
+            fill="rgba(18,48,16,0.28)"
+          />
+        </g>
+      ))}
+
+      {/* Perimeter walls — room architectural edges, deepening at night */}
+      <rect x={0} y={0} width={CANVAS_W} height={52} fill="url(#arch-wall-t)" />
+      <rect x={0} y={CANVAS_H - 40} width={CANVAS_W} height={40} fill="url(#arch-wall-b)" />
+      <rect x={0} y={0} width={44} height={CANVAS_H} fill="url(#arch-wall-l)" />
+      <rect x={CANVAS_W - 44} y={0} width={44} height={CANVAS_H} fill="url(#arch-wall-r)" />
+      {/* Top wall ledge catch — warm overhead light on the back wall surface */}
+      <rect x={0} y={50} width={CANVAS_W} height={4}
+        fill={`rgba(255,195,110,${(0.032 + timeWarmth * 0.014).toFixed(3)})`}
+      />
+    </svg>
   );
 }
 
