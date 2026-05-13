@@ -150,7 +150,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                   onClick={() => onSeatAtTable?.(tableId, entry)}
                   disabled={entry.date.slice(0, 10) > todayStr}
                   title={entry.date.slice(0, 10) > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
-                  className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors active:scale-[0.96] touch-manipulation shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {T.waitlistPanel.seatButton}
                 </button>
@@ -343,7 +343,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                   onClick={() => onSeat(entry)}
                   disabled={entry.date.slice(0, 10) > todayStr}
                   title={entry.date.slice(0, 10) > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
-                  className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors active:scale-[0.96] touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {T.waitlistPanel.seatButton}
                 </button>

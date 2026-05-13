@@ -349,7 +349,7 @@ export default function ReservationPanel({
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-4 py-4 min-w-0"
+                    className="flex-1 text-left px-4 py-4 min-w-0 touch-manipulation active:bg-white/[0.05] transition-colors"
                   >
 
                     {/* Row 1 — name + badge */}

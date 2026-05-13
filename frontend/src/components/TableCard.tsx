@@ -61,7 +61,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       onContextMenu={onContextMenu}
       title={turnTooltip ?? (isAvailable ? T.tableCard.clickToSeat : undefined)}
       className={`
-        group w-full text-left p-3 rounded-lg border transition-all duration-150
+        group w-full text-left p-3 rounded-lg border transition-[background-color,border-color,box-shadow,opacity,transform] duration-150 active:scale-[0.97] touch-manipulation
         ${table.locked ? 'bg-amber-500/5' : (style.bg || 'bg-iron-card')}
         ${selected
           ? 'border-iron-green ring-2 ring-iron-green/40 ring-offset-1 ring-offset-iron-bg'

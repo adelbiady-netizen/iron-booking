@@ -110,15 +110,16 @@ input[type="time"] {
 
 /* ── Keyboard focus ring ──────────────────────────────────────────────────── */
 /* Scoped to :focus-visible so mouse/touch users are unaffected.              */
+/* Green-tinted ring matches the brand; softer than pure white.              */
 
 :focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.60);
+  outline: 2px solid rgba(111, 138, 60, 0.55);
   outline-offset: 3px;
   border-radius: 4px;
 }
 
 [data-theme="light"] :focus-visible {
-  outline-color: rgb(var(--iron-green-light) / 0.80);
+  outline-color: rgb(var(--iron-green-light) / 0.75);
 }
 
 /* ── Animations ───────────────────────────────────────────────────────────── */
@@ -210,4 +211,25 @@ input[type="time"] {
 }
 .animate-ambient-breathe {
   animation: ambient-breathe 14s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* ── Motion safety ────────────────────────────────────────────────────────── */
+/* Respect system preference. Non-critical animations pause; operational      */
+/* signals (pulse dots, spinners) use opacity-only fallbacks.                 */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ambient-breathe,
+  .animate-action-pulse,
+  [style*="table-alive"],
+  [style*="table-ending"],
+  [style*="table-incoming"],
+  [style*="table-tense"] {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .animate-drawer-in  { animation-duration: 1ms !important; }
+  .animate-backdrop-in{ animation-duration: 1ms !important; }
+  .animate-flash      { animation: none !important; }
+  .animate-ctx-menu   { animation-duration: 1ms !important; }
 }

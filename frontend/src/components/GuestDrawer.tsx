@@ -106,7 +106,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`rounded-lg border transition-colors disabled:opacity-40 ${
+      className={`rounded-lg border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
         primary ? 'text-sm font-semibold px-4 py-2' : 'text-xs font-medium px-3 py-1.5'
       } ${cls}`}
     >

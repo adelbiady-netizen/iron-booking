@@ -1751,6 +1751,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={turnTooltip}
+      className="active:scale-[0.965] touch-manipulation"
       style={{
         position: 'absolute',
         left: table.posX, top: table.posY,
@@ -1776,7 +1777,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         textAlign: 'left',
         cursor,
-        transition: `opacity var(--duration-fast) ease-out, filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
+        transition: `opacity var(--duration-fast) ease-out, transform var(--duration-fast) var(--ease-hospitality), filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
     >
       {/* ── Live presence overlays ──────────────────────────────────────────── */}
