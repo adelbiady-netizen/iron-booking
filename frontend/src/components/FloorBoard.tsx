@@ -844,6 +844,20 @@ export default function FloorBoard({
             {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge */}
             <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} brightness={brightness} />
 
+            {/* Chair silhouettes — semantic furniture geometry around table perimeters */}
+            <ChairLayer
+              tables={canvasTables}
+              dimmedTableIds={new Set<string>(
+                canvasTables
+                  .filter(t => !pickMode && (
+                    (hoveredSectionId !== null && t.section?.id !== hoveredSectionId) ||
+                    (!!waitlistAssignEntry && (t.liveStatus !== 'AVAILABLE' || t.locked))
+                  ))
+                  .map(t => t.id)
+              )}
+              pickMode={pickMode}
+            />
+
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
               const ineligibleForAssign = !!waitlistAssignEntry && !pickMode && (t.liveStatus !== 'AVAILABLE' || t.locked);
@@ -1486,6 +1500,126 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
         const cx = o.posX + o.width / 2, cy = o.posY + o.height / 2;
         const lr = Math.max(o.width, o.height) * 0.74;
         return <ellipse key={`sf-barlamp-${o.id}`} cx={cx} cy={cy} rx={lr * 1.28} ry={lr * 0.62} fill={`url(#sf-barlamp-${o.id})`} />;
+      })}
+    </svg>
+  );
+}
+
+// ── Chair layer ───────────────────────────────────────────────────────────────
+// Semantic chair silhouettes rendered as SVG around each table perimeter.
+// Lives below table buttons in DOM order so chairs peek around table edges
+// without interfering with hit targets or the button's overflow:hidden.
+// Detail tier (useDots vs full capsule) proxies for zoom via table pixel area.
+function ChairLayer({ tables, dimmedTableIds, pickMode }: {
+  tables: FloorTable[];
+  dimmedTableIds: Set<string>;
+  pickMode: boolean;
+}) {
+  return (
+    <svg
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
+      width={CANVAS_W}
+      height={CANVAS_H}
+      viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+    >
+      {tables.map(table => {
+        if (table.liveStatus === 'BLOCKED') return null;
+        const minDim = Math.min(table.width, table.height);
+        if (minDim < 38) return null;
+
+        const area = table.width * table.height;
+        const useDots = minDim < 52;
+        const cW  = useDots ? 4  : area > 7000 ? 11 : 8;   // along edge
+        const cH  = useDots ? 4  : area > 7000 ?  7 : 5;   // perpendicular (depth)
+        const gap = 2.5;
+        const cRx = useDots ? cW / 2 : 2.5;
+
+        const isRound = table.shape === 'ROUND' || table.shape === 'OVAL';
+        const isBooth = table.shape === 'BOOTH';
+        const cx = table.posX + table.width / 2;
+        const cy = table.posY + table.height / 2;
+
+        const seatCount =
+          table.liveStatus === 'OCCUPIED'
+            ? (table.currentReservation?.partySize ?? table.minCovers)
+          : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
+            ? (table.upcomingReservations[0]?.partySize ?? table.minCovers)
+          : table.minCovers;
+        const displayCount = Math.max(2, Math.min(seatCount, table.maxCovers, 12));
+        const isActive = table.liveStatus === 'OCCUPIED' || table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
+        const filledCount = isActive ? displayCount : 0;
+
+        const filledFill =
+          table.liveStatus === 'OCCUPIED'        ? 'rgba(134,239,172,0.38)'
+          : table.liveStatus === 'RESERVED_SOON' ? 'rgba(251,191,36,0.38)'
+          : 'rgba(96,165,250,0.34)';
+        const filledStroke =
+          table.liveStatus === 'OCCUPIED'        ? 'rgba(134,239,172,0.22)'
+          : table.liveStatus === 'RESERVED_SOON' ? 'rgba(251,191,36,0.22)'
+          : 'rgba(96,165,250,0.20)';
+        const emptyFill   = 'rgba(63,63,70,0.50)';
+        const emptyStroke = 'rgba(82,82,91,0.30)';
+
+        type Chair = { x: number; y: number; w: number; h: number; rotDeg: number; filled: boolean };
+        const chairs: Chair[] = [];
+        let seated = 0;
+        const mkChair = (x: number, y: number, w: number, h: number, rotDeg: number): Chair => ({
+          x, y, w, h, rotDeg, filled: seated++ < filledCount,
+        });
+
+        if (isRound) {
+          const r   = (table.width + table.height) / 4;
+          const dist = r + gap + cH / 2;
+          for (let i = 0; i < displayCount; i++) {
+            const ang = (i / displayCount) * Math.PI * 2 - Math.PI / 2;
+            chairs.push(mkChair(
+              cx + Math.cos(ang) * dist,
+              cy + Math.sin(ang) * dist,
+              cW, cH,
+              (ang + Math.PI / 2) * 180 / Math.PI,
+            ));
+          }
+        } else if (isBooth) {
+          const n  = Math.min(displayCount, Math.max(1, Math.floor((table.width - 8) / (cW + 5))));
+          const sp = table.width / (n + 1);
+          for (let i = 0; i < n; i++) {
+            chairs.push(mkChair(table.posX + sp * (i + 1), table.posY - gap - cH / 2, cW, cH, 0));
+          }
+        } else {
+          const maxFitH = Math.max(1, Math.floor((table.width  - 8) / (cW + 4)));
+          const maxFitV = Math.max(1, Math.floor((table.height - 8) / (cW + 4)));
+          const perTop  = Math.min(Math.ceil(displayCount / 2),  maxFitH);
+          const perBot  = Math.min(Math.floor(displayCount / 2), maxFitH);
+          const sideN   = displayCount - perTop - perBot;
+          const perLeft = Math.min(Math.ceil(sideN / 2),  maxFitV);
+          const perRight= Math.min(Math.floor(sideN / 2), maxFitV);
+
+          for (let i = 0; i < perTop;   i++) chairs.push(mkChair(table.posX + (table.width  / (perTop   + 1)) * (i + 1), table.posY - gap - cH / 2,                           cW, cH, 0));
+          for (let i = 0; i < perBot;   i++) chairs.push(mkChair(table.posX + (table.width  / (perBot   + 1)) * (i + 1), table.posY + table.height + gap + cH / 2,             cW, cH, 0));
+          for (let i = 0; i < perLeft;  i++) chairs.push(mkChair(table.posX - gap - cH / 2,                              table.posY + (table.height / (perLeft  + 1)) * (i + 1), cW, cH, 90));
+          for (let i = 0; i < perRight; i++) chairs.push(mkChair(table.posX + table.width + gap + cH / 2,               table.posY + (table.height / (perRight + 1)) * (i + 1), cW, cH, 90));
+        }
+
+        const tableOpacity = dimmedTableIds.has(table.id) ? 0.10 : pickMode ? 0.22 : 1;
+
+        return (
+          <g key={`chairs-${table.id}`} opacity={tableOpacity}>
+            {chairs.map((c, idx) => (
+              <rect
+                key={idx}
+                x={c.x - c.w / 2}
+                y={c.y - c.h / 2}
+                width={c.w}
+                height={c.h}
+                rx={cRx}
+                fill={c.filled ? filledFill : emptyFill}
+                stroke={c.filled ? filledStroke : emptyStroke}
+                strokeWidth={0.5}
+                transform={c.rotDeg !== 0 ? `rotate(${c.rotDeg}, ${c.x}, ${c.y})` : undefined}
+              />
+            ))}
+          </g>
+        );
       })}
     </svg>
   );
