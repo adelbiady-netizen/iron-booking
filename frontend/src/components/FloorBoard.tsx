@@ -2600,6 +2600,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // BLOCKED: intentional absence — near-ghost, clearly not in service
   if (table.liveStatus === 'BLOCKED' && !selected && !combinedSelected) {
     opacity = Math.min(opacity, 0.60);
+    cursor = 'default';
   }
 
   // Peripheral quieting — continuous, pressure-proportional recession of idle tables.
