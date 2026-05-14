@@ -956,19 +956,17 @@ export default function FloorBoard({
             ? document.documentElement.getAttribute('data-theme') !== 'light'
             : true;
 
-          // Grid — most visible at morning (architectural), nearly gone at dinner/late-night
+          // Grid — architectural reference lines; warm neutral to avoid blue cast
           const gridAlpha  = isDark
-            ? 0.028 * (1 - gridFade * 0.90)
-            : 0.055 * (1 - gridFade * 0.70);
-          const gridRgb    = isDark ? '180,195,225' : '0,0,0';
+            ? 0.016 * (1 - gridFade * 0.90)
+            : 0.050 * (1 - gridFade * 0.70);
+          const gridRgb    = isDark ? '200,196,190' : '0,0,0';
           const gridColor  = `rgba(${gridRgb},${gridAlpha.toFixed(4)})`;
 
-          // Ambient bloom — wider/diffuse at morning, focused/golden at dinner
+          // Ambient bloom — warm candlelight white; no blue channel drift
           const ambW = Math.round(72 + brightness * 14); // 86% morning → 72% dinner
           const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
-          const ambG = Math.round(225 - timeWarmth * 18);
-          const ambB = Math.round(255 - timeWarmth * 30);
-          const ambA = (0.006 + brightness * 0.003 + timeWarmth * 0.002 + serviceEnergy * 0.001).toFixed(4);
+          const ambA = (0.004 + brightness * 0.002 + timeWarmth * 0.002).toFixed(4);
           // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
@@ -1013,7 +1011,7 @@ export default function FloorBoard({
               className="animate-ambient-breathe"
               style={{
                 position: 'absolute', inset: 0,
-                background: `radial-gradient(ellipse ${ambW}% ${ambH}% at 50% 36%, rgba(255,${ambG},${ambB},${ambA}) 0%, transparent 65%)`,
+                background: `radial-gradient(ellipse ${ambW}% ${ambH}% at 50% 36%, rgba(255,244,230,${ambA}) 0%, transparent 65%)`,
                 animationDuration: `${ambDuration}s`,
                 pointerEvents: 'none',
                 zIndex: 0,
@@ -1031,8 +1029,8 @@ export default function FloorBoard({
                   width:  z.maxX - z.minX + PAD * 2,
                   height: z.maxY - z.minY + PAD * 2,
                   borderRadius: 24,
-                  border: `1px solid ${z.color}14`,
-                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}08 0%, ${z.color}03 60%, transparent 85%)`,
+                  border: `1px solid ${z.color}0A`,
+                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}05 0%, ${z.color}02 60%, transparent 85%)`,
                   pointerEvents: 'none',
                 }}
               />
@@ -1557,8 +1555,8 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
   const curvedBoothSegs    = floorObjs.filter(o => o.kind === 'CURVED_BOOTH_SEGMENT');
   const booths        = tables.filter(t => t.shape === 'BOOTH' && t.height >= 38);
 
-  const woodOp1 = (0.022 + timeWarmth * 0.008).toFixed(3);
-  const woodOp2 = (0.012 + timeWarmth * 0.004).toFixed(3);
+  const woodOp1 = (0.013 + timeWarmth * 0.005).toFixed(3);
+  const woodOp2 = (0.007 + timeWarmth * 0.003).toFixed(3);
   const wallT   = (0.70 + (1 - brightness) * 0.18).toFixed(2);
   const wallS   = (0.60 + (1 - brightness) * 0.15).toFixed(2);
   const wallB   = (0.54 + (1 - brightness) * 0.12).toFixed(2);
@@ -1655,7 +1653,7 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
             {(sec.personality === 'lounge' || sec.personality === 'vip') && (
               <rect
                 x={sec.x - 10} y={sec.y - 10} width={sec.w + 20} height={sec.h + 20} rx={14}
-                fill={`rgba(8,5,2,${(0.052 + timeWarmth * 0.022).toFixed(3)})`}
+                fill={`rgba(8,5,2,${(0.036 + timeWarmth * 0.015).toFixed(3)})`}
               />
             )}
           </g>
