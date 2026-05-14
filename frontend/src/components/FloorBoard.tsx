@@ -309,11 +309,11 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG: Record<string, string> = {
-  AVAILABLE:     'rgba(255,255,255,0.97)',   // clean white
-  OCCUPIED:      'rgba(236,253,242,0.97)',   // white + breath of green
-  RESERVED_SOON: 'rgba(255,251,230,0.97)',   // white + breath of amber
-  RESERVED:      'rgba(232,244,255,0.97)',   // white + breath of blue
-  BLOCKED:       'rgba(30,32,36,0.18)',      // near-invisible
+  AVAILABLE:     'rgba(248,248,246,0.97)',   // matte off-white — calm / receptive
+  OCCUPIED:      'rgba(234,251,239,0.97)',   // matte barely-green — active energy
+  RESERVED_SOON: 'rgba(251,248,226,0.97)',   // matte barely-amber — imminent
+  RESERVED:      'rgba(228,241,254,0.97)',   // matte barely-blue — committed
+  BLOCKED:       'rgba(30,32,36,0.18)',      // near-invisible — withdrawn
 };
 
 interface Props {
@@ -377,10 +377,10 @@ function tableRadius(shape: string): string {
   return '12px';  // softer premium corners — hospitality furniture, not a UI button
 }
 
-// Surface gradient — single subtle top highlight for active states only.
-// No material simulation; clean geometric surface with minimal optical depth.
+// Surface gradient — top highlight for depth. Active states slightly stronger than available.
 function tableGradient(_shape: string, status: string, _cls: string): string | undefined {
   if (status === 'BLOCKED') return undefined;
+  if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 50%)';
   return 'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, transparent 50%)';
 }
 
@@ -2535,20 +2535,20 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
 
-  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(245,244,255,0.97)'
-    : isOverdue ? 'rgba(255,235,235,0.97)'
+  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(244,242,255,0.97)'   // matte lavender — held
+    : isOverdue ? 'rgba(255,238,238,0.97)'                                            // matte soft red — overdue
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(255,253,242,0.98)';
+    bg = 'rgba(255,254,246,0.97)';     // matte barely-ivory — VIP prestige
   }
   if (cls === 'communal' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(248,250,255,0.97)';
+    bg = 'rgba(247,249,255,0.97)';     // matte barely-cool — communal social
   }
   if (cls === 'lounge' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(255,252,245,0.97)';
+    bg = 'rgba(255,253,247,0.97)';     // matte barely-warm-cream — lounge relaxed
   }
   if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(253,253,253,0.97)';
+    bg = 'rgba(252,252,252,0.97)';     // matte neutral — bar clean
   }
 
   let borderColor = selected        ? '#22c55e'
@@ -2561,9 +2561,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
 
   let boxShadow: string | undefined = selected
-    ? '0 0 0 3px rgba(34,197,94,0.30), 0 0 8px rgba(34,197,94,0.10)'
+    ? '0 0 0 3px rgba(34,197,94,0.35), 0 0 20px rgba(34,197,94,0.14)'
     : combinedSelected
-    ? '0 0 0 3px rgba(59,130,246,0.30)'
+    ? '0 0 0 3px rgba(59,130,246,0.35), 0 0 16px rgba(59,130,246,0.12)'
     : softHold && table.liveStatus === 'AVAILABLE'
     ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
     : bestSuggestion
@@ -2684,11 +2684,27 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     if (dimmed) opacity = Math.max(opacity, 0.55);
   }
 
-  // Material depth — every physical table has edge depth, a top-lit surface, and an AO bottom.
-  // Layered inset shadows simulate the thickness of a real table top seen from above.
-  // Suppressed during pick/warn states where clarity wins over atmosphere; BLOCKED is flat/withdrawn.
+  // State halo — restrained outer glow communicates operational status at a glance.
+  // Not a decoration: it is the primary ambient signal that separates table state from the dark floor.
+  // Suppressed during pick/warn/select modes where border rings carry state signal.
+  if (!pickMode && !wlPickWarn && !waitlistAssignTarget && !selected && !combinedSelected && !dimmed && !(softHold && table.liveStatus === 'AVAILABLE')) {
+    let halo: string | undefined;
+    if (isOverdue) {
+      halo = '0 0 0 1px rgba(239,68,68,0.22), 0 0 22px rgba(239,68,68,0.12)';
+    } else if (table.liveStatus === 'OCCUPIED') {
+      halo = '0 0 0 1px rgba(134,239,172,0.16), 0 0 18px rgba(134,239,172,0.08)';
+    } else if (table.liveStatus === 'RESERVED_SOON') {
+      halo = '0 0 0 1px rgba(251,191,36,0.20), 0 0 16px rgba(251,191,36,0.09)';
+    } else if (table.liveStatus === 'RESERVED') {
+      halo = '0 0 0 1px rgba(147,197,253,0.16), 0 0 14px rgba(147,197,253,0.07)';
+    } else if (table.liveStatus === 'AVAILABLE') {
+      halo = '0 0 16px rgba(255,255,255,0.05)';
+    }
+    if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
+  }
+
+  // Plate depth — subtle inset edge highlight. Suppressed during pick/warn states and BLOCKED.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
-    // Restrained plate depth: subtle top highlight + soft bottom shadow. No material simulation.
     const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 3px rgba(0,0,0,0.07)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
