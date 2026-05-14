@@ -2832,12 +2832,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {/* Table number — primary when empty, secondary label when a guest is present */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
-          fontSize: hasGuest ? 11 : 15,
-          fontWeight: hasGuest ? 700 : 900,
+          fontSize: hasGuest ? 10 : 15,
+          fontWeight: hasGuest ? 600 : 900,
           color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
-          opacity: hasGuest ? 0.75 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
+          opacity: hasGuest ? 0.62 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-          letterSpacing: hasGuest ? '0.03em' : '-0.02em',
+          letterSpacing: hasGuest ? '0.04em' : '-0.02em',
         }}>
           {table.name}
         </span>
@@ -2856,7 +2856,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 11, color: '#3f3f46', opacity: 0.82, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 600 }}>
+        <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.58, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 500 }}>
           {table.minCovers}–{table.maxCovers}p
         </span>
       )}
@@ -2879,7 +2879,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 13, color: nameColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.015em' }}>
+              <p style={{ fontSize: 14, color: nameColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.02em' }}>
                 {currentRes.guestName}
               </p>
               {isOverdue && (
@@ -2895,7 +2895,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 11, color: '#3f3f46', fontWeight: 600 }}>
+                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {currentRes.partySize}p
                 </span>
                 {isToday && (() => {
@@ -2930,7 +2930,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 13, color: guestColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.015em' }}>
+              <p style={{ fontSize: 14, color: guestColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.02em' }}>
                 {displayRes.guestName}
               </p>
               {isSoon && (
@@ -2946,7 +2946,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && nextRes && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 11, color: '#3f3f46', fontWeight: 600 }}>
+                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {nextRes.partySize}p
                 </span>
                 <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, opacity: 1 }}>
@@ -3045,7 +3045,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         <span style={{
           position: 'absolute', bottom: 4, right: 4,
           width: 5, height: 5, borderRadius: '50%',
-          backgroundColor: table.section.color, opacity: 0.9,
+          backgroundColor: table.section.color, opacity: 0.52,
         }} />
       )}
     </button>
@@ -3091,10 +3091,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               boxShadow: 'inset 2px 0 0 rgba(96,165,250,0.30)',
             }}
           >
-            <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontSize: 10, color: '#a1a1aa', fontWeight: 700, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
               {r.time}
             </span>
-            <span style={{ fontSize: 10, color: '#d4d4d8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            <span style={{ fontSize: 9, color: '#d4d4d8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
               {r.guestName}
             </span>
             <span style={{ fontSize: 9, color: '#9ca3af', flexShrink: 0, fontWeight: 500 }}>
