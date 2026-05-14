@@ -128,7 +128,7 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-full flex flex-col border-s border-iron-border/30 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.03), -6px 0 28px rgba(0,0,0,0.32)' }}>
+    <aside className="w-full h-full flex flex-col border-s border-iron-border/30 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.03), -6px 0 28px rgba(0,0,0,0.32)' }}>
 
       {/* Tab bar + action buttons */}
       <div className="px-4 pt-3.5 pb-0 border-b border-iron-border/20" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.03)' }}>
@@ -373,8 +373,8 @@ export default function ReservationPanel({
                   >
 
                     {/* Row 1 — name + badge */}
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className="text-iron-text text-base font-semibold tracking-tight truncate flex-1 leading-snug">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <span className="text-iron-text text-[17px] font-semibold tracking-tight truncate flex-1 leading-snug">
                         {r.guestName}
                         {r.guest?.isVip && (
                           <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
@@ -388,30 +388,30 @@ export default function ReservationPanel({
                           ✆–
                         </span>
                       )}
-                      <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-medium shrink-0 ${statusBadge.cls}`}>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full border font-medium shrink-0 ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>
                     </div>
 
                     {/* Row 2 — time · guests · table */}
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-iron-text font-bold tabular-nums">{normalizeTime(r.time)}</span>
-                      <span className="text-iron-muted/25">·</span>
-                      <span className="text-iron-muted/70 text-xs">{T.common.guests(r.partySize)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-iron-text text-base font-bold tabular-nums">{normalizeTime(r.time)}</span>
+                      <span className="text-iron-muted/30">·</span>
+                      <span className="text-iron-muted/80 text-[13px]">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/25">·</span>
-                          <span className="text-iron-muted/80 text-xs">{r.table.name}</span>
+                          <span className="text-iron-muted/30">·</span>
+                          <span className="text-iron-muted/80 text-[13px]">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/25">·</span>
+                          <span className="text-iron-muted/30">·</span>
                           {(() => {
                             const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
                             const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
                             return (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${
                                 urgent
                                   ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
                                   : 'bg-iron-border/15 border-iron-border/30 text-iron-muted'
@@ -428,22 +428,22 @@ export default function ReservationPanel({
                     {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt) && (
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {r.occasion && (
-                          <span className="text-[11px] text-iron-green-light/75 font-medium">{r.occasion}</span>
+                          <span className="text-xs text-iron-green-light/75 font-medium">{r.occasion}</span>
                         )}
                         {r.isConfirmedByGuest && (
-                          <span className="text-[10px] text-emerald-400">{T.reservationPanel.confirmedTick}</span>
+                          <span className="text-xs text-emerald-400">{T.reservationPanel.confirmedTick}</span>
                         )}
                         {r.isArrived && (
-                          <span className="text-[10px] text-teal-400/60">{T.reservationPanel.arrivedBadge}</span>
+                          <span className="text-xs text-teal-400/75">{T.reservationPanel.arrivedBadge}</span>
                         )}
                         {r.isRunningLate && (
                           <span className="text-xs text-orange-400 font-medium">{T.reservationPanel.runningLate}</span>
                         )}
                         {!r.isConfirmedByGuest && r.remindedAt && (
-                          <span className="text-[10px] text-iron-muted/50">{T.reservationPanel.reminded}</span>
+                          <span className="text-xs text-iron-muted/60">{T.reservationPanel.reminded}</span>
                         )}
                         {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
-                          <span className="text-[10px] text-iron-muted/50">{T.reservationPanel.smsSent}</span>
+                          <span className="text-xs text-iron-muted/60">{T.reservationPanel.smsSent}</span>
                         )}
                       </div>
                     )}
@@ -453,7 +453,7 @@ export default function ReservationPanel({
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                        className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors whitespace-nowrap"
+                        className="text-xs font-medium px-3 py-2 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors whitespace-nowrap"
                       >
                         {T.reservationPanel.chooseTable}
                       </button>
