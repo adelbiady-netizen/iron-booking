@@ -1353,12 +1353,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           </svg>
         </button>
 
-        {/* Reservation panel wrapper — transitions to w-0 when collapsed */}
+        {/* Reservation panel wrapper — explicit width so CSS transition animates
+            correctly in both directions (auto/undefined can't be interpolated). */}
         <div
           className="shrink-0 overflow-hidden"
           style={{
-            width: panelCollapsed ? 0 : undefined,
-            transition: 'width 180ms ease-out',
+            width: panelCollapsed ? 0 : 416,
+            transition: 'width 200ms ease-out',
           }}
         >
           <ReservationPanel

@@ -127,7 +127,7 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-80 lg:w-[26rem] shrink-0 flex flex-col border-s border-iron-border/30 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.03), -6px 0 28px rgba(0,0,0,0.32)' }}>
+    <aside className="w-full flex flex-col border-s border-iron-border/30 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.03), -6px 0 28px rgba(0,0,0,0.32)' }}>
 
       {/* Tab bar + action buttons */}
       <div className="px-4 pt-3.5 pb-0 border-b border-iron-border/20" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.03)' }}>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import type React from 'react';
 import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
@@ -435,6 +435,41 @@ export default function FloorBoard({
   const floorZoom = ZOOM_STEPS[zoomIdx];
   const floorZoomRef = useRef(floorZoom);
   floorZoomRef.current = floorZoom;
+  // Tracks zoom level from the PREVIOUS render so the centering effect can
+  // compute the correct scroll delta before the browser paints the new zoom.
+  const prevZoomRef = useRef(floorZoom);
+
+  // Zoom centering — runs synchronously after DOM mutation, before paint.
+  // Adjusts scrollLeft/Top so the canvas coordinate at the viewport center
+  // stays fixed across zoom changes (reversible in/out, no drift).
+  useLayoutEffect(() => {
+    const container = canvasScrollRef.current;
+    if (!container) return;
+    const prev = prevZoomRef.current;
+    prevZoomRef.current = floorZoom;
+    if (prev === floorZoom) return;
+    // Canvas coordinate at the center of the current viewport (in prev zoom space)
+    const cx = (container.scrollLeft + container.clientWidth  / 2) / prev;
+    const cy = (container.scrollTop  + container.clientHeight / 2) / prev;
+    // Reposition so the same canvas coordinate stays at center after new zoom
+    container.scrollLeft = Math.max(0, cx * floorZoom - container.clientWidth  / 2);
+    container.scrollTop  = Math.max(0, cy * floorZoom - container.clientHeight / 2);
+  }, [floorZoom]);
+
+  // Container resize — clamps scroll when the viewport expands (e.g. panel collapse)
+  // so the host never sees empty space beyond the canvas edge.
+  useEffect(() => {
+    const container = canvasScrollRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      const maxL = Math.max(0, CANVAS_W * floorZoomRef.current - container.clientWidth);
+      const maxT = Math.max(0, CANVAS_H * floorZoomRef.current - container.clientHeight);
+      if (container.scrollLeft > maxL) container.scrollLeft = maxL;
+      if (container.scrollTop  > maxT) container.scrollTop  = maxT;
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
