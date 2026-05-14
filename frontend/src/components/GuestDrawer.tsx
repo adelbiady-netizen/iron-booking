@@ -107,7 +107,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       disabled={disabled}
       title={title}
       className={`rounded-lg border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-2' : 'text-xs font-medium px-3 py-1.5'
+        primary ? 'text-sm font-semibold px-4 py-2.5' : 'text-xs font-medium px-3 py-2'
       } ${cls}`}
     >
       {label}
@@ -827,14 +827,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 <button
                   onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
                   disabled={busy}
-                  className="text-xs font-medium px-2.5 py-1 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40"
+                  className="text-xs font-medium px-3 py-2 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40 touch-manipulation"
                 >
                   {T.guestDrawer.actionUnseat}
                 </button>
                 <button
                   onClick={() => setUnseatConfirm(false)}
                   disabled={busy}
-                  className="text-xs text-iron-muted hover:text-iron-text transition-colors"
+                  className="text-xs text-iron-muted hover:text-iron-text transition-colors py-2 px-1 touch-manipulation"
                 >
                   {T.guestDrawer.backLink}
                 </button>
@@ -929,7 +929,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         setPhoneCopied(true);
                         setTimeout(() => setPhoneCopied(false), 1500);
                       }}
-                      className={`text-xs transition-colors px-1.5 py-0.5 rounded ${phoneCopied ? 'text-iron-green-light' : 'text-iron-muted hover:text-iron-text'}`}
+                      className={`text-xs transition-colors px-2 py-1 rounded touch-manipulation ${phoneCopied ? 'text-iron-green-light' : 'text-iron-muted hover:text-iron-text'}`}
                       title="Copy phone"
                     >
                       {phoneCopied ? 'Copied' : 'Copy'}
@@ -988,14 +988,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               {mode === 'view' && !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && (
                 <button
                   onClick={enterEdit}
-                  className="text-xs font-medium px-2.5 py-1 rounded-md border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors"
+                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors touch-manipulation"
                 >
                   {T.guestDrawer.editButton}
                 </button>
               )}
               <button
                 onClick={onClose}
-                className="text-iron-muted hover:text-iron-text text-xl leading-none"
+                className="text-iron-muted hover:text-iron-text text-xl leading-none p-2 -m-2 rounded touch-manipulation"
                 aria-label="Close"
               >
                 ×

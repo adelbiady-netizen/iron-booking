@@ -1173,20 +1173,20 @@ export default function FloorBoard({
             onClick={() => setZoomIdx(i => Math.max(0, i - 1))}
             disabled={zoomIdx === 0}
             title={T.floorBoard.zoomOut}
-            className="w-7 h-7 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none"
+            className="w-8 h-8 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none touch-manipulation"
           >−</button>
           <button
             type="button"
             onClick={() => setZoomIdx(1)}
             title={T.floorBoard.zoomReset}
-            className="h-7 px-2 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 text-[10px] tabular-nums font-medium transition-colors select-none"
+            className="h-8 px-2.5 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 text-[10px] tabular-nums font-medium transition-colors select-none touch-manipulation"
           >{Math.round(floorZoom * 100)}%</button>
           <button
             type="button"
             onClick={() => setZoomIdx(i => Math.min(ZOOM_STEPS.length - 1, i + 1))}
             disabled={zoomIdx === ZOOM_STEPS.length - 1}
             title={T.floorBoard.zoomIn}
-            className="w-7 h-7 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none"
+            className="w-8 h-8 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none touch-manipulation"
           >+</button>
         </div>
         </div>
@@ -1285,14 +1285,14 @@ export default function FloorBoard({
             {ctxMenu.table.locked ? (
               <button
                 onClick={() => { onUnlockTable?.(ctxMenu.table.id); setCtxMenu(null); }}
-                className="w-full text-left px-3 py-1.5 text-xs text-iron-text hover:bg-iron-bg transition-colors"
+                className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
               >
                 {T.floorBoard.unlockTable}
               </button>
             ) : (
               <button
                 onClick={() => { onLockTable?.(ctxMenu.table); setCtxMenu(null); }}
-                className="w-full text-left px-3 py-1.5 text-xs text-iron-text hover:bg-iron-bg transition-colors"
+                className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
               >
                 {T.floorBoard.lockTable}
               </button>
@@ -1414,7 +1414,7 @@ export default function FloorBoard({
           <button
             type="button"
             onClick={onPickCancel}
-            className="text-iron-muted text-xs hover:text-iron-text transition-colors shrink-0"
+            className="text-iron-muted text-xs hover:text-iron-text transition-colors shrink-0 py-2 px-1 touch-manipulation"
           >
             {T.floorBoard.pickModeCancel}
           </button>
