@@ -2579,7 +2579,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Status-driven border refinements
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (table.liveStatus === 'RESERVED_SOON') {
-      borderColor = 'rgba(217,119,6,0.72)';           // amber — imminent arrival
+      borderColor = 'rgba(217,119,6,0.82)';           // amber — imminent arrival
     } else if (table.liveStatus === 'RESERVED') {
       borderColor = 'rgba(59,130,246,0.40)';           // cool blue — calm, committed
     } else if (isEndingSoon) {
@@ -2700,14 +2700,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     } else if (table.liveStatus === 'RESERVED') {
       halo = '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
-      halo = '0 0 36px rgba(255,255,255,0.11)';
+      halo = '0 0 22px rgba(255,255,255,0.07)';
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
   }
 
   // Plate depth — subtle inset edge highlight. Suppressed during pick/warn states and BLOCKED.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
-    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.90), inset 0 -2px 6px rgba(0,0,0,0.10)';
+    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.96), inset 0 -2px 6px rgba(0,0,0,0.12)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
 
@@ -2746,7 +2746,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                         ? 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'
     : table.liveStatus === 'BLOCKED'
                         ? undefined
-                        : 'drop-shadow(0 2px 16px rgba(0,0,0,0.50)) drop-shadow(0 1px 4px rgba(0,0,0,0.24))';
+                        : 'drop-shadow(0 2px 10px rgba(0,0,0,0.38)) drop-shadow(0 1px 3px rgba(0,0,0,0.18))';
 
   return (
   <>
@@ -2832,12 +2832,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {/* Table number — primary when empty, secondary label when a guest is present */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
-          fontSize: hasGuest ? 11 : 14,
-          fontWeight: hasGuest ? 700 : 800,
+          fontSize: hasGuest ? 11 : 15,
+          fontWeight: hasGuest ? 700 : 900,
           color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
           opacity: hasGuest ? 0.75 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-          letterSpacing: hasGuest ? '0.03em' : '-0.01em',
+          letterSpacing: hasGuest ? '0.03em' : '-0.02em',
         }}>
           {table.name}
         </span>
