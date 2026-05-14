@@ -752,7 +752,11 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
           });
         }
       }
-      await api.tables.batchSaveFloorObjects(floorObjs);
+      // Strip null variant before sending — DB returns null for unset variants,
+      // but the backend schema expects string | undefined (not null).
+      await api.tables.batchSaveFloorObjects(
+        floorObjs.map(o => ({ ...o, variant: o.variant ?? undefined }))
+      );
       setSavedOk(true);
       setTimeout(() => onSaved(), 1200);
     } catch (err) {

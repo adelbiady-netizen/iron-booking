@@ -309,11 +309,11 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG: Record<string, string> = {
-  AVAILABLE:     'rgba(250,248,244,0.96)',   // warm white — table surface at rest
-  OCCUPIED:      'rgba(220,252,231,0.95)',   // light mint — clearly inhabited
-  RESERVED_SOON: 'rgba(254,243,199,0.95)',   // light amber — imminent arrival
-  RESERVED:      'rgba(219,234,254,0.95)',   // light blue — calm commitment
-  BLOCKED:       'rgba(39,39,42,0.20)',      // near invisible — withdrawn
+  AVAILABLE:     'rgba(255,255,255,0.97)',   // clean white
+  OCCUPIED:      'rgba(236,253,242,0.97)',   // white + breath of green
+  RESERVED_SOON: 'rgba(255,251,230,0.97)',   // white + breath of amber
+  RESERVED:      'rgba(232,244,255,0.97)',   // white + breath of blue
+  BLOCKED:       'rgba(30,32,36,0.18)',      // near-invisible
 };
 
 interface Props {
@@ -380,8 +380,8 @@ function tableRadius(shape: string): string {
 // Surface gradient — single subtle top highlight for active states only.
 // No material simulation; clean geometric surface with minimal optical depth.
 function tableGradient(_shape: string, status: string, _cls: string): string | undefined {
-  if (status === 'BLOCKED' || status === 'AVAILABLE') return undefined;
-  return 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 45%)';
+  if (status === 'BLOCKED') return undefined;
+  return 'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, transparent 50%)';
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
@@ -925,15 +925,15 @@ export default function FloorBoard({
           const gridAlpha  = isDark
             ? 0.028 * (1 - gridFade * 0.90)
             : 0.055 * (1 - gridFade * 0.70);
-          const gridRgb    = isDark ? '255,195,110' : '0,0,0';
+          const gridRgb    = isDark ? '180,195,225' : '0,0,0';
           const gridColor  = `rgba(${gridRgb},${gridAlpha.toFixed(4)})`;
 
           // Ambient bloom — wider/diffuse at morning, focused/golden at dinner
           const ambW = Math.round(72 + brightness * 14); // 86% morning → 72% dinner
           const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
-          const ambG = Math.round(250 - timeWarmth * 25); // 250 morning → 225 dinner
-          const ambB = Math.round(235 - timeWarmth * 65); // 235 morning → 170 dinner
-          const ambA = (0.010 + brightness * 0.008 + timeWarmth * 0.006 + serviceEnergy * 0.004).toFixed(4);
+          const ambG = Math.round(225 - timeWarmth * 18);
+          const ambB = Math.round(255 - timeWarmth * 30);
+          const ambA = (0.010 + brightness * 0.006 + timeWarmth * 0.004 + serviceEnergy * 0.002).toFixed(4);
           // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
@@ -2500,22 +2500,20 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
 
-  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,242,255,0.96)'
-    : isOverdue ? 'rgba(254,226,226,0.96)'
+  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(245,244,255,0.97)'
+    : isOverdue ? 'rgba(255,235,235,0.97)'
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
-  // VIP class: premium ivory — slightly warmer than standard white
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(252,250,247,0.97)';
+    bg = 'rgba(255,253,242,0.98)';
   }
-  // Family-specific AVAILABLE base surfaces — restrained material hint, still light
   if (cls === 'communal' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(248,249,251,0.97)';  // cool white — architectural
+    bg = 'rgba(248,250,255,0.97)';
   }
   if (cls === 'lounge' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(254,251,246,0.97)';  // warm cream — upholstered
+    bg = 'rgba(255,252,245,0.97)';
   }
   if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(250,249,248,0.97)';  // neutral white — functional counter
+    bg = 'rgba(253,253,253,0.97)';
   }
 
   let borderColor = selected        ? '#22c55e'
@@ -2578,7 +2576,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
   if (waitlistAssignTarget) {
-    bg          = 'rgba(99,102,241,0.18)';
+    bg          = 'rgba(237,233,255,0.97)';
     borderColor = '#6366f1';
     borderWidth = 2;
     boxShadow   = '0 0 0 3px rgba(99,102,241,0.35)';
@@ -2656,7 +2654,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Suppressed during pick/warn states where clarity wins over atmosphere; BLOCKED is flat/withdrawn.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
     // Restrained plate depth: subtle top highlight + soft bottom shadow. No material simulation.
-    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -1px 2px rgba(0,0,0,0.06)';
+    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 3px rgba(0,0,0,0.07)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
 
@@ -2671,14 +2669,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Class-modulated drop shadow — VIP tables cast a deeper, premium shadow footprint.
   // Pick mode: uniform single shadow — border rings carry status signal, no need for multi-layer GPU work.
   const tableFilter = dimmed ? undefined
-    : pickMode          ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.22))'
+    : pickMode          ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.50))'
     : table.liveStatus === 'OCCUPIED'
-                        ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.18)) drop-shadow(0 1px 3px rgba(0,0,0,0.10))'
+                        ? 'drop-shadow(0 3px 14px rgba(0,0,0,0.55)) drop-shadow(0 1px 4px rgba(0,0,0,0.30))'
     : table.liveStatus === 'RESERVED_SOON'
-                        ? 'drop-shadow(0 2px 6px rgba(0,0,0,0.16))'
+                        ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.42))'
     : table.liveStatus === 'BLOCKED'
                         ? undefined
-                        : 'drop-shadow(0 1px 5px rgba(0,0,0,0.14))';
+                        : 'drop-shadow(0 2px 8px rgba(0,0,0,0.36))';
 
   return (
     <button
@@ -2765,21 +2763,20 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         <span style={{
           fontSize: hasGuest ? 10 : 12,
           fontWeight: hasGuest ? 600 : 700,
-          color: hasGuest ? 'rgb(var(--iron-muted))' : table.liveStatus === 'BLOCKED' ? 'rgb(var(--iron-muted))' : 'rgb(var(--iron-text))',
-          opacity: hasGuest ? 0.55 : table.liveStatus === 'BLOCKED' ? 0.85 : 1,
+          color: hasGuest ? '#71717a' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
+          opacity: hasGuest ? 0.8 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           letterSpacing: hasGuest ? '0.02em' : undefined,
-          textShadow: hasGuest ? '0 1px 2px rgba(0,0,0,0.36)' : table.liveStatus !== 'BLOCKED' ? '0 1px 3px rgba(0,0,0,0.52)' : undefined,
         }}>
           {table.name}
         </span>
         {!pickMode && insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
         {!pickMode && insight?.priority === 'MEDIUM' && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />}
         {pickMode && pickStatus === 'current' && (
-          <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700, flexShrink: 0 }}>◉</span>
+          <span style={{ fontSize: 9, color: '#d97706', fontWeight: 700, flexShrink: 0 }}>◉</span>
         )}
         {pickMode && pickSelected && (
-          <span style={{ fontSize: 9, color: '#93c5fd', fontWeight: 700, flexShrink: 0 }}>✓</span>
+          <span style={{ fontSize: 9, color: '#2563eb', fontWeight: 700, flexShrink: 0 }}>✓</span>
         )}
         {pickMode && !pickSelected && pickStatus === 'recommended' && (
           <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
@@ -2788,7 +2785,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 9, color: 'rgb(var(--iron-muted))', opacity: 0.52, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em' }}>
+        <span style={{ fontSize: 9, color: '#71717a', opacity: 0.70, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em' }}>
           {table.minCovers}–{table.maxCovers}
         </span>
       )}
@@ -2796,7 +2793,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {/* Pick mode: current-table label */}
       {pickMode && pickStatus === 'current' && (
         <div style={{ marginTop: 2, width: '100%' }}>
-          <span style={{ fontSize: 8, color: '#f59e0b', fontWeight: 700, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 3, padding: '1px 4px', letterSpacing: '0.04em', userSelect: 'none' }}>
+          <span style={{ fontSize: 8, color: '#d97706', fontWeight: 700, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.30)', borderRadius: 3, padding: '1px 4px', letterSpacing: '0.04em', userSelect: 'none' }}>
             {T.floorBoard.pickModeCurrentTable}
           </span>
         </div>
@@ -2807,22 +2804,22 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = isOverdue ? '#fca5a5' : 'var(--canvas-status-occupied)';
+        const nameColor = isOverdue ? '#dc2626' : 'var(--canvas-status-occupied)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 3px rgba(0,0,0,0.72)', letterSpacing: '0.01em' }}>
+              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '0.01em' }}>
                 {currentRes.guestName}
               </p>
               {isCombined && (
-                <span style={{ fontSize: 8, color: '#60a5fa', fontWeight: 700, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
+                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
                   ⊞
                 </span>
               )}
             </div>
             {!isSecondary && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.58 }}>
+                <span style={{ fontSize: 10, color: '#71717a', opacity: 0.70 }}>
                   {currentRes.partySize}
                 </span>
                 {isToday && (() => {
@@ -2831,9 +2828,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     : mr > 5   ? T.floorBoard.mLeft(mr)
                     : mr >= -5 ? T.floorBoard.ending
                     : T.floorBoard.mOver(Math.abs(mr));
-                  const timerColor = isOverdue || mr <= 5 ? '#fca5a5'
-                    : mr <= 20 ? '#fbbf24'
-                    : 'rgb(var(--iron-muted))';
+                  const timerColor = isOverdue || mr <= 5 ? '#dc2626'
+                    : mr <= 20 ? '#d97706'
+                    : '#71717a';
                   const timerWeight = isOverdue || mr <= 5 ? 700 : mr <= 20 ? 600 : 400;
                   const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.82;
                   return (
@@ -2849,7 +2846,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                 Suppressed at mr ≤ 5: the red timer is already at max urgency; two warm
                 colors compete rather than add clarity. */}
             {!isSecondary && nextRes && (isOverdue || (isToday && mr > 5 && mr <= 15)) && (
-              <p style={{ marginTop: 2, fontSize: 9, color: '#fbbf24', opacity: isOverdue ? 0.72 : 0.40, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
+              <p style={{ marginTop: 2, fontSize: 9, color: '#d97706', opacity: isOverdue ? 0.85 : 0.55, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
                 → {nextRes.guestName} · {nextRes.time}
               </p>
             )}
@@ -2863,27 +2860,27 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         // RESERVED_SOON: amber (warming, imminent) — RESERVED: blue (calm, committed)
         const guestColor = table.liveStatus === 'RESERVED_SOON'
-          ? '#fbbf24'
+          ? '#d97706'
           : 'var(--canvas-status-reserved)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: guestColor, fontWeight: table.liveStatus === 'RESERVED_SOON' ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 3px rgba(0,0,0,0.72)', letterSpacing: '0.01em' }}>
+              <p style={{ fontSize: 12, color: guestColor, fontWeight: table.liveStatus === 'RESERVED_SOON' ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '0.01em' }}>
                 {displayRes.guestName}
               </p>
               {isCombined && (
-                <span style={{ fontSize: 8, color: '#60a5fa', fontWeight: 700, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
+                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
                   ⊞
                 </span>
               )}
             </div>
             {!isSecondary && nextRes && (
               <p style={{ marginTop: 1, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.66 }}>
+                <span style={{ fontSize: 10, color: '#71717a', opacity: 0.80 }}>
                   {nextRes.partySize} · {nextRes.time}
                 </span>
                 {isToday && table.liveStatus === 'RESERVED_SOON' && nextRes.minutesUntil > 0 && (
-                  <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 600, opacity: 0.95 }}>
+                  <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600, opacity: 0.95 }}>
                     · {T.floorBoard.inNMin(nextRes.minutesUntil)}
                   </span>
                 )}
@@ -2895,7 +2892,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* BLOCKED */}
       {table.liveStatus === 'BLOCKED' && (
-        <p style={{ fontSize: 10, color: 'rgb(var(--iron-muted))', opacity: 0.55, marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', fontStyle: 'italic' }}>
+        <p style={{ fontSize: 10, color: '#a1a1aa', opacity: 0.65, marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', fontStyle: 'italic' }}>
           {table.blockReason ?? 'blocked'}
         </p>
       )}
