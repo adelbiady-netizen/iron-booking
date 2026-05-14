@@ -380,10 +380,7 @@ interface Props {
 const CANVAS_W = 1500;
 const CANVAS_H = 800;
 // Absolute CSS zoom multipliers applied to the fixed CANVAS_W×CANVAS_H content div.
-// 1.00 = full canvas at native pixel scale. Spatial calibration on first load picks the
-// index that best fits the table layout without leaving dead space.
-const ZOOM_LEVELS = [0.65, 0.80, 0.91, 1.00, 1.10, 1.22, 1.45] as const;
-const BASELINE_IDX = 3; // index of 1.00 — always the calibrated fit
+// Canvas is always rendered at 100% scale. Map zoom redesign is a future dedicated phase.
 
 function tableRadius(shape: string): string {
   if (shape === 'ROUND' || shape === 'OVAL') return '9999px';
@@ -429,7 +426,7 @@ export default function FloorBoard({
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
   hoveredResId,
-  drawerOpen = false,
+  drawerOpen: _drawerOpen = false,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -451,41 +448,10 @@ export default function FloorBoard({
   const isDraggingRef  = useRef(false);
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
-  const [zoomIdx,    setZoomIdx]    = useState(BASELINE_IDX); // index into ZOOM_LEVELS
-  const baseInitRef = useRef(false);                          // prevents re-calibration after first fit
-  const [drawerBoost, setDrawerBoost] = useState(0); // 0 when open, DRAWER_BOOST when closed
-  // Effective zoom: absolute level × spatial boost.
-  // ZOOM_LEVELS are absolute CSS zoom multipliers applied to the fixed CANVAS_W×CANVAS_H div.
-  // DRAWER_BOOST gives 6% more canvas in command mode when the drawer is closed.
-  const DRAWER_BOOST = 0.06;
-  const floorZoom = ZOOM_LEVELS[zoomIdx] * (1 + drawerBoost);
-  const floorZoomRef = useRef(floorZoom);
-  floorZoomRef.current = floorZoom;
-  // Tracks zoom level from the PREVIOUS render so the centering effect can
-  // compute the correct scroll delta before the browser paints the new zoom.
-  const prevZoomRef = useRef(floorZoom);
-
-  // Zoom centering — runs synchronously after DOM mutation, before paint.
-  // Adjusts scrollLeft/Top so the canvas coordinate at the viewport center
-  // stays fixed across zoom changes (reversible in/out, no drift).
-  useLayoutEffect(() => {
-    const container = canvasScrollRef.current;
-    if (!container) return;
-    const prev = prevZoomRef.current;
-    prevZoomRef.current = floorZoom;
-    if (prev === floorZoom) return;
-    // Canvas coordinate at the center of the current viewport (in prev zoom space)
-    const cx = (container.scrollLeft + container.clientWidth  / 2) / prev;
-    const cy = (container.scrollTop  + container.clientHeight / 2) / prev;
-    // Reposition so the same canvas coordinate stays at center after new zoom
-    container.scrollLeft = Math.max(0, cx * floorZoom - container.clientWidth  / 2);
-    container.scrollTop  = Math.max(0, cy * floorZoom - container.clientHeight / 2);
-  }, [floorZoom]);
+  const baseInitRef = useRef(false); // prevents re-calibration after first fit
 
   // Spatial calibration — one-shot on first load with positioned tables.
-  // Stability rule: never change the zoom level automatically. Always start at
-  // BASELINE_IDX (100%) so the indicator is predictable and the zoom stack is clean.
-  // The only action is scrolling to center the table cluster in the viewport.
+  // Scrolls to center the table cluster. Canvas is always at 100% scale.
   // After init: baseInitRef blocks re-calibration so spatial memory stays stable.
   useLayoutEffect(() => {
     if (baseInitRef.current) return;
@@ -502,13 +468,12 @@ export default function FloorBoard({
     const maxY = Math.max(...placed.map(t => t.posY + t.height));
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    const zoom = ZOOM_LEVELS[BASELINE_IDX]; // always 1.00
 
     setTimeout(() => {
       const c = canvasScrollRef.current;
       if (!c) return;
-      c.scrollLeft = Math.max(0, cx * zoom - c.clientWidth  / 2);
-      c.scrollTop  = Math.max(0, cy * zoom - c.clientHeight / 2);
+      c.scrollLeft = Math.max(0, cx - c.clientWidth  / 2);
+      c.scrollTop  = Math.max(0, cy - c.clientHeight / 2);
     }, 0);
   // tables.length as dep: re-evaluates only when count changes, not on every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -520,8 +485,8 @@ export default function FloorBoard({
     const container = canvasScrollRef.current;
     if (!container) return;
     const ro = new ResizeObserver(() => {
-      const maxL = Math.max(0, CANVAS_W * floorZoomRef.current - container.clientWidth);
-      const maxT = Math.max(0, CANVAS_H * floorZoomRef.current - container.clientHeight);
+      const maxL = Math.max(0, CANVAS_W - container.clientWidth);
+      const maxT = Math.max(0, CANVAS_H - container.clientHeight);
       if (container.scrollLeft > maxL) container.scrollLeft = maxL;
       if (container.scrollTop  > maxT) container.scrollTop  = maxT;
     });
@@ -529,61 +494,6 @@ export default function FloorBoard({
     return () => ro.disconnect();
   }, []);
 
-  // Spatial breathing — drawer open/close changes effective zoom AND recenters on table content.
-  // Close: apply DRAWER_BOOST (6% zoom expansion) so the room feels wider in command mode,
-  //        then animate scroll toward the table content bounding box center.
-  // Open:  restore base zoom immediately (useLayoutEffect handles scroll centering).
-  // setTimeout(0) defers the scroll animation until React has applied the boost and
-  // useLayoutEffect has adjusted scroll for the new zoom — so rAF starts from the right position.
-  const drawerOpenRef = useRef(drawerOpen);
-  useEffect(() => {
-    const wasOpen = drawerOpenRef.current;
-    drawerOpenRef.current = drawerOpen;
-
-    if (drawerOpen) {
-      setDrawerBoost(0);
-      return;
-    }
-    if (!wasOpen) return; // initial mount with drawer already closed — skip
-
-    // Drawer just closed: expand zoom into command mode
-    setDrawerBoost(DRAWER_BOOST);
-
-    let rafId = 0;
-    const timer = setTimeout(() => {
-      const container = canvasScrollRef.current;
-      if (!container || canvasTables.length === 0) return;
-
-      const zoom = ZOOM_LEVELS[zoomIdx] * (1 + DRAWER_BOOST);
-      const minX = Math.min(...canvasTables.map(t => t.posX));
-      const maxX = Math.max(...canvasTables.map(t => t.posX + t.width));
-      const contentCenterX = (minX + maxX) / 2;
-
-      const rawTarget = contentCenterX * zoom - container.clientWidth / 2;
-      const maxL = Math.max(0, CANVAS_W * zoom - container.clientWidth);
-      const targetL = Math.max(0, Math.min(rawTarget, maxL));
-      const startL  = container.scrollLeft;
-      const delta   = targetL - startL;
-      const capped  = Math.sign(delta) * Math.min(Math.abs(delta), 180);
-      const finalL  = startL + capped;
-
-      if (Math.abs(capped) < 6) return;
-
-      const duration = 220;
-      const t0 = performance.now();
-      const step = (now: number) => {
-        const prog = Math.min((now - t0) / duration, 1);
-        const ease = 1 - Math.pow(1 - prog, 3); // cubic ease-out
-        container.scrollLeft = startL + (finalL - startL) * ease;
-        if (prog < 1) rafId = requestAnimationFrame(step);
-      };
-      rafId = requestAnimationFrame(step);
-    }, 0);
-
-    return () => { clearTimeout(timer); cancelAnimationFrame(rafId); };
-  // zoomIdx and canvasTables captured by closure at effect-fire time — intentional.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerOpen]);
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
@@ -605,8 +515,8 @@ export default function FloorBoard({
       if (!dragStartRef.current || !canvasScrollRef.current) return;
       const container = canvasScrollRef.current;
       const rect = container.getBoundingClientRect();
-      const cx = (e.clientX - rect.left + container.scrollLeft) / floorZoomRef.current;
-      const cy = (e.clientY - rect.top + container.scrollTop) / floorZoomRef.current;
+      const cx = (e.clientX - rect.left + container.scrollLeft) ;
+      const cy = (e.clientY - rect.top + container.scrollTop) ;
       const { cx: sx, cy: sy } = dragStartRef.current;
       if (Math.abs(cx - sx) > 5 || Math.abs(cy - sy) > 5) {
         isDraggingRef.current = true;
@@ -621,8 +531,8 @@ export default function FloorBoard({
       if (isDraggingRef.current && dragStartRef.current && canvasScrollRef.current) {
         const container = canvasScrollRef.current;
         const rect = container.getBoundingClientRect();
-        const cx = (e.clientX - rect.left + container.scrollLeft) / floorZoomRef.current;
-        const cy = (e.clientY - rect.top + container.scrollTop) / floorZoomRef.current;
+        const cx = (e.clientX - rect.left + container.scrollLeft) ;
+        const cy = (e.clientY - rect.top + container.scrollTop) ;
         const { cx: sx, cy: sy } = dragStartRef.current;
         const fr = {
           x: Math.min(sx, cx), y: Math.min(sy, cy),
@@ -658,26 +568,8 @@ export default function FloorBoard({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [pickMode, tables, pickSuggestions, floorZoom]);
+  }, [pickMode, tables, pickSuggestions]);
 
-  // Ctrl+Wheel zoom — must be a non-passive listener to call preventDefault.
-  // No deps: re-registers on every render so the listener stays current regardless
-  // of whether the canvas is initially visible.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const el = canvasScrollRef.current;
-    if (!el) return;
-    function onWheel(e: WheelEvent) {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      setZoomIdx(i => e.deltaY < 0
-        ? Math.min(ZOOM_LEVELS.length - 1, i + 1)
-        : Math.max(0, i - 1)
-      );
-    }
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  });
 
   function handleCanvasMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     if (e.button !== 0) return;
@@ -686,8 +578,8 @@ export default function FloorBoard({
     if (!container) return;
     const rect = container.getBoundingClientRect();
     dragStartRef.current = {
-      cx: (e.clientX - rect.left + container.scrollLeft) / floorZoom,
-      cy: (e.clientY - rect.top + container.scrollTop) / floorZoom,
+      cx: e.clientX - rect.left + container.scrollLeft,
+      cy: e.clientY - rect.top + container.scrollTop,
     };
     isDraggingRef.current = false;
   }
@@ -1096,7 +988,7 @@ export default function FloorBoard({
               position: 'relative',
               width: CANVAS_W,
               height: CANVAS_H,
-              zoom: floorZoom,
+              zoom: 1,
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: [
                 // Subtle ambient center bloom — just enough warmth to ground the space
@@ -1282,29 +1174,6 @@ export default function FloorBoard({
               />
             )}
           </div>
-        </div>
-        {/* Zoom controls — absolute in outer wrapper, never scrolls with canvas */}
-        <div className="absolute bottom-3 left-3 z-30 flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => setZoomIdx(i => Math.max(0, i - 1))}
-            disabled={zoomIdx === 0}
-            title={T.floorBoard.zoomOut}
-            className="w-8 h-8 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none touch-manipulation"
-          >−</button>
-          <button
-            type="button"
-            onClick={() => setZoomIdx(BASELINE_IDX)}
-            title={T.floorBoard.zoomReset}
-            className="h-8 px-2.5 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 text-[10px] tabular-nums font-medium transition-colors select-none touch-manipulation"
-          >{Math.round(ZOOM_LEVELS[zoomIdx] * 100)}%</button>
-          <button
-            type="button"
-            onClick={() => setZoomIdx(i => Math.min(ZOOM_LEVELS.length - 1, i + 1))}
-            disabled={zoomIdx === ZOOM_LEVELS.length - 1}
-            title={T.floorBoard.zoomIn}
-            className="w-8 h-8 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none touch-manipulation"
-          >+</button>
         </div>
         </div>
           );

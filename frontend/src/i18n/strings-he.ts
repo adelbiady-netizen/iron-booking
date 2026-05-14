@@ -101,9 +101,6 @@ export const THe = {
     pickModeCurrentTable:     'שולחן נוכחי',
     pickModeCurrentTableWarn: 'זהו השולחן הנוכחי — בחר שולחן אחר',
     reorganizeBanner: 'מצב סידור מחדש — לחץ על שולחן להעברת הזמנותיו לתור הסידור',
-    zoomOut:   'הקטן תצוגה  (Ctrl −)',
-    zoomIn:    'הגדל תצוגה  (Ctrl +)',
-    zoomReset: 'אפס זום ל-100%',
     soon:      'בקרוב',
   },
 
