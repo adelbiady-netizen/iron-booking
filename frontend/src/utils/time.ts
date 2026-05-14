@@ -1,3 +1,26 @@
+// Format an ISO timestamp as HH:mm (24-hour, locale-independent) for host operational displays.
+export function fmtHostTime(iso: string): string {
+  const d = new Date(iso);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+// Normalize any stored time string to HH:mm (24-hour).
+// Handles both already-correct "HH:mm" strings and legacy "h:mm AM/PM" strings
+// that may exist in the database from older booking form submissions.
+export function normalizeTime(timeStr: string): string {
+  if (!timeStr) return timeStr;
+  const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!amPmMatch) return timeStr; // already HH:mm or unknown — pass through
+  let h = parseInt(amPmMatch[1], 10);
+  const m = amPmMatch[2];
+  const period = amPmMatch[3].toUpperCase();
+  if (period === 'AM') { if (h === 12) h = 0; }
+  else                 { if (h !== 12) h += 12; }
+  return `${String(h).padStart(2, '0')}:${m}`;
+}
+
 // Compute minutes remaining until a seated reservation ends.
 // startTime must be a full ISO timestamp ("2026-04-29T23:47:00.000Z")
 // or a combined date+time string ("2026-04-29T23:47").

@@ -3,15 +3,14 @@ import type { ActivityLogEntry } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
+import { fmtHostTime } from '../utils/time';
 
 interface Props {
   onBack: () => void;
   userRole: string;
 }
 
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+const fmtTime = fmtHostTime;
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);

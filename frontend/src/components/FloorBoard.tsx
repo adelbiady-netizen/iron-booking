@@ -8,7 +8,7 @@ import TableTimeline from './TableTimeline';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
-import { minutesUntilEnd } from '../utils/time';
+import { minutesUntilEnd, fmtHostTime, normalizeTime } from '../utils/time';
 import { useAtmosphere } from '../hooks/useTimeWarmth';
 import { OBJECT_REGISTRY, resolveObjectVariant } from '../mapEngine';
 
@@ -308,12 +308,20 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
   }
 }
 
-const STATUS_BG: Record<string, string> = {
+const STATUS_BG_DARK: Record<string, string> = {
   AVAILABLE:     'rgba(224,224,222,0.86)',   // muted neutral — recedes behind active states
   OCCUPIED:      'rgba(220,242,224,0.96)',   // soft barely-green — active presence
   RESERVED_SOON: 'rgba(241,235,208,0.96)',   // soft barely-amber — imminent arrival
   RESERVED:      'rgba(213,230,247,0.96)',   // soft barely-blue — committed, calm
   BLOCKED:       'rgba(30,32,36,0.18)',      // near-invisible — withdrawn
+};
+// Light canvas (#EAEDE6) needs more saturation so status tables read off the pale surface
+const STATUS_BG_LIGHT: Record<string, string> = {
+  AVAILABLE:     'rgba(255,255,255,0.94)',   // white — clear lift off the linen canvas
+  OCCUPIED:      'rgba(209,250,229,0.97)',   // green-100 — clearly active
+  RESERVED_SOON: 'rgba(254,243,199,0.97)',   // amber-100 — clearly imminent
+  RESERVED:      'rgba(219,234,254,0.97)',   // blue-100 — clearly committed
+  BLOCKED:       'rgba(0,0,0,0.06)',         // subtle tint — withdrawn
 };
 
 interface Props {
@@ -365,6 +373,8 @@ interface Props {
   onReorganizeTableClick?: (table: FloorTable) => void;
   // Queue→floor hover relationship
   hoveredResId?: string | null;
+  // Spatial breathing — floor recenter when the right drawer closes
+  drawerOpen?: boolean;
 }
 
 const CANVAS_W = 1500;
@@ -378,8 +388,13 @@ function tableRadius(shape: string): string {
 }
 
 // Surface gradient — top highlight for depth. Active states stronger; AVAILABLE lifted slightly.
-function tableGradient(_shape: string, status: string, _cls: string): string | undefined {
+// Dark: white highlight over dark table surface. Light: subtle shadow over white table surface.
+function tableGradient(_shape: string, status: string, _cls: string, isDark: boolean): string | undefined {
   if (status === 'BLOCKED') return undefined;
+  if (!isDark) {
+    if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(0,0,0,0.025) 0%, transparent 55%)';
+    return 'linear-gradient(180deg, rgba(0,0,0,0.045) 0%, transparent 52%)';
+  }
   if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 55%)';
   return 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 52%)';
 }
@@ -410,6 +425,7 @@ export default function FloorBoard({
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
   hoveredResId,
+  drawerOpen = false,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -432,7 +448,11 @@ export default function FloorBoard({
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
   const [zoomIdx, setZoomIdx] = useState(1); // index into ZOOM_STEPS; 1 = 100%
-  const floorZoom = ZOOM_STEPS[zoomIdx];
+  const [drawerBoost, setDrawerBoost] = useState(0); // 0 when open, DRAWER_BOOST when closed
+  // Effective zoom: manual level × spatial boost. 6% more canvas when drawer is closed gives
+  // the host a broader room-command view without the host consciously perceiving a "zoom."
+  const DRAWER_BOOST = 0.06;
+  const floorZoom = ZOOM_STEPS[zoomIdx] * (1 + drawerBoost);
   const floorZoomRef = useRef(floorZoom);
   floorZoomRef.current = floorZoom;
   // Tracks zoom level from the PREVIOUS render so the centering effect can
@@ -470,6 +490,62 @@ export default function FloorBoard({
     ro.observe(container);
     return () => ro.disconnect();
   }, []);
+
+  // Spatial breathing — drawer open/close changes effective zoom AND recenters on table content.
+  // Close: apply DRAWER_BOOST (6% zoom expansion) so the room feels wider in command mode,
+  //        then animate scroll toward the table content bounding box center.
+  // Open:  restore base zoom immediately (useLayoutEffect handles scroll centering).
+  // setTimeout(0) defers the scroll animation until React has applied the boost and
+  // useLayoutEffect has adjusted scroll for the new zoom — so rAF starts from the right position.
+  const drawerOpenRef = useRef(drawerOpen);
+  useEffect(() => {
+    const wasOpen = drawerOpenRef.current;
+    drawerOpenRef.current = drawerOpen;
+
+    if (drawerOpen) {
+      setDrawerBoost(0);
+      return;
+    }
+    if (!wasOpen) return; // initial mount with drawer already closed — skip
+
+    // Drawer just closed: expand zoom into command mode
+    setDrawerBoost(DRAWER_BOOST);
+
+    let rafId = 0;
+    const timer = setTimeout(() => {
+      const container = canvasScrollRef.current;
+      if (!container || canvasTables.length === 0) return;
+
+      const zoom = ZOOM_STEPS[zoomIdx] * (1 + DRAWER_BOOST);
+      const minX = Math.min(...canvasTables.map(t => t.posX));
+      const maxX = Math.max(...canvasTables.map(t => t.posX + t.width));
+      const contentCenterX = (minX + maxX) / 2;
+
+      const rawTarget = contentCenterX * zoom - container.clientWidth / 2;
+      const maxL = Math.max(0, CANVAS_W * zoom - container.clientWidth);
+      const targetL = Math.max(0, Math.min(rawTarget, maxL));
+      const startL  = container.scrollLeft;
+      const delta   = targetL - startL;
+      const capped  = Math.sign(delta) * Math.min(Math.abs(delta), 180);
+      const finalL  = startL + capped;
+
+      if (Math.abs(capped) < 6) return;
+
+      const duration = 220;
+      const t0 = performance.now();
+      const step = (now: number) => {
+        const prog = Math.min((now - t0) / duration, 1);
+        const ease = 1 - Math.pow(1 - prog, 3); // cubic ease-out
+        container.scrollLeft = startL + (finalL - startL) * ease;
+        if (prog < 1) rafId = requestAnimationFrame(step);
+      };
+      rafId = requestAnimationFrame(step);
+    }, 0);
+
+    return () => { clearTimeout(timer); cancelAnimationFrame(rafId); };
+  // zoomIdx and canvasTables captured by closure at effect-fire time — intentional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerOpen]);
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
@@ -963,16 +1039,19 @@ export default function FloorBoard({
           const gridRgb    = isDark ? '200,196,190' : '0,0,0';
           const gridColor  = `rgba(${gridRgb},${gridAlpha.toFixed(4)})`;
 
-          // Ambient bloom — warm candlelight white; no blue channel drift
+          // Ambient bloom — warm candlelight white; no blue channel drift.
+          // Light mode: CSS --canvas-ambient handles ambiance; JS bloom suppressed.
           const ambW = Math.round(72 + brightness * 14); // 86% morning → 72% dinner
           const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
-          const ambA = (0.004 + brightness * 0.002 + timeWarmth * 0.002).toFixed(4);
+          const ambA = isDark
+            ? (0.004 + brightness * 0.002 + timeWarmth * 0.002).toFixed(4)
+            : '0.000';
           // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
           return (
         <div className="flex-1 relative overflow-hidden">
-        <div ref={canvasScrollRef} className="absolute inset-0 overflow-auto">
+        <div ref={canvasScrollRef} className="absolute inset-0 overflow-auto" style={{ backgroundColor: 'var(--canvas-bg)' }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
@@ -1110,7 +1189,7 @@ export default function FloorBoard({
               const turns      = turnData.get(t.id) ?? [];
               const extraTurns = Math.max(0, turns.length - 1);
               const turnTooltip = turns.length > 0
-                ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
+                ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                 : undefined;
               const ps = pickMode ? getPickStatus(t) : null;
               const isWLCanvasTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
@@ -1121,9 +1200,9 @@ export default function FloorBoard({
                   selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
                   combinedSelected={!pickMode && combinedSelection.includes(t.id)}
                   dimmed={dimmed}
-                  bestSuggestion={!pickMode && !isSelected(t) && !waitlistAssignEntry && t.id === bestSuggestionTableId}
+                  bestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
                   waitlistAssignTarget={isWLCanvasTarget}
-                  softHold={!pickMode ? softHoldMap[t.id] : undefined}
+                  softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
                   onClick={() => handleClick(t)}
                   onContextMenu={e => !pickMode && handleContextMenu(e, t)}
                   insight={!pickMode ? insight : undefined}
@@ -1180,7 +1259,7 @@ export default function FloorBoard({
             onClick={() => setZoomIdx(1)}
             title={T.floorBoard.zoomReset}
             className="h-8 px-2.5 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 text-[10px] tabular-nums font-medium transition-colors select-none touch-manipulation"
-          >{Math.round(floorZoom * 100)}%</button>
+          >{Math.round(ZOOM_STEPS[zoomIdx] * 100)}%</button>
           <button
             type="button"
             onClick={() => setZoomIdx(i => Math.min(ZOOM_STEPS.length - 1, i + 1))}
@@ -1222,7 +1301,7 @@ export default function FloorBoard({
                   const turns      = turnData.get(t.id) ?? [];
                   const extraTurns = Math.max(0, turns.length - 1);
                   const turnTooltip = turns.length > 0
-                    ? `${t.name} · upcoming:\n${turns.map(r => `${r.time}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
+                    ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                     : undefined;
                   const isPickSelected = pickMode && pickSelection.includes(t.id);
                   const isWLTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
@@ -1244,8 +1323,8 @@ export default function FloorBoard({
                       <TableCard
                         table={t}
                         selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
-                        isBestSuggestion={!pickMode && !isSelected(t) && !waitlistAssignEntry && t.id === bestSuggestionTableId}
-                        softHold={!pickMode ? softHoldMap[t.id] : undefined}
+                        isBestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
+                        softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
                         onClick={() => handleClick(t)}
                         onContextMenu={e => !pickMode && handleContextMenu(e, t)}
                         insight={!pickMode ? insight : undefined}
@@ -2506,6 +2585,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   hoveredResId?: string | null;
 }) {
   const T = useT();
+  const isDark = typeof document !== 'undefined'
+    ? document.documentElement.getAttribute('data-theme') !== 'light'
+    : true;
+  const STATUS_BG = isDark ? STATUS_BG_DARK : STATUS_BG_LIGHT;
   const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
 
@@ -2691,22 +2774,32 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && !selected && !combinedSelected && !dimmed && !(softHold && table.liveStatus === 'AVAILABLE')) {
     let halo: string | undefined;
     if (isOverdue) {
-      halo = '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)';
+      halo = isDark
+        ? '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)'
+        : '0 0 0 1px rgba(239,68,68,0.55), 0 0 44px rgba(239,68,68,0.22)';
     } else if (table.liveStatus === 'OCCUPIED') {
-      halo = '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)';
+      halo = isDark
+        ? '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)'
+        : '0 0 0 1px rgba(22,163,74,0.42), 0 0 40px rgba(22,163,74,0.16)';
     } else if (table.liveStatus === 'RESERVED_SOON') {
-      halo = '0 0 0 1px rgba(251,191,36,0.35), 0 0 40px rgba(251,191,36,0.20)';
+      halo = isDark
+        ? '0 0 0 1px rgba(251,191,36,0.35), 0 0 40px rgba(251,191,36,0.20)'
+        : '0 0 0 1px rgba(217,119,6,0.50), 0 0 40px rgba(217,119,6,0.20)';
     } else if (table.liveStatus === 'RESERVED') {
-      halo = '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)';
+      halo = isDark
+        ? '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)'
+        : '0 0 0 1px rgba(37,99,235,0.38), 0 0 36px rgba(37,99,235,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
-      halo = '0 0 16px rgba(255,255,255,0.05)';
+      halo = isDark ? '0 0 16px rgba(255,255,255,0.05)' : undefined;
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
   }
 
-  // Plate depth — subtle inset edge highlight. Suppressed during pick/warn states and BLOCKED.
+  // Plate depth — inset edge cue. Dark: white top highlight catches overhead light. Light: subtle shadow.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
-    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.96), inset 0 -2px 6px rgba(0,0,0,0.12)';
+    const depthShadow = isDark
+      ? 'inset 0 1px 0 rgba(255,255,255,0.96), inset 0 -2px 6px rgba(0,0,0,0.12)'
+      : 'inset 0 1px 0 rgba(0,0,0,0.06), inset 0 -2px 6px rgba(0,0,0,0.08)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
 
@@ -2764,7 +2857,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // Material surface — gradient angle and shape vary by table type so overhead light
         // reads correctly: radial for round, top-down for booths, angled for rectangular.
         // Pick/warn states are neutral (clarity first — no decoration during selection).
-        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, table.liveStatus, cls) : undefined,
+        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, table.liveStatus, cls, isDark) : undefined,
         boxShadow,
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
@@ -2874,31 +2967,23 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = isOverdue ? '#991b1b' : 'var(--canvas-status-occupied)';
+        const nameColor = isOverdue ? '#991b1b'
+          : isDark ? '#15803d' : '#166534';
+        const nameWeight = isOverdue ? 800 : 700;
         return (
-          <div style={{ marginTop: 'auto', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 14, color: nameColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.02em' }}>
-                {currentRes.guestName}
-              </p>
-              {isOverdue && (
-                <span style={{ fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', flexShrink: 0, letterSpacing: '0.04em' }}>
-                  OVR
-                </span>
-              )}
-              {isCombined && !isOverdue && (
-                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px', flexShrink: 0 }}>
-                  ⊞
-                </span>
-              )}
-            </div>
+          <div style={{ marginTop: 'auto', width: '100%', minWidth: 0 }}>
+            {/* Name zone — full card width, never competes with chips */}
+            <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em' }}>
+              {currentRes.guestName}
+            </p>
+            {/* Metadata zone — partySize · timer on left; status chips right-anchored */}
             {!isSecondary && (
-              <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
+              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
                 <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {currentRes.partySize}p
                 </span>
                 {isToday && (() => {
-                  const endTimeStr = new Date(currentRes.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const endTimeStr = fmtHostTime(currentRes.expectedEndTime);
                   const timerStr = mr > 20 ? endTimeStr
                     : mr > 5   ? T.floorBoard.mLeft(mr)
                     : mr >= -5 ? T.floorBoard.ending
@@ -2907,14 +2992,27 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     : mr <= 20 ? '#b45309'
                     : '#3f3f46';
                   const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 600;
-                  const timerOpacity = isOverdue || mr <= 5 ? 1 : 1;
                   return (
-                    <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight, opacity: timerOpacity }}>
+                    <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight }}>
                       · {timerStr}
                     </span>
                   );
                 })()}
-              </p>
+                {(isOverdue || isCombined) && (
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                    {isOverdue && (
+                      <span style={{ fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', letterSpacing: '0.04em' }}>
+                        OVR
+                      </span>
+                    )}
+                    {isCombined && !isOverdue && (
+                      <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
+                        ⊞
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         );
@@ -2925,38 +3023,43 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = table.liveStatus === 'RESERVED_SOON';
-        const guestColor = isSoon ? '#92400e' : 'var(--canvas-status-reserved)';
+        const guestColor = isSoon ? '#92400e'
+          : isDark ? '#1d4ed8' : '#1e40af';
         return (
-          <div style={{ marginTop: 'auto', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 14, color: guestColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.02em' }}>
-                {displayRes.guestName}
-              </p>
-              {isSoon && (
-                <span style={{ fontSize: 9, color: '#92400e', fontWeight: 700, background: 'rgba(146,64,14,0.12)', border: '1px solid rgba(146,64,14,0.28)', borderRadius: 4, padding: '1px 4px', flexShrink: 0, letterSpacing: '0.04em' }}>
-                  ARR
-                </span>
-              )}
-              {isCombined && !isSoon && (
-                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px', flexShrink: 0 }}>
-                  ⊞
-                </span>
-              )}
-            </div>
+          <div style={{ marginTop: 'auto', width: '100%', minWidth: 0 }}>
+            {/* Name zone — full card width, never competes with chips */}
+            <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em' }}>
+              {displayRes.guestName}
+            </p>
+            {/* Metadata zone — time + partySize on left; status chip right-anchored */}
             {!isSecondary && nextRes && (
-              <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
+              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
                 <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {nextRes.partySize}p
                 </span>
-                <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, opacity: 1 }}>
-                  · {nextRes.time}
+                <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600 }}>
+                  · {normalizeTime(nextRes.time)}
                 </span>
                 {isToday && isSoon && nextRes.minutesUntil > 0 && (
                   <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800 }}>
                     · {T.floorBoard.inNMin(nextRes.minutesUntil)}
                   </span>
                 )}
-              </p>
+                {(isSoon || isCombined) && (
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                    {isSoon && (
+                      <span style={{ fontSize: 9, color: '#92400e', fontWeight: 600, background: 'rgba(146,64,14,0.10)', border: '1px solid rgba(146,64,14,0.22)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em' }}>
+                        Soon
+                      </span>
+                    )}
+                    {isCombined && !isSoon && (
+                      <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
+                        ⊞
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         );
@@ -2976,7 +3079,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           backgroundColor: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)',
           borderRadius: 4, padding: '2px 4px',
         }}>
-          <p style={{ fontSize: 9, color: '#a5b4fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontSize: 9, color: isDark ? '#a5b4fc' : '#4f46e5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             ⏸ {softHold.guestName} · {softHold.partySize}
           </p>
         </div>
@@ -3031,7 +3134,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {!pickMode && extraTurns > 0 && turnsToShow.length === 0 && table.liveStatus !== 'AVAILABLE' && !isOverdue && (
         <span style={{
           position: 'absolute', top: 3, right: 3,
-          fontSize: 9, fontWeight: 700, color: '#60a5fa',
+          fontSize: 9, fontWeight: 700, color: isDark ? '#60a5fa' : '#1d4ed8',
           backgroundColor: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)',
           borderRadius: 3, padding: '1px 4px', userSelect: 'none', lineHeight: 1.4,
         }}>
@@ -3074,7 +3177,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           left: 10,
           width: 1,
           height: 4,
-          background: 'rgba(255,255,255,0.18)',
+          background: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.20)',
         }} />
         {turnsToShow.map((r, i) => (
           <div
@@ -3091,7 +3194,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             }}
           >
             <span style={{ fontSize: 10, color: '#a1a1aa', fontWeight: 700, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
-              {r.time}
+              {normalizeTime(r.time)}
             </span>
             <span style={{ fontSize: 9, color: '#d4d4d8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
               {r.guestName}

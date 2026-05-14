@@ -1335,6 +1335,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           reorganizeMode={reorganizeMode}
           onReorganizeTableClick={handleReorganizeTableClick}
           hoveredResId={hoveredResId}
+          drawerOpen={!!(selectedRes || createMode)}
         />
 
         {/* Panel toggle handle — always visible between floor and panel */}

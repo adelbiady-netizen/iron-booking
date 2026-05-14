@@ -6,6 +6,7 @@ import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
 import { arrivalState, minutesUntilRes, isStaleReservation } from '../utils/arrival';
+import { normalizeTime } from '../utils/time';
 
 // Unified name + phone search — works for "052", "1234", "Yossi", "lev".
 // Phone match strips all non-digits from both sides so formatting never matters.
@@ -360,7 +361,7 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-white/[0.05] transition-colors ${rowBg}`}
+                  className={`w-full flex items-stretch border-b border-white/[0.07] transition-colors ${rowBg}`}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
@@ -372,8 +373,8 @@ export default function ReservationPanel({
                   >
 
                     {/* Row 1 — name + badge */}
-                    <div className="flex items-center gap-2.5 mb-1">
-                      <span className="text-iron-text text-[15px] font-semibold tracking-tight truncate flex-1 leading-snug">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="text-iron-text text-base font-semibold tracking-tight truncate flex-1 leading-snug">
                         {r.guestName}
                         {r.guest?.isVip && (
                           <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
@@ -387,25 +388,25 @@ export default function ReservationPanel({
                           ✆–
                         </span>
                       )}
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium shrink-0 ${statusBadge.cls}`}>
+                      <span className={`text-[11px] px-2.5 py-0.5 rounded-full border font-medium shrink-0 ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>
                     </div>
 
                     {/* Row 2 — time · guests · table */}
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-iron-text font-bold tabular-nums">{r.time}</span>
-                      <span className="text-iron-muted/10">·</span>
-                      <span className="text-iron-muted/35 text-[11px]">{T.common.guests(r.partySize)}</span>
+                      <span className="text-iron-text font-bold tabular-nums">{normalizeTime(r.time)}</span>
+                      <span className="text-iron-muted/25">·</span>
+                      <span className="text-iron-muted/70 text-xs">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/10">·</span>
-                          <span className="text-iron-muted/60 text-[11px]">{r.table.name}</span>
+                          <span className="text-iron-muted/25">·</span>
+                          <span className="text-iron-muted/80 text-xs">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/10">·</span>
+                          <span className="text-iron-muted/25">·</span>
                           {(() => {
                             const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
                             const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
@@ -430,7 +431,7 @@ export default function ReservationPanel({
                           <span className="text-[11px] text-iron-green-light/75 font-medium">{r.occasion}</span>
                         )}
                         {r.isConfirmedByGuest && (
-                          <span className="text-[10px] text-emerald-400/60">{T.reservationPanel.confirmedTick}</span>
+                          <span className="text-[10px] text-emerald-400">{T.reservationPanel.confirmedTick}</span>
                         )}
                         {r.isArrived && (
                           <span className="text-[10px] text-teal-400/60">{T.reservationPanel.arrivedBadge}</span>

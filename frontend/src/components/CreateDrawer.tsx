@@ -68,53 +68,6 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   );
 }
 
-// ─── Table picker grid (walk-in mode) ─────────────────────────────────────────
-
-interface TablePickerProps {
-  tables: Table[];
-  value: string;
-  onChange: (id: string) => void;
-  label: string;
-}
-
-function TableGrid({ tables, value, onChange, label }: TablePickerProps) {
-  const T = useT();
-  const active = tables.filter(t => t.isActive);
-  return (
-    <div>
-      <Label>{label}</Label>
-      <div className="grid grid-cols-4 gap-1.5 max-h-36 overflow-y-auto pr-0.5">
-        <button
-          type="button"
-          onClick={() => onChange('')}
-          className={`text-xs p-2 rounded-lg border transition-colors text-center ${
-            value === ''
-              ? 'border-iron-green bg-iron-green/15 text-iron-green-light'
-              : 'border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text'
-          }`}
-        >
-          <div className="font-medium">{T.createDrawer.tableNone}</div>
-        </button>
-        {active.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => onChange(t.id)}
-            className={`text-xs p-2 rounded-lg border transition-colors text-center ${
-              value === t.id
-                ? 'border-iron-green bg-iron-green/15 text-iron-green-light'
-                : 'border-iron-border text-iron-text hover:border-iron-green'
-            }`}
-          >
-            <div className="font-semibold">{t.name}</div>
-            <div className="text-[10px] text-iron-muted">{t.minCovers}–{t.maxCovers}</div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Time slot constants ──────────────────────────────────────────────────────
 
 const TIME_SLOTS: string[] = Array.from({ length: 28 }, (_, i) => {
@@ -174,9 +127,21 @@ export default function CreateDrawer({
   const [wiDuration,      setWiDuration]      = useState(String(defaultTurnMinutes ?? getDefaultDuration(initialData?.partySize ?? 2)));
   const [wiDurationManual, setWiDurationManual] = useState(false);
   const [wiNotes,         setWiNotes]         = useState('');
-  const [wiTable,         setWiTable]         = useState(preselectedTableId ?? '');
-  const [wiGuestHint,     setWiGuestHint]     = useState<GuestLookupResult | null>(null);
-  const [wiHintDismissed, setWiHintDismissed] = useState(false);
+  const [wiTable,            setWiTable]            = useState(preselectedTableId ?? '');
+  const [wiCombinedTableIds, setWiCombinedTableIds] = useState<string[]>([]);
+  const [wiAutoResult,       setWiAutoResult]       = useState<BestTableResult | null>(null);
+  const [wiSuggestions,      setWiSuggestions]      = useState<BackendTableSuggestion[]>([]);
+  const [wiSuggestBusy,      setWiSuggestBusy]      = useState(false);
+  const [wiShowPicker,       setWiShowPicker]       = useState(false);
+  const [wiPickingOnMap,     setWiPickingOnMap]     = useState(false);
+  const wiManualOverrideRef = useRef(!!preselectedTableId);
+  const [wiManualOverride, _setWiManualOverride] = useState(!!preselectedTableId);
+  function setWiManualOverride(v: boolean) {
+    wiManualOverrideRef.current = v;
+    _setWiManualOverride(v);
+  }
+  const [wiGuestHint,        setWiGuestHint]        = useState<GuestLookupResult | null>(null);
+  const [wiHintDismissed,    setWiHintDismissed]    = useState(false);
 
   // Guest CRM hints
   const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
@@ -315,6 +280,44 @@ export default function CreateDrawer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resDate, resTime, resParty, resDuration, mode]);
 
+  // Walk-in auto-allocation — mirrors reservation logic but always uses today + now.
+  // Fires when party size or duration changes in walk-in mode.
+  useEffect(() => {
+    if (mode !== 'walkin' || wiParty < 1) return;
+    if (!preselectedTableId) {
+      setWiManualOverride(false);
+      setWiShowPicker(false);
+    }
+    setWiSuggestBusy(true);
+    const t = setTimeout(async () => {
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10);
+      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      try {
+        const dur = wiDuration ? parseInt(wiDuration, 10) : undefined;
+        const params = { date, time, partySize: wiParty, duration: dur };
+        const [s, best] = await Promise.all([
+          api.tables.suggest(params),
+          api.tables.best(params),
+        ]);
+        setWiSuggestions(s);
+        setWiAutoResult(best);
+        if (!wiManualOverrideRef.current) {
+          setWiTable(best?.tableIds[0] ?? '');
+          setWiCombinedTableIds(best?.tableIds.slice(1) ?? []);
+        }
+      } catch {
+        setWiSuggestions([]);
+        setWiAutoResult(null);
+        if (!wiManualOverrideRef.current) setWiCombinedTableIds([]);
+      } finally {
+        setWiSuggestBusy(false);
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wiParty, wiDuration, mode]);
+
   // Auto-default duration when party size changes, unless the host already made
   // a manual choice. Runs on mount and every time resParty changes.
   useEffect(() => {
@@ -374,6 +377,33 @@ export default function CreateDrawer({
     );
   }
 
+  async function openWiMapPicker() {
+    setWiPickingOnMap(true);
+    setWiShowPicker(false);
+    let sug = wiSuggestions;
+    if (wiSuggestBusy || sug.length === 0) {
+      try {
+        const now = new Date();
+        const date = now.toISOString().slice(0, 10);
+        const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const dur = wiDuration ? parseInt(wiDuration, 10) : undefined;
+        sug = await api.tables.suggest({ date, time, partySize: wiParty, duration: dur });
+      } catch { /* fall back to cached */ }
+    }
+    onPickTables?.(
+      [wiTable, ...wiCombinedTableIds].filter(Boolean),
+      sug,
+      (ids) => {
+        setWiPickingOnMap(false);
+        if (ids !== null) {
+          setWiTable(ids[0] ?? '');
+          setWiCombinedTableIds(ids.slice(1));
+          setWiManualOverride(true);
+        }
+      },
+    );
+  }
+
   async function doSubmitReservation() {
     setError(null);
     setBusy(true);
@@ -422,7 +452,7 @@ export default function CreateDrawer({
       });
       if (seatNow && wiTable) {
         try {
-          r = await api.reservations.seat(r.id, wiTable);
+          r = await api.reservations.seat(r.id, wiTable, false, wiCombinedTableIds);
         } catch (seatErr: unknown) {
           if (seatErr instanceof ApiError && seatErr.code === 'CONFLICT') {
             const det = seatErr.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
@@ -473,10 +503,10 @@ export default function CreateDrawer({
   return (
     <>
       {/* Backdrop — hidden during map pick so the floor is accessible */}
-      {!pickingOnMap && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
+      {!pickingOnMap && !wiPickingOnMap && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
 
       {/* Drawer — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-[420px] bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${pickingOnMap ? ' hidden' : ''}`}>
+      <aside className={`fixed right-0 top-0 h-full w-[420px] bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${(pickingOnMap || wiPickingOnMap) ? ' hidden' : ''}`}>
 
         {/* Header */}
         <div className="p-4 border-b border-iron-border shrink-0">
@@ -1100,18 +1130,170 @@ export default function CreateDrawer({
               />
             </div>
 
-            <TableGrid
-              tables={tables}
-              value={wiTable}
-              onChange={setWiTable}
-              label={T.createDrawer.fieldWalkInTable}
-            />
+            {/* ── Table allocation (same model as reservation) ── */}
+            <div>
+              <Label>{T.createDrawer.fieldWalkInTable}</Label>
 
-            <p className="text-iron-muted text-xs border border-iron-border rounded-lg px-3 py-2">
-              {wiTable
-                ? T.createDrawer.walkInTableSelected(tables.find(t => t.id === wiTable)?.name ?? '')
-                : T.createDrawer.walkInNoTable}
-            </p>
+              {/* Picking on map banner */}
+              {wiPickingOnMap && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
+                  <span className="text-blue-300 text-xs flex-1">{T.createDrawer.tablePickingOnMap}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setWiPickingOnMap(false); onPickTablesCancel?.(); }}
+                    className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                  >
+                    {T.common.cancel}
+                  </button>
+                </div>
+              )}
+
+              {/* Loading */}
+              {!wiPickingOnMap && wiSuggestBusy && (
+                <div className="flex items-center gap-2 py-2 text-iron-muted">
+                  <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="text-xs">{T.createDrawer.tableSearching}</span>
+                </div>
+              )}
+
+              {/* Auto-selected, no override */}
+              {!wiPickingOnMap && !wiSuggestBusy && wiAutoResult && !wiManualOverride && !wiShowPicker && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/35">
+                    <span className="text-iron-green-light font-semibold text-sm">
+                      {wiAutoResult.type === 'combined'
+                        ? T.createDrawer.tableAutoCombined(wiAutoResult.tableNames.join(' + '))
+                        : T.createDrawer.tableAutoSelected(wiAutoResult.tableNames[0])}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-green/25 border border-iron-green/40 text-iron-green-light font-bold shrink-0">
+                      {T.createDrawer.autoLabel}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setWiShowPicker(true); setWiManualOverride(true); }}
+                    className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
+                  >
+                    {T.createDrawer.tableChangeBtn}
+                  </button>
+                  {onPickTables && (
+                    <button
+                      type="button"
+                      onClick={openWiMapPicker}
+                      className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                    >
+                      {T.createDrawer.tableSelectOnMap}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Manual override selected */}
+              {!wiPickingOnMap && !wiSuggestBusy && wiManualOverride && !wiShowPicker && (() => {
+                const names = [wiTable, ...wiCombinedTableIds].filter(Boolean).map(resolveTableName);
+                const autoIds = wiAutoResult?.tableIds ?? [];
+                const currentIds = [wiTable, ...wiCombinedTableIds].filter(Boolean);
+                const differsFromAuto = autoIds.join(',') !== currentIds.join(',');
+                return (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-border/15 border border-iron-border/50 min-w-0">
+                      <span className="text-iron-text font-semibold text-sm truncate">
+                        {names.length > 0 ? names.join(' + ') : T.createDrawer.tableNone}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWiShowPicker(true)}
+                      className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
+                    >
+                      {T.createDrawer.tableChangeBtn}
+                    </button>
+                    {onPickTables && (
+                      <button
+                        type="button"
+                        onClick={openWiMapPicker}
+                        className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                      >
+                        {T.createDrawer.tableSelectOnMap}
+                      </button>
+                    )}
+                    {wiAutoResult && differsFromAuto && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWiManualOverride(false);
+                          setWiTable(wiAutoResult.tableIds[0]);
+                          setWiCombinedTableIds(wiAutoResult.tableIds.slice(1));
+                          setWiShowPicker(false);
+                        }}
+                        className="text-xs text-iron-muted hover:text-iron-green-light transition-colors shrink-0"
+                      >
+                        {T.createDrawer.tableUseAuto}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* No available table */}
+              {!wiPickingOnMap && !wiSuggestBusy && !wiAutoResult && !wiManualOverride && !wiShowPicker && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/20">
+                  <span className="text-amber-400 text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setWiShowPicker(true); setWiManualOverride(true); }}
+                    className="text-xs px-2 py-1 rounded border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0"
+                  >
+                    {T.createDrawer.tableShowAll}
+                  </button>
+                  {onPickTables && (
+                    <button
+                      type="button"
+                      onClick={openWiMapPicker}
+                      className="text-xs px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                    >
+                      {T.createDrawer.tableSelectOnMap}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Inline picker */}
+              {wiShowPicker && (
+                <div className="space-y-2">
+                  <FloorTablePicker
+                    tables={tables}
+                    floorObjs={floorObjs ?? []}
+                    suggestions={wiSuggestions}
+                    selectedIds={[wiTable, ...wiCombinedTableIds].filter(Boolean)}
+                    onMultiPick={ids => {
+                      setWiTable(ids[0] ?? '');
+                      setWiCombinedTableIds(ids.slice(1));
+                      setWiManualOverride(true);
+                    }}
+                  />
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setWiShowPicker(false)}
+                      className="text-iron-muted text-xs hover:text-iron-text transition-colors"
+                    >
+                      {T.guestDrawer.backLink}
+                    </button>
+                    {[wiTable, ...wiCombinedTableIds].some(Boolean) && (
+                      <button
+                        type="button"
+                        onClick={() => { setWiTable(''); setWiCombinedTableIds([]); }}
+                        className="text-xs text-iron-muted hover:text-red-400 transition-colors"
+                      >
+                        {T.createDrawer.tableClearSelection}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {error && (
               <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">

@@ -8,6 +8,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
+import { fmtHostTime, normalizeTime } from '../utils/time';
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
 
@@ -33,8 +34,7 @@ function Row({ label, value, accent, warn }: RowProps) {
 }
 
 function Ts({ label, ts }: { label: string; ts: string }) {
-  const d = new Date(ts);
-  const t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const t = fmtHostTime(ts);
   return (
     <div className="flex justify-between">
       <span className="text-iron-muted text-xs">{label}</span>
@@ -542,8 +542,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       return minsUntil > 0 && minsUntil <= 60;
     })();
 
-    const fmtTime = (iso: string) =>
-      new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const fmtTime = fmtHostTime;
 
     return (
       <section className="border-t border-iron-border pt-4 space-y-2.5">
@@ -961,7 +960,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   </span>
                 )}
                 {res.isConfirmedByGuest && (
-                  <span className="text-[10px] px-1.5 py-px rounded bg-iron-border/20 text-iron-muted font-medium">
+                  <span className="text-[10px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">
                     {T.guestDrawer.guestConfirmed}
                   </span>
                 )}
@@ -1159,7 +1158,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Reservation details */}
           <section className="space-y-2">
             <Row label={T.guestDrawer.rowDate}       value={res.date} />
-            <Row label={T.guestDrawer.rowTime}       value={res.time} />
+            <Row label={T.guestDrawer.rowTime}       value={normalizeTime(res.time)} />
             {res.status === 'SEATED' && res.seatedAt && (
               <Ts label={T.guestDrawer.rowSeatedAt}  ts={res.seatedAt} />
             )}
@@ -1190,7 +1189,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 </p>
                 {others.map(r => (
                   <div key={r.id} className="flex items-center gap-2 py-0.5">
-                    <span className="text-iron-text text-xs font-semibold tabular-nums w-10 shrink-0">{r.time}</span>
+                    <span className="text-iron-text text-xs font-semibold tabular-nums w-10 shrink-0">{normalizeTime(r.time)}</span>
                     <span className="text-iron-border text-xs">·</span>
                     <span className="text-iron-text text-xs truncate flex-1">{r.guestName}</span>
                     <span className="text-iron-muted text-[10px] shrink-0">{T.common.guests(r.partySize)}</span>

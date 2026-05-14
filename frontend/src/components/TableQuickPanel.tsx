@@ -5,6 +5,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { formatReservationSource } from '../utils/displayHelpers';
+import { fmtHostTime, normalizeTime } from '../utils/time';
 
 const STATUS_DOT: Record<ReservationStatus, string> = {
   PENDING:   'bg-amber-400',
@@ -328,7 +329,7 @@ export default function TableQuickPanel({
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-iron-muted">{T.tableQuickPanel.labelTime}</span>
-                  <span className="text-iron-text font-medium tabular-nums">{res.time}</span>
+                  <span className="text-iron-text font-medium tabular-nums">{normalizeTime(res.time)}</span>
                 </div>
 
                 {/* Covers — inline number editor */}
@@ -383,7 +384,7 @@ export default function TableQuickPanel({
               {floorTable.liveStatus === 'OCCUPIED' && res.status === 'SEATED' && isLiveView && floorTable.currentReservation && (() => {
                 const cr = floorTable.currentReservation!;
                 const mr = cr.minutesRemaining;
-                const freeAt = new Date(cr.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const freeAt = fmtHostTime(cr.expectedEndTime);
                 return (
                   <div className="flex justify-between text-xs">
                     {cr.isOverdue ? (

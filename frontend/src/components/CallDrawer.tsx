@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { GuestLookupResult, ReservationStatus } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
+import { fmtHostTime, normalizeTime } from '../utils/time';
 
 interface Props {
   phone: string;
@@ -42,7 +43,7 @@ export default function CallDrawer({
   }, [phone]);
 
   const callTime = (() => {
-    try { return new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    try { return fmtHostTime(createdAt); }
     catch { return ''; }
   })();
 
@@ -154,7 +155,7 @@ export default function CallDrawer({
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-iron-text font-semibold text-sm">
-                          {todayRes.time}
+                          {normalizeTime(todayRes.time)}
                           <span className="text-iron-muted font-normal"> · {todayRes.partySize}p</span>
                         </p>
                         {todayRes.table && (
