@@ -430,7 +430,7 @@ export default function FloorBoard({
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
-  const { warmth: timeWarmth, brightness, gridFade } = useAtmosphere();
+  const { warmth: timeWarmth, brightness } = useAtmosphere();
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
@@ -955,22 +955,13 @@ export default function FloorBoard({
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
         (() => {
-          // ── Phase 20: Adaptive Day/Night canvas values ───────────────────
-          // All signals derived from { timeWarmth, brightness, gridFade } —
-          // no theme toggles, no visible modes. The room simply understands service.
+          // ── Adaptive Day/Night canvas values ─────────────────────────────
+          // Signals derived from { timeWarmth, brightness } — room responds to service.
           const isDark = typeof document !== 'undefined'
             ? document.documentElement.getAttribute('data-theme') !== 'light'
             : true;
 
-          // Grid — architectural reference lines; warm neutral to avoid blue cast
-          const gridAlpha  = isDark
-            ? 0.016 * (1 - gridFade * 0.90)
-            : 0.050 * (1 - gridFade * 0.70);
-          const gridRgb    = isDark ? '200,196,190' : '0,0,0';
-          const gridColor  = `rgba(${gridRgb},${gridAlpha.toFixed(4)})`;
-
           // Ambient bloom — warm candlelight white; no blue channel drift.
-          // Light mode: CSS --canvas-ambient handles ambiance; JS bloom suppressed.
           const ambW = Math.round(72 + brightness * 14); // 86% morning → 72% dinner
           const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
           const ambA = isDark
@@ -991,14 +982,20 @@ export default function FloorBoard({
               zoom: 1,
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: [
-                // Subtle ambient center bloom — just enough warmth to ground the space
-                'radial-gradient(ellipse 80% 65% at 50% 38%, var(--canvas-ambient) 0%, transparent 70%)',
-                // Grid H
-                `linear-gradient(0deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
-                // Grid V
-                `linear-gradient(90deg, transparent 27.5px, ${gridColor} 27.5px, ${gridColor} 28px, transparent 28px)`,
+                // Chandelier bloom — continuous warmth across the full canvas surface.
+                // Wider + taller than before so the lower floor zones stay grounded.
+                'radial-gradient(ellipse 110% 88% at 50% 32%, var(--canvas-ambient) 0%, transparent 72%)',
+                // Ceiling catch — diffuse overhead light on the upper floor zone.
+                isDark
+                  ? 'linear-gradient(180deg, rgba(220,210,196,0.016) 0%, transparent 24%)'
+                  : 'linear-gradient(180deg, rgba(255,252,248,0.12) 0%, transparent 30%)',
+                // Peripheral depth — room walls absorb light; floor edges recede naturally.
+                `radial-gradient(ellipse 106% 100% at 50% 50%, transparent 48%, ${isDark ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.06)'} 100%)`,
+                // Secondary ambient pool — off-axis warmth for naturalism (second fixture / window).
+                isDark
+                  ? 'radial-gradient(ellipse 55% 40% at 68% 62%, rgba(200,175,130,0.006) 0%, transparent 70%)'
+                  : 'radial-gradient(ellipse 55% 40% at 68% 62%, rgba(255,240,200,0.022) 0%, transparent 70%)',
               ].join(', '),
-              backgroundSize: 'auto, 28px 28px, 28px 28px',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
