@@ -722,7 +722,15 @@ export async function getFloorInsights(
     }
   }
 
-  return insights;
+  // SEAT_NOW deduplication: each unassigned reservation must appear on at most
+  // one table card. The first table that scores it (floorState order) keeps it.
+  const seenSeatNowRes = new Set<string>();
+  return insights.filter(ins => {
+    if (ins.type !== 'SEAT_NOW' || !ins.reservationId) return true;
+    if (seenSeatNowRes.has(ins.reservationId)) return false;
+    seenSeatNowRes.add(ins.reservationId);
+    return true;
+  });
 }
 
 // ─── Sections ─────────────────────────────────────────────────────────────────

@@ -104,6 +104,7 @@ export const THe = {
     zoomOut:   'הקטן תצוגה  (Ctrl −)',
     zoomIn:    'הגדל תצוגה  (Ctrl +)',
     zoomReset: 'אפס זום ל-100%',
+    soon:      'בקרוב',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

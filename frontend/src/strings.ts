@@ -104,6 +104,7 @@ export const T = {
     zoomOut:   'Zoom out  (Ctrl −)',
     zoomIn:    'Zoom in  (Ctrl +)',
     zoomReset: 'Reset zoom to 100%',
+    soon:      'Soon',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

@@ -2632,6 +2632,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   hoveredResId?: string | null;
 }) {
   const T = useT();
+  const { locale } = useLocale();
+  const isRTL = locale === 'he';
   const isDark = typeof document !== 'undefined'
     ? document.documentElement.getAttribute('data-theme') !== 'light'
     : true;
@@ -3019,13 +3021,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const nameWeight = isOverdue ? 800 : 700;
         return (
           <div style={{ marginTop: 'auto', width: '100%', minWidth: 0 }}>
-            {/* Name zone — full card width, never competes with chips */}
-            <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em' }}>
+            {/* Name zone — RTL-aware: Hebrew names anchor from right edge */}
+            <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', direction: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' }}>
               {currentRes.guestName}
             </p>
-            {/* Metadata zone — partySize · timer on left; status chips right-anchored */}
+            {/* Metadata zone — partySize · timer; RTL-aware chip placement */}
             {!isSecondary && (
-              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
+              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr' }}>
                 <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {currentRes.partySize}p
                 </span>
@@ -3046,7 +3048,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                   );
                 })()}
                 {(isOverdue || isCombined) && (
-                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                  <span style={{ marginLeft: isRTL ? 0 : 'auto', marginRight: isRTL ? 'auto' : 0, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isOverdue && (
                       <span style={{ fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', letterSpacing: '0.04em' }}>
                         OVR
@@ -3074,13 +3076,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           : isDark ? '#1d4ed8' : '#1e40af';
         return (
           <div style={{ marginTop: 'auto', width: '100%', minWidth: 0 }}>
-            {/* Name zone — full card width, never competes with chips */}
-            <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em' }}>
+            {/* Name zone — RTL-aware: Hebrew names anchor from right edge */}
+            <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', direction: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' }}>
               {displayRes.guestName}
             </p>
-            {/* Metadata zone — time + partySize on left; status chip right-anchored */}
+            {/* Metadata zone — time + partySize; RTL-aware chip placement */}
             {!isSecondary && nextRes && (
-              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
+              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr' }}>
                 <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {nextRes.partySize}p
                 </span>
@@ -3093,10 +3095,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                   </span>
                 )}
                 {(isSoon || isCombined) && (
-                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                  <span style={{ marginLeft: isRTL ? 0 : 'auto', marginRight: isRTL ? 'auto' : 0, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
                       <span style={{ fontSize: 9, color: '#92400e', fontWeight: 600, background: 'rgba(146,64,14,0.10)', border: '1px solid rgba(146,64,14,0.22)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em' }}>
-                        Soon
+                        {T.floorBoard.soon}
                       </span>
                     )}
                     {isCombined && !isSoon && (
