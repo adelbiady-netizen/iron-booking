@@ -432,7 +432,7 @@ export const THe = {
     toastUnseated:        'האורח הוחזר לרשימה',
     toastUndone:          'הפעולה בוטלה',
     toastTableAssigned:   (table: string) => `שולחן ${table} שויך`,
-    toastSeated:          (table: string) => `הושב בשולחן ${table}`,
+    toastSeated:          (guest: string, table: string) => `${guest} הושב לשולחן ${table}`,
     toastMoved:           (table: string) => `הועבר לשולחן ${table}`,
     toastLocked:          (name: string) => `${name} נעול`,
     toastUnlocked:        (name: string) => `${name} שוחרר`,

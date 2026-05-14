@@ -445,7 +445,7 @@ export const T = {
     toastUnseated:        'Guest returned to list',
     toastUndone:          'Action undone',
     toastTableAssigned:   (table: string) => `Table ${table} assigned`,
-    toastSeated:          (table: string) => `Seated at ${table}`,
+    toastSeated:          (guest: string, table: string) => `${guest} seated at ${table}`,
     toastMoved:           (table: string) => `Moved to ${table}`,
     toastLocked:          (name: string) => `${name} locked`,
     toastUnlocked:        (name: string) => `${name} unlocked`,
