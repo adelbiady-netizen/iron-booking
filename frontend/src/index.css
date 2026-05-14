@@ -24,7 +24,7 @@
   --canvas-table-bg:        #1c1c1e;
   --canvas-status-occupied: #15803d;   /* green-700 — dark on white table surface */
   --canvas-status-reserved: #1d4ed8;   /* blue-700 — dark on white table surface */
-  --canvas-ambient:         rgba(190,210,255,0.025); /* cool bloom, not candlelight */
+  --canvas-ambient:         rgba(190,210,255,0.015); /* cool bloom — V2: more restrained */
 
   color-scheme: dark;
 }

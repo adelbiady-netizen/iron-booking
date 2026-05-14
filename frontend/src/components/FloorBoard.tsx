@@ -309,10 +309,10 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG: Record<string, string> = {
-  AVAILABLE:     'rgba(248,248,246,0.97)',   // matte off-white — calm / receptive
-  OCCUPIED:      'rgba(234,251,239,0.97)',   // matte barely-green — active energy
-  RESERVED_SOON: 'rgba(251,248,226,0.97)',   // matte barely-amber — imminent
-  RESERVED:      'rgba(228,241,254,0.97)',   // matte barely-blue — committed
+  AVAILABLE:     'rgba(233,233,231,0.96)',   // soft neutral — premium matte, not glowing white
+  OCCUPIED:      'rgba(220,242,224,0.96)',   // soft barely-green — active presence
+  RESERVED_SOON: 'rgba(241,235,208,0.96)',   // soft barely-amber — imminent arrival
+  RESERVED:      'rgba(213,230,247,0.96)',   // soft barely-blue — committed, calm
   BLOCKED:       'rgba(30,32,36,0.18)',      // near-invisible — withdrawn
 };
 
@@ -968,7 +968,7 @@ export default function FloorBoard({
           const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
           const ambG = Math.round(225 - timeWarmth * 18);
           const ambB = Math.round(255 - timeWarmth * 30);
-          const ambA = (0.010 + brightness * 0.006 + timeWarmth * 0.004 + serviceEnergy * 0.002).toFixed(4);
+          const ambA = (0.006 + brightness * 0.003 + timeWarmth * 0.002 + serviceEnergy * 0.001).toFixed(4);
           // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
@@ -1031,8 +1031,8 @@ export default function FloorBoard({
                   width:  z.maxX - z.minX + PAD * 2,
                   height: z.maxY - z.minY + PAD * 2,
                   borderRadius: 24,
-                  border: `1px solid ${z.color}22`,
-                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}0C 0%, ${z.color}04 60%, transparent 85%)`,
+                  border: `1px solid ${z.color}14`,
+                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}08 0%, ${z.color}03 60%, transparent 85%)`,
                   pointerEvents: 'none',
                 }}
               />
@@ -2114,12 +2114,12 @@ function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }
 
   if (tables.length === 0) return null;
 
-  const occOuter    = 0.072 + pressureScore * 0.022 + timeWarmth * 0.010;
-  const occInner    = 0.055 + pressureScore * 0.014 + timeWarmth * 0.007;
-  const ovdStrength = 0.038 + pressureScore * 0.022;
-  const readyGlow   = 0.026 + pressureScore * 0.012;
-  const secOpacity  = 0.034 + pressureScore * 0.010 + serviceEnergy * 0.005;
-  const immGlow     = 0.034 + pressureScore * 0.012;
+  const occOuter    = 0.050 + pressureScore * 0.016 + timeWarmth * 0.007;
+  const occInner    = 0.036 + pressureScore * 0.010 + timeWarmth * 0.005;
+  const ovdStrength = 0.026 + pressureScore * 0.016;
+  const readyGlow   = 0.018 + pressureScore * 0.009;
+  const secOpacity  = 0.022 + pressureScore * 0.007 + serviceEnergy * 0.003;
+  const immGlow     = 0.024 + pressureScore * 0.009;
 
   return (
     <svg
@@ -2535,20 +2535,20 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
 
-  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(244,242,255,0.97)'   // matte lavender — held
-    : isOverdue ? 'rgba(255,238,238,0.97)'                                            // matte soft red — overdue
+  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,236,253,0.96)'   // soft lavender — held
+    : isOverdue ? 'rgba(250,232,232,0.96)'                                            // soft red-tinted — overdue
     : (STATUS_BG[table.liveStatus] ?? STATUS_BG['AVAILABLE']);
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(255,254,246,0.97)';     // matte barely-ivory — VIP prestige
+    bg = 'rgba(250,249,240,0.96)';     // soft barely-ivory — VIP prestige
   }
   if (cls === 'communal' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(247,249,255,0.97)';     // matte barely-cool — communal social
+    bg = 'rgba(242,246,252,0.96)';     // soft barely-cool — communal social
   }
   if (cls === 'lounge' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(255,253,247,0.97)';     // matte barely-warm-cream — lounge relaxed
+    bg = 'rgba(251,248,240,0.96)';     // soft barely-warm-cream — lounge relaxed
   }
   if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(252,252,252,0.97)';     // matte neutral — bar clean
+    bg = 'rgba(247,247,247,0.96)';     // soft neutral — bar clean
   }
 
   let borderColor = selected        ? '#22c55e'
@@ -2611,10 +2611,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
   if (waitlistAssignTarget) {
-    bg          = 'rgba(237,233,255,0.97)';
+    bg          = 'rgba(235,232,254,0.96)';
     borderColor = '#6366f1';
     borderWidth = 2;
-    boxShadow   = '0 0 0 3px rgba(99,102,241,0.35)';
+    boxShadow   = '0 0 0 3px rgba(99,102,241,0.42), 0 0 22px rgba(99,102,241,0.20)';
     opacity     = 1;
   }
 
@@ -2713,6 +2713,19 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // and the table number becomes a secondary label
   const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
 
+  // Multi-turn stack — turns to show below the table boundary.
+  // OCCUPIED: all upcoming (current is shown inside). RESERVED/SOON: skip index 0 (shown inside).
+  // AVAILABLE: all upcoming (shows schedule preview). Suppressed during pick/warn/dimmed states.
+  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
+    ? table.liveStatus === 'OCCUPIED'
+      ? table.upcomingReservations.slice(0, 4)
+      : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
+      ? table.upcomingReservations.slice(1, 4)
+      : table.liveStatus === 'AVAILABLE'
+      ? table.upcomingReservations.slice(0, 3)
+      : []
+    : [];
+
   // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
   // Negative value means the animation has already been running for that duration.
   const _animSeed = table.posX * 0.013 + table.posY * 0.017;
@@ -2730,6 +2743,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                         : 'drop-shadow(0 2px 8px rgba(0,0,0,0.36))';
 
   return (
+  <>
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
@@ -2812,12 +2826,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {/* Table number — primary when empty, secondary label when a guest is present */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
-          fontSize: hasGuest ? 10 : 12,
-          fontWeight: hasGuest ? 600 : 700,
-          color: hasGuest ? '#71717a' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
-          opacity: hasGuest ? 0.8 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
+          fontSize: hasGuest ? 11 : 14,
+          fontWeight: hasGuest ? 700 : 800,
+          color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
+          opacity: hasGuest ? 0.75 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-          letterSpacing: hasGuest ? '0.02em' : undefined,
+          letterSpacing: hasGuest ? '0.03em' : '-0.01em',
         }}>
           {table.name}
         </span>
@@ -2836,8 +2850,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 9, color: '#71717a', opacity: 0.70, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em' }}>
-          {table.minCovers}–{table.maxCovers}
+        <span style={{ fontSize: 10, color: '#52525b', opacity: 0.75, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 500 }}>
+          {table.minCovers}–{table.maxCovers}p
         </span>
       )}
 
@@ -2855,14 +2869,19 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = isOverdue ? '#dc2626' : 'var(--canvas-status-occupied)';
+        const nameColor = isOverdue ? '#c81e1e' : 'var(--canvas-status-occupied)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: nameColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '0.01em' }}>
+              <p style={{ fontSize: 13, color: nameColor, fontWeight: isOverdue ? 800 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.01em' }}>
                 {currentRes.guestName}
               </p>
-              {isCombined && (
+              {isOverdue && (
+                <span style={{ fontSize: 8, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.28)', borderRadius: 3, padding: '0 3px', flexShrink: 0, letterSpacing: '0.04em' }}>
+                  OVR
+                </span>
+              )}
+              {isCombined && !isOverdue && (
                 <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
                   ⊞
                 </span>
@@ -2870,8 +2889,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             </div>
             {!isSecondary && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: '#71717a', opacity: 0.70 }}>
-                  {currentRes.partySize}
+                <span style={{ fontSize: 11, color: '#52525b', fontWeight: 500 }}>
+                  {currentRes.partySize}p
                 </span>
                 {isToday && (() => {
                   const endTimeStr = new Date(currentRes.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2880,25 +2899,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     : mr >= -5 ? T.floorBoard.ending
                     : T.floorBoard.mOver(Math.abs(mr));
                   const timerColor = isOverdue || mr <= 5 ? '#dc2626'
-                    : mr <= 20 ? '#d97706'
-                    : '#71717a';
-                  const timerWeight = isOverdue || mr <= 5 ? 700 : mr <= 20 ? 600 : 400;
-                  const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.82;
+                    : mr <= 20 ? '#c97706'
+                    : '#52525b';
+                  const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 500;
+                  const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.80;
                   return (
                     <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight, opacity: timerOpacity }}>
                       · {timerStr}
                     </span>
                   );
                 })()}
-              </p>
-            )}
-            {/* Turn-pressure hint — who is waiting for this table.
-                Overdue: assertive (0.72). Ending within 15 min: anticipatory (0.40).
-                Suppressed at mr ≤ 5: the red timer is already at max urgency; two warm
-                colors compete rather than add clarity. */}
-            {!isSecondary && nextRes && (isOverdue || (isToday && mr > 5 && mr <= 15)) && (
-              <p style={{ marginTop: 2, fontSize: 9, color: '#d97706', opacity: isOverdue ? 0.85 : 0.55, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', letterSpacing: '0.01em' }}>
-                → {nextRes.guestName} · {nextRes.time}
               </p>
             )}
           </div>
@@ -2909,29 +2919,35 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
-        // RESERVED_SOON: amber (warming, imminent) — RESERVED: blue (calm, committed)
-        const guestColor = table.liveStatus === 'RESERVED_SOON'
-          ? '#d97706'
-          : 'var(--canvas-status-reserved)';
+        const isSoon = table.liveStatus === 'RESERVED_SOON';
+        const guestColor = isSoon ? '#b45309' : 'var(--canvas-status-reserved)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 12, color: guestColor, fontWeight: table.liveStatus === 'RESERVED_SOON' ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '0.01em' }}>
+              <p style={{ fontSize: 13, color: guestColor, fontWeight: isSoon ? 800 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.01em' }}>
                 {displayRes.guestName}
               </p>
-              {isCombined && (
+              {isSoon && (
+                <span style={{ fontSize: 8, color: '#b45309', fontWeight: 700, background: 'rgba(180,83,9,0.10)', border: '1px solid rgba(180,83,9,0.25)', borderRadius: 3, padding: '0 3px', flexShrink: 0, letterSpacing: '0.04em' }}>
+                  ARR
+                </span>
+              )}
+              {isCombined && !isSoon && (
                 <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
                   ⊞
                 </span>
               )}
             </div>
             {!isSecondary && nextRes && (
-              <p style={{ marginTop: 1, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: '#71717a', opacity: 0.80 }}>
-                  {nextRes.partySize} · {nextRes.time}
+              <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
+                <span style={{ fontSize: 11, color: '#52525b', fontWeight: 500 }}>
+                  {nextRes.partySize}p
                 </span>
-                {isToday && table.liveStatus === 'RESERVED_SOON' && nextRes.minutesUntil > 0 && (
-                  <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600, opacity: 0.95 }}>
+                <span style={{ fontSize: 11, color: isSoon ? '#b45309' : '#52525b', fontWeight: isSoon ? 700 : 500, opacity: isSoon ? 0.95 : 0.75 }}>
+                  · {nextRes.time}
+                </span>
+                {isToday && isSoon && nextRes.minutesUntil > 0 && (
+                  <span style={{ fontSize: 11, color: '#b45309', fontWeight: 700 }}>
                     · {T.floorBoard.inNMin(nextRes.minutesUntil)}
                   </span>
                 )}
@@ -3006,9 +3022,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </div>
       )}
 
-      {/* Turn count badge — only for non-AVAILABLE, non-overdue tables.
-          On overdue tables the turn-pressure hint already names the next guest; +N is redundant noise. */}
-      {!pickMode && extraTurns > 0 && table.liveStatus !== 'AVAILABLE' && !isOverdue && (
+      {/* Turn count badge — fallback when the turn stack is not rendered (pick mode, dimmed, etc.) */}
+      {!pickMode && extraTurns > 0 && turnsToShow.length === 0 && table.liveStatus !== 'AVAILABLE' && !isOverdue && (
         <span style={{
           position: 'absolute', top: 3, right: 3,
           fontSize: 9, fontWeight: 700, color: '#60a5fa',
@@ -3028,5 +3043,51 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         }} />
       )}
     </button>
+
+    {/* Multi-turn stack — floats below the table boundary.
+        Operational truth > geometric purity: reservation schedule is always visible. */}
+    {turnsToShow.length > 0 && (
+      <div
+        style={{
+          position: 'absolute',
+          left: table.posX,
+          top: table.posY + table.height + 4,
+          minWidth: table.width,
+          maxWidth: table.width + 48,
+          zIndex: 6,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          opacity,
+        }}
+      >
+        {turnsToShow.map((r, i) => (
+          <div
+            key={r.id ?? i}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '2px 6px',
+              background: 'rgba(18,20,18,0.86)',
+              borderRadius: 4,
+              border: '1px solid rgba(255,255,255,0.055)',
+            }}
+          >
+            <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 600, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
+              {r.time}
+            </span>
+            <span style={{ fontSize: 9, color: '#c4c4c8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              {r.guestName}
+            </span>
+            <span style={{ fontSize: 8, color: '#6b7280', flexShrink: 0 }}>
+              {r.partySize}p
+            </span>
+          </div>
+        ))}
+      </div>
+    )}
+  </>
   );
 }
