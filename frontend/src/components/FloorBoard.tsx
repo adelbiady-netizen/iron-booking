@@ -538,7 +538,7 @@ export default function FloorBoard({
           x: Math.min(sx, cx), y: Math.min(sy, cy),
           w: Math.abs(cx - sx), h: Math.abs(cy - sy),
         };
-        if (fr.w > 8 && fr.h > 8) {
+        if (fr.w > 8 && fr.h > 8 && pickAction !== 'seat') {
           setPickSelection(() => {
             const newIds = tables.filter(t => {
               if (!t.isActive) return false;
@@ -845,6 +845,11 @@ export default function FloorBoard({
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
               : T.floorBoard.pickModeHint}
           </span>
+          {pickAction === 'seat' && (
+            <button type="button" onClick={onPickCancel} className="text-blue-300/70 text-xs hover:text-blue-200 transition-colors shrink-0 touch-manipulation px-1 py-1">
+              {T.floorBoard.pickModeCancel}
+            </button>
+          )}
         </div>
       )}
 
@@ -1368,8 +1373,8 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Pick mode action bar */}
-      {pickMode && (
+      {/* Pick mode action bar — not shown for seat: tap-table IS the confirmation */}
+      {pickMode && pickAction !== 'seat' && (
         <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {pickCurrentWarn ? (
