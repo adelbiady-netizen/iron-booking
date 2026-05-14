@@ -3097,7 +3097,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                 {(isSoon || isCombined) && (
                   <span style={{ marginLeft: isRTL ? 0 : 'auto', marginRight: isRTL ? 'auto' : 0, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
-                      <span style={{ fontSize: 9, color: '#92400e', fontWeight: 600, background: 'rgba(146,64,14,0.10)', border: '1px solid rgba(146,64,14,0.22)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em' }}>
+                      <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>
                         {T.floorBoard.soon}
                       </span>
                     )}
