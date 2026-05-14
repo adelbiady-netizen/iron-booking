@@ -309,7 +309,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG: Record<string, string> = {
-  AVAILABLE:     'rgba(233,233,231,0.96)',   // soft neutral — premium matte, not glowing white
+  AVAILABLE:     'rgba(224,224,222,0.86)',   // muted neutral — recedes behind active states
   OCCUPIED:      'rgba(220,242,224,0.96)',   // soft barely-green — active presence
   RESERVED_SOON: 'rgba(241,235,208,0.96)',   // soft barely-amber — imminent arrival
   RESERVED:      'rgba(213,230,247,0.96)',   // soft barely-blue — committed, calm
@@ -380,7 +380,7 @@ function tableRadius(shape: string): string {
 // Surface gradient — top highlight for depth. Active states stronger; AVAILABLE lifted slightly.
 function tableGradient(_shape: string, status: string, _cls: string): string | undefined {
   if (status === 'BLOCKED') return undefined;
-  if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.24) 0%, transparent 55%)';
+  if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 55%)';
   return 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 52%)';
 }
 
@@ -2115,12 +2115,12 @@ function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }
 
   if (tables.length === 0) return null;
 
-  const occOuter    = 0.050 + pressureScore * 0.016 + timeWarmth * 0.007;
-  const occInner    = 0.036 + pressureScore * 0.010 + timeWarmth * 0.005;
-  const ovdStrength = 0.026 + pressureScore * 0.016;
-  const readyGlow   = 0.018 + pressureScore * 0.009;
-  const secOpacity  = 0.022 + pressureScore * 0.007 + serviceEnergy * 0.003;
-  const immGlow     = 0.024 + pressureScore * 0.009;
+  const occOuter    = 0.058 + pressureScore * 0.018 + timeWarmth * 0.008;
+  const occInner    = 0.042 + pressureScore * 0.012 + timeWarmth * 0.006;
+  const ovdStrength = 0.028 + pressureScore * 0.018;
+  const readyGlow   = 0.020 + pressureScore * 0.010;
+  const secOpacity  = 0.030 + pressureScore * 0.010 + serviceEnergy * 0.005;
+  const immGlow     = 0.028 + pressureScore * 0.010;
 
   return (
     <svg
@@ -2208,9 +2208,9 @@ function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }
         const cy  = t.posY + t.height * 0.80;
         const rx  = t.width  * 0.74;
         const ry  = t.height * 0.36;
-        const op  = t.liveStatus === 'OCCUPIED'      ? 0.052
-                  : t.liveStatus === 'RESERVED_SOON' ? 0.034
-                  : t.liveStatus === 'RESERVED'       ? 0.028 : 0.018;
+        const op  = t.liveStatus === 'OCCUPIED'      ? 0.066
+                  : t.liveStatus === 'RESERVED_SOON' ? 0.046
+                  : t.liveStatus === 'RESERVED'       ? 0.032 : 0.010;
         return <ellipse key={`sf-shd-${t.id}`} cx={cx} cy={cy} rx={rx} ry={ry} fill="#000" fillOpacity={op} filter="url(#sf-shadow-blur)" />;
       })}
       {sectionZones.map(z => (
@@ -2595,7 +2595,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (table.liveStatus === 'AVAILABLE' && !selected && !combinedSelected && !softHold && !table.locked) {
     borderWidth = cls === 'communal' ? 1.5 : cls === 'lounge' ? 1 : 1;
     borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
-      ? sectionColor + '7A'   // ~48% opacity — slightly stronger definition
+      ? sectionColor + '44'   // ~27% opacity — empty tables do not compete
       : sectionColor;
   }
 
@@ -2608,7 +2608,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // At quietFade=0.10 → opacity ≤ 0.87 (barely visible). At 0.40 → ≤ 0.78 (matches prior binary).
   // Active zones emerge without any explicit signal — the room does the talking.
   if (quietFade > 0 && table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && !selected) {
-    opacity = Math.min(opacity, 0.90 - quietFade * 0.30);
+    opacity = Math.min(opacity, 0.88 - quietFade * 0.38);
   }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
@@ -2700,7 +2700,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     } else if (table.liveStatus === 'RESERVED') {
       halo = '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
-      halo = '0 0 22px rgba(255,255,255,0.07)';
+      halo = '0 0 16px rgba(255,255,255,0.05)';
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
   }
@@ -2746,7 +2746,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                         ? 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'
     : table.liveStatus === 'BLOCKED'
                         ? undefined
-                        : 'drop-shadow(0 2px 10px rgba(0,0,0,0.38)) drop-shadow(0 1px 3px rgba(0,0,0,0.18))';
+                        : 'drop-shadow(0 1px 7px rgba(0,0,0,0.28))';
 
   return (
   <>
