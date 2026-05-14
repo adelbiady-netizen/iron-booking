@@ -379,9 +379,9 @@ interface Props {
 
 const CANVAS_W = 1500;
 const CANVAS_H = 800;
-// Zoom multipliers relative to the spatially-calibrated baseline (baseScale).
-// 1.00 = operational fit (computed from viewport + table bounding box on first load).
-// Near-baseline steps (~9–10%) are smaller for fine tuning; outer steps (~15–19%) are coarser.
+// Absolute CSS zoom multipliers applied to the fixed CANVAS_W×CANVAS_H content div.
+// 1.00 = full canvas at native pixel scale. Spatial calibration on first load picks the
+// index that best fits the table layout without leaving dead space.
 const ZOOM_LEVELS = [0.65, 0.80, 0.91, 1.00, 1.10, 1.22, 1.45] as const;
 const BASELINE_IDX = 3; // index of 1.00 — always the calibrated fit
 
@@ -452,14 +452,13 @@ export default function FloorBoard({
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
   const [zoomIdx,    setZoomIdx]    = useState(BASELINE_IDX); // index into ZOOM_LEVELS
-  const [baseScale,  setBaseScale]  = useState(1.0);          // calibrated fit scale (computed on first load)
   const baseInitRef = useRef(false);                          // prevents re-calibration after first fit
   const [drawerBoost, setDrawerBoost] = useState(0); // 0 when open, DRAWER_BOOST when closed
-  // Effective zoom: baseScale × relative multiplier × spatial boost.
-  // baseScale makes 100% (BASELINE_IDX) feel like a natural spatial fit for this viewport + layout.
+  // Effective zoom: absolute level × spatial boost.
+  // ZOOM_LEVELS are absolute CSS zoom multipliers applied to the fixed CANVAS_W×CANVAS_H div.
   // DRAWER_BOOST gives 6% more canvas in command mode when the drawer is closed.
   const DRAWER_BOOST = 0.06;
-  const floorZoom = baseScale * ZOOM_LEVELS[zoomIdx] * (1 + drawerBoost);
+  const floorZoom = ZOOM_LEVELS[zoomIdx] * (1 + drawerBoost);
   const floorZoomRef = useRef(floorZoom);
   floorZoomRef.current = floorZoom;
   // Tracks zoom level from the PREVIOUS render so the centering effect can
@@ -484,8 +483,9 @@ export default function FloorBoard({
   }, [floorZoom]);
 
   // Spatial calibration — one-shot on first load with positioned tables.
-  // Computes baseScale so ZOOM_LEVELS[BASELINE_IDX] (100%) displays the table content
-  // at a comfortable fit rather than an arbitrary absolute pixel scale.
+  // Picks the ZOOM_LEVELS index that best fits the table bounding box to the viewport.
+  // Hard constraint: chosen zoom must never produce a canvas smaller than the viewport
+  // (which would leave dead black space). minScale = vw/CANVAS_W enforces this.
   // After init: baseInitRef blocks re-calibration so spatial memory stays stable.
   useLayoutEffect(() => {
     if (baseInitRef.current) return;
@@ -501,25 +501,40 @@ export default function FloorBoard({
     const maxX = Math.max(...placed.map(t => t.posX + t.width));
     const minY = Math.min(...placed.map(t => t.posY));
     const maxY = Math.max(...placed.map(t => t.posY + t.height));
-    const scale = Math.min(
-      Math.max(Math.min(vw / ((maxX - minX) + PAD * 2), vh / ((maxY - minY) + PAD * 2)), 0.40),
-      1.30,
+
+    // Scale that fits the table bounding box inside the viewport.
+    const fitScale = Math.min(
+      vw / ((maxX - minX) + PAD * 2),
+      vh / ((maxY - minY) + PAD * 2),
     );
+    // Never use a zoom where canvas < viewport — that creates dead black space.
+    const minScale = vw / CANVAS_W;
+    // Target: fit tables if possible, but floor at minScale to avoid dead space,
+    // and cap at 1.00 so we don't start zoomed in beyond the baseline level.
+    const targetScale = Math.min(Math.max(fitScale, minScale), 1.00);
+
+    // Find the ZOOM_LEVELS index closest to targetScale.
+    let bestIdx = BASELINE_IDX;
+    let bestDiff = Infinity;
+    for (let i = 0; i < ZOOM_LEVELS.length; i++) {
+      const diff = Math.abs(ZOOM_LEVELS[i] - targetScale);
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+    }
 
     baseInitRef.current = true;
-    setBaseScale(scale);
+    setZoomIdx(bestIdx);
 
-    // Center on content after the scale change settles (setTimeout defers past layout effects)
+    // Scroll to center the table cluster after zoom settles.
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
+    const zoom = ZOOM_LEVELS[bestIdx];
     setTimeout(() => {
       const c = canvasScrollRef.current;
       if (!c) return;
-      c.scrollLeft = Math.max(0, cx * scale - c.clientWidth  / 2);
-      c.scrollTop  = Math.max(0, cy * scale - c.clientHeight / 2);
+      c.scrollLeft = Math.max(0, cx * zoom - c.clientWidth  / 2);
+      c.scrollTop  = Math.max(0, cy * zoom - c.clientHeight / 2);
     }, 0);
   // tables.length as dep: re-evaluates only when count changes, not on every render.
-  // tables is read inside but accessing positioned subset — no exhaustive-deps risk.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tables.length]);
 
@@ -563,7 +578,7 @@ export default function FloorBoard({
       const container = canvasScrollRef.current;
       if (!container || canvasTables.length === 0) return;
 
-      const zoom = baseScale * ZOOM_LEVELS[zoomIdx] * (1 + DRAWER_BOOST);
+      const zoom = ZOOM_LEVELS[zoomIdx] * (1 + DRAWER_BOOST);
       const minX = Math.min(...canvasTables.map(t => t.posX));
       const maxX = Math.max(...canvasTables.map(t => t.posX + t.width));
       const contentCenterX = (minX + maxX) / 2;
