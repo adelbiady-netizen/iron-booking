@@ -13,7 +13,7 @@ import { arrivalState, minutesUntilRes } from '../utils/arrival';
 
 const STATUS_PILL: Record<ReservationStatus, string> = {
   PENDING:   'bg-amber-500/15 text-amber-400',
-  CONFIRMED: 'bg-blue-500/15 text-blue-400',
+  CONFIRMED: 'bg-iron-border/20 text-iron-muted',
   SEATED:    'bg-iron-green/25 text-iron-green-light',
   COMPLETED: 'bg-iron-border/20 text-iron-muted',
   CANCELLED: 'bg-red-900/15 text-red-400',
@@ -566,8 +566,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         )}
         {res.isConfirmedByGuest ? (
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-            <span className="text-emerald-400 text-xs font-medium">{T.guestDrawer.guestConfirmed}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-iron-green-light/60 shrink-0" />
+            <span className="text-iron-green-light text-xs">{T.guestDrawer.guestConfirmed}</span>
             {res.confirmationSentAt && (
               <span className="text-iron-muted text-[11px]">· {T.guestDrawer.viaSms} {fmtTime(res.confirmationSentAt)}</span>
             )}
@@ -960,15 +960,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     {T.guestDrawer.runningLate}
                   </span>
                 )}
-                {res.isConfirmedByGuest ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium">
+                {res.isConfirmedByGuest && (
+                  <span className="text-[10px] px-1.5 py-px rounded bg-iron-border/20 text-iron-muted font-medium">
                     {T.guestDrawer.guestConfirmed}
                   </span>
-                ) : res.confirmationSentAt && res.status !== 'SEATED' ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 border-blue-500/25 text-blue-400 font-medium">
-                    {T.guestDrawer.smsSentBadge}
-                  </span>
-                ) : null}
+                )}
               </div>
 
               {/* Party + table — compact secondary line */}
@@ -1056,9 +1052,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {(res.hostNotes || res.guestNotes || res.occasion) && (
             <section className="space-y-2">
               {res.hostNotes && (
-                <div className="px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/25">
-                  <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
-                  <p className="text-amber-300 text-xs">{res.hostNotes}</p>
+                <div className="px-3 py-2 rounded-lg bg-iron-elevated border border-iron-border/60" style={{ borderLeftWidth: 2, borderLeftColor: 'rgba(217,119,6,0.55)' }}>
+                  <p className="text-[10px] text-iron-muted font-medium uppercase tracking-wider mb-0.5">Host note</p>
+                  <p className="text-iron-text text-xs leading-relaxed">{res.hostNotes}</p>
                 </div>
               )}
               {res.guestNotes && (
@@ -1199,7 +1195,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     <span className="text-iron-text text-xs truncate flex-1">{r.guestName}</span>
                     <span className="text-iron-muted text-[10px] shrink-0">{T.common.guests(r.partySize)}</span>
                     <span className={`text-[9px] px-1.5 py-px rounded font-medium shrink-0 ${
-                      r.status === 'CONFIRMED' ? 'bg-blue-500/15 text-blue-400' :
+                      r.status === 'CONFIRMED' ? 'bg-iron-border/15 text-iron-muted' :
                       r.status === 'SEATED'    ? 'bg-iron-green/20 text-iron-green-light' :
                                                  'bg-iron-border/20 text-iron-muted'
                     }`}>
