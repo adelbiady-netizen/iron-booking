@@ -377,11 +377,11 @@ function tableRadius(shape: string): string {
   return '12px';  // softer premium corners — hospitality furniture, not a UI button
 }
 
-// Surface gradient — top highlight for depth. Active states slightly stronger than available.
+// Surface gradient — top highlight for depth. Active states stronger; AVAILABLE lifted slightly.
 function tableGradient(_shape: string, status: string, _cls: string): string | undefined {
   if (status === 'BLOCKED') return undefined;
-  if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 50%)';
-  return 'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, transparent 50%)';
+  if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.24) 0%, transparent 55%)';
+  return 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 52%)';
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
@@ -2563,15 +2563,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
 
   let boxShadow: string | undefined = selected
-    ? '0 0 0 3px rgba(34,197,94,0.35), 0 0 20px rgba(34,197,94,0.14)'
+    ? '0 0 0 3px rgba(34,197,94,0.48), 0 0 36px rgba(34,197,94,0.22)'
     : combinedSelected
-    ? '0 0 0 3px rgba(59,130,246,0.35), 0 0 16px rgba(59,130,246,0.12)'
+    ? '0 0 0 3px rgba(59,130,246,0.48), 0 0 32px rgba(59,130,246,0.20)'
     : softHold && table.liveStatus === 'AVAILABLE'
-    ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
+    ? '0 0 0 3px rgba(99,102,241,0.34), 0 0 30px rgba(99,102,241,0.18)'
     : bestSuggestion
-    ? '0 0 0 3px rgba(34,197,94,0.18), 0 0 10px rgba(34,197,94,0.12)'
-    : isOverdue ? '0 0 0 2px rgba(239,68,68,0.30)'   // visible ring during tense animation dim phase
-    : table.locked ? '0 0 0 2px rgba(245,158,11,0.15)' : undefined;
+    ? '0 0 0 2px rgba(34,197,94,0.28), 0 0 30px rgba(34,197,94,0.15)'
+    : isOverdue ? '0 0 0 2px rgba(239,68,68,0.38)'   // structural ring — always present regardless of animation
+    : table.locked ? '0 0 0 2px rgba(245,158,11,0.18)' : undefined;
 
   let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
   let cursor = 'pointer';
@@ -2593,9 +2593,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // AVAILABLE: recede — thinner border, section color at low opacity so empty tables don't compete.
   // Communal carries slightly more edge weight (structural presence); lounge recedes further (softness).
   if (table.liveStatus === 'AVAILABLE' && !selected && !combinedSelected && !softHold && !table.locked) {
-    borderWidth = cls === 'communal' ? 1.5 : cls === 'lounge' ? 0.75 : 1;
+    borderWidth = cls === 'communal' ? 1.5 : cls === 'lounge' ? 1 : 1;
     borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
-      ? sectionColor + '66'   // 40% opacity
+      ? sectionColor + '7A'   // ~48% opacity — slightly stronger definition
       : sectionColor;
   }
 
@@ -2616,7 +2616,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     bg          = 'rgba(235,232,254,0.96)';
     borderColor = '#6366f1';
     borderWidth = 2;
-    boxShadow   = '0 0 0 3px rgba(99,102,241,0.42), 0 0 22px rgba(99,102,241,0.20)';
+    boxShadow   = '0 0 0 3px rgba(99,102,241,0.48), 0 0 36px rgba(99,102,241,0.22)';
     opacity     = 1;
   }
 
@@ -2686,28 +2686,28 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     if (dimmed) opacity = Math.max(opacity, 0.55);
   }
 
-  // State halo — restrained outer glow communicates operational status at a glance.
-  // Not a decoration: it is the primary ambient signal that separates table state from the dark floor.
+  // State halo — soft operational light pool that anchors each table in the dark surface.
+  // Wider spread (36-44px) gives clear spatial presence without neon aggression.
   // Suppressed during pick/warn/select modes where border rings carry state signal.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && !selected && !combinedSelected && !dimmed && !(softHold && table.liveStatus === 'AVAILABLE')) {
     let halo: string | undefined;
     if (isOverdue) {
-      halo = '0 0 0 1px rgba(239,68,68,0.22), 0 0 22px rgba(239,68,68,0.12)';
+      halo = '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)';
     } else if (table.liveStatus === 'OCCUPIED') {
-      halo = '0 0 0 1px rgba(134,239,172,0.16), 0 0 18px rgba(134,239,172,0.08)';
+      halo = '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)';
     } else if (table.liveStatus === 'RESERVED_SOON') {
-      halo = '0 0 0 1px rgba(251,191,36,0.20), 0 0 16px rgba(251,191,36,0.09)';
+      halo = '0 0 0 1px rgba(251,191,36,0.35), 0 0 40px rgba(251,191,36,0.20)';
     } else if (table.liveStatus === 'RESERVED') {
-      halo = '0 0 0 1px rgba(147,197,253,0.16), 0 0 14px rgba(147,197,253,0.07)';
+      halo = '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
-      halo = '0 0 16px rgba(255,255,255,0.05)';
+      halo = '0 0 36px rgba(255,255,255,0.11)';
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
   }
 
   // Plate depth — subtle inset edge highlight. Suppressed during pick/warn states and BLOCKED.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
-    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 3px rgba(0,0,0,0.07)';
+    const depthShadow = 'inset 0 1px 0 rgba(255,255,255,0.90), inset 0 -2px 6px rgba(0,0,0,0.10)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
 
@@ -2737,14 +2737,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Class-modulated drop shadow — VIP tables cast a deeper, premium shadow footprint.
   // Pick mode: uniform single shadow — border rings carry status signal, no need for multi-layer GPU work.
   const tableFilter = dimmed ? undefined
-    : pickMode          ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.50))'
+    : pickMode          ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.55))'
     : table.liveStatus === 'OCCUPIED'
-                        ? 'drop-shadow(0 3px 14px rgba(0,0,0,0.55)) drop-shadow(0 1px 4px rgba(0,0,0,0.30))'
+                        ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.72)) drop-shadow(0 1px 6px rgba(0,0,0,0.42))'
     : table.liveStatus === 'RESERVED_SOON'
-                        ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.42))'
+                        ? 'drop-shadow(0 3px 18px rgba(0,0,0,0.60)) drop-shadow(0 1px 5px rgba(0,0,0,0.30))'
+    : table.liveStatus === 'RESERVED'
+                        ? 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'
     : table.liveStatus === 'BLOCKED'
                         ? undefined
-                        : 'drop-shadow(0 2px 8px rgba(0,0,0,0.36))';
+                        : 'drop-shadow(0 2px 16px rgba(0,0,0,0.50)) drop-shadow(0 1px 4px rgba(0,0,0,0.24))';
 
   return (
   <>
@@ -2854,7 +2856,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 10, color: '#52525b', opacity: 0.75, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 500 }}>
+        <span style={{ fontSize: 11, color: '#3f3f46', opacity: 0.82, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 600 }}>
           {table.minCovers}–{table.maxCovers}p
         </span>
       )}
@@ -2873,27 +2875,27 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = isOverdue ? '#c81e1e' : 'var(--canvas-status-occupied)';
+        const nameColor = isOverdue ? '#991b1b' : 'var(--canvas-status-occupied)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 13, color: nameColor, fontWeight: isOverdue ? 800 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.01em' }}>
+              <p style={{ fontSize: 13, color: nameColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.015em' }}>
                 {currentRes.guestName}
               </p>
               {isOverdue && (
-                <span style={{ fontSize: 8, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.28)', borderRadius: 3, padding: '0 3px', flexShrink: 0, letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', flexShrink: 0, letterSpacing: '0.04em' }}>
                   OVR
                 </span>
               )}
               {isCombined && !isOverdue && (
-                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
+                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px', flexShrink: 0 }}>
                   ⊞
                 </span>
               )}
             </div>
             {!isSecondary && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 11, color: '#52525b', fontWeight: 500 }}>
+                <span style={{ fontSize: 11, color: '#3f3f46', fontWeight: 600 }}>
                   {currentRes.partySize}p
                 </span>
                 {isToday && (() => {
@@ -2903,10 +2905,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     : mr >= -5 ? T.floorBoard.ending
                     : T.floorBoard.mOver(Math.abs(mr));
                   const timerColor = isOverdue || mr <= 5 ? '#dc2626'
-                    : mr <= 20 ? '#c97706'
-                    : '#52525b';
-                  const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 500;
-                  const timerOpacity = isOverdue || mr <= 5 ? 1 : mr <= 20 ? 0.95 : 0.80;
+                    : mr <= 20 ? '#b45309'
+                    : '#3f3f46';
+                  const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 600;
+                  const timerOpacity = isOverdue || mr <= 5 ? 1 : 1;
                   return (
                     <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight, opacity: timerOpacity }}>
                       · {timerStr}
@@ -2924,34 +2926,34 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = table.liveStatus === 'RESERVED_SOON';
-        const guestColor = isSoon ? '#b45309' : 'var(--canvas-status-reserved)';
+        const guestColor = isSoon ? '#92400e' : 'var(--canvas-status-reserved)';
         return (
           <div style={{ marginTop: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-              <p style={{ fontSize: 13, color: guestColor, fontWeight: isSoon ? 800 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.01em' }}>
+              <p style={{ fontSize: 13, color: guestColor, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: '-0.015em' }}>
                 {displayRes.guestName}
               </p>
               {isSoon && (
-                <span style={{ fontSize: 8, color: '#b45309', fontWeight: 700, background: 'rgba(180,83,9,0.10)', border: '1px solid rgba(180,83,9,0.25)', borderRadius: 3, padding: '0 3px', flexShrink: 0, letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 9, color: '#92400e', fontWeight: 700, background: 'rgba(146,64,14,0.12)', border: '1px solid rgba(146,64,14,0.28)', borderRadius: 4, padding: '1px 4px', flexShrink: 0, letterSpacing: '0.04em' }}>
                   ARR
                 </span>
               )}
               {isCombined && !isSoon && (
-                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 2px', flexShrink: 0 }}>
+                <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px', flexShrink: 0 }}>
                   ⊞
                 </span>
               )}
             </div>
             {!isSecondary && nextRes && (
               <p style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 3, lineHeight: 1.3 }}>
-                <span style={{ fontSize: 11, color: '#52525b', fontWeight: 500 }}>
+                <span style={{ fontSize: 11, color: '#3f3f46', fontWeight: 600 }}>
                   {nextRes.partySize}p
                 </span>
-                <span style={{ fontSize: 11, color: isSoon ? '#b45309' : '#52525b', fontWeight: isSoon ? 700 : 500, opacity: isSoon ? 0.95 : 0.75 }}>
+                <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, opacity: 1 }}>
                   · {nextRes.time}
                 </span>
                 {isToday && isSoon && nextRes.minutesUntil > 0 && (
-                  <span style={{ fontSize: 11, color: '#b45309', fontWeight: 700 }}>
+                  <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800 }}>
                     · {T.floorBoard.inNMin(nextRes.minutesUntil)}
                   </span>
                 )}
@@ -3048,16 +3050,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       )}
     </button>
 
-    {/* Multi-turn stack — floats below the table boundary.
-        Operational truth > geometric purity: reservation schedule is always visible. */}
+    {/* Multi-turn stack — operational timeline anchored below table boundary.
+        Reservation schedule always visible. Operational truth > geometric purity. */}
     {turnsToShow.length > 0 && (
       <div
         style={{
           position: 'absolute',
           left: table.posX,
-          top: table.posY + table.height + 4,
+          top: table.posY + table.height + 2,
           minWidth: table.width,
-          maxWidth: table.width + 48,
+          maxWidth: table.width + 52,
           zIndex: 6,
           pointerEvents: 'none',
           display: 'flex',
@@ -3066,6 +3068,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           opacity,
         }}
       >
+        {/* Connector — thin vertical line visually anchoring the list to the table edge */}
+        <div style={{
+          position: 'absolute',
+          top: -3,
+          left: 10,
+          width: 1,
+          height: 4,
+          background: 'rgba(255,255,255,0.18)',
+        }} />
         {turnsToShow.map((r, i) => (
           <div
             key={r.id ?? i}
@@ -3074,18 +3085,19 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               alignItems: 'center',
               gap: 5,
               padding: '2px 6px',
-              background: 'rgba(18,20,18,0.86)',
+              background: 'rgba(20,22,20,0.92)',
               borderRadius: 4,
-              border: '1px solid rgba(255,255,255,0.055)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: 'inset 2px 0 0 rgba(96,165,250,0.30)',
             }}
           >
-            <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 600, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
               {r.time}
             </span>
-            <span style={{ fontSize: 9, color: '#c4c4c8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            <span style={{ fontSize: 10, color: '#d4d4d8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
               {r.guestName}
             </span>
-            <span style={{ fontSize: 8, color: '#6b7280', flexShrink: 0 }}>
+            <span style={{ fontSize: 9, color: '#9ca3af', flexShrink: 0, fontWeight: 500 }}>
               {r.partySize}p
             </span>
           </div>
