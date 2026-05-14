@@ -739,6 +739,7 @@ export default function FloorBoard({
         setTimeout(() => setPickWarn(w => (w === t.id ? null : w)), 2500);
         return;
       }
+      if (pickAction === 'seat') { onPickDone?.([t.id]); return; }
       setPickSelection(prev =>
         prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
       );
@@ -2877,14 +2878,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           : isDark ? '#15803d' : '#166534';
         const nameWeight = isOverdue ? 800 : 700;
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0 }}>
-            {/* Name zone — RTL-aware: Hebrew names anchor from right edge */}
-            <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, direction: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative' }}>
+            {/* Name zone — always centered; badges are absolute overlays so they don't shift the anchor */}
+            <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {currentRes.guestName}
             </p>
-            {/* Metadata zone — partySize · timer; RTL-aware chip placement */}
+            {/* Metadata zone — partySize · timer; centered; OVR/⊞ float as corner badge */}
             {!isSecondary && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
                 <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
                   {currentRes.partySize}p
                 </span>
@@ -2904,21 +2905,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     </span>
                   );
                 })()}
-                {(isOverdue || isCombined) && (
-                  <span style={{ marginLeft: isRTL ? 0 : 'auto', marginRight: isRTL ? 'auto' : 0, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                    {isOverdue && (
-                      <span style={{ fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', letterSpacing: '0.04em' }}>
-                        OVR
-                      </span>
-                    )}
-                    {isCombined && !isOverdue && (
-                      <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
-                        ⊞
-                      </span>
-                    )}
-                  </span>
-                )}
               </div>
+            )}
+            {/* Corner badge — absolute so it never displaces the centered name/metadata */}
+            {!isSecondary && isOverdue && (
+              <span style={{ position: 'absolute', bottom: 3, right: 4, fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', letterSpacing: '0.04em' }}>
+                OVR
+              </span>
+            )}
+            {!isSecondary && isCombined && !isOverdue && (
+              <span style={{ position: 'absolute', bottom: 3, right: 4, fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
+                ⊞
+              </span>
             )}
           </div>
         );
@@ -2933,8 +2931,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           : isDark ? '#1d4ed8' : '#1e40af';
         return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0 }}>
-            {/* Name zone — RTL-aware: Hebrew names anchor from right edge */}
-            <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, direction: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' }}>
+            {/* Name zone — always centered; stable anchor regardless of badge presence */}
+            <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
             </p>
             {/* Metadata zone — time + partySize; chip always visible even on narrow cards */}
