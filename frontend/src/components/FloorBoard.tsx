@@ -369,6 +369,7 @@ interface Props {
 
 const CANVAS_W = 1500;
 const CANVAS_H = 800;
+const ZOOM_STEPS = [0.90, 1.00, 1.15, 1.30, 1.50] as const;
 
 function tableRadius(shape: string): string {
   if (shape === 'ROUND' || shape === 'OVAL') return '9999px';
@@ -492,6 +493,10 @@ export default function FloorBoard({
   const isDraggingRef  = useRef(false);
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
+  const [zoomIdx, setZoomIdx] = useState(1); // index into ZOOM_STEPS; 1 = 100%
+  const floorZoom = ZOOM_STEPS[zoomIdx];
+  const floorZoomRef = useRef(floorZoom);
+  floorZoomRef.current = floorZoom;
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
@@ -513,8 +518,8 @@ export default function FloorBoard({
       if (!dragStartRef.current || !canvasScrollRef.current) return;
       const container = canvasScrollRef.current;
       const rect = container.getBoundingClientRect();
-      const cx = e.clientX - rect.left + container.scrollLeft;
-      const cy = e.clientY - rect.top + container.scrollTop;
+      const cx = (e.clientX - rect.left + container.scrollLeft) / floorZoomRef.current;
+      const cy = (e.clientY - rect.top + container.scrollTop) / floorZoomRef.current;
       const { cx: sx, cy: sy } = dragStartRef.current;
       if (Math.abs(cx - sx) > 5 || Math.abs(cy - sy) > 5) {
         isDraggingRef.current = true;
@@ -529,8 +534,8 @@ export default function FloorBoard({
       if (isDraggingRef.current && dragStartRef.current && canvasScrollRef.current) {
         const container = canvasScrollRef.current;
         const rect = container.getBoundingClientRect();
-        const cx = e.clientX - rect.left + container.scrollLeft;
-        const cy = e.clientY - rect.top + container.scrollTop;
+        const cx = (e.clientX - rect.left + container.scrollLeft) / floorZoomRef.current;
+        const cy = (e.clientY - rect.top + container.scrollTop) / floorZoomRef.current;
         const { cx: sx, cy: sy } = dragStartRef.current;
         const fr = {
           x: Math.min(sx, cx), y: Math.min(sy, cy),
@@ -566,7 +571,26 @@ export default function FloorBoard({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [pickMode, tables, pickSuggestions]);
+  }, [pickMode, tables, pickSuggestions, floorZoom]);
+
+  // Ctrl+Wheel zoom — must be a non-passive listener to call preventDefault.
+  // No deps: re-registers on every render so the listener stays current regardless
+  // of whether the canvas is initially visible.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const el = canvasScrollRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoomIdx(i => e.deltaY < 0
+        ? Math.min(ZOOM_STEPS.length - 1, i + 1)
+        : Math.max(0, i - 1)
+      );
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  });
 
   function handleCanvasMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     if (e.button !== 0) return;
@@ -575,8 +599,8 @@ export default function FloorBoard({
     if (!container) return;
     const rect = container.getBoundingClientRect();
     dragStartRef.current = {
-      cx: e.clientX - rect.left + container.scrollLeft,
-      cy: e.clientY - rect.top + container.scrollTop,
+      cx: (e.clientX - rect.left + container.scrollLeft) / floorZoom,
+      cy: (e.clientY - rect.top + container.scrollTop) / floorZoom,
     };
     isDraggingRef.current = false;
   }
@@ -967,8 +991,8 @@ export default function FloorBoard({
           const gridColor  = `rgba(${gridRgb},${gridAlpha.toFixed(4)})`;
 
           // Vignette depth — architectural and open at daylight, cinematic at dinner
-          const vigBase1   = 0.60 + (1 - brightness) * 0.28;  // 0.60 morning → 0.85 night
-          const vigBase2   = 0.32 + (1 - brightness) * 0.24;  // 0.32 morning → 0.56 night
+          const vigBase1   = 0.50 + (1 - brightness) * 0.07;  // 0.50 morning → 0.57 night
+          const vigBase2   = 0.25 + (1 - brightness) * 0.05;  // 0.25 morning → 0.30 night
           const vigRadius1 = Math.round(230 + (1 - brightness) * 50 + pressureScore * 18);
           const vigRadius2 = Math.round(110 + (1 - brightness) * 20 + pressureScore * 10);
 
@@ -985,16 +1009,17 @@ export default function FloorBoard({
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
           return (
-        <div ref={canvasScrollRef} className="flex-1 overflow-auto" style={{
+        <div className="flex-1 relative overflow-hidden">
+        <div ref={canvasScrollRef} className="absolute inset-0 overflow-auto" style={{
           // Day/night-aware vignette: open and architectural at daylight, cinematic at dinner.
           // Pressure still tightens the room — both signals compound naturally.
           boxShadow: [
             `inset 0 0 ${vigRadius1}px rgba(0,0,0,${(vigBase1 + pressureScore * 0.035 + timeWarmth * 0.012).toFixed(3)})`,
             `inset 0 0 ${vigRadius2}px rgba(0,0,0,${(vigBase2 + pressureScore * 0.030 + timeWarmth * 0.008).toFixed(3)})`,
-            `inset 0 80px 100px -30px rgba(0,0,0,${(0.28 + (1 - brightness) * 0.22).toFixed(3)})`,
-            `inset 0 -30px 80px rgba(0,0,0,${(0.16 + (1 - brightness) * 0.16).toFixed(3)})`,
-            `inset 55px 0 80px rgba(0,0,0,${(0.12 + (1 - brightness) * 0.12).toFixed(3)})`,
-            `inset -55px 0 80px rgba(0,0,0,${(0.12 + (1 - brightness) * 0.12).toFixed(3)})`,
+            `inset 0 80px 100px -30px rgba(0,0,0,${(0.20 + (1 - brightness) * 0.03).toFixed(3)})`,
+            `inset 0 -30px 80px rgba(0,0,0,${(0.11 + (1 - brightness) * 0.06).toFixed(3)})`,
+            `inset 55px 0 80px rgba(0,0,0,${(0.08 + (1 - brightness) * 0.03).toFixed(3)})`,
+            `inset -55px 0 80px rgba(0,0,0,${(0.08 + (1 - brightness) * 0.03).toFixed(3)})`,
           ].join(', '),
         }}>
           <div
@@ -1003,6 +1028,7 @@ export default function FloorBoard({
               position: 'relative',
               width: CANVAS_W,
               height: CANVAS_H,
+              zoom: floorZoom,
               backgroundColor: 'var(--canvas-bg)',
               backgroundImage: [
                 // Primary chandelier bloom — warm center, premium room scale
@@ -1115,8 +1141,12 @@ export default function FloorBoard({
               );
             })}
 
-            {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge */}
-            <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} brightness={brightness} serviceEnergy={serviceEnergy} />
+            {/* Spatial energy field — occupied spotlight + bar anchor + arrival warmth + overdue tinge.
+                Suppressed during pick/assign modes: those modes trigger rapid re-renders on every
+                tap and SEF is the costliest component (N² density, 30+ SVG gradients). */}
+            {!pickMode && !waitlistAssignEntry && (
+              <SpatialEnergyField tables={canvasTables} floorObjs={floorObjs} pressureScore={pressureScore} timeWarmth={timeWarmth} brightness={brightness} serviceEnergy={serviceEnergy} />
+            )}
 
             {/* Chair silhouettes — semantic furniture geometry around table perimeters */}
             <ChairLayer
@@ -1199,6 +1229,30 @@ export default function FloorBoard({
               />
             )}
           </div>
+        </div>
+        {/* Zoom controls — absolute in outer wrapper, never scrolls with canvas */}
+        <div className="absolute bottom-3 left-3 z-30 flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setZoomIdx(i => Math.max(0, i - 1))}
+            disabled={zoomIdx === 0}
+            title={T.floorBoard.zoomOut}
+            className="w-7 h-7 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none"
+          >−</button>
+          <button
+            type="button"
+            onClick={() => setZoomIdx(1)}
+            title={T.floorBoard.zoomReset}
+            className="h-7 px-2 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 text-[10px] tabular-nums font-medium transition-colors select-none"
+          >{Math.round(floorZoom * 100)}%</button>
+          <button
+            type="button"
+            onClick={() => setZoomIdx(i => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+            disabled={zoomIdx === ZOOM_STEPS.length - 1}
+            title={T.floorBoard.zoomIn}
+            className="w-7 h-7 flex items-center justify-center rounded border border-iron-border/40 bg-iron-elevated/90 text-iron-muted hover:text-iron-text hover:border-iron-border/70 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors select-none"
+          >+</button>
+        </div>
         </div>
           );
         })()
@@ -2197,8 +2251,9 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
         const cxi = ti.posX + ti.width / 2, cyi = ti.posY + ti.height / 2;
         const cxj = tj.posX + tj.width / 2, cyj = tj.posY + tj.height / 2;
         const dx = cxi - cxj, dy = cyi - cyj;
-        const d  = Math.sqrt(dx * dx + dy * dy);
-        if (d <= 0 || d >= 260) continue;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= 0 || d2 >= 260 * 260) continue;
+        const d  = Math.sqrt(d2);
         result.push({
           mx: (cxi + cxj) / 2,
           my: (cyi + cyj) / 2,
@@ -2438,8 +2493,9 @@ function SpatialEnergyField({ tables, floorObjs = [], pressureScore, timeWarmth,
         occupied.slice(i + 1).map((tj, j) => {
           const dx = (ti.posX + ti.width / 2) - (tj.posX + tj.width / 2);
           const dy = (ti.posY + ti.height / 2) - (tj.posY + tj.height / 2);
-          const d  = Math.sqrt(dx * dx + dy * dy);
-          if (d <= 0 || d >= 230) return null;
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= 0 || d2 >= 230 * 230) return null;
+          const d  = Math.sqrt(d2);
           const mx  = (ti.posX + ti.width / 2 + tj.posX + tj.width / 2) / 2;
           const my  = (ti.posY + ti.height / 2 + tj.posY + tj.height / 2) / 2;
           const op  = ((1 - d / 230) * (occOuter * 0.48 + timeWarmth * 0.010)).toFixed(4);
@@ -2873,7 +2929,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? '0 0 0 3px rgba(99,102,241,0.20), 0 0 10px rgba(99,102,241,0.12)'
     : bestSuggestion
     ? '0 0 0 3px rgba(34,197,94,0.18), 0 0 10px rgba(34,197,94,0.12)'
-    : isOverdue ? '0 0 0 2px rgba(239,68,68,0.20)'   // subtle weight on overdue
+    : isOverdue ? '0 0 0 2px rgba(239,68,68,0.30)'   // visible ring during tense animation dim phase
     : table.locked ? '0 0 0 2px rgba(245,158,11,0.15)' : undefined;
 
   let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
@@ -2997,7 +3053,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       ? 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -2px 4px rgba(0,0,0,0.28)'
       : table.liveStatus === 'OCCUPIED'
       // Occupied — warm stone: bright top surface catch + deep bottom AO + brass left bevel + right depth
-      ? 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 5px rgba(0,0,0,0.30), inset 1px 0 0 rgba(255,200,100,0.08), inset -1px 0 0 rgba(0,0,0,0.14)'
+      ? 'inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 5px rgba(0,0,0,0.16), inset 1px 0 0 rgba(255,200,100,0.08), inset -1px 0 0 rgba(0,0,0,0.14)'
       : table.liveStatus === 'RESERVED_SOON'
       // Reserved soon — warm edge catch + bottom shadow + left amber bevel
       ? 'inset 0 1px 0 rgba(255,200,100,0.11), inset 0 -2px 4px rgba(0,0,0,0.27), inset 1px 0 0 rgba(255,200,100,0.04), inset -1px 0 0 rgba(0,0,0,0.10)'
@@ -3007,7 +3063,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       // Available — family material base at rest
       : cls === 'communal'
       // Slate slab: cooler top edge, heavier bottom AO — architectural mass, broader weight
-      ? 'inset 0 1px 0 rgba(200,205,215,0.07), inset 0 -3px 7px rgba(0,0,0,0.34), inset 1px 0 0 rgba(180,185,200,0.04), inset -1px 0 0 rgba(0,0,0,0.14)'
+      ? 'inset 0 1px 0 rgba(200,205,215,0.07), inset 0 -3px 7px rgba(0,0,0,0.24), inset 1px 0 0 rgba(180,185,200,0.04), inset -1px 0 0 rgba(0,0,0,0.14)'
       : cls === 'lounge'
       // Plush warmth: generous amber catch, softer bottom — intimate, upholstered
       ? 'inset 0 1px 0 rgba(255,210,150,0.12), inset 0 -1px 3px rgba(0,0,0,0.18), inset 1px 0 0 rgba(255,200,140,0.06), inset -1px 0 0 rgba(0,0,0,0.08)'
@@ -3015,7 +3071,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       // Counter surface: cool mineral edge, slim depth — lighter, functional hardness
       ? 'inset 0 1px 0 rgba(205,200,192,0.07), inset 0 -1px 3px rgba(0,0,0,0.20), inset 1px 0 0 rgba(195,190,182,0.04), inset -1px 0 0 rgba(0,0,0,0.09)'
       // Standard walnut dining: warm grain top edge + bottom AO — stable neutral hospitality baseline
-      : 'inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.28), inset 1px 0 0 rgba(255,200,130,0.05), inset -1px 0 0 rgba(0,0,0,0.12)';
+      : 'inset 0 1px 0 rgba(255,200,130,0.10), inset 0 -2px 5px rgba(0,0,0,0.14), inset 1px 0 0 rgba(255,200,130,0.05), inset -1px 0 0 rgba(0,0,0,0.12)';
 
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
 
@@ -3035,12 +3091,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     }
     if (cls === 'booth') {
       // Banquette back creates deep AO at the seat join — the back wall is always darker
-      const boothAO = 'inset 0 -4px 12px rgba(0,0,0,0.34)';
+      const boothAO = 'inset 0 -4px 12px rgba(0,0,0,0.24)';
       boxShadow = boxShadow ? `${boxShadow}, ${boothAO}` : boothAO;
     }
     if (cls === 'communal') {
       // Slab mass — communal tables are architecturally heavy; deeper bottom AO anchors the weight
-      const slabDepth = 'inset 0 -3px 8px rgba(0,0,0,0.32)';
+      const slabDepth = 'inset 0 -3px 8px rgba(0,0,0,0.22)';
       boxShadow = boxShadow ? `${boxShadow}, ${slabDepth}` : slabDepth;
     }
     if (cls === 'lounge') {
@@ -3064,25 +3120,32 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const _animSeed = table.posX * 0.013 + table.posY * 0.017;
 
   // Class-modulated drop shadow — VIP tables cast a deeper, premium shadow footprint.
+  // Pick mode: uniform single shadow — border rings carry status signal, no need for multi-layer GPU work.
   const tableFilter = dimmed ? undefined
+    : pickMode ? 'drop-shadow(0 3px 10px rgba(0,0,0,0.62)) drop-shadow(0 1px 2px rgba(0,0,0,0.38))'
     : table.liveStatus === 'OCCUPIED'
       ? cls === 'vip'
-        ? 'drop-shadow(0 8px 28px rgba(0,0,0,0.92)) drop-shadow(0 2px 7px rgba(0,0,0,0.68)) drop-shadow(0 14px 40px rgba(175,135,40,0.22))'
+        ? 'drop-shadow(0 8px 28px rgba(0,0,0,0.52)) drop-shadow(0 2px 7px rgba(0,0,0,0.54)) drop-shadow(0 14px 40px rgba(175,135,40,0.18))'
         : cls === 'large'
-        ? 'drop-shadow(0 7px 26px rgba(0,0,0,0.88)) drop-shadow(0 2px 6px rgba(0,0,0,0.62)) drop-shadow(0 12px 34px rgba(165,120,30,0.17))'
-        : 'drop-shadow(0 6px 22px rgba(0,0,0,0.85)) drop-shadow(0 2px 6px rgba(0,0,0,0.60)) drop-shadow(0 10px 30px rgba(180,130,40,0.14))'
+        ? 'drop-shadow(0 7px 26px rgba(0,0,0,0.48)) drop-shadow(0 2px 6px rgba(0,0,0,0.48)) drop-shadow(0 12px 34px rgba(165,120,30,0.14))'
+        : 'drop-shadow(0 6px 22px rgba(0,0,0,0.46)) drop-shadow(0 2px 6px rgba(0,0,0,0.46)) drop-shadow(0 10px 30px rgba(180,130,40,0.11))'
     : table.liveStatus === 'RESERVED_SOON'
       ? 'drop-shadow(0 4px 14px rgba(0,0,0,0.70)) drop-shadow(0 1px 4px rgba(0,0,0,0.48))'
     : table.liveStatus === 'AVAILABLE'
       ? cls === 'vip'
-        ? 'drop-shadow(0 4px 18px rgba(0,0,0,0.75)) drop-shadow(0 1px 4px rgba(0,0,0,0.48))'
+        // Polished stone: tighter shadow footprint — crisp premium edge, less bleed into neighbours
+        ? 'drop-shadow(0 4px 14px rgba(0,0,0,0.78)) drop-shadow(0 1px 3px rgba(0,0,0,0.50))'
         : cls === 'communal'
+        // Slab: wide soft shadow correct — reads as single large architectural object
         ? 'drop-shadow(0 5px 18px rgba(0,0,0,0.68)) drop-shadow(0 2px 5px rgba(0,0,0,0.42))'
         : cls === 'lounge'
+        // Lounge: intentionally soft — upholstered warmth, no crisping
         ? 'drop-shadow(0 2px 10px rgba(0,0,0,0.48)) drop-shadow(0 1px 3px rgba(0,0,0,0.28))'
         : cls === 'bar'
-        ? 'drop-shadow(0 2px 9px rgba(0,0,0,0.50)) drop-shadow(0 1px 3px rgba(0,0,0,0.28))'
-        : 'drop-shadow(0 3px 14px rgba(0,0,0,0.60)) drop-shadow(0 1px 3px rgba(0,0,0,0.36))'
+        // Bar counter: tighter radius — harder surface casts crisper edge
+        ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.54)) drop-shadow(0 1px 2px rgba(0,0,0,0.30))'
+        // Standard: tighten outer blur so adjacent-table shadows stay distinct in dense layouts
+        : 'drop-shadow(0 3px 11px rgba(0,0,0,0.64)) drop-shadow(0 1px 2px rgba(0,0,0,0.38))'
     : table.liveStatus === 'BLOCKED'
       ? 'drop-shadow(0 1px 5px rgba(0,0,0,0.30))'
     : 'drop-shadow(0 3px 12px rgba(0,0,0,0.62)) drop-shadow(0 1px 4px rgba(0,0,0,0.40))';

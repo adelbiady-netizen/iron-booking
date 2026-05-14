@@ -177,6 +177,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const [showServiceReport,   setShowServiceReport]   = useState(false);
   const [showBulkConfirm,    setShowBulkConfirm]    = useState(false);
+  const [panelCollapsed,     setPanelCollapsed]     = useState(false);
 
   // Compact table action panel — shown on floor map click before opening full GuestDrawer.
   // Stores IDs only so the panel always derives fresh data from the live reservations/floorTables
@@ -701,19 +702,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
     return bestMsg;
   }, [floorTables, isLiveView, T]);
-
-  // Walk-in viability: can the floor safely absorb walk-in guests right now?
-  const walkInSignal = useMemo<'OPEN' | 'TIGHT' | 'FULL'>(() => {
-    const safeTables = floorTables.filter(t =>
-      t.liveStatus === 'AVAILABLE' &&
-      !t.locked &&
-      !softHoldMap[t.id] &&
-      (!t.upcomingReservations[0] || t.upcomingReservations[0].minutesUntil >= 90)
-    );
-    if (safeTables.length === 0) return 'FULL';
-    if (safeTables.length === 1 || pressureInfo.arrivingSoonCount >= 2) return 'TIGHT';
-    return 'OPEN';
-  }, [floorTables, softHoldMap, pressureInfo.arrivingSoonCount]);
 
   // Floor pacing: is the floor about to ease or tighten in the next ~20–30 min?
   const pacingSignal = useMemo<'EASING' | 'TIGHTENING' | null>(() => {
@@ -1300,7 +1288,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         </div>
       </div>
 
-      <ActionBar insights={allInsights} onItemClick={handleActionBarClick} walkInSignal={isLiveView ? walkInSignal : undefined} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
+      <ActionBar insights={allInsights} onItemClick={handleActionBarClick} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
 
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
@@ -1349,36 +1337,61 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           hoveredResId={hoveredResId}
         />
 
-        <ReservationPanel
-          reservations={reservations}
-          selectedId={selectedRes?.id ?? null}
-          highlightId={highlightId}
-          onSelect={handlePanelSelect}
-          loading={resLoading}
-          onNewReservation={() => { setQuickTable(null); setPreselectedTableId(null); setCreateMode('reservation'); }}
-          onWalkIn={() => { setQuickTable(null); setCreateMode('walkin'); }}
-          waitlist={waitlist}
-          waitlistLoading={waitlistLoading}
-          onWaitlistAdd={handleWaitlistAdd}
-          onWaitlistSeat={handleWaitlistSeat}
-          onWaitlistNotify={handleWaitlistNotify}
-          onWaitlistCancel={handleWaitlistCancel}
-          onWaitlistNoShow={handleWaitlistNoShow}
-          nextInLine={nextInLine}
-          onSeatAtTable={handleSuggestionSeat}
-          entrySuggestions={entrySuggestions}
-          priorityQueue={priorityQueue}
-          nowTime={time}
-          operationalNow={operationalNow}
-          onContextMenuSeat={handleContextMenuSeat}
-          date={date}
-          reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
-          onReorganizeSelect={r => setSelectedRes(r)}
-          allTables={allTables}
-          onChooseTable={handleChooseTable}
-          isLiveView={isLiveView}
-          onHoverRow={setHoveredResId}
-        />
+        {/* Panel toggle handle — always visible between floor and panel */}
+        <button
+          type="button"
+          onClick={() => setPanelCollapsed(c => !c)}
+          className="shrink-0 w-4 bg-iron-elevated hover:bg-iron-card border-x border-iron-border/20 hover:border-iron-border/40 transition-colors flex items-center justify-center cursor-pointer"
+          title={panelCollapsed ? 'Open reservation panel' : 'Collapse reservation panel'}
+          aria-label={panelCollapsed ? 'Open reservation panel' : 'Collapse reservation panel'}
+        >
+          <svg
+            width="6" height="10" viewBox="0 0 6 10" fill="none"
+            className={`text-iron-muted/40 transition-transform duration-200 ${panelCollapsed ? 'rotate-180' : ''}`}
+          >
+            <polyline points="5,1 1,5 5,9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {/* Reservation panel wrapper — transitions to w-0 when collapsed */}
+        <div
+          className="shrink-0 overflow-hidden"
+          style={{
+            width: panelCollapsed ? 0 : undefined,
+            transition: 'width 180ms ease-out',
+          }}
+        >
+          <ReservationPanel
+            reservations={reservations}
+            selectedId={selectedRes?.id ?? null}
+            highlightId={highlightId}
+            onSelect={handlePanelSelect}
+            loading={resLoading}
+            onNewReservation={() => { setQuickTable(null); setPreselectedTableId(null); setCreateMode('reservation'); }}
+            onWalkIn={() => { setQuickTable(null); setCreateMode('walkin'); }}
+            waitlist={waitlist}
+            waitlistLoading={waitlistLoading}
+            onWaitlistAdd={handleWaitlistAdd}
+            onWaitlistSeat={handleWaitlistSeat}
+            onWaitlistNotify={handleWaitlistNotify}
+            onWaitlistCancel={handleWaitlistCancel}
+            onWaitlistNoShow={handleWaitlistNoShow}
+            nextInLine={nextInLine}
+            onSeatAtTable={handleSuggestionSeat}
+            entrySuggestions={entrySuggestions}
+            priorityQueue={priorityQueue}
+            nowTime={time}
+            operationalNow={operationalNow}
+            onContextMenuSeat={handleContextMenuSeat}
+            date={date}
+            reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
+            onReorganizeSelect={r => setSelectedRes(r)}
+            allTables={allTables}
+            onChooseTable={handleChooseTable}
+            isLiveView={isLiveView}
+            onHoverRow={setHoveredResId}
+          />
+        </div>
       </div>
       </BoardErrorBoundary>
 

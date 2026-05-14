@@ -101,6 +101,9 @@ export const T = {
     pickModeCurrentTable:     'Current table',
     pickModeCurrentTableWarn: 'That\'s the current table — choose a different one',
     reorganizeBanner: 'Reorganize Mode — click any table to lift its upcoming reservations to the queue',
+    zoomOut:   'Zoom out  (Ctrl −)',
+    zoomIn:    'Zoom in  (Ctrl +)',
+    zoomReset: 'Reset zoom to 100%',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -143,9 +146,6 @@ export const T = {
   // ── ActionBar ──────────────────────────────────────────────────────────────
   actionBar: {
     now: 'Now',
-    walkInOpen:  'Walk-ins · Open',
-    walkInTight: 'Walk-ins · Tight',
-    walkInFull:  'Walk-ins · Full',
     sectionUnderPressure: (name: string) => `${name} · Under pressure`,
     sectionFillingUp:     (name: string) => `${name} · Filling up`,
     pacingEasing:     'Floor · Easing',

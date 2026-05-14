@@ -101,6 +101,9 @@ export const THe = {
     pickModeCurrentTable:     'שולחן נוכחי',
     pickModeCurrentTableWarn: 'זהו השולחן הנוכחי — בחר שולחן אחר',
     reorganizeBanner: 'מצב סידור מחדש — לחץ על שולחן להעברת הזמנותיו לתור הסידור',
+    zoomOut:   'הקטן תצוגה  (Ctrl −)',
+    zoomIn:    'הגדל תצוגה  (Ctrl +)',
+    zoomReset: 'אפס זום ל-100%',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -143,9 +146,6 @@ export const THe = {
   // ── ActionBar ──────────────────────────────────────────────────────────────
   actionBar: {
     now: 'עכשיו',
-    walkInOpen:  'כניסות חופשיות · פתוח',
-    walkInTight: 'כניסות חופשיות · צפוף',
-    walkInFull:  'כניסות חופשיות · מלא',
     sectionUnderPressure: (name: string) => `${name} · עומס כבד`,
     sectionFillingUp:     (name: string) => `${name} · מתמלא`,
     pacingEasing:     'רצפה · מתרוקנת',
