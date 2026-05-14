@@ -483,9 +483,9 @@ export default function FloorBoard({
   }, [floorZoom]);
 
   // Spatial calibration — one-shot on first load with positioned tables.
-  // Picks the ZOOM_LEVELS index that best fits the table bounding box to the viewport.
-  // Hard constraint: chosen zoom must never produce a canvas smaller than the viewport
-  // (which would leave dead black space). minScale = vw/CANVAS_W enforces this.
+  // Stability rule: never change the zoom level automatically. Always start at
+  // BASELINE_IDX (100%) so the indicator is predictable and the zoom stack is clean.
+  // The only action is scrolling to center the table cluster in the viewport.
   // After init: baseInitRef blocks re-calibration so spatial memory stays stable.
   useLayoutEffect(() => {
     if (baseInitRef.current) return;
@@ -494,40 +494,16 @@ export default function FloorBoard({
     const container = canvasScrollRef.current;
     if (!container || container.clientWidth < 100) return;
 
-    const vw  = container.clientWidth;
-    const vh  = container.clientHeight;
-    const PAD = 80; // breathing room on each side in canvas units
+    baseInitRef.current = true;
+
     const minX = Math.min(...placed.map(t => t.posX));
     const maxX = Math.max(...placed.map(t => t.posX + t.width));
     const minY = Math.min(...placed.map(t => t.posY));
     const maxY = Math.max(...placed.map(t => t.posY + t.height));
-
-    // Scale that fits the table bounding box inside the viewport.
-    const fitScale = Math.min(
-      vw / ((maxX - minX) + PAD * 2),
-      vh / ((maxY - minY) + PAD * 2),
-    );
-    // Never use a zoom where canvas < viewport — that creates dead black space.
-    const minScale = vw / CANVAS_W;
-    // Target: fit tables if possible, but floor at minScale to avoid dead space,
-    // and cap at 1.00 so we don't start zoomed in beyond the baseline level.
-    const targetScale = Math.min(Math.max(fitScale, minScale), 1.00);
-
-    // Find the ZOOM_LEVELS index closest to targetScale.
-    let bestIdx = BASELINE_IDX;
-    let bestDiff = Infinity;
-    for (let i = 0; i < ZOOM_LEVELS.length; i++) {
-      const diff = Math.abs(ZOOM_LEVELS[i] - targetScale);
-      if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
-    }
-
-    baseInitRef.current = true;
-    setZoomIdx(bestIdx);
-
-    // Scroll to center the table cluster after zoom settles.
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    const zoom = ZOOM_LEVELS[bestIdx];
+    const zoom = ZOOM_LEVELS[BASELINE_IDX]; // always 1.00
+
     setTimeout(() => {
       const c = canvasScrollRef.current;
       if (!c) return;
@@ -3095,22 +3071,26 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, direction: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' }}>
               {displayRes.guestName}
             </p>
-            {/* Metadata zone — time + partySize; RTL-aware chip placement */}
+            {/* Metadata zone — time + partySize; chip always visible even on narrow cards */}
             {!isSecondary && nextRes && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr' }}>
-                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
-                  {nextRes.partySize}p
-                </span>
-                <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600 }}>
-                  · {normalizeTime(nextRes.time)}
-                </span>
-                {isToday && isSoon && nextRes.minutesUntil > 0 && (
-                  <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800 }}>
-                    · {T.floorBoard.inNMin(nextRes.minutesUntil)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
+                {/* Text group — shrinks first; chip stays fixed */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72, flexShrink: 0 }}>
+                    {nextRes.partySize}p
                   </span>
-                )}
+                  <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    · {normalizeTime(nextRes.time)}
+                  </span>
+                  {isToday && isSoon && nextRes.minutesUntil > 0 && (
+                    <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      · {T.floorBoard.inNMin(nextRes.minutesUntil)}
+                    </span>
+                  )}
+                </span>
+                {/* Chip — always rendered at end; flex:1 on text group keeps it pushed to edge */}
                 {(isSoon || isCombined) && (
-                  <span style={{ marginLeft: isRTL ? 0 : 'auto', marginRight: isRTL ? 'auto' : 0, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
                       <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>
                         {T.floorBoard.soon}
@@ -3223,7 +3203,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         style={{
           position: 'absolute',
           left: table.posX,
-          top: table.posY + table.height + 2,
+          top: table.posY + table.height + 4,
           minWidth: table.width,
           maxWidth: table.width + 52,
           zIndex: 6,
@@ -3234,14 +3214,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           opacity,
         }}
       >
-        {/* Connector — thin vertical line visually anchoring the list to the table edge */}
+        {/* Connector — hairline anchoring the stack to the table bottom edge */}
         <div style={{
           position: 'absolute',
-          top: -3,
-          left: 10,
+          top: -5,
+          left: 12,
           width: 1,
-          height: 4,
-          background: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.20)',
+          height: 6,
+          background: isDark ? 'rgba(148,163,184,0.22)' : 'rgba(71,85,105,0.18)',
         }} />
         {turnsToShow.map((r, i) => (
           <div
@@ -3249,21 +3229,24 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '2px 6px',
-              background: 'rgba(20,22,20,0.92)',
-              borderRadius: 4,
-              border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: 'inset 2px 0 0 rgba(96,165,250,0.30)',
+              gap: 4,
+              padding: '3px 8px',
+              background: isDark ? 'rgba(15,17,22,0.94)' : 'rgba(248,250,252,0.96)',
+              borderRadius: 6,
+              border: `1px solid ${isDark ? 'rgba(148,163,184,0.10)' : 'rgba(100,116,139,0.14)'}`,
+              borderLeft: '2px solid rgba(96,165,250,0.55)',
             }}
           >
-            <span style={{ fontSize: 10, color: '#a1a1aa', fontWeight: 700, flexShrink: 0, minWidth: 34, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
+            {/* Time — primary signal */}
+            <span style={{ fontSize: 11, color: '#60a5fa', fontWeight: 700, flexShrink: 0, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
               {normalizeTime(r.time)}
             </span>
-            <span style={{ fontSize: 9, color: '#d4d4d8', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {/* Name — secondary */}
+            <span style={{ fontSize: 10, color: isDark ? '#d4d4d8' : '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
               {r.guestName}
             </span>
-            <span style={{ fontSize: 9, color: '#9ca3af', flexShrink: 0, fontWeight: 500 }}>
+            {/* Party size — tertiary */}
+            <span style={{ fontSize: 9, color: isDark ? '#71717a' : '#9ca3af', flexShrink: 0, fontWeight: 400 }}>
               {r.partySize}p
             </span>
           </div>
