@@ -1140,6 +1140,7 @@ export default function FloorBoard({
                   operationalNow={operationalNow}
                   date={date}
                   extraTurns={pickMode ? 0 : extraTurns}
+                  turns={pickMode ? [] : turns}
                   turnTooltip={pickMode ? undefined : turnTooltip}
                   pickMode={pickMode}
                   pickSelected={pickMode && pickSelection.includes(t.id)}
@@ -2479,7 +2480,7 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth }:
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2495,6 +2496,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   nowTime?: string;
   operationalNow?: number;
   extraTurns?: number;
+  turns?: Reservation[];
   turnTooltip?: string;
   pickMode?: boolean;
   pickSelected?: boolean;
@@ -2714,15 +2716,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
 
   // Multi-turn stack — turns to show below the table boundary.
-  // OCCUPIED: all upcoming (current is shown inside). RESERVED/SOON: skip index 0 (shown inside).
-  // AVAILABLE: all upcoming (shows schedule preview). Suppressed during pick/warn/dimmed states.
+  // Uses `turns` prop (PENDING+CONFIRMED from full reservations list) — not table.upcomingReservations,
+  // which is empty for OCCUPIED and AVAILABLE tables (backend only populates it for RESERVED/SOON).
+  // OCCUPIED: all `turns` (current is SEATED and not in the list). RESERVED/SOON: skip index 0
+  // (it's the primary turn already shown inside). AVAILABLE: all `turns`. Cap at 4.
   const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
     ? table.liveStatus === 'OCCUPIED'
-      ? table.upcomingReservations.slice(0, 4)
+      ? turns.slice(0, 4)
       : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
-      ? table.upcomingReservations.slice(1, 4)
+      ? turns.slice(1, 5)
       : table.liveStatus === 'AVAILABLE'
-      ? table.upcomingReservations.slice(0, 3)
+      ? turns.slice(0, 4)
       : []
     : [];
 
