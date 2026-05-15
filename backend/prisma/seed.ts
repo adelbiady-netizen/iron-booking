@@ -57,7 +57,7 @@ async function main() {
   });
   console.log(`User: ${user.email}`);
 
-  // ── Operating hours (Mon–Sun, closed Sunday) ──────────────────────────────
+  // ── Operating hours (Mon\u2013Sun, closed Sunday) ──────────────────────────────
   for (let day = 0; day <= 6; day++) {
     await prisma.operatingHour.upsert({
       where: { restaurantId_dayOfWeek: { restaurantId: restaurant.id, dayOfWeek: day } },
@@ -94,16 +94,16 @@ async function main() {
 
   // ── Tables ────────────────────────────────────────────────────────────────
   const tables = [
-    // Main Dining — 5 tables
+    // Main Dining \u2014 5 tables
     { name: 'T1', sectionId: mainDining.id, minCovers: 2, maxCovers: 4, shape: 'RECTANGLE' as const, posX: 50,  posY: 50  },
     { name: 'T2', sectionId: mainDining.id, minCovers: 2, maxCovers: 4, shape: 'RECTANGLE' as const, posX: 200, posY: 50  },
     { name: 'T3', sectionId: mainDining.id, minCovers: 4, maxCovers: 6, shape: 'ROUND'     as const, posX: 350, posY: 50  },
     { name: 'T4', sectionId: mainDining.id, minCovers: 4, maxCovers: 8, shape: 'RECTANGLE' as const, posX: 50,  posY: 200 },
     { name: 'T5', sectionId: mainDining.id, minCovers: 2, maxCovers: 4, shape: 'BOOTH'     as const, posX: 200, posY: 200 },
-    // Bar — 2 stools
+    // Bar \u2014 2 stools
     { name: 'B1', sectionId: bar.id,        minCovers: 1, maxCovers: 2, shape: 'SQUARE'    as const, posX: 50,  posY: 50  },
     { name: 'B2', sectionId: bar.id,        minCovers: 1, maxCovers: 2, shape: 'SQUARE'    as const, posX: 150, posY: 50  },
-    // Patio — 2 tables
+    // Patio \u2014 2 tables
     { name: 'P1', sectionId: patio.id,      minCovers: 2, maxCovers: 4, shape: 'ROUND'     as const, posX: 50,  posY: 50  },
     { name: 'P2', sectionId: patio.id,      minCovers: 4, maxCovers: 6, shape: 'RECTANGLE' as const, posX: 200, posY: 50  },
   ];
@@ -135,23 +135,24 @@ async function main() {
     },
   });
 
-  // ── Guest Hub — Ember & Stone demo ───────────────────────────────────────
+  // ── Guest Hub \u2014 Ember & Stone demo ───────────────────────────────────────
   // Mirrors the static mock data in frontend/src/features/guestHub/mockData.ts.
   // Slug "ember-stone" matches /api/public/hub/ember-stone.
   // ISOLATION: no joins to reservations, waitlist, or floor tables.
-  const hub = await prisma.guestHub.upsert({
-    where:  { slug: 'ember-stone' },
-    update: {},
-    create: { slug: 'ember-stone', isActive: true },
+  //
+  // Delete-then-create (not upsert) so that re-running the seed always produces
+  // clean correct data. All non-ASCII characters use \u escapes to avoid
+  // CP1252/UTF-8 double-encoding when the file is compiled on Windows.
+  await prisma.guestHub.deleteMany({ where: { slug: 'ember-stone' } });
+  const hub = await prisma.guestHub.create({
+    data: { slug: 'ember-stone', isActive: true },
   });
 
-  await prisma.guestHubBranding.upsert({
-    where:  { hubId: hub.id },
-    update: {},
-    create: {
+  await prisma.guestHubBranding.create({
+    data: {
       hubId:        hub.id,
       name:         'Ember & Stone',
-      tagline:      'Where fire meets flavour — an intimate dining experience',
+      tagline:      'Where fire meets flavour \u2014 an intimate dining experience',
       phone:        '+1 212 555 0190',
       address:      '142 West 57th Street, New York, NY 10019',
       directionsUrl: 'https://maps.google.com/?q=142+West+57th+Street+New+York+NY',
@@ -168,18 +169,12 @@ async function main() {
     { platform: 'website',   handle: 'emberandstone.com', sortOrder: 2 },
   ];
   for (const s of socialLinks) {
-    await prisma.guestHubSocialLink.upsert({
-      where:  { hubId_platform: { hubId: hub.id, platform: s.platform } },
-      update: {},
-      create: { hubId: hub.id, ...s },
-    });
+    await prisma.guestHubSocialLink.create({ data: { hubId: hub.id, ...s } });
   }
 
   // Main menu with 6 categories + 5 featured dishes
-  const menu = await prisma.guestHubMenu.upsert({
-    where:  { hubId_name: { hubId: hub.id, name: 'Dinner Menu' } },
-    update: {},
-    create: { hubId: hub.id, name: 'Dinner Menu', sortOrder: 0 },
+  const menu = await prisma.guestHubMenu.create({
+    data: { hubId: hub.id, name: 'Dinner Menu', sortOrder: 0 },
   });
 
   const categories = [
@@ -192,10 +187,8 @@ async function main() {
   ];
   const categoryMap: Record<string, string> = {};
   for (const c of categories) {
-    const cat = await prisma.guestHubMenuCategory.upsert({
-      where:  { menuId_name: { menuId: menu.id, name: c.name } },
-      update: {},
-      create: { menuId: menu.id, ...c },
+    const cat = await prisma.guestHubMenuCategory.create({
+      data: { menuId: menu.id, ...c },
     });
     categoryMap[c.name] = cat.id;
   }
@@ -241,9 +234,9 @@ async function main() {
       gradient:    'linear-gradient(135deg, #1A0A0A 0%, #0D0505 100%)',
     },
     {
-      categoryId: categoryMap['Desserts']!,
-      name:        'Valrhona Soufflé',
-      description: '72% dark chocolate, vanilla bean crème',
+      categoryId:  categoryMap['Desserts']!,
+      name:        'Valrhona Souffl\u00e9',
+      description: '72% dark chocolate, vanilla bean cr\u00e8me',
       price:       '$18',
       isFeatured:  true,
       sortOrder:   0,
@@ -251,17 +244,13 @@ async function main() {
     },
   ];
   for (const d of dishes) {
-    await prisma.guestHubDish.upsert({
-      where:  { categoryId_name: { categoryId: d.categoryId, name: d.name } },
-      update: {},
-      create: d,
-    });
+    await prisma.guestHubDish.create({ data: d });
   }
 
   // Promotions
   const promotions = [
     {
-      title:       "Chef's Table — Friday Evening",
+      title:       "Chef's Table \u2014 Friday Evening",
       description: 'An exclusive 8-course tasting menu prepared tableside by Chef Marco. Limited to 6 guests per seating.',
       schedule:    'Every Friday from 7:00 pm',
       tag:         'Exclusive',
@@ -270,7 +259,7 @@ async function main() {
     },
     {
       title:       'Summer Truffle Season',
-      description: 'A special menu celebrating the finest summer truffles from Périgord, available through end of August.',
+      description: 'A special menu celebrating the finest summer truffles from P\u00e9rigord, available through end of August.',
       tag:         'Limited time',
       tagColor:    'stone',
       sortOrder:   1,
@@ -278,23 +267,17 @@ async function main() {
     {
       title:       'Sunday Garden Brunch',
       description: 'A relaxed exploration of seasonal produce, from morning pastries to dessert wine.',
-      schedule:    'Sundays, 11:00 am – 3:00 pm',
+      schedule:    'Sundays, 11:00 am \u2013 3:00 pm',
       sortOrder:   2,
     },
   ];
   for (const p of promotions) {
-    await prisma.guestHubPromotion.upsert({
-      where:  { hubId_title: { hubId: hub.id, title: p.title } },
-      update: {},
-      create: { hubId: hub.id, ...p },
-    });
+    await prisma.guestHubPromotion.create({ data: { hubId: hub.id, ...p } });
   }
 
-  // Demo QR token (stable — survives slug renames)
-  await prisma.guestHubQrToken.upsert({
-    where:  { hubId_label: { hubId: hub.id, label: 'Demo QR' } },
-    update: {},
-    create: { hubId: hub.id, token: 'demo-qr-ember-stone', label: 'Demo QR' },
+  // Demo QR token (stable \u2014 survives slug renames)
+  await prisma.guestHubQrToken.create({
+    data: { hubId: hub.id, token: 'demo-qr-ember-stone', label: 'Demo QR' },
   });
 
   console.log(`Guest Hub: ${hub.slug} (${hub.id})`);
