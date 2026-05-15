@@ -3,7 +3,8 @@ import './GuestHubPage.css';
 import { useGuestHub } from './hooks/useGuestHub';
 import GuestHubSkeleton from './components/GuestHubSkeleton';
 import GuestHubError    from './components/GuestHubError';
-import type { GuestHubViewModel, SocialLinkViewModel } from './types/viewModel';
+import type { GuestHubViewModel, SocialLinkViewModel, DishAvailability } from './types/viewModel';
+import { getDietaryAbbr } from './mappers/hubMapper';
 
 // ─── Colour tokens — guest-facing palette, isolated from iron-* operator UI ──
 const C = {
@@ -112,6 +113,53 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ─── Full-width horizontal rule between sections ──────────────────────────────
 function Rule() {
   return <div style={{ height: 1, background: C.border, marginTop: 32, marginBottom: 32 }} />;
+}
+
+// ─── Dietary tag pills ────────────────────────────────────────────────────────
+function DietaryPills({ tags }: { tags: string[] }) {
+  if (tags.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+      {tags.map(tag => (
+        <span
+          key={tag}
+          title={tag}
+          style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4,
+            background: C.elevated, border: `1px solid ${C.border}`, color: C.muted,
+          }}
+        >
+          {getDietaryAbbr(tag)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ─── Availability badge ───────────────────────────────────────────────────────
+const AVAIL_LABELS: Record<string, string> = {
+  SOLD_OUT:       'Sold out',
+  SEASONAL:       'Seasonal',
+  BREAKFAST_ONLY: 'Breakfast',
+  DINNER_ONLY:    'Dinner only',
+};
+
+function AvailabilityBadge({ availability }: { availability: DishAvailability }) {
+  if (availability === 'AVAILABLE') return null;
+  const isSoldOut = availability === 'SOLD_OUT';
+  return (
+    <div style={{
+      position: 'absolute', bottom: 8, right: 8,
+      background: isSoldOut ? 'rgba(0,0,0,0.75)' : 'rgba(201,169,110,0.15)',
+      border: `1px solid ${isSoldOut ? C.border : C.goldDim}`,
+      color: isSoldOut ? C.muted : C.gold,
+      fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+      textTransform: 'uppercase', padding: '3px 7px', borderRadius: 5,
+    }}>
+      {AVAIL_LABELS[availability] ?? availability}
+    </div>
+  );
 }
 
 // ─── Icon container for social/action rows ────────────────────────────────────
@@ -448,7 +496,11 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                     }}
                   >
                     {/* Dish visual — gradient always rendered; image layers on top if available */}
-                    <div style={{ height: 120, background: dish.gradient, position: 'relative' }}>
+                    <div style={{
+                      height: 120, background: dish.gradient, position: 'relative',
+                      opacity: dish.isUnavailable ? 0.45 : 1,
+                      transition: 'opacity 200ms ease',
+                    }}>
                       {dish.imageUrl && (
                         <img
                           src={dish.imageUrl}
@@ -465,7 +517,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                         background: 'radial-gradient(ellipse at 50% 70%, rgba(255,200,120,0.07) 0%, transparent 65%)',
                         pointerEvents: 'none',
                       }} />
-                      {dish.tag && (
+                      {dish.tag && dish.availability === 'AVAILABLE' && (
                         <div style={{
                           position: 'absolute', top: 10, left: 10,
                           background: dish.tag === "Chef's pick" ? C.gold : C.elevated,
@@ -476,22 +528,37 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                           {dish.tag}
                         </div>
                       )}
+                      <AvailabilityBadge availability={dish.availability} />
                     </div>
                     <div style={{ padding: '12px 14px 14px' }}>
                       <p style={{ margin: 0, fontWeight: 600, fontSize: 14, letterSpacing: '-0.01em', lineHeight: 1.3 }}>
                         {dish.name}
                       </p>
+                      {dish.subtitle && (
+                        <p style={{
+                          margin: '2px 0 0', color: C.gold,
+                          fontSize: 11, fontWeight: 500, letterSpacing: '0.01em',
+                          lineHeight: 1.3,
+                        }}>
+                          {dish.subtitle}
+                        </p>
+                      )}
                       {dish.description && (
                         <p style={{
-                          margin: '5px 0 10px', color: C.muted, fontSize: 12, lineHeight: 1.4,
+                          margin: '5px 0 0', color: C.muted, fontSize: 12, lineHeight: 1.4,
                           display: '-webkit-box', WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical', overflow: 'hidden',
                         }}>
                           {dish.description}
                         </p>
                       )}
+                      <DietaryPills tags={dish.dietaryTags} />
                       {dish.price && (
-                        <p style={{ margin: 0, color: C.gold, fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em' }}>
+                        <p style={{
+                          margin: '8px 0 0', fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em',
+                          color: dish.isUnavailable ? C.muted : C.gold,
+                          textDecoration: dish.isUnavailable ? 'line-through' : 'none',
+                        }}>
                           {dish.price}
                         </p>
                       )}
@@ -523,7 +590,16 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                     }}
                   >
                     <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: C.text }}>{cat.name}</p>
-                    <p style={{ margin: '3px 0 0', color: C.muted, fontSize: 12 }}>{cat.count} items</p>
+                    {cat.description && (
+                      <p style={{
+                        margin: '4px 0 0', color: C.muted, fontSize: 11, lineHeight: 1.4,
+                        display: '-webkit-box', WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                      }}>
+                        {cat.description}
+                      </p>
+                    )}
+                    <p style={{ margin: '4px 0 0', color: C.sub, fontSize: 11 }}>{cat.count} items</p>
                   </div>
                 ))}
               </div>

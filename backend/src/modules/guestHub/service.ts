@@ -18,33 +18,47 @@ import type {
   HubEventDto,
   HubSocialLinkDto,
   HubBrandingDto,
+  DishAvailability,
 } from './dto';
 
 type PrismaDish = {
   id: string;
   name: string;
+  subtitle: string | null;
   description: string | null;
   price: string | null;
   tag: string | null;
+  dietaryTags: string[];
+  availability: string;
   isFeatured: boolean;
+  featuredRank: number | null;
   imageUrl: string | null;
   gradient: string | null;
 };
 
 function shapeDish(d: PrismaDish): HubDishDto {
   return {
-    id:          d.id,
-    name:        d.name,
-    description: d.description,
-    price:       d.price,
-    tag:         d.tag,
-    isFeatured:  d.isFeatured,
-    imageUrl:    d.imageUrl,
-    gradient:    d.gradient,
+    id:           d.id,
+    name:         d.name,
+    subtitle:     d.subtitle,
+    description:  d.description,
+    price:        d.price,
+    tag:          d.tag,
+    dietaryTags:  d.dietaryTags,
+    availability: d.availability as DishAvailability,
+    isFeatured:   d.isFeatured,
+    featuredRank: d.featuredRank,
+    imageUrl:     d.imageUrl,
+    gradient:     d.gradient,
   };
 }
 
-async function queryHub(where: { slug: string; isActive?: true }) {
+// showHidden=false (default, public): excludes isHidden categories and dishes.
+// showHidden=true (admin preview): includes hidden items so operators can verify them.
+async function queryHub(where: { slug: string; isActive?: true }, showHidden = false) {
+  const categoryWhere  = showHidden ? { isActive: true }               : { isActive: true, isHidden: false };
+  const dishWhere      = showHidden ? { isActive: true }               : { isActive: true, isHidden: false };
+
   return prisma.guestHub.findFirst({
     where,
     include: {
@@ -54,12 +68,13 @@ async function queryHub(where: { slug: string; isActive?: true }) {
         orderBy: { sortOrder: 'asc' },
         include: {
           categories: {
-            where:   { isActive: true },
+            where:   categoryWhere,
             orderBy: { sortOrder: 'asc' },
             include: {
               dishes: {
-                where:   { isActive: true },
-                orderBy: { sortOrder: 'asc' },
+                where:   dishWhere,
+                // featuredRank asc (nulls last) gives stable featured order across all menus
+                orderBy: [{ featuredRank: 'asc' }, { sortOrder: 'asc' }],
               },
             },
           },
@@ -114,16 +129,24 @@ function shapeHub(
     id:   m.id,
     name: m.name,
     categories: m.categories.map(c => ({
-      id:     c.id,
-      name:   c.name,
-      count:  c.dishes.length,
-      dishes: c.dishes.map(shapeDish),
+      id:          c.id,
+      name:        c.name,
+      description: c.description,
+      count:       c.dishes.length,
+      dishes:      c.dishes.map(shapeDish),
     })),
   }));
 
+  // Featured: isFeatured=true, not SOLD_OUT, sorted by featuredRank (null = unranked, sorted last)
   const featuredDishes: HubDishDto[] = hub.menus
     .flatMap(m => m.categories.flatMap(c => c.dishes))
-    .filter(d => d.isFeatured)
+    .filter(d => d.isFeatured && d.availability !== 'SOLD_OUT')
+    .sort((a, b) => {
+      if (a.featuredRank === null && b.featuredRank === null) return 0;
+      if (a.featuredRank === null) return 1;
+      if (b.featuredRank === null) return -1;
+      return a.featuredRank - b.featuredRank;
+    })
     .map(shapeDish);
 
   const promotions: HubPromotionDto[] = hub.promotions.map(p => ({
@@ -160,9 +183,10 @@ export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
   return shapeHub(hub, false);
 }
 
-// Used by the authenticated preview endpoint — reads draft tables, no isActive filter.
+// Used by the authenticated preview endpoint — reads draft tables, no isActive filter,
+// and includes hidden items so operators can preview the full unpublished state.
 export async function getHubDraftBySlug(slug: string): Promise<GuestHubDto | null> {
-  const hub = await queryHub({ slug });
+  const hub = await queryHub({ slug }, true);
   if (!hub) return null;
   return shapeHub(hub, true);
 }

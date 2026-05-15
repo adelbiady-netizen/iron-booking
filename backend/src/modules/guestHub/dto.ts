@@ -2,13 +2,24 @@
 // Shapes returned by guestHub/router.ts — never raw Prisma objects.
 // ISOLATION: no reservation, waitlist, floor, or SSE types referenced here.
 
+export type DishAvailability =
+  | 'AVAILABLE'
+  | 'SOLD_OUT'
+  | 'SEASONAL'
+  | 'BREAKFAST_ONLY'
+  | 'DINNER_ONLY';
+
 export interface HubDishDto {
   id: string;
   name: string;
+  subtitle: string | null;
   description: string | null;
   price: string | null;
   tag: string | null;
+  dietaryTags: string[];
+  availability: DishAvailability;
   isFeatured: boolean;
+  featuredRank: number | null;
   imageUrl: string | null;
   gradient: string | null;
 }
@@ -16,6 +27,7 @@ export interface HubDishDto {
 export interface HubMenuCategoryDto {
   id: string;
   name: string;
+  description: string | null;
   count: number;
   dishes: HubDishDto[];
 }

@@ -582,6 +582,9 @@ model GuestHub {
   restaurantId String?            // soft link; hub may outlive a restaurant record
   isActive     Boolean  @default(true)
   lastPublishedAt DateTime?       // null = never published
+  // i18n: locale of default content. Future: per-entity translation table
+  // keyed on (entityType, entityId, locale, field).
+  defaultLocale String?  @default("en")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -635,13 +638,15 @@ model GuestHubMenu {
 }
 
 model GuestHubMenuCategory {
-  id        String   @id @default(uuid())
-  menuId    String
-  name      String
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  menuId      String
+  name        String
+  description String?            // optional sub-heading shown under category name
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  isHidden    Boolean  @default(false) // soft-hide: excluded from public, visible in CMS
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   menu      GuestHubMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
   dishes    GuestHubDish[]
@@ -651,24 +656,39 @@ model GuestHubMenuCategory {
 }
 
 model GuestHubDish {
-  id          String   @id @default(uuid())
-  categoryId  String
-  name        String
-  description String?
-  price       String?   // display string: "$38", "Market price", "48 ₪"
-  tag         String?   // "Chef's pick", "Seasonal", "New"
-  isFeatured  Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  imageUrl    String?
-  gradient    String?   // CSS gradient fallback when imageUrl is absent
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String           @id @default(uuid())
+  categoryId   String
+  name         String
+  subtitle     String?          // secondary line: "Pan-seared, with seasonal greens"
+  description  String?
+  price        String?          // display string: "$38", "Market price", "48 ₪"
+  tag          String?          // "Chef's pick", "Seasonal", "New"
+  dietaryTags  String[]         @default([]) // ["vegan","gluten-free","halal","kosher"]
+  availability DishAvailability @default(AVAILABLE)
+  isFeatured   Boolean          @default(false)
+  featuredRank Int?             // ordering within featured carousel; null = unranked
+  sortOrder    Int              @default(0)
+  imageUrl     String?
+  gradient     String?          // CSS gradient fallback when imageUrl is absent
+  isActive     Boolean          @default(true)
+  isHidden     Boolean          @default(false) // soft-hide: excluded from public, visible in CMS
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Future: GuestHubDishTranslation(dishId, locale, name, subtitle, description)
 
   category    GuestHubMenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, name])
   @@map("guest_hub_dish")
+}
+
+enum DishAvailability {
+  AVAILABLE
+  SOLD_OUT      // 86'd today; shown dimmed in menu
+  SEASONAL      // available only in season; shown with badge
+  BREAKFAST_ONLY
+  DINNER_ONLY
 }
 
 model GuestHubPromotion {

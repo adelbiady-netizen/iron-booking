@@ -5,13 +5,25 @@
 //
 // ISOLATION: no reservation, waitlist, floor, or SSE types here.
 
+export type DishAvailability =
+  | 'AVAILABLE'
+  | 'SOLD_OUT'
+  | 'SEASONAL'
+  | 'BREAKFAST_ONLY'
+  | 'DINNER_ONLY';
+
 export interface DishViewModel {
   id: string;
   name: string;
+  subtitle: string | null;
   description: string;    // safe default: ''
   price: string;          // safe default: ''
   tag: string | null;
+  dietaryTags: string[];
+  availability: DishAvailability;
+  isUnavailable: boolean; // true for SOLD_OUT, BREAKFAST_ONLY, DINNER_ONLY
   isFeatured: boolean;
+  featuredRank: number | null;
   imageUrl: string | null;
   gradient: string;       // always present — mapper supplies fallback
 }
@@ -19,6 +31,7 @@ export interface DishViewModel {
 export interface MenuCategoryViewModel {
   id: string;
   name: string;
+  description: string | null;
   count: number;
   dishes: DishViewModel[];
 }

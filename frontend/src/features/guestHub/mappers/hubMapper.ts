@@ -8,6 +8,7 @@
 import type {
   GuestHubViewModel,
   DishViewModel,
+  DishAvailability,
   MenuCategoryViewModel,
   PromotionViewModel,
   EventViewModel,
@@ -19,10 +20,14 @@ import type {
 export interface ApiDish {
   id: string;
   name: string;
+  subtitle: string | null;
   description: string | null;
   price: string | null;
   tag: string | null;
+  dietaryTags: string[];
+  availability: string;
   isFeatured: boolean;
+  featuredRank: number | null;
   imageUrl: string | null;
   gradient: string | null;
 }
@@ -30,6 +35,7 @@ export interface ApiDish {
 interface ApiCategory {
   id: string;
   name: string;
+  description: string | null;
   count: number;
   dishes: ApiDish[];
 }
@@ -88,6 +94,27 @@ export interface ApiGuestHub {
   socialLinks: ApiSocialLink[];
 }
 
+// ─── Dietary tag abbreviations ────────────────────────────────────────────────
+// Full label is the tooltip; abbreviation goes in the compact pill.
+const DIETARY_ABBR: Record<string, string> = {
+  vegetarian:    'V',
+  vegan:         'VG',
+  'gluten-free': 'GF',
+  halal:         'H',
+  kosher:        'K',
+  'dairy-free':  'DF',
+  'nut-free':    'NF',
+  spicy:         '🌶',
+};
+
+export function getDietaryAbbr(tag: string): string {
+  return DIETARY_ABBR[tag.toLowerCase()] ?? tag.slice(0, 2).toUpperCase();
+}
+
+// Availability states that make a dish appear dimmed / interaction-blocked.
+// SEASONAL and AVAILABLE render at full opacity; the others are rendered with a dim.
+const UNAVAILABLE_STATUSES = new Set<string>(['SOLD_OUT', 'BREAKFAST_ONLY', 'DINNER_ONLY']);
+
 // ─── Gradient fallback pool ───────────────────────────────────────────────────
 // Used when a dish has no gradient in the DB. Each gives a distinct warm hue
 // that reads as candlelight rather than a missing-image placeholder.
@@ -103,24 +130,31 @@ const DISH_GRADIENT_POOL = [
 // ─── Individual field mappers ─────────────────────────────────────────────────
 
 function mapDish(d: ApiDish, index: number): DishViewModel {
+  const availability = (d.availability ?? 'AVAILABLE') as DishAvailability;
   return {
-    id:          d.id,
-    name:        d.name,
-    description: d.description ?? '',
-    price:       d.price ?? '',
-    tag:         d.tag,
-    isFeatured:  d.isFeatured,
-    imageUrl:    d.imageUrl,
-    gradient:    d.gradient ?? DISH_GRADIENT_POOL[index % DISH_GRADIENT_POOL.length],
+    id:           d.id,
+    name:         d.name,
+    subtitle:     d.subtitle,
+    description:  d.description ?? '',
+    price:        d.price ?? '',
+    tag:          d.tag,
+    dietaryTags:  d.dietaryTags ?? [],
+    availability,
+    isUnavailable: UNAVAILABLE_STATUSES.has(availability),
+    isFeatured:   d.isFeatured,
+    featuredRank: d.featuredRank,
+    imageUrl:     d.imageUrl,
+    gradient:     d.gradient ?? DISH_GRADIENT_POOL[index % DISH_GRADIENT_POOL.length],
   };
 }
 
 function mapCategory(c: ApiCategory, baseIndex: number): MenuCategoryViewModel {
   return {
-    id:     c.id,
-    name:   c.name,
-    count:  c.count,
-    dishes: c.dishes.map((d, i) => mapDish(d, baseIndex + i)),
+    id:          c.id,
+    name:        c.name,
+    description: c.description,
+    count:       c.count,
+    dishes:      c.dishes.map((d, i) => mapDish(d, baseIndex + i)),
   };
 }
 
