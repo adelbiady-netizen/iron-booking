@@ -413,8 +413,11 @@ export const api = {
       get: (restaurantId: string) =>
         request<{
           id: string; slug: string; restaurantId: string | null; isActive: boolean;
+          lastPublishedAt: string | null; draftUpdatedAt: string | null;
           branding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
           socialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
+          publishedBranding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
+          publishedSocialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
         }>(`/admin/hub/${encodeURIComponent(restaurantId)}`),
       updateBranding: (restaurantId: string, body: { name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null }) =>
         request<{ id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null }>(
@@ -425,6 +428,11 @@ export const api = {
         request<{ links: Array<{ id: string; platform: string; handle: string; sortOrder: number }> }>(
           `/admin/hub/${encodeURIComponent(restaurantId)}/social`,
           { method: 'PUT', body: JSON.stringify({ links }) }
+        ),
+      publish: (restaurantId: string) =>
+        request<{ publishedAt: string }>(
+          `/admin/hub/${encodeURIComponent(restaurantId)}/publish`,
+          { method: 'POST' }
         ),
     },
   },

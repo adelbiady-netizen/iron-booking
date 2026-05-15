@@ -581,15 +581,18 @@ model GuestHub {
   slug         String   @unique   // canonical URL slug — /hub/ember-stone
   restaurantId String?            // soft link; hub may outlive a restaurant record
   isActive     Boolean  @default(true)
+  lastPublishedAt DateTime?       // null = never published
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  branding     GuestHubBranding?
-  menus        GuestHubMenu[]
-  promotions   GuestHubPromotion[]
-  events       GuestHubEvent[]
-  socialLinks  GuestHubSocialLink[]
-  qrTokens     GuestHubQrToken[]
+  branding             GuestHubBranding?
+  menus                GuestHubMenu[]
+  promotions           GuestHubPromotion[]
+  events               GuestHubEvent[]
+  socialLinks          GuestHubSocialLink[]
+  qrTokens             GuestHubQrToken[]
+  publishedBranding    GuestHubPublishedBranding?
+  publishedSocialLinks GuestHubPublishedSocialLink[]
 
   @@map("guest_hub")
 }
@@ -720,6 +723,38 @@ model GuestHubSocialLink {
 
   @@unique([hubId, platform])
   @@map("guest_hub_social_link")
+}
+
+// Published snapshots — atomically copied from draft on every Publish action.
+// Public route reads these with draft fallback for backward compatibility.
+
+model GuestHubPublishedBranding {
+  id            String   @id @default(uuid())
+  hubId         String   @unique
+  name          String
+  tagline       String?
+  phone         String?
+  address       String?
+  logoUrl       String?
+  coverImageUrl String?
+  publishedAt   DateTime
+
+  hub           GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@map("guest_hub_published_branding")
+}
+
+model GuestHubPublishedSocialLink {
+  id        String   @id @default(uuid())
+  hubId     String
+  platform  String
+  handle    String
+  sortOrder Int      @default(0)
+
+  hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, platform])
+  @@map("guest_hub_published_social_link")
 }
 
 // Stable opaque token mapped to a hub slug — slug can change, token never does.

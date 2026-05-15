@@ -31,8 +31,12 @@ interface HubData {
   id: string;
   slug: string;
   isActive: boolean;
+  lastPublishedAt: string | null;
+  draftUpdatedAt: string | null;
   branding: HubBranding | null;
   socialLinks: HubSocial[];
+  publishedBranding: HubBranding | null;
+  publishedSocialLinks: HubSocial[];
 }
 
 type BrandingForm = {
@@ -130,6 +134,10 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   const [socialBusy,    setSocialBusy]    = useState(false);
   const [socialError,   setSocialError]   = useState<string | null>(null);
 
+  // Publish
+  const [publishBusy,  setPublishBusy]  = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
   function showToast(msg: string) {
@@ -138,6 +146,24 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────────
+
+  async function publish() {
+    if (!hub) return;
+    setPublishBusy(true);
+    setPublishError(null);
+    try {
+      const result = await api.admin.guestHub.publish(restaurantId);
+      setHub(prev => prev ? {
+        ...prev,
+        lastPublishedAt:      result.publishedAt,
+        publishedBranding:    prev.branding,
+        publishedSocialLinks: prev.socialLinks,
+      } : prev);
+      showToast('Published successfully');
+    } catch (err) {
+      setPublishError(err instanceof ApiError ? err.message : 'Failed to publish');
+    } finally { setPublishBusy(false); }
+  }
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -205,7 +231,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         coverImageUrl: brandingForm.coverImageUrl.trim() || null,
       });
       setHub(prev => prev
-        ? { ...prev, branding: prev.branding ? { ...prev.branding, ...updated } : { ...updated } }
+        ? { ...prev, branding: prev.branding ? { ...prev.branding, ...updated } : { ...updated }, draftUpdatedAt: new Date().toISOString() }
         : prev);
       setEditingBranding(false);
       showToast('Branding saved');
@@ -259,7 +285,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     setSocialError(null);
     try {
       const { links } = await api.admin.guestHub.updateSocial(restaurantId, socialRows.map(r => ({ platform: r.platform, handle: r.handle.trim() })));
-      setHub(prev => prev ? { ...prev, socialLinks: links } : prev);
+      setHub(prev => prev ? { ...prev, socialLinks: links, draftUpdatedAt: new Date().toISOString() } : prev);
       setEditingSocial(false);
       showToast('Social links saved');
     } catch (err) {
@@ -301,7 +327,17 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     );
   }
 
-  const previewUrl = `https://www.ironbooking.com/r/${hub.slug}`;
+  const draftPreviewUrl = `/r-preview/${hub.slug}`;
+  const liveUrl         = `https://www.ironbooking.com/r/${hub.slug}`;
+
+  const hasUnpublishedChanges = !hub.lastPublishedAt ||
+    (hub.draftUpdatedAt !== null && hub.draftUpdatedAt > hub.lastPublishedAt);
+
+  function formatPublishedAt(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -322,19 +358,74 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             {!hub.isActive && <span className="ml-2 text-amber-400">(inactive)</span>}
           </p>
         </div>
-        <a
-          href={previewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-xs font-medium transition-colors flex-shrink-0"
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <a
+            href={draftPreviewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-xs font-medium transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Preview draft
+          </a>
+          <a
+            href={liveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-xs font-medium transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            View live
+          </a>
+        </div>
+      </div>
+
+      {/* Publish bar */}
+      <div className={`rounded-xl border px-5 py-4 flex items-center justify-between gap-4 ${
+        hasUnpublishedChanges
+          ? 'bg-amber-950/30 border-amber-700/40'
+          : 'bg-iron-card border-iron-border'
+      }`}>
+        <div>
+          {hasUnpublishedChanges ? (
+            <>
+              <p className="text-sm font-medium text-amber-300">Unpublished changes</p>
+              <p className="text-xs text-amber-400/70 mt-0.5">
+                {hub.lastPublishedAt
+                  ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}`
+                  : 'Never published — visitors see no content until you publish'}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-iron-text">Published</p>
+              <p className="text-xs text-iron-muted mt-0.5">
+                {hub.lastPublishedAt ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}` : ''}
+              </p>
+            </>
+          )}
+          {publishError && <p className="text-xs text-red-400 mt-1">{publishError}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={publish}
+          disabled={publishBusy || !hub.branding}
+          title={!hub.branding ? 'Save branding first' : undefined}
+          className={`px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0 ${
+            hasUnpublishedChanges
+              ? 'bg-amber-500 hover:bg-amber-400 text-stone-900'
+              : 'bg-iron-card border border-iron-border text-iron-muted hover:text-iron-text'
+          }`}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/>
-            <line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          Preview
-        </a>
+          {publishBusy ? 'Publishing…' : 'Publish'}
+        </button>
       </div>
 
       {/* ── Branding ────────────────────────────────────────────────────────────── */}

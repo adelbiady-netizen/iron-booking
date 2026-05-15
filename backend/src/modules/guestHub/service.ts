@@ -44,9 +44,9 @@ function shapeDish(d: PrismaDish): HubDishDto {
   };
 }
 
-export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
-  const hub = await prisma.guestHub.findFirst({
-    where: { slug, isActive: true },
+async function queryHub(where: { slug: string; isActive?: true }) {
+  return prisma.guestHub.findFirst({
+    where,
     include: {
       branding: true,
       menus: {
@@ -76,23 +76,37 @@ export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
       socialLinks: {
         orderBy: { sortOrder: 'asc' },
       },
+      publishedBranding:    true,
+      publishedSocialLinks: { orderBy: { sortOrder: 'asc' } },
     },
   });
+}
 
-  if (!hub) return null;
+function shapeHub(
+  hub: NonNullable<Awaited<ReturnType<typeof queryHub>>>,
+  useDraft = false,
+): GuestHubDto {
+  // Public route uses published snapshot with draft fallback.
+  // Preview route uses draft directly.
+  const brandingSource = useDraft
+    ? hub.branding
+    : (hub.publishedBranding ?? hub.branding);
+  const socialSource = useDraft
+    ? hub.socialLinks
+    : (hub.publishedSocialLinks.length > 0 ? hub.publishedSocialLinks : hub.socialLinks);
 
-  const branding: HubBrandingDto | null = hub.branding
+  const branding: HubBrandingDto | null = brandingSource
     ? {
-        name:          hub.branding.name,
-        tagline:       hub.branding.tagline,
-        phone:         hub.branding.phone,
-        address:       hub.branding.address,
-        directionsUrl: hub.branding.directionsUrl,
-        logoUrl:       hub.branding.logoUrl,
-        coverImageUrl: hub.branding.coverImageUrl,
-        primaryColor:  hub.branding.primaryColor,
-        accentColor:   hub.branding.accentColor,
-        themePreset:   hub.branding.themePreset,
+        name:          brandingSource.name,
+        tagline:       brandingSource.tagline,
+        phone:         brandingSource.phone,
+        address:       brandingSource.address,
+        directionsUrl: 'directionsUrl' in brandingSource ? brandingSource.directionsUrl : null,
+        logoUrl:       brandingSource.logoUrl,
+        coverImageUrl: brandingSource.coverImageUrl,
+        primaryColor:  'primaryColor' in brandingSource ? brandingSource.primaryColor : null,
+        accentColor:   'accentColor'  in brandingSource ? brandingSource.accentColor  : null,
+        themePreset:   'themePreset'  in brandingSource ? brandingSource.themePreset  : null,
       }
     : null;
 
@@ -107,7 +121,6 @@ export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
     })),
   }));
 
-  // Collect all featured dishes across all menus, preserving sortOrder
   const featuredDishes: HubDishDto[] = hub.menus
     .flatMap(m => m.categories.flatMap(c => c.dishes))
     .filter(d => d.isFeatured)
@@ -133,12 +146,25 @@ export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
     imageUrl:    e.imageUrl,
   }));
 
-  const socialLinks: HubSocialLinkDto[] = hub.socialLinks.map(s => ({
+  const socialLinks: HubSocialLinkDto[] = socialSource.map(s => ({
     platform: s.platform,
     handle:   s.handle,
   }));
 
   return { slug: hub.slug, branding, menus, featuredDishes, promotions, events, socialLinks };
+}
+
+export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
+  const hub = await queryHub({ slug, isActive: true });
+  if (!hub) return null;
+  return shapeHub(hub, false);
+}
+
+// Used by the authenticated preview endpoint — reads draft tables, no isActive filter.
+export async function getHubDraftBySlug(slug: string): Promise<GuestHubDto | null> {
+  const hub = await queryHub({ slug });
+  if (!hub) return null;
+  return shapeHub(hub, true);
 }
 
 // Resolves a QR token to the hub slug. Token is stable even if the slug changes.

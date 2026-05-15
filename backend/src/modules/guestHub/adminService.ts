@@ -31,8 +31,12 @@ export interface HubAdminDto {
   slug: string;
   restaurantId: string | null;
   isActive: boolean;
+  lastPublishedAt: string | null;
+  draftUpdatedAt: string | null;
   branding: HubAdminBrandingDto | null;
   socialLinks: HubAdminSocialDto[];
+  publishedBranding: HubAdminBrandingDto | null;
+  publishedSocialLinks: HubAdminSocialDto[];
 }
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -118,16 +122,29 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
     where: { restaurantId },
     include: {
       branding: true,
-      socialLinks: { orderBy: { sortOrder: 'asc' } },
+      socialLinks:          { orderBy: { sortOrder: 'asc' } },
+      publishedBranding:    true,
+      publishedSocialLinks: { orderBy: { sortOrder: 'asc' } },
     },
   });
   if (!hub) return null;
 
+  // Most recent draft modification across branding and social links
+  const draftTs = [
+    hub.branding?.updatedAt,
+    ...hub.socialLinks.map(s => s.createdAt),
+  ].filter((t): t is Date => t instanceof Date);
+  const draftUpdatedAt = draftTs.length > 0
+    ? draftTs.sort((a, b) => b.getTime() - a.getTime())[0].toISOString()
+    : null;
+
   return {
-    id:           hub.id,
-    slug:         hub.slug,
-    restaurantId: hub.restaurantId,
-    isActive:     hub.isActive,
+    id:              hub.id,
+    slug:            hub.slug,
+    restaurantId:    hub.restaurantId,
+    isActive:        hub.isActive,
+    lastPublishedAt: hub.lastPublishedAt?.toISOString() ?? null,
+    draftUpdatedAt,
     branding: hub.branding ? {
       id:            hub.branding.id,
       name:          hub.branding.name,
@@ -138,6 +155,21 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       coverImageUrl: hub.branding.coverImageUrl,
     } : null,
     socialLinks: hub.socialLinks.map(s => ({
+      id:        s.id,
+      platform:  s.platform,
+      handle:    s.handle,
+      sortOrder: s.sortOrder,
+    })),
+    publishedBranding: hub.publishedBranding ? {
+      id:            hub.publishedBranding.id,
+      name:          hub.publishedBranding.name,
+      tagline:       hub.publishedBranding.tagline,
+      phone:         hub.publishedBranding.phone,
+      address:       hub.publishedBranding.address,
+      logoUrl:       hub.publishedBranding.logoUrl,
+      coverImageUrl: hub.publishedBranding.coverImageUrl,
+    } : null,
+    publishedSocialLinks: hub.publishedSocialLinks.map(s => ({
       id:        s.id,
       platform:  s.platform,
       handle:    s.handle,
@@ -224,4 +256,48 @@ export async function replaceHubSocialLinks(
     handle:    s.handle,
     sortOrder: s.sortOrder,
   }));
+}
+
+// Atomically copies draft branding + social links to the published tables.
+// Requires branding to exist before publishing.
+export async function publishHub(
+  hubId: string,
+  _actor: AuthPayload,
+): Promise<{ publishedAt: string }> {
+  const hub = await prisma.guestHub.findUnique({
+    where: { id: hubId },
+    include: {
+      branding:    true,
+      socialLinks: { orderBy: { sortOrder: 'asc' } },
+    },
+  });
+
+  if (!hub) throw new ValidationError('Hub not found', {});
+  if (!hub.branding) {
+    throw new ValidationError('Cannot publish: save branding first', {
+      fieldErrors: { branding: ['Branding is required before publishing'] },
+    });
+  }
+
+  const now = new Date();
+  const b   = hub.branding;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.guestHubPublishedBranding.upsert({
+      where:  { hubId },
+      create: { hubId, name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, publishedAt: now },
+      update: {        name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, publishedAt: now },
+    });
+
+    await tx.guestHubPublishedSocialLink.deleteMany({ where: { hubId } });
+    for (const link of hub.socialLinks) {
+      await tx.guestHubPublishedSocialLink.create({
+        data: { hubId, platform: link.platform, handle: link.handle, sortOrder: link.sortOrder },
+      });
+    }
+
+    await tx.guestHub.update({ where: { id: hubId }, data: { lastPublishedAt: now } });
+  });
+
+  return { publishedAt: now.toISOString() };
 }

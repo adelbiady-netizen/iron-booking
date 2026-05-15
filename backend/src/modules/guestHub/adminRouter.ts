@@ -11,12 +11,30 @@ import {
   getHubForRestaurant,
   upsertHubBranding,
   replaceHubSocialLinks,
+  publishHub,
 } from './adminService';
+import { getHubDraftBySlug } from './service';
 
 const router = Router();
 
 router.use(authenticate);
 router.use(requireRole('MANAGER'));
+
+// ── GET /api/admin/hub/preview/:slug ─────────────────────────────────────────
+// Returns draft hub content (branding + social links) for preview before publish.
+// Uses slug (not restaurantId) so preview URLs are bookmarkable.
+// Must be defined before /:restaurantId to avoid the slug being consumed as restaurantId.
+router.get('/preview/:slug', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await getHubDraftBySlug(String(req.params['slug']));
+    if (!data) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Hub not found' },
+      });
+    }
+    return res.json(data);
+  } catch (err) { next(err); }
+});
 
 // ── GET /api/admin/hub/:restaurantId ──────────────────────────────────────────
 // Returns the hub (branding + social links) for a restaurant.
@@ -65,6 +83,22 @@ router.put('/:restaurantId/social', scopeToRestaurant, async (req: Request, res:
       : [];
     const updated = await replaceHubSocialLinks(hub.id, links, req.auth);
     return res.json({ links: updated });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/publish ─────────────────────────────────
+// Atomically copies draft branding + social links to the published tables.
+// 422 when no branding draft exists.
+router.post('/:restaurantId/publish', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await getHubForRestaurant(String(req.params['restaurantId']));
+    if (!hub) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' },
+      });
+    }
+    const result = await publishHub(hub.id, req.auth);
+    return res.json(result);
   } catch (err) { next(err); }
 });
 
