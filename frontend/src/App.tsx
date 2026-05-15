@@ -13,6 +13,7 @@ import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import AccessibilityPage from './pages/legal/AccessibilityPage';
 import ContactPage from './pages/legal/ContactPage';
+import GuestHubPage from './features/guestHub/GuestHubPage';
 import type { AuthState, UserRole } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -130,6 +131,11 @@ export default function App() {
   // ── Guest-facing routes ────────────────────────────────────────────────────
   // Returned BEFORE the scale/overflow container so mobile browsers can scroll
   // naturally. The overflow:hidden on the app shell clips guest page content.
+  // ── Guest Hub — isolated QR digital experience (frontend/src/features/guestHub/)
+  //    Returns before auth, SSE, and the scale container are initialised.
+  //    Removing: delete features/guestHub/ and revert this line.
+  if (path === '/guest-hub-demo') return <GuestHubPage />;
+
   if (path === '/privacy')      return <PrivacyPage />;
   if (path === '/terms')        return <TermsPage />;
   if (path === '/accessibility') return <AccessibilityPage />;

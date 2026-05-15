@@ -567,3 +567,172 @@ model CallLog {
   @@index([restaurantId])
   @@map("call_logs")
 }
+
+// ─── Guest Hub ────────────────────────────────────────────────────────────────
+// Isolated public digital experience — QR menus, promos, venue info.
+// Served at /api/public/hub/:slug (unauthenticated, read-only).
+//
+// ISOLATION: Never join to Reservation, WaitlistEntry, Table, Section, or
+// any SSE/floor model. All hub data lives in its own namespace and can be
+// extracted to a separate service without touching operational logic.
+
+model GuestHub {
+  id           String   @id @default(uuid())
+  slug         String   @unique   // canonical URL slug — /hub/ember-stone
+  restaurantId String?            // soft link; hub may outlive a restaurant record
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branding     GuestHubBranding?
+  menus        GuestHubMenu[]
+  promotions   GuestHubPromotion[]
+  events       GuestHubEvent[]
+  socialLinks  GuestHubSocialLink[]
+  qrTokens     GuestHubQrToken[]
+
+  @@map("guest_hub")
+}
+
+model GuestHubBranding {
+  id            String   @id @default(uuid())
+  hubId         String   @unique
+  name          String
+  tagline       String?
+  phone         String?
+  address       String?
+  directionsUrl String?
+  logoUrl       String?
+  coverImageUrl String?
+  primaryColor  String?   // hex — overrides themePreset
+  accentColor   String?
+  themePreset   String?   // preset key: "luxury" | "fineDining" | "casual" etc.
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hub           GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@map("guest_hub_branding")
+}
+
+model GuestHubMenu {
+  id        String   @id @default(uuid())
+  hubId     String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hub        GuestHub               @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  categories GuestHubMenuCategory[]
+
+  @@unique([hubId, name])
+  @@map("guest_hub_menu")
+}
+
+model GuestHubMenuCategory {
+  id        String   @id @default(uuid())
+  menuId    String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menu      GuestHubMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  dishes    GuestHubDish[]
+
+  @@unique([menuId, name])
+  @@map("guest_hub_menu_category")
+}
+
+model GuestHubDish {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  description String?
+  price       String?   // display string: "$38", "Market price", "48 ₪"
+  tag         String?   // "Chef's pick", "Seasonal", "New"
+  isFeatured  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  imageUrl    String?
+  gradient    String?   // CSS gradient fallback when imageUrl is absent
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    GuestHubMenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, name])
+  @@map("guest_hub_dish")
+}
+
+model GuestHubPromotion {
+  id          String   @id @default(uuid())
+  hubId       String
+  title       String
+  description String?
+  schedule    String?   // "Every Friday from 7:00 pm"
+  tag         String?
+  tagColor    String?   // "gold" | "stone"
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hub         GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, title])
+  @@map("guest_hub_promotion")
+}
+
+model GuestHubEvent {
+  id          String    @id @default(uuid())
+  hubId       String
+  title       String
+  description String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  tag         String?
+  tagColor    String?
+  imageUrl    String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  hub         GuestHub  @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, title])
+  @@map("guest_hub_event")
+}
+
+model GuestHubSocialLink {
+  id        String   @id @default(uuid())
+  hubId     String
+  platform  String   // "instagram" | "tiktok" | "website" | "facebook"
+  handle    String   // username or full URL
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, platform])
+  @@map("guest_hub_social_link")
+}
+
+// Stable opaque token mapped to a hub slug — slug can change, token never does.
+model GuestHubQrToken {
+  id        String   @id @default(uuid())
+  hubId     String
+  token     String   @unique   // URL-safe, stable identifier
+  label     String?            // "Table 5 QR", "Entrance QR"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, label])
+  @@map("guest_hub_qr_token")
+}

@@ -1,0 +1,97 @@
+/*
+ * GuestHub interaction styles — scoped to .gh-* class names.
+ *
+ * These rules add pseudo-class states (hover, focus-visible, active) that
+ * inline React style props cannot express. Inline styles handle all colours,
+ * spacing, and layout; this file handles ONLY interactive feedback.
+ *
+ * This file is imported exclusively by GuestHubPage.tsx and only renders at
+ * /guest-hub-demo. Zero risk of affecting Iron Booking operator UI.
+ */
+
+/* ── Shared base transitions ──────────────────────────────────────────────── */
+.gh-cta,
+.gh-secondary-btn,
+.gh-ghost-btn,
+.gh-row-link,
+.gh-scroll-btn {
+  transition:
+    opacity        140ms ease,
+    transform      120ms ease,
+    background-color 160ms ease,
+    border-color   160ms ease,
+    color          160ms ease;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+/* ── Primary CTA — gold Reserve button ───────────────────────────────────── */
+.gh-cta:hover  { opacity: 0.88; }
+.gh-cta:active { transform: scale(0.972); opacity: 0.82; }
+
+/* ── Secondary filled buttons — Waitlist, Call ───────────────────────────── */
+/* !important overrides inline style props on hover */
+.gh-secondary-btn:hover  {
+  background-color: #232019 !important;
+  border-color: #332C26 !important;
+}
+.gh-secondary-btn:active { transform: scale(0.972); }
+
+/* ── Ghost border button — Directions ────────────────────────────────────── */
+.gh-ghost-btn:hover  {
+  border-color: #3A332A !important;
+  color: #9A9085 !important;
+}
+.gh-ghost-btn:active { transform: scale(0.972); }
+
+/* ── Row links — social / contact ────────────────────────────────────────── */
+.gh-row-link:hover  {
+  background-color: #1C1916 !important;
+  border-color: #332C26 !important;
+}
+.gh-row-link:active { transform: scale(0.99); }
+
+/* ── Carousel scroll prev/next ───────────────────────────────────────────── */
+.gh-scroll-btn:hover  {
+  background-color: #28221D !important;
+  border-color: #3A332A !important;
+}
+.gh-scroll-btn:active { transform: scale(0.90); }
+
+/* ── Focus-visible rings (keyboard navigation — WCAG AA gold outline) ────── */
+.gh-cta:focus-visible,
+.gh-secondary-btn:focus-visible,
+.gh-ghost-btn:focus-visible,
+.gh-row-link:focus-visible,
+.gh-scroll-btn:focus-visible {
+  outline: 2px solid #C9A96E;
+  outline-offset: 3px;
+}
+
+/* Suppress browser default outline on mouse/touch; show only for keyboard */
+.gh-cta:focus:not(:focus-visible),
+.gh-secondary-btn:focus:not(:focus-visible),
+.gh-ghost-btn:focus:not(:focus-visible),
+.gh-row-link:focus:not(:focus-visible),
+.gh-scroll-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Demo notice — slides in when a locked CTA is tapped ─────────────────── */
+.gh-demo-notice {
+  animation: gh-notice-in 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes gh-notice-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Scrollbar suppression on dish carousel ──────────────────────────────── */
+.gh-dish-row {
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* IE / old Edge */
+}
+.gh-dish-row::-webkit-scrollbar {
+  display: none;                 /* Chrome / Safari / new Edge */
+}

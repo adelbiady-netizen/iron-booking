@@ -135,6 +135,170 @@ async function main() {
     },
   });
 
+  // ── Guest Hub — Ember & Stone demo ───────────────────────────────────────
+  // Mirrors the static mock data in frontend/src/features/guestHub/mockData.ts.
+  // Slug "ember-stone" matches /api/public/hub/ember-stone.
+  // ISOLATION: no joins to reservations, waitlist, or floor tables.
+  const hub = await prisma.guestHub.upsert({
+    where:  { slug: 'ember-stone' },
+    update: {},
+    create: { slug: 'ember-stone', isActive: true },
+  });
+
+  await prisma.guestHubBranding.upsert({
+    where:  { hubId: hub.id },
+    update: {},
+    create: {
+      hubId:        hub.id,
+      name:         'Ember & Stone',
+      tagline:      'Where fire meets flavour — an intimate dining experience',
+      phone:        '+1 212 555 0190',
+      address:      '142 West 57th Street, New York, NY 10019',
+      directionsUrl: 'https://maps.google.com/?q=142+West+57th+Street+New+York+NY',
+      themePreset:  'luxury',
+      primaryColor: '#C9A96E',
+      accentColor:  '#A07840',
+    },
+  });
+
+  // Social links
+  const socialLinks = [
+    { platform: 'instagram', handle: 'emberandstone',     sortOrder: 0 },
+    { platform: 'tiktok',    handle: 'emberandstone',     sortOrder: 1 },
+    { platform: 'website',   handle: 'emberandstone.com', sortOrder: 2 },
+  ];
+  for (const s of socialLinks) {
+    await prisma.guestHubSocialLink.upsert({
+      where:  { hubId_platform: { hubId: hub.id, platform: s.platform } },
+      update: {},
+      create: { hubId: hub.id, ...s },
+    });
+  }
+
+  // Main menu with 6 categories + 5 featured dishes
+  const menu = await prisma.guestHubMenu.upsert({
+    where:  { hubId_name: { hubId: hub.id, name: 'Dinner Menu' } },
+    update: {},
+    create: { hubId: hub.id, name: 'Dinner Menu', sortOrder: 0 },
+  });
+
+  const categories = [
+    { name: 'Starters',       sortOrder: 0 },
+    { name: 'Mains',          sortOrder: 1 },
+    { name: 'Desserts',       sortOrder: 2 },
+    { name: 'Wine & Spirits', sortOrder: 3 },
+    { name: 'Cocktails',      sortOrder: 4 },
+    { name: 'Non-Alcoholic',  sortOrder: 5 },
+  ];
+  const categoryMap: Record<string, string> = {};
+  for (const c of categories) {
+    const cat = await prisma.guestHubMenuCategory.upsert({
+      where:  { menuId_name: { menuId: menu.id, name: c.name } },
+      update: {},
+      create: { menuId: menu.id, ...c },
+    });
+    categoryMap[c.name] = cat.id;
+  }
+
+  // Featured dishes (isFeatured = true, shown in the horizontal carousel)
+  const dishes = [
+    {
+      categoryId: categoryMap['Starters']!,
+      name:        'Wagyu Tartare',
+      description: 'A5 wagyu, truffle emulsion, quail egg, brioche',
+      price:       '$38',
+      tag:         "Chef's pick",
+      isFeatured:  true,
+      sortOrder:   0,
+      gradient:    'linear-gradient(135deg, #3D1A0E 0%, #1A0C08 100%)',
+    },
+    {
+      categoryId: categoryMap['Mains']!,
+      name:        'Charred Octopus',
+      description: 'Smoked paprika, preserved lemon, saffron aioli',
+      price:       '$29',
+      isFeatured:  true,
+      sortOrder:   0,
+      gradient:    'linear-gradient(135deg, #0E2030 0%, #081018 100%)',
+    },
+    {
+      categoryId: categoryMap['Mains']!,
+      name:        'Saffron Risotto',
+      description: 'Aged Parmigiano, black truffle, verjuice reduction',
+      price:       '$32',
+      tag:         'Seasonal',
+      isFeatured:  true,
+      sortOrder:   1,
+      gradient:    'linear-gradient(135deg, #2A1A06 0%, #130E04 100%)',
+    },
+    {
+      categoryId: categoryMap['Mains']!,
+      name:        'Dry-Aged Duck',
+      description: '21-day aged, cherry jus, pomme terrine',
+      price:       '$44',
+      isFeatured:  true,
+      sortOrder:   2,
+      gradient:    'linear-gradient(135deg, #1A0A0A 0%, #0D0505 100%)',
+    },
+    {
+      categoryId: categoryMap['Desserts']!,
+      name:        'Valrhona Soufflé',
+      description: '72% dark chocolate, vanilla bean crème',
+      price:       '$18',
+      isFeatured:  true,
+      sortOrder:   0,
+      gradient:    'linear-gradient(135deg, #1C0E14 0%, #0D0608 100%)',
+    },
+  ];
+  for (const d of dishes) {
+    await prisma.guestHubDish.upsert({
+      where:  { categoryId_name: { categoryId: d.categoryId, name: d.name } },
+      update: {},
+      create: d,
+    });
+  }
+
+  // Promotions
+  const promotions = [
+    {
+      title:       "Chef's Table — Friday Evening",
+      description: 'An exclusive 8-course tasting menu prepared tableside by Chef Marco. Limited to 6 guests per seating.',
+      schedule:    'Every Friday from 7:00 pm',
+      tag:         'Exclusive',
+      tagColor:    'gold',
+      sortOrder:   0,
+    },
+    {
+      title:       'Summer Truffle Season',
+      description: 'A special menu celebrating the finest summer truffles from Périgord, available through end of August.',
+      tag:         'Limited time',
+      tagColor:    'stone',
+      sortOrder:   1,
+    },
+    {
+      title:       'Sunday Garden Brunch',
+      description: 'A relaxed exploration of seasonal produce, from morning pastries to dessert wine.',
+      schedule:    'Sundays, 11:00 am – 3:00 pm',
+      sortOrder:   2,
+    },
+  ];
+  for (const p of promotions) {
+    await prisma.guestHubPromotion.upsert({
+      where:  { hubId_title: { hubId: hub.id, title: p.title } },
+      update: {},
+      create: { hubId: hub.id, ...p },
+    });
+  }
+
+  // Demo QR token (stable — survives slug renames)
+  await prisma.guestHubQrToken.upsert({
+    where:  { hubId_label: { hubId: hub.id, label: 'Demo QR' } },
+    update: {},
+    create: { hubId: hub.id, token: 'demo-qr-ember-stone', label: 'Demo QR' },
+  });
+
+  console.log(`Guest Hub: ${hub.slug} (${hub.id})`);
+
   console.log('Seed complete.');
   console.log('─────────────────────────────────────────────');
   console.log(`Login: POST /api/auth/login`);
