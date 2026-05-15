@@ -409,6 +409,24 @@ export const api = {
         firstName?: string; lastName?: string; role?: string; isActive?: boolean; password?: string;
       }) => request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     },
+    guestHub: {
+      get: (restaurantId: string) =>
+        request<{
+          id: string; slug: string; restaurantId: string | null; isActive: boolean;
+          branding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
+          socialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
+        }>(`/admin/hub/${encodeURIComponent(restaurantId)}`),
+      updateBranding: (restaurantId: string, body: { name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null }) =>
+        request<{ id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null }>(
+          `/admin/hub/${encodeURIComponent(restaurantId)}/branding`,
+          { method: 'PATCH', body: JSON.stringify(body) }
+        ),
+      updateSocial: (restaurantId: string, links: Array<{ platform: string; handle: string }>) =>
+        request<{ links: Array<{ id: string; platform: string; handle: string; sortOrder: number }> }>(
+          `/admin/hub/${encodeURIComponent(restaurantId)}/social`,
+          { method: 'PUT', body: JSON.stringify({ links }) }
+        ),
+    },
   },
 
   hosts: {

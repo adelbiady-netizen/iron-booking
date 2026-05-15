@@ -1,0 +1,537 @@
+// ─── Guest Hub CMS Panel ───────────────────────────────────────────────────────
+// Structured editor for GuestHubBranding and GuestHubSocialLink.
+// Rendered inside AdminPortal's "Guest Hub" restaurant detail tab.
+//
+// Scope: branding fields + social links only.
+// Not in scope: menu, dishes, promotions, events, theme builder, image uploads.
+
+import { useState, useEffect, useCallback } from 'react';
+import { api, ApiError } from '../../api';
+
+// ── Types (mirrors backend HubAdminDto) ───────────────────────────────────────
+
+interface HubBranding {
+  id: string;
+  name: string;
+  tagline: string | null;
+  phone: string | null;
+  address: string | null;
+  logoUrl: string | null;
+  coverImageUrl: string | null;
+}
+
+interface HubSocial {
+  id: string;
+  platform: string;
+  handle: string;
+  sortOrder: number;
+}
+
+interface HubData {
+  id: string;
+  slug: string;
+  isActive: boolean;
+  branding: HubBranding | null;
+  socialLinks: HubSocial[];
+}
+
+type BrandingForm = {
+  name: string;
+  tagline: string;
+  phone: string;
+  address: string;
+  logoUrl: string;
+  coverImageUrl: string;
+};
+
+type SocialRow = { platform: string; handle: string };
+
+// ── Validation helper ─────────────────────────────────────────────────────────
+
+function isValidUrl(s: string): boolean {
+  if (!s.trim()) return true;
+  try {
+    const u = new URL(s.trim());
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+// ── Shared admin UI primitives (local, consistent with AdminPortal style) ─────
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs text-iron-muted mb-1">{label}</label>
+      {children}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function Inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green ${props.className ?? ''}`}
+    />
+  );
+}
+
+function Btn({
+  onClick, disabled, busy, children, variant = 'primary',
+}: {
+  onClick?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  children: React.ReactNode;
+  variant?: 'primary' | 'ghost' | 'danger';
+}) {
+  const base = 'px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50';
+  const cls =
+    variant === 'primary' ? `${base} bg-iron-green hover:bg-iron-green-light text-white` :
+    variant === 'danger'  ? `${base} bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30` :
+    `${base} border border-iron-border text-iron-muted hover:text-iron-text`;
+  return (
+    <button type="button" className={cls} onClick={onClick} disabled={disabled || busy}>
+      {busy ? 'Saving…' : children}
+    </button>
+  );
+}
+
+const PLATFORM_LABELS: Record<string, string> = {
+  instagram: 'Instagram',
+  tiktok:    'TikTok',
+  website:   'Website',
+  facebook:  'Facebook',
+  twitter:   'Twitter / X',
+  youtube:   'YouTube',
+};
+
+const ALLOWED_PLATFORMS = ['instagram', 'tiktok', 'website', 'facebook', 'twitter', 'youtube'];
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: string }) {
+  const [status, setStatus] = useState<'loading' | 'not_found' | 'ready' | 'error'>('loading');
+  const [hub,    setHub]    = useState<HubData | null>(null);
+
+  // Branding edit
+  const [editingBranding, setEditingBranding] = useState(false);
+  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', phone: '', address: '', logoUrl: '', coverImageUrl: '' });
+  const [brandingBusy,    setBrandingBusy]    = useState(false);
+  const [brandingErrors,  setBrandingErrors]  = useState<Record<string, string>>({});
+  const [brandingError,   setBrandingError]   = useState<string | null>(null);
+
+  // Social edit
+  const [editingSocial, setEditingSocial] = useState(false);
+  const [socialRows,    setSocialRows]    = useState<SocialRow[]>([]);
+  const [socialBusy,    setSocialBusy]    = useState(false);
+  const [socialError,   setSocialError]   = useState<string | null>(null);
+
+  // Toast
+  const [toast, setToast] = useState<string | null>(null);
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  // ── Load ──────────────────────────────────────────────────────────────────────
+
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const data = await api.admin.guestHub.get(restaurantId);
+      setHub(data);
+      setStatus('ready');
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 'NOT_FOUND' || err.message.includes('404'))) {
+        setStatus('not_found');
+      } else {
+        setStatus('error');
+      }
+    }
+  }, [restaurantId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // ── Branding edit ─────────────────────────────────────────────────────────────
+
+  function openBrandingEdit() {
+    setBrandingForm({
+      name:          hub?.branding?.name          ?? '',
+      tagline:       hub?.branding?.tagline        ?? '',
+      phone:         hub?.branding?.phone          ?? '',
+      address:       hub?.branding?.address        ?? '',
+      logoUrl:       hub?.branding?.logoUrl        ?? '',
+      coverImageUrl: hub?.branding?.coverImageUrl  ?? '',
+    });
+    setBrandingErrors({});
+    setBrandingError(null);
+    setEditingBranding(true);
+  }
+
+  function cancelBrandingEdit() {
+    setEditingBranding(false);
+    setBrandingErrors({});
+    setBrandingError(null);
+  }
+
+  function validateBrandingForm(): Record<string, string> {
+    const e: Record<string, string> = {};
+    if (!brandingForm.name.trim())             e.name          = 'Display name is required';
+    else if (brandingForm.name.length > 100)   e.name          = 'Max 100 characters';
+    if (brandingForm.tagline.length > 200)     e.tagline       = 'Max 200 characters';
+    if (brandingForm.phone.length > 30)        e.phone         = 'Max 30 characters';
+    if (brandingForm.address.length > 300)     e.address       = 'Max 300 characters';
+    if (!isValidUrl(brandingForm.logoUrl))     e.logoUrl       = 'Must be a valid https:// URL';
+    if (!isValidUrl(brandingForm.coverImageUrl)) e.coverImageUrl = 'Must be a valid https:// URL';
+    return e;
+  }
+
+  async function saveBranding() {
+    const errs = validateBrandingForm();
+    if (Object.keys(errs).length > 0) { setBrandingErrors(errs); return; }
+    setBrandingBusy(true);
+    setBrandingError(null);
+    try {
+      const updated = await api.admin.guestHub.updateBranding(restaurantId, {
+        name:          brandingForm.name.trim(),
+        tagline:       brandingForm.tagline.trim()       || null,
+        phone:         brandingForm.phone.trim()         || null,
+        address:       brandingForm.address.trim()       || null,
+        logoUrl:       brandingForm.logoUrl.trim()       || null,
+        coverImageUrl: brandingForm.coverImageUrl.trim() || null,
+      });
+      setHub(prev => prev
+        ? { ...prev, branding: prev.branding ? { ...prev.branding, ...updated } : { ...updated } }
+        : prev);
+      setEditingBranding(false);
+      showToast('Branding saved');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fe = err.fieldErrors as Record<string, string[]>;
+        if (Object.keys(fe).length > 0) {
+          setBrandingErrors(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ''])));
+        }
+        setBrandingError(err.message);
+      } else {
+        setBrandingError('Failed to save branding');
+      }
+    } finally { setBrandingBusy(false); }
+  }
+
+  // ── Social edit ───────────────────────────────────────────────────────────────
+
+  function openSocialEdit() {
+    setSocialRows(hub?.socialLinks.map(s => ({ platform: s.platform, handle: s.handle })) ?? []);
+    setSocialError(null);
+    setEditingSocial(true);
+  }
+
+  function cancelSocialEdit() {
+    setEditingSocial(false);
+    setSocialError(null);
+  }
+
+  function addSocialRow() {
+    setSocialRows(rows => {
+      const usedPlatforms = new Set(rows.map(r => r.platform));
+      const next = ALLOWED_PLATFORMS.find(p => !usedPlatforms.has(p)) ?? 'website';
+      return [...rows, { platform: next, handle: '' }];
+    });
+  }
+
+  function removeSocialRow(idx: number) {
+    setSocialRows(rows => rows.filter((_, i) => i !== idx));
+  }
+
+  function updateSocialRow(idx: number, field: 'platform' | 'handle', value: string) {
+    setSocialRows(rows => rows.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  }
+
+  async function saveSocial() {
+    for (const row of socialRows) {
+      if (!row.handle.trim()) { setSocialError('All handles must be filled in'); return; }
+    }
+    setSocialBusy(true);
+    setSocialError(null);
+    try {
+      const { links } = await api.admin.guestHub.updateSocial(restaurantId, socialRows.map(r => ({ platform: r.platform, handle: r.handle.trim() })));
+      setHub(prev => prev ? { ...prev, socialLinks: links } : prev);
+      setEditingSocial(false);
+      showToast('Social links saved');
+    } catch (err) {
+      setSocialError(err instanceof ApiError ? err.message : 'Failed to save social links');
+    } finally { setSocialBusy(false); }
+  }
+
+  // ── Render states ─────────────────────────────────────────────────────────────
+
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (status === 'not_found') {
+    return (
+      <div className="max-w-lg py-8">
+        <div className="bg-iron-card border border-iron-border rounded-xl p-6">
+          <p className="text-iron-text font-medium mb-1">No Guest Hub configured</p>
+          <p className="text-iron-muted text-sm">
+            This restaurant does not have a Guest Hub linked yet. Guest Hub setup is managed
+            during onboarding. Contact support to initialize one for this location.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error' || !hub) {
+    return (
+      <div className="max-w-lg py-8">
+        <div className="bg-iron-card border border-red-900/30 rounded-xl p-6">
+          <p className="text-red-400 text-sm">Failed to load Guest Hub data. Try refreshing.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const previewUrl = `https://www.ironbooking.com/r/${hub.slug}`;
+
+  return (
+    <div className="max-w-2xl space-y-6">
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 bg-iron-card border border-iron-border rounded-lg text-sm text-iron-text shadow-xl pointer-events-none">
+          {toast}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-iron-text">Guest Hub Content</h3>
+          <p className="text-xs text-iron-muted mt-0.5">
+            Slug: <code className="text-iron-green">{hub.slug}</code>
+            {!hub.isActive && <span className="ml-2 text-amber-400">(inactive)</span>}
+          </p>
+        </div>
+        <a
+          href={previewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-xs font-medium transition-colors flex-shrink-0"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Preview
+        </a>
+      </div>
+
+      {/* ── Branding ────────────────────────────────────────────────────────────── */}
+      <section className="bg-iron-card border border-iron-border rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-iron-border flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-iron-text">Branding</h4>
+          {!editingBranding && (
+            <Btn variant="ghost" onClick={openBrandingEdit}>Edit</Btn>
+          )}
+        </div>
+
+        {editingBranding ? (
+          <div className="p-6 space-y-4">
+            <Field label="Display name *" error={brandingErrors.name}>
+              <Inp
+                value={brandingForm.name}
+                onChange={e => setBrandingForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Ember Stone"
+                maxLength={100}
+              />
+            </Field>
+            <Field label="Tagline" error={brandingErrors.tagline}>
+              <Inp
+                value={brandingForm.tagline}
+                onChange={e => setBrandingForm(f => ({ ...f, tagline: e.target.value }))}
+                placeholder="e.g. Modern Mediterranean cuisine"
+                maxLength={200}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Phone" error={brandingErrors.phone}>
+                <Inp
+                  value={brandingForm.phone}
+                  onChange={e => setBrandingForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="+972 50 000 0000"
+                  maxLength={30}
+                />
+              </Field>
+              <Field label="Address" error={brandingErrors.address}>
+                <Inp
+                  value={brandingForm.address}
+                  onChange={e => setBrandingForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="14 Rothschild Blvd, Tel Aviv"
+                  maxLength={300}
+                />
+              </Field>
+            </div>
+            <Field label="Logo URL" error={brandingErrors.logoUrl}>
+              <Inp
+                value={brandingForm.logoUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
+                placeholder="https://..."
+                maxLength={500}
+              />
+            </Field>
+            <Field label="Cover image URL" error={brandingErrors.coverImageUrl}>
+              <Inp
+                value={brandingForm.coverImageUrl}
+                onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
+                placeholder="https://..."
+                maxLength={500}
+              />
+            </Field>
+            {brandingError && (
+              <p className="text-sm text-red-400">{brandingError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Btn variant="primary" onClick={saveBranding} busy={brandingBusy}>Save</Btn>
+              <Btn variant="ghost" onClick={cancelBrandingEdit} disabled={brandingBusy}>Cancel</Btn>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6">
+            {hub.branding ? (
+              <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                <BrandingRow label="Display name" value={hub.branding.name} />
+                <BrandingRow label="Tagline"      value={hub.branding.tagline} />
+                <BrandingRow label="Phone"        value={hub.branding.phone} />
+                <BrandingRow label="Address"      value={hub.branding.address} />
+                <BrandingRow label="Logo URL"     value={hub.branding.logoUrl} url />
+                <BrandingRow label="Cover image"  value={hub.branding.coverImageUrl} url />
+              </dl>
+            ) : (
+              <p className="text-iron-muted text-sm">No branding set — click Edit to add.</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Social links ────────────────────────────────────────────────────────── */}
+      <section className="bg-iron-card border border-iron-border rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-iron-border flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-iron-text">Social Links</h4>
+          {!editingSocial && (
+            <Btn variant="ghost" onClick={openSocialEdit}>Edit</Btn>
+          )}
+        </div>
+
+        {editingSocial ? (
+          <div className="p-6 space-y-3">
+            {socialRows.length === 0 && (
+              <p className="text-iron-muted text-sm">No social links. Click + Add to add one.</p>
+            )}
+            {socialRows.map((row, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <select
+                  value={row.platform}
+                  onChange={e => updateSocialRow(idx, 'platform', e.target.value)}
+                  className="bg-iron-bg border border-iron-border rounded px-2 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green w-36 flex-shrink-0"
+                >
+                  {ALLOWED_PLATFORMS.map(p => (
+                    <option key={p} value={p}>{PLATFORM_LABELS[p] ?? p}</option>
+                  ))}
+                </select>
+                <Inp
+                  value={row.handle}
+                  onChange={e => updateSocialRow(idx, 'handle', e.target.value)}
+                  placeholder={row.platform === 'website' ? 'https://...' : '@username'}
+                  maxLength={200}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeSocialRow(idx)}
+                  className="text-iron-muted hover:text-red-400 transition-colors px-1 flex-shrink-0"
+                  aria-label="Remove"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {socialRows.length < 10 && (
+              <button
+                type="button"
+                onClick={addSocialRow}
+                className="text-xs text-iron-muted hover:text-iron-text transition-colors"
+              >
+                + Add link
+              </button>
+            )}
+            {socialError && (
+              <p className="text-sm text-red-400">{socialError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Btn variant="primary" onClick={saveSocial} busy={socialBusy}>Save</Btn>
+              <Btn variant="ghost" onClick={cancelSocialEdit} disabled={socialBusy}>Cancel</Btn>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6">
+            {hub.socialLinks.length > 0 ? (
+              <ul className="space-y-2">
+                {hub.socialLinks.map(s => (
+                  <li key={s.id} className="flex items-center gap-3 text-sm">
+                    <span className="text-iron-muted w-24 flex-shrink-0 text-xs font-medium uppercase tracking-wide">
+                      {PLATFORM_LABELS[s.platform] ?? s.platform}
+                    </span>
+                    <span className="text-iron-text truncate">{s.handle}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-iron-muted text-sm">No social links configured.</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── What's not here yet ──────────────────────────────────────────────────── */}
+      <div className="bg-iron-bg border border-iron-border rounded-xl p-5 text-xs text-iron-muted space-y-1">
+        <p className="font-medium text-iron-text text-sm mb-2">Coming in future phases</p>
+        <p>• Menu &amp; dish editing</p>
+        <p>• Promotions and events</p>
+        <p>• Image uploads (currently URL-only)</p>
+        <p>• Theme and colour customisation</p>
+      </div>
+
+    </div>
+  );
+}
+
+// ── Read-mode field display ───────────────────────────────────────────────────
+
+function BrandingRow({ label, value, url }: { label: string; value: string | null; url?: boolean }) {
+  return (
+    <>
+      <dt className="text-iron-muted text-xs">{label}</dt>
+      <dd className="text-iron-text truncate">
+        {value
+          ? url
+            ? <a href={value} target="_blank" rel="noopener noreferrer" className="text-iron-green hover:underline truncate block">{value}</a>
+            : value
+          : <span className="text-iron-muted">—</span>
+        }
+      </dd>
+    </>
+  );
+}

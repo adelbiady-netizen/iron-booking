@@ -728,6 +728,7 @@ export const THe = {
     tabInfo:               'מידע',
     tabSettings:           'הגדרות',
     tabUsers:              'משתמשים',
+    tabGuestHub:           'Guest Hub',
     colName:               'שם',
     colEmail:              'אימייל',
     colRole:               'תפקיד',

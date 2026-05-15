@@ -752,6 +752,7 @@ export const T = {
     tabInfo:               'Info',
     tabSettings:           'Settings',
     tabUsers:              'Users',
+    tabGuestHub:           'Guest Hub',
     colName:               'Name',
     colEmail:              'Email',
     colRole:               'Role',

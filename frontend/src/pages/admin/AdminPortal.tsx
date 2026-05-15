@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api, ApiError } from '../../api';
+import GuestHubCmsPanel from './GuestHubCmsPanel';
 import { useT } from '../../i18n/useT';
 import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
 import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats } from '../../types';
@@ -241,7 +242,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [detail,     setDetail]     = useState<AdminRestaurantDetail | null>(null);
   const [users,      setUsers]      = useState<AdminUser[]>([]);
   const [detailBusy, setDetailBusy] = useState(false);
-  const [activeTab,  setActiveTab]  = useState<'info' | 'settings' | 'users'>('info');
+  const [activeTab,  setActiveTab]  = useState<'info' | 'settings' | 'users' | 'guest-hub'>('info');
 
   // Wizard state
   const [wizardStep,              setWizardStep]              = useState(1);
@@ -389,7 +390,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setTimeout(() => setToast(null), 3000);
   }
 
-  function selectRestaurant(id: string, tab: 'info' | 'settings' | 'users' = 'info') {
+  function selectRestaurant(id: string, tab: 'info' | 'settings' | 'users' | 'guest-hub' = 'info') {
     setSelectedId(id);
     setView('detail');
     setActiveTab(tab);
@@ -1824,10 +1825,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     }
     if (!detail) return null;
 
-    const tabs: Array<{ id: 'info' | 'settings' | 'users'; label: string }> = [
-      { id: 'info', label: T.admin.tabInfo },
-      { id: 'settings', label: T.admin.tabSettings },
-      { id: 'users', label: T.admin.tabUsers },
+    const tabs: Array<{ id: 'info' | 'settings' | 'users' | 'guest-hub'; label: string }> = [
+      { id: 'info',      label: T.admin.tabInfo      },
+      { id: 'settings',  label: T.admin.tabSettings  },
+      { id: 'users',     label: T.admin.tabUsers     },
+      { id: 'guest-hub', label: T.admin.tabGuestHub  },
     ];
 
     return (
@@ -1853,9 +1855,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8">
-          {activeTab === 'info'     && renderInfoTab()}
-          {activeTab === 'settings' && renderSettingsTab()}
-          {activeTab === 'users'    && renderUsersTab()}
+          {activeTab === 'info'      && renderInfoTab()}
+          {activeTab === 'settings'  && renderSettingsTab()}
+          {activeTab === 'users'     && renderUsersTab()}
+          {activeTab === 'guest-hub' && <GuestHubCmsPanel restaurantId={detail.id} />}
         </div>
       </div>
     );
