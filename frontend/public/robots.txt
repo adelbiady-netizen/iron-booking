@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /r/
+Disallow: /q/
+Disallow: /r-preview/
+Disallow: /hq

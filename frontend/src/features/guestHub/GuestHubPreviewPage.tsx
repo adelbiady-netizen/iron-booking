@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { BASE, getStoredAuth, getStoredHQAuth } from '../../api';
 import { mapGuestHub, type ApiGuestHub } from './mappers/hubMapper';
 import type { GuestHubViewModel } from './types/viewModel';
+import { useHubMeta } from './hooks/useHubMeta';
 
 const PLATFORM_LABELS: Record<string, string> = {
   instagram: 'Instagram',
@@ -21,6 +22,9 @@ const PLATFORM_LABELS: Record<string, string> = {
 export default function GuestHubPreviewPage({ slug }: { slug: string }) {
   const [status, setStatus] = useState<'loading' | 'unauthorized' | 'not_found' | 'error' | 'ready'>('loading');
   const [vm,     setVm]     = useState<GuestHubViewModel | null>(null);
+
+  // Draft preview must never be indexed — noindex regardless of vm state.
+  useHubMeta(vm, slug, 'noindex, nofollow');
 
   useEffect(() => {
     const auth = getStoredHQAuth() ?? getStoredAuth();

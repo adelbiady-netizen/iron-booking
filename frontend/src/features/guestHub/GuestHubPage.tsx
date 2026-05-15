@@ -5,6 +5,7 @@ import GuestHubSkeleton from './components/GuestHubSkeleton';
 import GuestHubError    from './components/GuestHubError';
 import type { GuestHubViewModel, SocialLinkViewModel, DishAvailability, DishViewModel } from './types/viewModel';
 import { getDietaryAbbr } from './mappers/hubMapper';
+import { useHubMeta } from './hooks/useHubMeta';
 
 // ─── Colour tokens — guest-facing palette, isolated from iron-* operator UI ──
 const C = {
@@ -842,6 +843,13 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
 
 export default function GuestHubPage({ slug }: { slug: string }) {
   const hubState = useGuestHub(slug);
+
+  // SEO + social share metadata — must be called before any conditional returns.
+  const metaVm     = hubState.status === 'ready' ? hubState.data : null;
+  const metaRobots = hubState.status === 'error' || hubState.status === 'not_found'
+    ? 'noindex, nofollow'
+    : undefined;
+  useHubMeta(metaVm, slug, metaRobots);
 
   // Set document language so screen readers pronounce content correctly.
   useEffect(() => {

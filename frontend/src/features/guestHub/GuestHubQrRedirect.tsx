@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { BASE } from '../../api';
 import './GuestHubPage.css';
+import { useHubMeta } from './hooks/useHubMeta';
 
 const C = {
   bg:      '#0C0A09',
@@ -22,6 +23,9 @@ const HUB_BASE = BASE.replace(/\/api$/, '');
 
 export default function GuestHubQrRedirect({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
+
+  // QR redirect pages must never be indexed — slug is unknown until resolved.
+  useHubMeta(null, '', 'noindex, nofollow');
 
   useEffect(() => {
     fetch(`${HUB_BASE}/api/public/hub/q/${encodeURIComponent(token)}`)
