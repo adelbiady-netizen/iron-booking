@@ -91,11 +91,17 @@ function validateSocialInput(links: unknown): Record<string, string[]> {
   if (!Array.isArray(links)) { err.links = ['links must be an array']; return err; }
   if (links.length > 10) { err.links = ['Maximum 10 social links allowed']; return err; }
 
+  const seenPlatforms = new Set<string>();
+
   for (let i = 0; i < links.length; i++) {
     const l = links[i] as Record<string, unknown>;
     const platform = typeof l.platform === 'string' ? l.platform.toLowerCase().trim() : '';
     if (!ALLOWED_PLATFORMS.has(platform)) {
       err[`links[${i}].platform`] = [`Must be one of: ${[...ALLOWED_PLATFORMS].join(', ')}`];
+    } else if (seenPlatforms.has(platform)) {
+      err[`links[${i}].platform`] = [`Duplicate platform: each platform may appear only once`];
+    } else {
+      seenPlatforms.add(platform);
     }
     const handle = typeof l.handle === 'string' ? l.handle.trim() : '';
     if (!handle) err[`links[${i}].handle`] = ['Handle is required'];
