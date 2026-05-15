@@ -380,6 +380,7 @@ interface Props {
   onContextMenuComplete?: (res: Reservation) => void;
   onContextMenuOpenDetails?: (res: Reservation) => void;
   onContextMenuArrive?: (res: Reservation) => void;
+  inFlightIds?: ReadonlySet<string>;
 }
 
 const CANVAS_W = 1500;
@@ -436,6 +437,7 @@ export default function FloorBoard({
   onContextMenuComplete,
   onContextMenuOpenDetails,
   onContextMenuArrive,
+  inFlightIds,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -1290,9 +1292,9 @@ export default function FloorBoard({
           (currentRes?.status === 'PENDING' || currentRes?.status === 'CONFIRMED') ? currentRes : null
         );
 
-        const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied;
-        const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied;
-        const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked;
+        const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
+        const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
+        const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const hasActions    = canSeat || canArrive || canComplete || canOpenDetails;
 

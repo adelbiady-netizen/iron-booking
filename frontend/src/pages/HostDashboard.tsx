@@ -120,6 +120,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [refreshKey, setRefreshKey] = useState(0);
   const [liveMode, setLiveMode]     = useState(true);
   const liveModeRef    = useRef(true);
+  // In-flight guard — keyed by reservationId. Ref for synchronous guard checks;
+  // state for UI layer (disables buttons on re-render).
+  const inFlightRef = useRef(new Set<string>());
+  const [inFlightIds, setInFlightIds] = useState<ReadonlySet<string>>(new Set());
   // Tracks the last date for which data successfully loaded.
   // Empty string on mount so the very first load always shows the full spinner.
   // Stays equal to `date` on background polls so the list stays visible.
@@ -412,11 +416,44 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, []);
 
   const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
-    const combinedTableIds = reservations.find(r => r.id === reservationId)?.combinedTableIds ?? [];
+    if (inFlightRef.current.has(reservationId)) return;
+
+    const res = reservations.find(r => r.id === reservationId);
+    const combinedTableIds = res?.combinedTableIds ?? [];
+
+    inFlightRef.current.add(reservationId);
+    setInFlightIds(new Set(inFlightRef.current));
+
+    // ── Optimistic update ────────────────────────────────────────────────────
+    const now = Date.now();
+    const seatedAt = new Date(now).toISOString();
+    const expectedEndTime = new Date(now + (res?.duration ?? 90) * 60_000).toISOString();
+    let snapshotFloorTable: FloorTable | null = null;
+    setReservations(prev => prev.map(r =>
+      r.id === reservationId
+        ? { ...r, status: 'SEATED' as const, tableId, seatedAt }
+        : r
+    ));
+    setFloorTables(prev => prev.map(t => {
+      if (t.id === tableId) {
+        snapshotFloorTable = t;
+        return {
+          ...t,
+          liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
+          currentReservation: res ? {
+            ...res, status: 'SEATED' as const, tableId, seatedAt,
+            minutesRemaining: res.duration, expectedEndTime, isOverdue: false,
+          } : t.currentReservation,
+          upcomingReservations: t.upcomingReservations.filter(r => r.id !== reservationId),
+        };
+      }
+      return t;
+    }));
+    // ─────────────────────────────────────────────────────────────────────────
+
     try {
       const updated = await api.reservations.seat(reservationId, tableId, false, combinedTableIds);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-      setRefreshKey(k => k + 1);
       setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
       showToast(T.hostDashboard.toastQuickSeated(tableName), 'success', {
@@ -432,6 +469,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         },
       });
     } catch (err) {
+      // ── Rollback ─────────────────────────────────────────────────────────
+      if (res) setReservations(prev => prev.map(r => r.id === reservationId ? res : r));
+      if (snapshotFloorTable) { const snap = snapshotFloorTable; setFloorTables(prev => prev.map(t => t.id === tableId ? snap : t)); }
+      // ─────────────────────────────────────────────────────────────────────
       if (err instanceof ApiError && err.code === 'CONFLICT') {
         const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
         if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
@@ -449,6 +490,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         }
       }
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+    } finally {
+      inFlightRef.current.delete(reservationId);
+      setInFlightIds(new Set(inFlightRef.current));
     }
   }, [floorTables, reservations, showToast]);
 
@@ -958,10 +1002,38 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleContextMenuSeat = useCallback(async (res: Reservation) => {
     async function executeSeat(primaryId: string, secondaryIds: string[]) {
+      if (inFlightRef.current.has(res.id)) return;
+
+      const now = Date.now();
+      const seatedAt = new Date(now).toISOString();
+      const expectedEndTime = new Date(now + (res.duration ?? 90) * 60_000).toISOString();
+      let snapshotFloorTable: FloorTable | null = null;
+
+      inFlightRef.current.add(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
+
+      setReservations(prev => prev.map(r =>
+        r.id === res.id ? { ...r, status: 'SEATED' as const, tableId: primaryId, seatedAt } : r
+      ));
+      setFloorTables(prev => prev.map(t => {
+        if (t.id === primaryId) {
+          snapshotFloorTable = t;
+          return {
+            ...t,
+            liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
+            currentReservation: {
+              ...res, status: 'SEATED' as const, tableId: primaryId, seatedAt,
+              minutesRemaining: res.duration, expectedEndTime, isOverdue: false,
+            },
+            upcomingReservations: t.upcomingReservations.filter(r => r.id !== res.id),
+          };
+        }
+        return t;
+      }));
+
       try {
         const updated = await api.reservations.seat(res.id, primaryId, false, secondaryIds);
         setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-        setRefreshKey(k => k + 1);
         setInsights(prev => prev.filter(i => i.tableId !== primaryId && i.reservationId !== res.id));
         const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
         showToast(T.hostDashboard.toastQuickSeated(tableName), 'success', {
@@ -977,6 +1049,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           },
         });
       } catch (err) {
+        setReservations(prev => prev.map(r => r.id === res.id ? res : r));
+        if (snapshotFloorTable) { const snap = snapshotFloorTable; setFloorTables(prev => prev.map(t => t.id === primaryId ? snap : t)); }
         if (err instanceof ApiError && err.code === 'CONFLICT') {
           const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
           if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
@@ -994,6 +1068,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           }
         }
         showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+      } finally {
+        inFlightRef.current.delete(res.id);
+        setInFlightIds(new Set(inFlightRef.current));
       }
     }
 
@@ -1026,13 +1103,38 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handlePickTables, floorTables, showToast]);
 
   const handleContextMenuComplete = useCallback(async (res: Reservation) => {
+    if (inFlightRef.current.has(res.id)) return;
+
+    const tableId = res.tableId;
+    let snapshotFloorTable: FloorTable | null = null;
+
+    inFlightRef.current.add(res.id);
+    setInFlightIds(new Set(inFlightRef.current));
+
+    setReservations(prev => prev.map(r =>
+      r.id === res.id ? { ...r, status: 'COMPLETED' as const } : r
+    ));
+    if (tableId) {
+      setFloorTables(prev => prev.map(t => {
+        if (t.id === tableId) {
+          snapshotFloorTable = t;
+          return { ...t, liveStatus: 'AVAILABLE' as FloorTable['liveStatus'], currentReservation: null };
+        }
+        return t;
+      }));
+    }
+
     try {
       const updated = await api.reservations.complete(res.id);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-      setRefreshKey(k => k + 1);
       showToast(T.guestDrawer.toastCompleted, 'success');
     } catch (err) {
+      setReservations(prev => prev.map(r => r.id === res.id ? res : r));
+      if (snapshotFloorTable) { const snap = snapshotFloorTable; setFloorTables(prev => prev.map(t => t.id === tableId ? snap : t)); }
       showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      inFlightRef.current.delete(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
     }
   }, [showToast]);
 
@@ -1043,13 +1145,25 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [reservations]);
 
   const handleContextMenuArrive = useCallback(async (res: Reservation) => {
+    if (inFlightRef.current.has(res.id)) return;
+
+    inFlightRef.current.add(res.id);
+    setInFlightIds(new Set(inFlightRef.current));
+
+    setReservations(prev => prev.map(r =>
+      r.id === res.id ? { ...r, isArrived: true } : r
+    ));
+
     try {
       const updated = await api.reservations.markArrived(res.id);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-      setRefreshKey(k => k + 1);
       showToast(T.guestDrawer.toastArrived, 'success');
     } catch (err) {
+      setReservations(prev => prev.map(r => r.id === res.id ? res : r));
       showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      inFlightRef.current.delete(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
     }
   }, [showToast]);
 
@@ -1374,6 +1488,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuComplete={handleContextMenuComplete}
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
+          inFlightIds={inFlightIds}
         />
 
         {/* Panel toggle handle — always visible between floor and panel */}
@@ -1454,6 +1569,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onOpenWalkin={(tableId) => { setPreselectedTableId(tableId); setCreateMode('walkin'); }}
           onUpdated={handleQuickPanelUpdated}
           onSuccess={showToast}
+          inFlightIds={inFlightIds}
         />
       )}
 

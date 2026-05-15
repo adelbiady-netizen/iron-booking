@@ -34,6 +34,7 @@ interface Props {
   onOpenWalkin: (tableId: string) => void;
   onUpdated: (res: Reservation) => void;
   onSuccess: (msg: string) => void;
+  inFlightIds?: ReadonlySet<string>;
 }
 
 export default function TableQuickPanel({
@@ -53,6 +54,7 @@ export default function TableQuickPanel({
   onOpenWalkin,
   onUpdated,
   onSuccess,
+  inFlightIds,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -480,13 +482,13 @@ export default function TableQuickPanel({
                         onClick={() => quick(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed, true)} />
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen}
                         onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
-                        disabled={isFutureDate} />
+                        disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
                     </>)}
 
                     {res.status === 'CONFIRMED' && (
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen}
                         onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
-                        disabled={isFutureDate} />
+                        disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
                     )}
 
                     {res.status === 'SEATED' && (<>
