@@ -375,6 +375,11 @@ interface Props {
   hoveredResId?: string | null;
   // Spatial breathing — floor recenter when the right drawer closes
   drawerOpen?: boolean;
+  // Right-click quick actions
+  onContextMenuSeat?: (res: Reservation) => void;
+  onContextMenuComplete?: (res: Reservation) => void;
+  onContextMenuOpenDetails?: (res: Reservation) => void;
+  onContextMenuArrive?: (res: Reservation) => void;
 }
 
 const CANVAS_W = 1500;
@@ -427,6 +432,10 @@ export default function FloorBoard({
   reorganizeMode = false, onReorganizeTableClick,
   hoveredResId,
   drawerOpen: _drawerOpen = false,
+  onContextMenuSeat,
+  onContextMenuComplete,
+  onContextMenuOpenDetails,
+  onContextMenuArrive,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -494,6 +503,16 @@ export default function FloorBoard({
     return () => ro.disconnect();
   }, []);
 
+
+  // Close context menu on Esc or scroll
+  useEffect(() => {
+    if (!ctxMenu) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setCtxMenu(null); }
+    function onScroll() { setCtxMenu(null); }
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('scroll', onScroll, true); };
+  }, [ctxMenu]);
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
@@ -765,8 +784,8 @@ export default function FloorBoard({
 
   function handleContextMenu(e: React.MouseEvent, t: FloorTable) {
     e.preventDefault();
-    const x = Math.min(e.clientX, window.innerWidth - 160);
-    const y = Math.min(e.clientY, window.innerHeight - 80);
+    const x = Math.min(e.clientX, window.innerWidth - 168);
+    const y = Math.min(e.clientY, window.innerHeight - 190);
     setCtxMenu({ x, y, table: t });
   }
 
@@ -1261,34 +1280,89 @@ export default function FloorBoard({
       ))}
 
       {/* Right-click context menu */}
-      {ctxMenu && !pickMode && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
-          <div
-            className="fixed z-50 bg-iron-elevated border border-iron-border/55 rounded-xl py-1 min-w-[10rem]"
-            style={{ left: ctxMenu.x, top: ctxMenu.y, boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.32)' }}
-          >
-            <div className="px-3 py-1 border-b border-iron-border/50 mb-1">
-              <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">{ctxMenu.table.name}</span>
+      {ctxMenu && !pickMode && (() => {
+        const t = ctxMenu.table;
+        const currentRes = t.currentReservation;
+        const isOccupied = t.liveStatus === 'OCCUPIED' && !!currentRes;
+        const seatableRes = t.upcomingReservations.find(r =>
+          r.status === 'PENDING' || r.status === 'CONFIRMED'
+        ) ?? (
+          (currentRes?.status === 'PENDING' || currentRes?.status === 'CONFIRMED') ? currentRes : null
+        );
+
+        const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied;
+        const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied;
+        const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked;
+        const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
+        const hasActions    = canSeat || canArrive || canComplete || canOpenDetails;
+
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
+            <div
+              className="fixed z-50 bg-iron-elevated border border-iron-border/55 rounded-xl py-1 min-w-[11rem]"
+              style={{ left: ctxMenu.x, top: ctxMenu.y, boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.32)' }}
+            >
+              <div className="px-3 py-1.5 border-b border-iron-border/50 mb-1">
+                <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">{t.name}</span>
+              </div>
+
+              {/* Primary operational actions */}
+              {canSeat && (
+                <button
+                  onClick={() => { onContextMenuSeat!({ ...seatableRes!, tableId: t.id }); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxSeat}
+                </button>
+              )}
+              {canArrive && (
+                <button
+                  onClick={() => { onContextMenuArrive!(seatableRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxMarkArrived}
+                </button>
+              )}
+              {canComplete && (
+                <button
+                  onClick={() => { onContextMenuComplete!(currentRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxComplete}
+                </button>
+              )}
+              {canOpenDetails && (
+                <button
+                  onClick={() => { onContextMenuOpenDetails!(isOccupied ? currentRes! : seatableRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxOpenDetails}
+                </button>
+              )}
+
+              {/* Divider before lock/unlock */}
+              {hasActions && !t.locked && <div className="border-t border-iron-border/40 my-1" />}
+
+              {t.locked ? (
+                <button
+                  onClick={() => { onUnlockTable?.(t.id); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.unlockTable}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { onLockTable?.(t); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs text-iron-muted hover:bg-iron-bg hover:text-iron-text transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.lockTable}
+                </button>
+              )}
             </div>
-            {ctxMenu.table.locked ? (
-              <button
-                onClick={() => { onUnlockTable?.(ctxMenu.table.id); setCtxMenu(null); }}
-                className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
-              >
-                {T.floorBoard.unlockTable}
-              </button>
-            ) : (
-              <button
-                onClick={() => { onLockTable?.(ctxMenu.table); setCtxMenu(null); }}
-                className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
-              >
-                {T.floorBoard.lockTable}
-              </button>
-            )}
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* Locked table warning */}
       {lockedWarning && !pickMode && (

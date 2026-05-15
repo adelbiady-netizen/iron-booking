@@ -479,13 +479,13 @@ export default function TableQuickPanel({
                       <Btn label={T.guestDrawer.actionConfirm} cls={btnBlue}
                         onClick={() => quick(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed, true)} />
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen}
-                        onClick={() => { onSeat(res); onClose(); }}
+                        onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate} />
                     </>)}
 
                     {res.status === 'CONFIRMED' && (
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen}
-                        onClick={() => { onSeat(res); onClose(); }}
+                        onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate} />
                     )}
 

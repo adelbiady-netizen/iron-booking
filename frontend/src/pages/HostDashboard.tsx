@@ -1025,6 +1025,34 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, floorTables, showToast]);
 
+  const handleContextMenuComplete = useCallback(async (res: Reservation) => {
+    try {
+      const updated = await api.reservations.complete(res.id);
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      setRefreshKey(k => k + 1);
+      showToast(T.guestDrawer.toastCompleted, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    }
+  }, [showToast]);
+
+  const handleContextMenuOpenDetails = useCallback((res: Reservation) => {
+    const enriched = reservations.find(r => r.id === res.id) ?? res;
+    setQuickTable(null);
+    setSelectedRes(enriched);
+  }, [reservations]);
+
+  const handleContextMenuArrive = useCallback(async (res: Reservation) => {
+    try {
+      const updated = await api.reservations.markArrived(res.id);
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      setRefreshKey(k => k + 1);
+      showToast(T.guestDrawer.toastArrived, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    }
+  }, [showToast]);
+
   const handleContextMenuMove = useCallback(async (res: Reservation) => {
     let sug: BackendTableSuggestion[] = [];
     try {
@@ -1342,6 +1370,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onReorganizeTableClick={handleReorganizeTableClick}
           hoveredResId={hoveredResId}
           drawerOpen={!!(selectedRes || createMode)}
+          onContextMenuSeat={handleContextMenuSeat}
+          onContextMenuComplete={handleContextMenuComplete}
+          onContextMenuOpenDetails={handleContextMenuOpenDetails}
+          onContextMenuArrive={handleContextMenuArrive}
         />
 
         {/* Panel toggle handle — always visible between floor and panel */}
