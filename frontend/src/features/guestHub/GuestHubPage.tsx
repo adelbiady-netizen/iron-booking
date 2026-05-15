@@ -204,9 +204,28 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
           padding: '12px 20px',
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em' }}>
-          {vm.name}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {vm.logoUrl && (
+            <div style={{
+              width: 24, height: 24, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
+              background: C.elevated, border: `1px solid ${C.border}`,
+            }}>
+              <img
+                src={vm.logoUrl}
+                alt=""
+                width={24}
+                height={24}
+                loading="lazy"
+                decoding="async"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          )}
+          <span style={{ fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em' }}>
+            {vm.name}
+          </span>
+        </div>
         <button
           type="button"
           className="gh-cta"
@@ -225,23 +244,20 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <div ref={heroRef} style={{ position: 'relative', width: '100%', height: 'min(72vw, 380px)', overflow: 'hidden' }}>
-        {vm.coverImageUrl ? (
-          /* Real cover photo */
+        {/* Gradient always rendered underneath as fallback layer */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(160deg, #3D1E0A 0%, #1E1008 40%, #0C0A09 100%)',
+        }} />
+        {vm.coverImageUrl && (
           <img
             src={vm.coverImageUrl}
             alt={`${vm.name} — cover`}
+            loading="eager"
+            decoding="async"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={e => {
-              // Image failed to load — hide it and let the gradient beneath show
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-            }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
-        ) : (
-          /* Premium gradient fallback — warm cinematic amber-to-black */
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(160deg, #3D1E0A 0%, #1E1008 40%, #0C0A09 100%)',
-          }} />
         )}
         {/* Candlelight glow layer */}
         <div style={{
@@ -258,6 +274,24 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
         }} />
         {/* Restaurant identity */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 20px 28px' }}>
+          {vm.logoUrl && (
+            <div style={{
+              width: 48, height: 48, borderRadius: 12, overflow: 'hidden', marginBottom: 14,
+              background: C.elevated, border: `1px solid rgba(255,255,255,0.12)`,
+              boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+            }}>
+              <img
+                src={vm.logoUrl}
+                alt={`${vm.name} logo`}
+                width={48}
+                height={48}
+                loading="eager"
+                decoding="async"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          )}
           <h1 style={{
             fontSize: 'clamp(28px, 8vw, 42px)',
             fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.1, margin: 0,
@@ -413,12 +447,14 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                       scrollSnapAlign: 'start',
                     }}
                   >
-                    {/* Dish visual — image if available, gradient fallback otherwise */}
+                    {/* Dish visual — gradient always rendered; image layers on top if available */}
                     <div style={{ height: 120, background: dish.gradient, position: 'relative' }}>
                       {dish.imageUrl && (
                         <img
                           src={dish.imageUrl}
                           alt={dish.name}
+                          loading="lazy"
+                          decoding="async"
                           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                         />

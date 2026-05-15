@@ -46,8 +46,9 @@ export default function GuestHubSkeleton() {
           background: 'linear-gradient(160deg, #201A12 0%, #141210 60%, #0C0A09 100%)',
           borderRadius: 0,
         }} />
-        {/* Simulated title block */}
+        {/* Simulated identity block — logo bone + title + tagline */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 20px 28px' }}>
+          <Bone width={48} height={48} radius={12} style={{ marginBottom: 14 }} />
           <Bone width={200} height={36} radius={8} style={{ marginBottom: 10 }} />
           <Bone width={280} height={14} radius={5} />
         </div>

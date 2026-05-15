@@ -57,6 +57,7 @@ export interface GuestHubViewModel {
   phone: string | null;
   address: string | null;
   directionsUrl: string | null;
+  logoUrl: string | null;
   coverImageUrl: string | null;
   primaryColor: string;       // safe default: '#C9A96E'
   accentColor: string;        // safe default: '#8C6F3E'

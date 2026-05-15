@@ -202,6 +202,7 @@ export function mapGuestHub(api: ApiGuestHub): GuestHubViewModel {
     phone:         api.branding?.phone ?? null,
     address:       api.branding?.address ?? null,
     directionsUrl: api.branding?.directionsUrl ?? null,
+    logoUrl:       api.branding?.logoUrl       ?? null,
     coverImageUrl: api.branding?.coverImageUrl ?? null,
     primaryColor:  api.branding?.primaryColor ?? '#C9A96E',
     accentColor:   api.branding?.accentColor  ?? '#8C6F3E',
