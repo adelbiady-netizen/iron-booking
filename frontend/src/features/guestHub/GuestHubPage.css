@@ -95,3 +95,18 @@
 .gh-dish-row::-webkit-scrollbar {
   display: none;                 /* Chrome / Safari / new Edge */
 }
+
+/* ── Loading skeleton — gentle pulse, not harsh shimmer ─────────────────── */
+.gh-skeleton-bone {
+  animation: gh-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes gh-pulse {
+  0%,  100% { opacity: 1;    }
+  50%        { opacity: 0.55; }
+}
+
+/* ── QR redirect — gold ring spinner ─────────────────────────────────────── */
+@keyframes gh-spin {
+  to { transform: rotate(360deg); }
+}

@@ -13,7 +13,8 @@ import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import AccessibilityPage from './pages/legal/AccessibilityPage';
 import ContactPage from './pages/legal/ContactPage';
-import GuestHubPage from './features/guestHub/GuestHubPage';
+import GuestHubPage       from './features/guestHub/GuestHubPage';
+import GuestHubQrRedirect from './features/guestHub/GuestHubQrRedirect';
 import type { AuthState, UserRole } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -133,8 +134,16 @@ export default function App() {
   // naturally. The overflow:hidden on the app shell clips guest page content.
   // ── Guest Hub — isolated QR digital experience (frontend/src/features/guestHub/)
   //    Returns before auth, SSE, and the scale container are initialised.
-  //    Removing: delete features/guestHub/ and revert this line.
-  if (path === '/guest-hub-demo') return <GuestHubPage />;
+  //    Removing: delete features/guestHub/ and revert these lines.
+  if (path.startsWith('/r/')) {
+    const slug = path.split('/')[2];
+    if (slug) return <GuestHubPage slug={slug} />;
+  }
+  if (path.startsWith('/q/')) {
+    const token = path.split('/')[2];
+    if (token) return <GuestHubQrRedirect token={token} />;
+  }
+  if (path === '/guest-hub-demo') return <GuestHubPage slug="ember-stone" />;
 
   if (path === '/privacy')      return <PrivacyPage />;
   if (path === '/terms')        return <TermsPage />;
