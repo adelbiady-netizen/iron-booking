@@ -31,6 +31,15 @@ function applyTransforms(url: string, imageType?: ImageType): string {
   return url.replace('/image/upload/', `/image/upload/${transforms}/`);
 }
 
+// Expose config for diagnostics (values, not secrets — preset name is not a secret).
+export function getCloudinaryDebugInfo(): { cloudName: string; preset: string; configured: boolean } {
+  return {
+    cloudName:  CLOUD_NAME  ?? '(not set)',
+    preset:     UPLOAD_PRESET ?? '(not set)',
+    configured: isCloudinaryConfigured(),
+  };
+}
+
 export function uploadToCloudinary(
   file: File,
   onProgress?: (pct: number) => void,
@@ -46,13 +55,20 @@ export function uploadToCloudinary(
     return Promise.reject(new Error('Image must be smaller than 5 MB'));
   }
 
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME!}/image/upload`;
+
   const fd = new FormData();
   fd.append('file', file);
   fd.append('upload_preset', UPLOAD_PRESET!);
 
+  // Log config in dev so mismatches are immediately visible in the console.
+  if (import.meta.env.DEV) {
+    console.info('[Cloudinary] uploading to:', uploadUrl, '| preset:', UPLOAD_PRESET);
+  }
+
   return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME!}/image/upload`);
+    xhr.open('POST', uploadUrl);
 
     if (onProgress) {
       xhr.upload.addEventListener('progress', e => {
@@ -76,7 +92,17 @@ export function uploadToCloudinary(
       } else {
         try {
           const data = JSON.parse(xhr.responseText) as { error?: { message?: string } };
-          reject(new Error(data.error?.message ?? `Upload failed (${xhr.status})`));
+          const msg  = data.error?.message ?? `Upload failed (${xhr.status})`;
+          if (import.meta.env.DEV) {
+            console.error('[Cloudinary] error response:', xhr.status, xhr.responseText);
+          }
+          // "Unknown API key" means the upload preset is set to SIGNED in Cloudinary.
+          // Fix: Cloudinary dashboard → Settings → Upload presets → set Signing Mode to Unsigned.
+          if (msg.toLowerCase().includes('unknown api key')) {
+            reject(new Error('Upload preset must be set to Unsigned in the Cloudinary dashboard'));
+          } else {
+            reject(new Error(msg));
+          }
         } catch {
           reject(new Error(`Upload failed (${xhr.status})`));
         }
