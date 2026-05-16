@@ -577,16 +577,17 @@ model CallLog {
 // extracted to a separate service without touching operational logic.
 
 model GuestHub {
-  id           String   @id @default(uuid())
-  slug         String   @unique   // canonical URL slug — /hub/ember-stone
-  restaurantId String?            // soft link; hub may outlive a restaurant record
-  isActive     Boolean  @default(true)
-  lastPublishedAt DateTime?       // null = never published
+  id           String               @id @default(uuid())
+  slug         String               @unique   // canonical URL slug — /r/ember-stone
+  restaurantId String?                        // soft link; hub may outlive a restaurant record
+  isActive     Boolean              @default(true)
+  publicStatus GuestHubPublicStatus @default(PUBLISHED) // see enum — DRAFT for new provisions
+  lastPublishedAt DateTime?                  // null = never published
   // i18n: locale of default content. Future: per-entity translation table
   // keyed on (entityType, entityId, locale, field).
-  defaultLocale String?  @default("en")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  defaultLocale String?             @default("en")
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   branding             GuestHubBranding?
   menus                GuestHubMenu[]
@@ -689,6 +690,17 @@ enum DishAvailability {
   SEASONAL      // available only in season; shown with badge
   BREAKFAST_ONLY
   DINNER_ONLY
+}
+
+// Controls public visibility of a Guest Hub page.
+// DRAFT    = provisioned but not yet activated; /r/:slug returns 404.
+// PUBLISHED = live and publicly visible; QR scans resolve normally.
+// INACTIVE  = manually deactivated; /r/:slug returns 404; re-activatable.
+// Default PUBLISHED so existing hubs remain live after schema migration.
+enum GuestHubPublicStatus {
+  DRAFT
+  PUBLISHED
+  INACTIVE
 }
 
 model GuestHubPromotion {

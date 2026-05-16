@@ -5,10 +5,12 @@
 
 import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
-import { ValidationError, NotFoundError } from '../../lib/errors';
+import { ValidationError, NotFoundError, BusinessRuleError } from '../../lib/errors';
 import type { AuthPayload } from '../../middleware/auth';
 
 // ── DTOs (admin-facing, a superset of the public DTO) ─────────────────────────
+
+export type HubPublicStatus = 'DRAFT' | 'PUBLISHED' | 'INACTIVE';
 
 export interface HubAdminBrandingDto {
   id: string;
@@ -27,17 +29,26 @@ export interface HubAdminSocialDto {
   sortOrder: number;
 }
 
+export interface HubAdminQrTokenDto {
+  id: string;
+  token: string;
+  label: string | null;
+  isActive: boolean;
+}
+
 export interface HubAdminDto {
   id: string;
   slug: string;
   restaurantId: string | null;
   isActive: boolean;
+  publicStatus: HubPublicStatus;
   lastPublishedAt: string | null;
   draftUpdatedAt: string | null;
   branding: HubAdminBrandingDto | null;
   socialLinks: HubAdminSocialDto[];
   publishedBranding: HubAdminBrandingDto | null;
   publishedSocialLinks: HubAdminSocialDto[];
+  qrTokens: HubAdminQrTokenDto[];
 }
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -126,6 +137,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       socialLinks:          { orderBy: { sortOrder: 'asc' } },
       publishedBranding:    true,
       publishedSocialLinks: { orderBy: { sortOrder: 'asc' } },
+      qrTokens:             { orderBy: { createdAt: 'asc' } },
     },
   });
   if (!hub) return null;
@@ -144,6 +156,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
     slug:            hub.slug,
     restaurantId:    hub.restaurantId,
     isActive:        hub.isActive,
+    publicStatus:    hub.publicStatus as HubPublicStatus,
     lastPublishedAt: hub.lastPublishedAt?.toISOString() ?? null,
     draftUpdatedAt,
     branding: hub.branding ? {
@@ -175,6 +188,12 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       platform:  s.platform,
       handle:    s.handle,
       sortOrder: s.sortOrder,
+    })),
+    qrTokens: hub.qrTokens.map(q => ({
+      id:       q.id,
+      token:    q.token,
+      label:    q.label,
+      isActive: q.isActive,
     })),
   };
 }
@@ -303,6 +322,41 @@ export async function publishHub(
   return { publishedAt: now.toISOString() };
 }
 
+// ── Activation ────────────────────────────────────────────────────────────────
+
+// Makes the hub publicly visible at /r/:slug. Requires published branding first.
+export async function activateHub(restaurantId: string): Promise<HubAdminDto> {
+  const hub = await prisma.guestHub.findFirst({
+    where:  { restaurantId },
+    select: { id: true, publishedBranding: { select: { id: true } } },
+  });
+  if (!hub) throw new NotFoundError('Hub', restaurantId);
+  if (!hub.publishedBranding) {
+    throw new BusinessRuleError(
+      'Publish branding before activating the Guest Hub. Guests would see an empty page.',
+    );
+  }
+  await prisma.guestHub.update({
+    where: { id: hub.id },
+    data:  { publicStatus: 'PUBLISHED' },
+  });
+  return (await getHubForRestaurant(restaurantId))!;
+}
+
+// Takes the hub offline. /r/:slug returns 404. Can be reactivated at any time.
+export async function deactivateHub(restaurantId: string): Promise<HubAdminDto> {
+  const hub = await prisma.guestHub.findFirst({
+    where:  { restaurantId },
+    select: { id: true },
+  });
+  if (!hub) throw new NotFoundError('Hub', restaurantId);
+  await prisma.guestHub.update({
+    where: { id: hub.id },
+    data:  { publicStatus: 'INACTIVE' },
+  });
+  return (await getHubForRestaurant(restaurantId))!;
+}
+
 // ── Provisioning ───────────────────────────────────────────────────────────────
 
 function slugify(name: string): string {
@@ -351,7 +405,8 @@ export async function provisionHub(restaurantId: string): Promise<HubAdminDto> {
     data: {
       slug,
       restaurantId,
-      isActive: true,
+      isActive:     true,
+      publicStatus: 'DRAFT',  // admin must review and activate explicitly
       branding: {
         create: {
           name:    restaurant.name,

@@ -413,11 +413,13 @@ export const api = {
       get: (restaurantId: string) =>
         request<{
           id: string; slug: string; restaurantId: string | null; isActive: boolean;
+          publicStatus: 'DRAFT' | 'PUBLISHED' | 'INACTIVE';
           lastPublishedAt: string | null; draftUpdatedAt: string | null;
           branding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
           socialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
           publishedBranding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
           publishedSocialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
+          qrTokens: Array<{ id: string; token: string; label: string | null; isActive: boolean }>;
         }>(`/admin/hub/${encodeURIComponent(restaurantId)}`),
       updateBranding: (restaurantId: string, body: { name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null }) =>
         request<{ id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null }>(
@@ -437,12 +439,24 @@ export const api = {
       provision: (restaurantId: string) =>
         request<{
           id: string; slug: string; restaurantId: string | null; isActive: boolean;
+          publicStatus: 'DRAFT' | 'PUBLISHED' | 'INACTIVE';
           lastPublishedAt: string | null; draftUpdatedAt: string | null;
           branding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
           socialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
           publishedBranding: { id: string; name: string; tagline: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null } | null;
           publishedSocialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
+          qrTokens: Array<{ id: string; token: string; label: string | null; isActive: boolean }>;
         }>(`/admin/hub/${encodeURIComponent(restaurantId)}/provision`, { method: 'POST' }),
+      activate: (restaurantId: string) =>
+        request<{ publicStatus: 'DRAFT' | 'PUBLISHED' | 'INACTIVE' }>(
+          `/admin/hub/${encodeURIComponent(restaurantId)}/activate`,
+          { method: 'POST' }
+        ),
+      deactivate: (restaurantId: string) =>
+        request<{ publicStatus: 'DRAFT' | 'PUBLISHED' | 'INACTIVE' }>(
+          `/admin/hub/${encodeURIComponent(restaurantId)}/deactivate`,
+          { method: 'POST' }
+        ),
       menu: {
         get: (restaurantId: string) =>
           request<{

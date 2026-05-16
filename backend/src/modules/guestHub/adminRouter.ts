@@ -12,6 +12,8 @@ import {
   upsertHubBranding,
   replaceHubSocialLinks,
   publishHub,
+  activateHub,
+  deactivateHub,
   provisionHub,
 } from './adminService';
 import { getHubDraftBySlug } from './service';
@@ -91,6 +93,25 @@ router.put('/:restaurantId/social', scopeToRestaurant, async (req: Request, res:
       : [];
     const updated = await replaceHubSocialLinks(hub.id, links, req.auth);
     return res.json({ links: updated });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/activate ────────────────────────────────
+// Sets publicStatus = PUBLISHED, making /r/:slug visible to guests.
+// Requires published branding. Idempotent: re-activates INACTIVE hubs too.
+router.post('/:restaurantId/activate', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await activateHub(String(req.params['restaurantId']));
+    return res.json(hub);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/deactivate ──────────────────────────────
+// Sets publicStatus = INACTIVE, taking /r/:slug offline without deleting data.
+router.post('/:restaurantId/deactivate', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await deactivateHub(String(req.params['restaurantId']));
+    return res.json(hub);
   } catch (err) { next(err); }
 });
 

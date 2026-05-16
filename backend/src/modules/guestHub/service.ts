@@ -180,6 +180,9 @@ function shapeHub(
 export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
   const hub = await queryHub({ slug, isActive: true });
   if (!hub) return null;
+  // Only PUBLISHED hubs are publicly visible. DRAFT and INACTIVE hubs return 404.
+  // Existing hubs received publicStatus=PUBLISHED as default during schema migration.
+  if (hub.publicStatus !== 'PUBLISHED') return null;
   return shapeHub(hub, false);
 }
 
@@ -196,8 +199,10 @@ export async function getHubDraftBySlug(slug: string): Promise<GuestHubDto | nul
 export async function resolveQrToken(token: string): Promise<string | null> {
   const record = await prisma.guestHubQrToken.findUnique({
     where:  { token },
-    select: { isActive: true, hub: { select: { slug: true, isActive: true } } },
+    select: { isActive: true, hub: { select: { slug: true, isActive: true, publicStatus: true } } },
   });
   if (!record || !record.isActive || !record.hub.isActive) return null;
+  // QR scans only work for PUBLISHED hubs — DRAFT/INACTIVE resolve to null (QR error page)
+  if (record.hub.publicStatus !== 'PUBLISHED') return null;
   return record.hub.slug;
 }

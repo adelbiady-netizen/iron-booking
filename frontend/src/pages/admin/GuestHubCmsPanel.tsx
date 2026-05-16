@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
 import GuestHubMenuPanel from './GuestHubMenuPanel';
+import GuestHubQrPanel from './GuestHubQrPanel';
 
 // ── Types (mirrors backend HubAdminDto) ───────────────────────────────────────
 
@@ -28,16 +29,25 @@ interface HubSocial {
   sortOrder: number;
 }
 
+interface HubQrToken {
+  id: string;
+  token: string;
+  label: string | null;
+  isActive: boolean;
+}
+
 interface HubData {
   id: string;
   slug: string;
   isActive: boolean;
+  publicStatus: 'DRAFT' | 'PUBLISHED' | 'INACTIVE';
   lastPublishedAt: string | null;
   draftUpdatedAt: string | null;
   branding: HubBranding | null;
   socialLinks: HubSocial[];
   publishedBranding: HubBranding | null;
   publishedSocialLinks: HubSocial[];
+  qrTokens: HubQrToken[];
 }
 
 type BrandingForm = {
@@ -119,7 +129,7 @@ const ALLOWED_PLATFORMS = ['instagram', 'tiktok', 'website', 'facebook', 'twitte
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: string }) {
-  const [activeTab, setActiveTab] = useState<'branding' | 'menu'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'menu' | 'qr'>('branding');
   const [status, setStatus] = useState<'loading' | 'not_found' | 'ready' | 'error'>('loading');
   const [hub,    setHub]    = useState<HubData | null>(null);
 
@@ -144,6 +154,10 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   const [provisioning,   setProvisioning]   = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
 
+  // Activate / deactivate
+  const [activating,    setActivating]    = useState(false);
+  const [activateError, setActivateError] = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
   function showToast(msg: string) {
@@ -164,6 +178,28 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     } finally {
       setProvisioning(false);
     }
+  }
+
+  async function activate() {
+    setActivating(true);
+    setActivateError(null);
+    try {
+      const result = await api.admin.guestHub.activate(restaurantId);
+      setHub(prev => prev ? { ...prev, publicStatus: result.publicStatus } : prev);
+      showToast('Guest Hub is now live');
+    } catch (err) {
+      setActivateError(err instanceof ApiError ? err.message : 'Failed to activate');
+    } finally { setActivating(false); }
+  }
+
+  async function deactivate() {
+    setActivating(true);
+    setActivateError(null);
+    try {
+      const result = await api.admin.guestHub.deactivate(restaurantId);
+      setHub(prev => prev ? { ...prev, publicStatus: result.publicStatus } : prev);
+      showToast('Guest Hub taken offline');
+    } finally { setActivating(false); }
   }
 
   async function publish() {
@@ -451,7 +487,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-iron-border">
-        {(['branding', 'menu'] as const).map(tab => (
+        {(['branding', 'menu', 'qr'] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -462,7 +498,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 : 'border-transparent text-iron-muted hover:text-iron-text'
             }`}
           >
-            {tab}
+            {tab === 'qr' ? 'QR' : tab}
           </button>
         ))}
       </div>
@@ -472,48 +508,111 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         <GuestHubMenuPanel restaurantId={restaurantId} />
       )}
 
+      {/* QR tab */}
+      {activeTab === 'qr' && (
+        <GuestHubQrPanel
+          slug={hub.slug}
+          qrTokens={hub.qrTokens}
+          publicStatus={hub.publicStatus}
+        />
+      )}
+
       {/* Branding tab content below (publish bar + sections) */}
       {activeTab === 'branding' && <>
 
-      {/* Publish bar */}
-      <div className={`rounded-xl border px-5 py-4 flex items-center justify-between gap-4 ${
-        hasUnpublishedChanges
-          ? 'bg-amber-950/30 border-amber-700/40'
-          : 'bg-iron-card border-iron-border'
-      }`}>
-        <div>
-          {hasUnpublishedChanges ? (
-            <>
-              <p className="text-sm font-medium text-amber-300">Unpublished changes</p>
-              <p className="text-xs text-amber-400/70 mt-0.5">
-                {hub.lastPublishedAt
-                  ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}`
-                  : 'Never published — visitors see no content until you publish'}
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-iron-text">Published</p>
-              <p className="text-xs text-iron-muted mt-0.5">
-                {hub.lastPublishedAt ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}` : ''}
-              </p>
-            </>
-          )}
-          {publishError && <p className="text-xs text-red-400 mt-1">{publishError}</p>}
+      {/* Lifecycle bar */}
+      <div className="rounded-xl border border-iron-border bg-iron-card overflow-hidden">
+
+        {/* Row 1 — Page visibility */}
+        {(() => {
+          const s = hub.publicStatus;
+          const isLive     = s === 'PUBLISHED';
+          const isInactive = s === 'INACTIVE';
+          const canActivate = s !== 'PUBLISHED' && !!hub.publishedBranding;
+          return (
+            <div className={`px-5 py-3.5 flex items-center justify-between gap-4 ${
+              isLive     ? 'bg-emerald-950/30 border-b border-emerald-900/40' :
+              isInactive ? 'bg-amber-950/20 border-b border-amber-900/30'    :
+              'border-b border-iron-border'
+            }`}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400' : isInactive ? 'bg-amber-400' : 'bg-iron-muted'}`} />
+                  <p className={`text-sm font-semibold ${isLive ? 'text-emerald-400' : isInactive ? 'text-amber-300' : 'text-iron-muted'}`}>
+                    {isLive ? 'Live — visible to guests' : isInactive ? 'Inactive — page offline' : 'Draft — not yet live'}
+                  </p>
+                </div>
+                <p className="text-xs text-iron-muted/70 mt-0.5 ml-3.5">
+                  {isLive     ? `Guests reach this page at /r/${hub.slug}` :
+                   isInactive ? 'Reactivate to restore public access' :
+                   hub.publishedBranding
+                     ? 'Content is published — click Activate to go live'
+                     : 'Publish branding first, then activate'}
+                </p>
+                {activateError && <p className="text-xs text-red-400 mt-1 ml-3.5">{activateError}</p>}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {canActivate && (
+                  <button
+                    type="button"
+                    onClick={activate}
+                    disabled={activating}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded transition-colors disabled:opacity-50"
+                  >
+                    {activating ? 'Activating…' : isInactive ? 'Reactivate' : 'Activate'}
+                  </button>
+                )}
+                {isLive && (
+                  <button
+                    type="button"
+                    onClick={deactivate}
+                    disabled={activating}
+                    className="px-3 py-1.5 text-xs font-medium border border-iron-border text-iron-muted hover:text-red-400 hover:border-red-900/50 rounded transition-colors disabled:opacity-50"
+                  >
+                    {activating ? '…' : 'Deactivate'}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Row 2 — Content state */}
+        <div className="px-5 py-3.5 flex items-center justify-between gap-4">
+          <div>
+            {hasUnpublishedChanges ? (
+              <>
+                <p className="text-sm font-medium text-amber-300">Unpublished content changes</p>
+                <p className="text-xs text-amber-400/70 mt-0.5">
+                  {hub.lastPublishedAt
+                    ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}`
+                    : 'Never published — activate requires publishing first'}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-iron-text">Content published</p>
+                <p className="text-xs text-iron-muted mt-0.5">
+                  {hub.lastPublishedAt ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}` : ''}
+                </p>
+              </>
+            )}
+            {publishError && <p className="text-xs text-red-400 mt-1">{publishError}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={publish}
+            disabled={publishBusy || !hub.branding}
+            title={!hub.branding ? 'Save branding first' : undefined}
+            className={`px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0 ${
+              hasUnpublishedChanges
+                ? 'bg-amber-500 hover:bg-amber-400 text-stone-900'
+                : 'bg-iron-card border border-iron-border text-iron-muted hover:text-iron-text'
+            }`}
+          >
+            {publishBusy ? 'Publishing…' : 'Publish'}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={publish}
-          disabled={publishBusy || !hub.branding}
-          title={!hub.branding ? 'Save branding first' : undefined}
-          className={`px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0 ${
-            hasUnpublishedChanges
-              ? 'bg-amber-500 hover:bg-amber-400 text-stone-900'
-              : 'bg-iron-card border border-iron-border text-iron-muted hover:text-iron-text'
-          }`}
-        >
-          {publishBusy ? 'Publishing…' : 'Publish'}
-        </button>
       </div>
 
       {/* ── Branding ────────────────────────────────────────────────────────────── */}
