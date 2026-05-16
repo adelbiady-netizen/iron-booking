@@ -20,6 +20,7 @@ export interface HubAdminBrandingDto {
   address: string | null;
   logoUrl: string | null;
   coverImageUrl: string | null;
+  primaryColor: string | null;
 }
 
 export interface HubAdminSocialDto {
@@ -34,6 +35,8 @@ export interface HubAdminQrTokenDto {
   token: string;
   label: string | null;
   isActive: boolean;
+  // Future: { tableName?, zone?, campaign?, source? }
+  metadata: Record<string, unknown> | null;
 }
 
 export interface HubAdminDto {
@@ -167,6 +170,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       address:       hub.branding.address,
       logoUrl:       hub.branding.logoUrl,
       coverImageUrl: hub.branding.coverImageUrl,
+      primaryColor:  hub.branding.primaryColor,
     } : null,
     socialLinks: hub.socialLinks.map(s => ({
       id:        s.id,
@@ -182,6 +186,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       address:       hub.publishedBranding.address,
       logoUrl:       hub.publishedBranding.logoUrl,
       coverImageUrl: hub.publishedBranding.coverImageUrl,
+      primaryColor:  null, // published branding snapshot doesn't store primaryColor yet
     } : null,
     publishedSocialLinks: hub.publishedSocialLinks.map(s => ({
       id:        s.id,
@@ -194,6 +199,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       token:    q.token,
       label:    q.label,
       isActive: q.isActive,
+      metadata: q.metadata as Record<string, unknown> | null,
     })),
   };
 }
@@ -235,6 +241,7 @@ export async function upsertHubBranding(
     address:       result.address,
     logoUrl:       result.logoUrl,
     coverImageUrl: result.coverImageUrl,
+    primaryColor:  result.primaryColor,
   };
 }
 

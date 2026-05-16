@@ -790,6 +790,9 @@ model GuestHubPublishedSocialLink {
 }
 
 // Stable opaque token mapped to a hub slug — slug can change, token never does.
+// metadata is reserved for future table-aware context (Phase 103+).
+// Structured as { tableName?, zone?, campaign?, source? } — stored as JSON so
+// new attributes don't require schema migrations.
 model GuestHubQrToken {
   id        String   @id @default(uuid())
   hubId     String
@@ -797,6 +800,13 @@ model GuestHubQrToken {
   label     String?            // "Table 5 QR", "Entrance QR"
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  // FUTURE: table-aware metadata (Phase 103+)
+  // When table-mode ordering lands, populate: { tableName, zone, campaign, source }
+  // TODO: revoke — set isActive=false, create new token, re-print affected cards
+  // TODO: rotate — atomic revoke + create, preserve label, audit old token
+  // TODO: archive — soft-delete with retainedUntil for attribution reporting
+  metadata  Json?
 
   hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 

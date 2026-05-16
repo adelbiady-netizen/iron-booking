@@ -20,6 +20,7 @@ interface HubBranding {
   address: string | null;
   logoUrl: string | null;
   coverImageUrl: string | null;
+  primaryColor: string | null;
 }
 
 interface HubSocial {
@@ -34,6 +35,7 @@ interface HubQrToken {
   token: string;
   label: string | null;
   isActive: boolean;
+  metadata: Record<string, unknown> | null;
 }
 
 interface HubData {
@@ -514,6 +516,9 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
           slug={hub.slug}
           qrTokens={hub.qrTokens}
           publicStatus={hub.publicStatus}
+          brandingName={hub.branding?.name ?? null}
+          brandingTagline={hub.branding?.tagline ?? null}
+          primaryColor={hub.branding?.primaryColor ?? null}
         />
       )}
 
