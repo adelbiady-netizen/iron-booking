@@ -150,8 +150,12 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   const [socialError,   setSocialError]   = useState<string | null>(null);
 
   // Publish
-  const [publishBusy,  setPublishBusy]  = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishBusy,    setPublishBusy]    = useState(false);
+  const [publishError,   setPublishError]   = useState<string | null>(null);
+  const [publishConfirm, setPublishConfirm] = useState(false);
+
+  // Menu summary for publish warnings (fetched silently after hub loads)
+  const [menuSummary, setMenuSummary] = useState<{ cats: number; dishes: number } | null>(null);
 
   // Provision
   const [provisioning,   setProvisioning]   = useState(false);
@@ -169,6 +173,10 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────────
+
+  function handlePublishClick() {
+    setPublishConfirm(true);
+  }
 
   async function provision() {
     setProvisioning(true);
@@ -217,6 +225,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         publishedBranding:    prev.branding,
         publishedSocialLinks: prev.socialLinks,
       } : prev);
+      setPublishConfirm(false);
       showToast('Published successfully');
     } catch (err) {
       setPublishError(err instanceof ApiError ? err.message : 'Failed to publish');
@@ -239,6 +248,28 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   }, [restaurantId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (status !== 'ready') return;
+    void (async () => {
+      try {
+        const data = await api.admin.guestHub.menu.get(restaurantId) as {
+          menus: Array<{ categories: Array<{ dishes: unknown[] }> }>;
+        };
+        let cats = 0;
+        let dishes = 0;
+        for (const menu of data.menus) {
+          cats += menu.categories.length;
+          for (const cat of menu.categories) {
+            dishes += cat.dishes.length;
+          }
+        }
+        setMenuSummary({ cats, dishes });
+      } catch {
+        // silent — warnings are best-effort
+      }
+    })();
+  }, [status, restaurantId]);
 
   // ── Branding edit ─────────────────────────────────────────────────────────────
 
@@ -431,6 +462,16 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   const draftPreviewUrl = `/r-preview/${hub.slug}`;
   const liveUrl         = `https://www.ironbooking.com/r/${hub.slug}`;
 
+  const publishWarnings: Array<{ key: string; text: string }> = [];
+  if (!hub.branding?.logoUrl)        publishWarnings.push({ key: 'logo',     text: 'No logo — guests will see a text-only header' });
+  if (!hub.branding?.coverImageUrl)  publishWarnings.push({ key: 'cover',    text: 'No cover image — page will have a plain background' });
+  if (!hub.branding?.phone)          publishWarnings.push({ key: 'phone',    text: 'No phone number — guests cannot call to book' });
+  if (!hub.branding?.address)        publishWarnings.push({ key: 'address',  text: "No address — guests won't know your location" });
+  if (menuSummary !== null && menuSummary.cats === 0)
+    publishWarnings.push({ key: 'nocats',   text: 'No menu categories — the menu section will appear empty' });
+  if (menuSummary !== null && menuSummary.cats > 0 && menuSummary.dishes === 0)
+    publishWarnings.push({ key: 'nodishes', text: 'Menu has categories but no dishes yet' });
+
   const hasUnpublishedChanges = !hub.lastPublishedAt ||
     (hub.draftUpdatedAt !== null && hub.draftUpdatedAt > hub.lastPublishedAt);
 
@@ -464,19 +505,24 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             href={draftPreviewUrl}
             target="_blank"
             rel="noopener noreferrer"
+            title={`Preview draft at ${draftPreviewUrl}`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-xs font-medium transition-colors"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            Preview draft
+            Preview your page
           </a>
           <a
             href={liveUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-xs font-medium transition-colors"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+              hub.publicStatus === 'PUBLISHED'
+                ? 'border-emerald-700/50 text-emerald-400 hover:text-emerald-300'
+                : 'border-iron-border text-iron-muted hover:text-iron-text'
+            }`}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -603,23 +649,131 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 </p>
               </>
             )}
-            {publishError && <p className="text-xs text-red-400 mt-1">{publishError}</p>}
+            {!publishConfirm && publishError && (
+              <p className="text-xs text-red-400 mt-1">{publishError}</p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={publish}
-            disabled={publishBusy || !hub.branding}
-            title={!hub.branding ? 'Save branding first' : undefined}
-            className={`px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 flex-shrink-0 ${
-              hasUnpublishedChanges
-                ? 'bg-amber-500 hover:bg-amber-400 text-stone-900'
-                : 'bg-iron-card border border-iron-border text-iron-muted hover:text-iron-text'
-            }`}
-          >
-            {publishBusy ? 'Publishing…' : 'Publish'}
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {publishConfirm ? (
+              <button
+                type="button"
+                onClick={() => setPublishConfirm(false)}
+                className="px-3 py-1.5 text-xs font-medium border border-iron-border text-iron-muted hover:text-iron-text rounded transition-colors"
+              >
+                Cancel
+              </button>
+            ) : hasUnpublishedChanges && hub.branding ? (
+              <button
+                type="button"
+                onClick={handlePublishClick}
+                disabled={publishBusy}
+                className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 bg-amber-500 hover:bg-amber-400 text-stone-900"
+              >
+                {publishBusy ? 'Publishing…' : 'Review & publish →'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="px-4 py-2 rounded text-sm font-medium bg-iron-card border border-iron-border text-iron-muted opacity-50 cursor-default flex items-center gap-1.5"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Up to date
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Row 3 — Live URL (only when published) */}
+        {hub.publicStatus === 'PUBLISHED' && (
+          <div className="px-5 py-3 border-t border-emerald-900/30 flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 min-w-0 flex-1">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              <span className="font-mono truncate">ironbooking.com/r/{hub.slug}</span>
+            </div>
+            {hub.qrTokens.filter(t => t.isActive).length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300 text-[11px] font-medium flex-shrink-0">
+                {hub.qrTokens.filter(t => t.isActive).length} QR active
+              </span>
+            )}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <CopyButton text={liveUrl} />
+              <a
+                href={liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1 text-xs rounded border border-emerald-700/50 text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                Open ↗
+              </a>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Pre-publish review panel */}
+      {publishConfirm && (
+        <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 overflow-hidden">
+          <div className="px-5 py-4 border-b border-amber-700/30">
+            <p className="text-sm font-semibold text-amber-300">Review before publishing</p>
+            <p className="text-xs text-amber-400/70 mt-0.5 leading-relaxed">
+              These items won't block publishing but may affect how guests see your page.
+            </p>
+          </div>
+          <div className="px-5 py-4">
+            {publishWarnings.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-400">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Everything looks good — ready to publish
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {publishWarnings.map(w => (
+                  <li key={w.key} className="flex items-start gap-2 text-xs text-amber-300 leading-relaxed">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 flex-shrink-0">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/>
+                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    {w.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {publishError && (
+            <div className="px-5 pb-3">
+              <p className="text-xs text-red-400">{publishError}</p>
+            </div>
+          )}
+          <div className="px-5 py-4 border-t border-amber-700/30 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void publish()}
+              disabled={publishBusy}
+              className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              {publishBusy ? 'Publishing…' : 'Publish now'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPublishConfirm(false)}
+              disabled={publishBusy}
+              className="px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50 border border-iron-border text-iron-muted hover:text-iron-text"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Branding ────────────────────────────────────────────────────────────── */}
       <section className="bg-iron-card border border-iron-border rounded-xl overflow-hidden">
@@ -817,6 +971,26 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       </>}
 
     </div>
+  );
+}
+
+// ── Copy button ───────────────────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      }}
+      className="px-2 py-1 text-xs rounded border border-iron-border text-iron-muted hover:text-iron-text transition-colors flex-shrink-0"
+    >
+      {copied ? 'Copied ✓' : 'Copy'}
+    </button>
   );
 }
 
