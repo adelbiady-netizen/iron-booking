@@ -5,7 +5,7 @@
 // ISOLATION: no reservation, waitlist, floor, or SSE imports.
 
 import { useState, useEffect, useCallback } from 'react';
-import { api, ApiError } from '../../api';
+import { api, ApiError, BASE } from '../../api';
 
 // ── Local types (mirror backend DTOs) ────────────────────────────────────────
 
@@ -182,9 +182,14 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
   // so the form and error state stay mounted during the background fetch.
   const refreshTree = useCallback(async () => {
     try {
+      console.log('[DIAG refreshTree] fetching menu tree for restaurantId:', restaurantId);
       const data = await api.admin.guestHub.menu.get(restaurantId);
+      console.log('[DIAG refreshTree] tree received, menus:', (data as MenuTree).menus.length,
+        'categories:', (data as MenuTree).menus.flatMap(m => m.categories).map(c => c.name));
       setTree(data as MenuTree);
-    } catch { /* silent — tree stays as-is, save outcome already handled */ }
+    } catch (e) {
+      console.error('[DIAG refreshTree] failed:', e);
+    }
   }, [restaurantId]);
 
   useEffect(() => { void reload(); }, [reload]);
@@ -256,6 +261,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
   // ── Save: category ──────────────────────────────────────────────────────────
 
   async function saveCategory() {
+    console.log('[DIAG 1] saveCategory called — view:', JSON.stringify(view), 'catForm:', JSON.stringify(catForm));
     clearForm();
     if (!catForm.name.trim()) {
       setFieldErrs({ name: 'Category name is required' });
@@ -266,24 +272,29 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
     setBusy(true);
     try {
       if (isNew) {
-        const created = await api.admin.guestHub.menu.createCategory(restaurantId, {
-          name:        catForm.name.trim(),
-          description: catForm.description.trim() || null,
-        });
+        const payload = { name: catForm.name.trim(), description: catForm.description.trim() || null };
+        console.log('[DIAG 2] POST payload:', JSON.stringify(payload));
+        console.log('[DIAG 3] POST URL:', `${BASE}/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories`);
+        const created = await api.admin.guestHub.menu.createCategory(restaurantId, payload);
+        console.log('[DIAG 4] createCategory response:', JSON.stringify(created));
         await refreshTree();
         showToast('Category created');
+        console.log('[DIAG 7] setView cat-dishes catId:', created.id);
         setView({ kind: 'cat-dishes', catId: created.id });
       } else if (editId) {
-        await api.admin.guestHub.menu.updateCategory(restaurantId, editId, {
-          name:        catForm.name.trim(),
-          description: catForm.description.trim() || null,
-        });
+        const payload = { name: catForm.name.trim(), description: catForm.description.trim() || null };
+        console.log('[DIAG 2] PATCH payload:', JSON.stringify(payload));
+        console.log('[DIAG 3] PATCH URL:', `${BASE}/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories/${editId}`);
+        await api.admin.guestHub.menu.updateCategory(restaurantId, editId, payload);
+        console.log('[DIAG 4] updateCategory success');
         await refreshTree();
         showToast('Category updated');
+        console.log('[DIAG 7] setView cat-dishes catId:', editId);
         setView({ kind: 'cat-dishes', catId: editId });
       }
     } catch (err) {
       if (err instanceof ApiError) {
+        console.error('[DIAG 5] ApiError — code:', err.code, 'message:', err.message, 'fieldErrors:', JSON.stringify(err.fieldErrors));
         const fe = err.fieldErrors as Record<string, string[]>;
         if (Object.keys(fe).length > 0) {
           setFieldErrs(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ''])));
@@ -293,7 +304,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
           setSaveError(err.message);
         }
       } else {
-        console.error('[saveCategory] unexpected error:', err);
+        console.error('[DIAG 5] unexpected error:', err);
         setSaveError('Failed to save category — please try again');
       }
     } finally { setBusy(false); }

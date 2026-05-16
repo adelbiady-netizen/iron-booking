@@ -329,6 +329,7 @@ export async function createCategory(
   hubId: string,
   body: unknown,
 ): Promise<MenuCategoryAdminDto> {
+  console.log('[DIAG 10a] createCategory called — hubId:', hubId, 'body:', JSON.stringify(body));
   const raw = (body ?? {}) as Record<string, unknown>;
   const { errors, name, description, sortOrder, isHidden } = validateCategoryFields({
     name:        raw.name,
@@ -341,10 +342,12 @@ export async function createCategory(
     errors.name = ['Category name is required'];
   }
   if (Object.keys(errors).length > 0) {
+    console.error('[DIAG 10b] validation failed — errors:', JSON.stringify(errors));
     throw new ValidationError('Validation failed', { fieldErrors: errors });
   }
 
   const menuId = await ensureDefaultMenu(hubId);
+  console.log('[DIAG 10c] menuId:', menuId, 'name to insert:', name);
 
   try {
     const created = await prisma.guestHubMenuCategory.create({
@@ -357,8 +360,10 @@ export async function createCategory(
       },
       include: { dishes: { orderBy: DISH_ORDER } },
     });
+    console.log('[DIAG 10d] prisma.create success — id:', created.id, 'name:', created.name);
     return shapeCategory(created);
   } catch (err) {
+    console.error('[DIAG 10e] prisma.create error:', err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw new ConflictError('A category with this name already exists in this menu');
     }
