@@ -25,8 +25,8 @@ interface RowProps { label: string; value: string; accent?: boolean; warn?: bool
 function Row({ label, value, accent, warn }: RowProps) {
   return (
     <div className="flex justify-between items-baseline gap-3">
-      <span className="text-iron-muted text-xs shrink-0">{label}</span>
-      <span className={`text-xs text-right ${warn ? 'text-orange-400' : accent ? 'text-iron-green-light' : 'text-iron-text'}`}>
+      <span className="text-iron-muted text-xs font-medium shrink-0">{label}</span>
+      <span className={`text-xs text-right font-semibold ${warn ? 'text-orange-400' : accent ? 'text-iron-green-light' : 'text-iron-text'}`}>
         {value}
       </span>
     </div>
@@ -37,8 +37,8 @@ function Ts({ label, ts }: { label: string; ts: string }) {
   const t = fmtHostTime(ts);
   return (
     <div className="flex justify-between">
-      <span className="text-iron-muted text-xs">{label}</span>
-      <span className="text-iron-text text-xs tabular-nums">{t}</span>
+      <span className="text-iron-muted text-xs font-medium">{label}</span>
+      <span className="text-iron-text text-xs font-semibold tabular-nums">{t}</span>
     </div>
   );
 }
@@ -124,7 +124,7 @@ interface FieldProps {
 function Field({ label, children }: FieldProps) {
   return (
     <div className="space-y-1">
-      <label className="text-iron-muted text-xs">{label}</label>
+      <label className="text-iron-muted text-xs font-medium">{label}</label>
       {children}
     </div>
   );
@@ -723,7 +723,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
         </div>
         {/* Destructive */}
-        <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-iron-border/30">
+        <div className="flex gap-1.5 mt-2 pt-2 border-t border-iron-border/30">
           <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
           <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
         </div>
@@ -896,7 +896,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/60 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-4px 0 44px rgba(0,0,0,0.68), -1px 0 0 rgba(255,255,255,0.06)' }}>
 
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-iron-border shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.07) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.32)' }}>
+        <div className="px-4 pt-4 pb-3 border-b border-iron-border shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.07) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.32)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
               {/* Name + VIP */}
@@ -910,7 +910,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Phone — prominent, clickable, copyable */}
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2 mt-1">
                 {res.guestPhone ? (
                   <>
                     <a
@@ -933,12 +933,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     </button>
                   </>
                 ) : (
-                  <span className="text-iron-muted/50 text-xs">No phone</span>
+                  <span className="text-iron-muted/70 text-xs font-medium">No phone</span>
                 )}
               </div>
 
               {/* Status + badges */}
-              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
@@ -965,20 +965,20 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Party + table — compact secondary line */}
-              <div className="flex items-center gap-1.5 mt-2 text-iron-muted text-xs">
+              <div className="flex items-center gap-1.5 mt-1.5 text-iron-text/75 text-xs font-medium">
                 <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
-                    <span className="text-iron-muted/30">·</span>
-                    <span className="text-iron-muted">
+                    <span className="text-iron-muted/50">·</span>
+                    <span>
                       {res.combinedTableIds.length
                         ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
                         : res.table.name}
                     </span>
                   </>
                 )}
-                <span className="text-iron-muted/30">·</span>
-                <span>{formatReservationSource(res.source, locale)}</span>
+                <span className="text-iron-muted/50">·</span>
+                <span className="text-iron-muted/75">{formatReservationSource(res.source, locale)}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -1002,7 +1002,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        <div className="flex-1 overflow-y-auto p-3.5 space-y-4">
 
           {/* Arrival state banner — contextual quick action surfaces the most urgent next step */}
           {(() => {
@@ -1187,10 +1187,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 </p>
                 {others.map(r => (
                   <div key={r.id} className="flex items-center gap-2 py-0.5">
-                    <span className="text-iron-text text-xs font-semibold tabular-nums w-10 shrink-0">{normalizeTime(r.time)}</span>
-                    <span className="text-iron-border text-xs">·</span>
-                    <span className="text-iron-text text-xs truncate flex-1">{r.guestName}</span>
-                    <span className="text-iron-muted text-[11px] shrink-0">{T.common.guests(r.partySize)}</span>
+                    <span className="text-iron-text text-xs font-bold tabular-nums w-10 shrink-0">{normalizeTime(r.time)}</span>
+                    <span className="text-iron-muted/50 text-xs">·</span>
+                    <span className="text-iron-text text-xs font-medium truncate flex-1">{r.guestName}</span>
+                    <span className="text-iron-muted text-[11px] font-medium shrink-0">{T.common.guests(r.partySize)}</span>
                     <span className={`text-[10px] px-1.5 py-px rounded font-medium shrink-0 ${
                       r.status === 'CONFIRMED' ? 'bg-iron-border/15 text-iron-muted' :
                       r.status === 'SEATED'    ? 'bg-iron-green/20 text-iron-green-light' :

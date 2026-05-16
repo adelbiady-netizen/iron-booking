@@ -309,10 +309,10 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG_DARK: Record<string, string> = {
-  AVAILABLE:     'rgba(232,230,226,0.93)',   // slightly brighter neutral — readable in daylight
-  OCCUPIED:      'rgba(220,242,224,0.97)',   // soft barely-green — active presence
-  RESERVED_SOON: 'rgba(241,235,208,0.97)',   // soft barely-amber — imminent arrival
-  RESERVED:      'rgba(213,230,247,0.97)',   // soft barely-blue — committed, calm
+  AVAILABLE:     'rgba(232,230,226,0.93)',   // neutral — readable in daylight
+  OCCUPIED:      'rgba(208,244,216,0.97)',   // green — active presence, reads <0.5s
+  RESERVED_SOON: 'rgba(247,230,188,0.97)',   // amber — imminent arrival, reads <0.5s
+  RESERVED:      'rgba(203,220,248,0.97)',   // blue — committed calm, reads <0.5s
   BLOCKED:       'rgba(30,32,36,0.22)',      // near-invisible — withdrawn
 };
 // Light canvas (#EAEDE6) needs more saturation so status tables read off the pale surface
@@ -394,8 +394,8 @@ function tableRadius(shape: string): string {
   return '12px';  // softer premium corners — hospitality furniture, not a UI button
 }
 
-// Surface gradient — top highlight for depth. Active states stronger; AVAILABLE lifted slightly.
-// Dark: white highlight over dark table surface. Light: subtle shadow over white table surface.
+// Surface gradient — state-tinted top highlight. Active states get a warm/cool wash that reinforces
+// status color without requiring text. Hosts read the table surface before reading the label.
 function tableGradient(_shape: string, status: string, _cls: string, isDark: boolean): string | undefined {
   if (status === 'BLOCKED') return undefined;
   if (!isDark) {
@@ -405,6 +405,18 @@ function tableGradient(_shape: string, status: string, _cls: string, isDark: boo
   if (status === 'AVAILABLE') return [
     'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, transparent 52%)',
     'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
+  ].join(', ');
+  if (status === 'OCCUPIED') return [
+    'linear-gradient(180deg, rgba(134,239,172,0.26) 0%, transparent 50%)',
+    'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
+  ].join(', ');
+  if (status === 'RESERVED_SOON') return [
+    'linear-gradient(180deg, rgba(251,191,36,0.22) 0%, transparent 50%)',
+    'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
+  ].join(', ');
+  if (status === 'RESERVED') return [
+    'linear-gradient(180deg, rgba(147,197,253,0.20) 0%, transparent 50%)',
+    'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
   ].join(', ');
   return [
     'linear-gradient(180deg, rgba(255,255,255,0.50) 0%, transparent 50%)',
@@ -907,7 +919,7 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-4 px-5 py-3 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.09), 0 6px 24px rgba(0,0,0,0.44)' }}>
+      <div className="flex items-center gap-3.5 px-4 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.09), 0 6px 24px rgba(0,0,0,0.44)' }}>
         {/* Live service state — what's happening right now */}
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
@@ -1563,9 +1575,9 @@ export default function FloorBoard({
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`text-xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      <span className="text-iron-muted text-[10px] uppercase tracking-[0.08em] font-medium">{label}</span>
+    <div className="flex items-baseline gap-1">
+      <span className={`text-lg font-bold tabular-nums leading-none ${color}`}>{value}</span>
+      <span className="text-iron-muted text-[10px] uppercase tracking-[0.07em] font-medium">{label}</span>
     </div>
   );
 }
@@ -2611,6 +2623,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
     ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
+  // Stable/recession states — reduce visual weight to let urgent tables surface
+  const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
+  const isFarFutureReserved = table.liveStatus === 'RESERVED' && (nextRes?.minutesUntil ?? 0) > 90;
+  // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
+  const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
 
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,236,253,0.96)'   // soft lavender — held
     : isOverdue ? 'rgba(250,232,232,0.96)'                                            // soft red-tinted — overdue
@@ -2648,17 +2665,23 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : isOverdue ? '0 0 0 2px rgba(239,68,68,0.38)'   // structural ring — always present regardless of animation
     : table.locked ? '0 0 0 2px rgba(245,158,11,0.18)' : undefined;
 
-  let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
+  let opacity = dimmed ? 0.25
+    : table.locked ? 0.55
+    : isLongStable ? 0.90            // stable occupied recedes; urgent states stay full
+    : isFarFutureReserved ? 0.86     // far-future reservations calm down visually
+    : 1;
   let cursor = 'pointer';
 
   // Status-driven border refinements
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (table.liveStatus === 'RESERVED_SOON') {
-      borderColor = 'rgba(217,119,6,0.82)';           // amber — imminent arrival
+      borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
     } else if (table.liveStatus === 'RESERVED') {
-      borderColor = 'rgba(59,130,246,0.40)';           // cool blue — calm, committed
+      borderColor = isFarFutureReserved
+        ? 'rgba(59,130,246,0.22)'                     // far future: muted — nothing to act on yet
+        : 'rgba(59,130,246,0.44)';                    // approaching: clear committed signal
     } else if (isEndingSoon) {
-      borderColor = 'rgba(251,191,36,0.52)';           // warm readiness — the table is preparing to free
+      borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
     } else if (table.liveStatus === 'BLOCKED') {
       borderColor = 'rgba(82,82,91,0.40)';
       borderWidth = 1;
@@ -2772,27 +2795,59 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         ? '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)'
         : '0 0 0 1px rgba(239,68,68,0.55), 0 0 44px rgba(239,68,68,0.22)';
     } else if (table.liveStatus === 'OCCUPIED') {
-      halo = isDark
-        ? '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)'
-        : '0 0 0 1px rgba(22,163,74,0.42), 0 0 40px rgba(22,163,74,0.16)';
+      if (isEndingSoon) {
+        // Ending soon: amber halo — table is about to free, seating opportunity imminent
+        halo = isDark
+          ? '0 0 0 1px rgba(251,191,36,0.40), 0 0 44px rgba(251,191,36,0.20)'
+          : '0 0 0 1px rgba(217,119,6,0.52), 0 0 40px rgba(217,119,6,0.16)';
+      } else if (isLongStable) {
+        // Long stable: quieted green — present but not competing for attention
+        halo = isDark
+          ? '0 0 0 1px rgba(134,239,172,0.12), 0 0 24px rgba(134,239,172,0.06)'
+          : '0 0 0 1px rgba(22,163,74,0.18), 0 0 24px rgba(22,163,74,0.06)';
+      } else {
+        // Active mid-service: standard green presence
+        halo = isDark
+          ? '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)'
+          : '0 0 0 1px rgba(22,163,74,0.42), 0 0 40px rgba(22,163,74,0.16)';
+      }
     } else if (table.liveStatus === 'RESERVED_SOON') {
+      // Arriving very soon: strongest non-overdue halo — host needs to prepare
       halo = isDark
-        ? '0 0 0 1px rgba(251,191,36,0.35), 0 0 40px rgba(251,191,36,0.20)'
-        : '0 0 0 1px rgba(217,119,6,0.50), 0 0 40px rgba(217,119,6,0.20)';
+        ? '0 0 0 1px rgba(251,191,36,0.44), 0 0 48px rgba(251,191,36,0.24)'
+        : '0 0 0 1px rgba(217,119,6,0.58), 0 0 46px rgba(217,119,6,0.22)';
     } else if (table.liveStatus === 'RESERVED') {
-      halo = isDark
-        ? '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)'
-        : '0 0 0 1px rgba(37,99,235,0.38), 0 0 36px rgba(37,99,235,0.14)';
+      halo = isFarFutureReserved
+        ? isDark
+          // Far future: quiet presence — no action needed yet
+          ? '0 0 0 1px rgba(147,197,253,0.12), 0 0 20px rgba(147,197,253,0.05)'
+          : '0 0 0 1px rgba(37,99,235,0.18), 0 0 20px rgba(37,99,235,0.05)'
+        : isDark
+          // Approaching: clear signal — service prep window opening
+          ? '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)'
+          : '0 0 0 1px rgba(37,99,235,0.38), 0 0 36px rgba(37,99,235,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
-      halo = isDark ? '0 0 22px rgba(255,255,255,0.09)' : undefined;
+      halo = isOpportunity
+        // Seating opportunity: green edge — draw eye without urgency alarm
+        ? isDark
+          ? '0 0 0 1px rgba(134,239,172,0.26), 0 0 34px rgba(134,239,172,0.13)'
+          : '0 0 0 1px rgba(22,163,74,0.38), 0 0 32px rgba(22,163,74,0.12)'
+        : isDark ? '0 0 22px rgba(255,255,255,0.09)' : undefined;
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
   }
 
-  // Plate depth — inset edge cue. Dark: white top highlight catches overhead light. Light: subtle shadow.
+  // Plate depth — inset edge cue. Dark: white top highlight + state-tinted left edge catch.
+  // Left edge color mirrors surface temperature: green for occupied, amber for soon, blue for reserved.
+  // This gives tactile status confirmation independent of the text layer.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
+    const leftEdgeColor = !isDark ? 'rgba(0,0,0,0)'
+      : table.liveStatus === 'OCCUPIED'      ? 'rgba(134,239,172,0.22)'
+      : table.liveStatus === 'RESERVED_SOON' ? 'rgba(251,191,36,0.20)'
+      : table.liveStatus === 'RESERVED'      ? 'rgba(147,197,253,0.18)'
+      :                                        'rgba(255,255,255,0.28)';
     const depthShadow = isDark
-      ? 'inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 rgba(255,255,255,0.28), inset -1px 0 0 rgba(0,0,0,0.10), inset 0 -2px 8px rgba(0,0,0,0.16)'
+      ? `inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 ${leftEdgeColor}, inset -1px 0 0 rgba(0,0,0,0.10), inset 0 -2px 8px rgba(0,0,0,0.16)`
       : 'inset 0 1px 0 rgba(0,0,0,0.07), inset 0 -2px 6px rgba(0,0,0,0.09)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
@@ -2823,16 +2878,27 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Class-modulated drop shadow — VIP tables cast a deeper, premium shadow footprint.
   // Pick mode: uniform single shadow — border rings carry status signal, no need for multi-layer GPU work.
   const tableFilter = dimmed ? undefined
-    : pickMode          ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.55))'
+    : pickMode ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.55))'
     : table.liveStatus === 'OCCUPIED'
-                        ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.72)) drop-shadow(0 1px 6px rgba(0,0,0,0.42))'
+    // Shadow density mirrors urgency — overdue comes forward most, stable recedes
+    ? isOverdue
+      ? 'drop-shadow(0 6px 30px rgba(0,0,0,0.84)) drop-shadow(0 2px 8px rgba(220,38,38,0.28))'
+      : isEndingSoon
+      ? 'drop-shadow(0 5px 26px rgba(0,0,0,0.78)) drop-shadow(0 1px 7px rgba(0,0,0,0.44))'
+      : isLongStable
+      ? 'drop-shadow(0 2px 13px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'
+      : 'drop-shadow(0 4px 22px rgba(0,0,0,0.72)) drop-shadow(0 1px 6px rgba(0,0,0,0.42))'
     : table.liveStatus === 'RESERVED_SOON'
-                        ? 'drop-shadow(0 3px 18px rgba(0,0,0,0.60)) drop-shadow(0 1px 5px rgba(0,0,0,0.30))'
+    // Arriving soon: stronger presence — host needs to prepare the table
+    ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.66)) drop-shadow(0 1px 6px rgba(0,0,0,0.34))'
     : table.liveStatus === 'RESERVED'
-                        ? 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'
+    // Far future: recede — approaching: maintain presence
+    ? isFarFutureReserved
+      ? 'drop-shadow(0 1px 10px rgba(0,0,0,0.34)) drop-shadow(0 1px 3px rgba(0,0,0,0.16))'
+      : 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'
     : table.liveStatus === 'BLOCKED'
-                        ? undefined
-                        : 'drop-shadow(0 1px 7px rgba(0,0,0,0.28))';
+    ? undefined
+    : 'drop-shadow(0 1px 7px rgba(0,0,0,0.28))';
 
   return (
   <>
@@ -2942,7 +3008,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 500 }}>
+        <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 600 }}>
           {table.minCovers}–{table.maxCovers}p
         </span>
       )}
@@ -2986,8 +3052,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                     : mr <= 20 ? '#b45309'
                     : '#3f3f46';
                   const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 600;
+                  const timerSize = isOverdue || mr <= 20 ? 12 : 11;
                   return (
-                    <span style={{ fontSize: 11, color: timerColor, fontWeight: timerWeight }}>
+                    <span style={{ fontSize: timerSize, color: timerColor, fontWeight: timerWeight }}>
                       · {timerStr}
                     </span>
                   );
@@ -3027,7 +3094,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
                 {/* Text group — shrinks first; chip stays fixed */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.84, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: 0.92, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
                   <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

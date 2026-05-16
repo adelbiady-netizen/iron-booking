@@ -128,18 +128,18 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-full h-full flex flex-col border-s border-iron-border/50 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.05), -8px 0 40px rgba(0,0,0,0.48)' }}>
+    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
 
       {/* Tab bar + action buttons */}
-      <div className="px-4 pt-3.5 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-2 mb-2.5">
+      <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
+        <div className="flex items-center gap-2 mb-2">
           <div className="flex gap-3 flex-1">
             <button
               onClick={() => setTab('reservations')}
               className={`text-xs pb-2 pt-0.5 transition-colors border-b-2 ${
                 tab === 'reservations'
                   ? 'text-iron-text font-semibold border-iron-green-light/70'
-                  : 'text-iron-muted/70 font-medium hover:text-iron-muted border-transparent'
+                  : 'text-iron-muted/88 font-medium hover:text-iron-muted border-transparent'
               }`}
             >
               {T.reservationPanel.tabReservations}
@@ -149,7 +149,7 @@ export default function ReservationPanel({
               className={`text-xs pb-2 pt-0.5 transition-colors border-b-2 flex items-center gap-1.5 ${
                 tab === 'waitlist'
                   ? 'text-iron-text font-semibold border-iron-green-light/70'
-                  : 'text-iron-muted/70 font-medium hover:text-iron-muted border-transparent'
+                  : 'text-iron-muted/88 font-medium hover:text-iron-muted border-transparent'
               }`}
             >
               {T.reservationPanel.tabWaitlist}
@@ -182,25 +182,25 @@ export default function ReservationPanel({
         </div>
 
         {/* Search — shared across reservations and waitlist tabs */}
-        <div className={tab === 'reservations' ? 'space-y-2 pb-3' : 'pb-3'}>
+        <div className={tab === 'reservations' ? 'space-y-1.5 pb-2.5' : 'pb-2.5'}>
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={T.reservationPanel.searchPlaceholder}
-            className="w-full bg-iron-bg border border-iron-border/60 rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted/70 focus:outline-none focus:border-iron-green/60 transition-colors"
+            className="w-full bg-iron-bg border border-iron-border/60 rounded-lg px-3 py-1.5 text-iron-text text-sm placeholder-iron-muted/70 focus:outline-none focus:border-iron-green/60 transition-colors"
             style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.20)' }}
           />
           {tab === 'reservations' && (
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-0.5 flex-wrap">
               {FILTERS.map(f => (
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
-                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-lg transition-colors ${
                     filter === f.value
-                      ? 'text-iron-text font-medium'
-                      : 'text-iron-muted/75 font-medium hover:text-iron-muted'
+                      ? 'text-iron-text font-semibold'
+                      : 'text-iron-muted font-medium hover:text-iron-text'
                   }`}
                 >
                   {f.label}
@@ -254,7 +254,7 @@ export default function ReservationPanel({
                   return (
                     <div
                       key={r.id}
-                      className="px-3.5 py-3 border-t border-amber-500/15 flex items-center gap-3"
+                      className="px-3.5 py-2.5 border-t border-amber-500/15 flex items-center gap-3"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-white/[0.12] transition-colors ${rowBg}`}
+                  className={`w-full flex items-stretch border-b border-white/[0.18] transition-colors ${rowBg}`}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
@@ -369,12 +369,12 @@ export default function ReservationPanel({
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-4 py-4 min-w-0 touch-manipulation active:bg-white/[0.05] transition-colors"
+                    className="flex-1 text-left px-3.5 py-3 min-w-0 touch-manipulation active:bg-white/[0.05] transition-colors"
                   >
 
                     {/* Row 1 — name + badge */}
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <span className="text-iron-text text-[17px] font-semibold tracking-tight truncate flex-1 leading-snug">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-iron-text text-[16px] font-semibold tracking-tight truncate flex-1 leading-snug">
                         {r.guestName}
                         {r.guest?.isVip && (
                           <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
@@ -383,7 +383,7 @@ export default function ReservationPanel({
                       {!r.guestPhone && (
                         <span
                           title={T.reservationPanel.noPhone}
-                          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-iron-border/40 text-iron-muted/40 font-medium"
+                          className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border border-iron-border/50 text-iron-muted/65 font-medium"
                         >
                           ✆–
                         </span>
@@ -396,12 +396,12 @@ export default function ReservationPanel({
                     {/* Row 2 — time · guests · table */}
                     <div className="flex items-center gap-2">
                       <span className="text-iron-text text-base font-bold tabular-nums">{normalizeTime(r.time)}</span>
-                      <span className="text-iron-muted/30">·</span>
-                      <span className="text-iron-muted/90 text-[13px]">{T.common.guests(r.partySize)}</span>
+                      <span className="text-iron-muted/50">·</span>
+                      <span className="text-iron-text/80 text-[13px] font-medium">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/30">·</span>
-                          <span className="text-iron-muted/90 text-[13px]">{r.table.name}</span>
+                          <span className="text-iron-muted/50">·</span>
+                          <span className="text-iron-text/80 text-[13px] font-medium">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
@@ -426,7 +426,7 @@ export default function ReservationPanel({
 
                     {/* Row 3 — optional signal chips */}
                     {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt) && (
-                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {r.occasion && (
                           <span className="text-xs text-iron-green-light/75 font-medium">{r.occasion}</span>
                         )}
@@ -440,10 +440,10 @@ export default function ReservationPanel({
                           <span className="text-xs text-orange-400 font-medium">{T.reservationPanel.runningLate}</span>
                         )}
                         {!r.isConfirmedByGuest && r.remindedAt && (
-                          <span className="text-xs text-iron-muted/60">{T.reservationPanel.reminded}</span>
+                          <span className="text-xs text-iron-muted/85">{T.reservationPanel.reminded}</span>
                         )}
                         {!r.isConfirmedByGuest && !r.remindedAt && r.confirmationSentAt && (
-                          <span className="text-xs text-iron-muted/60">{T.reservationPanel.smsSent}</span>
+                          <span className="text-xs text-iron-muted/85">{T.reservationPanel.smsSent}</span>
                         )}
                       </div>
                     )}
@@ -464,7 +464,7 @@ export default function ReservationPanel({
             })}
           </div>
 
-          <div className="px-3 py-2.5 border-t border-white/[0.07] text-iron-muted/75 text-xs text-center">
+          <div className="px-3 py-2.5 border-t border-white/[0.12] text-iron-muted text-xs text-center font-medium">
             {T.reservationPanel.showing(visible.length, reservations.length)}
           </div>
         </>

@@ -8,12 +8,12 @@
 
 :root,
 [data-theme="dark"] {
-  --iron-bg:           17 20 17;       /* #111411 — barely lifted from pitch black */
-  --iron-card:         28 32 28;       /* #1C201C — clearly above bg */
-  --iron-elevated:     40 46 40;       /* #282E28 — visibly elevated above card (12 pt gap) */
-  --iron-border:       56 63 56;       /* #383F38 — readable border in daylight */
+  --iron-bg:           22 26 22;       /* lifted from 17 20 17 — reduces daylight absorption */
+  --iron-card:         35 41 35;       /* lifted from 28 32 28 — cleaner surface definition */
+  --iron-elevated:     48 55 48;       /* lifted from 40 46 40 — stronger panel separation */
+  --iron-border:       70 78 70;       /* lifted from 56 63 56 — crisper edges in daylight */
   --iron-text:         255 255 255;    /* #FFFFFF */
-  --iron-muted:        178 186 178;    /* #B2BAB2 — high contrast secondary text */
+  --iron-muted:        200 208 200;    /* lifted from 178 186 178 — much stronger secondary text */
   --iron-green:        75 95 42;       /* #4B5F2A */
   --iron-green-light:  111 138 60;     /* #6F8A3C */
 

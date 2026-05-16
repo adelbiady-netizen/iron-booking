@@ -59,7 +59,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center min-w-[32px] min-h-[32px] px-2 py-1.5 rounded border border-iron-border/50 text-iron-muted hover:text-iron-text hover:border-iron-text/40 transition-colors text-xs leading-none select-none shrink-0 touch-manipulation"
+      className="flex items-center justify-center min-w-[28px] min-h-[28px] px-1.5 py-1 rounded border border-iron-border/50 text-iron-muted hover:text-iron-text hover:border-iron-text/40 transition-colors text-xs leading-none select-none shrink-0 touch-manipulation"
     >
       {children}
     </button>
@@ -87,7 +87,7 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header className="h-14 shrink-0 bg-iron-elevated flex items-center px-4 gap-3" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 28px rgba(0,0,0,0.52)', borderBottom: '1px solid rgba(255,215,130,0.10)' }}>
+    <header className="h-12 shrink-0 bg-iron-elevated flex items-center px-3 gap-2.5" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 28px rgba(0,0,0,0.52)', borderBottom: '1px solid rgba(255,215,130,0.10)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2 mr-1 shrink-0">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.22) 0%, rgba(75,95,42,0.12) 100%)', border: '1px solid rgba(111,138,60,0.25)', boxShadow: '0 0 10px rgba(111,138,60,0.10), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
@@ -152,14 +152,14 @@ export default function TopBar({
           onClick={() => onZoomChange(zoom - zoomStep)}
           disabled={atMin}
           aria-label={T.topBar.zoomOut}
-          className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
+          className="px-1.5 py-1 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
         >
           −
         </button>
         <button
           onClick={() => onZoomChange(100)}
           title={T.topBar.resetZoom}
-          className={`px-2.5 py-1.5 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-12 text-center ${
+          className={`px-2 py-1 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-11 text-center ${
             atNorm ? 'text-iron-muted' : 'text-iron-green-light'
           }`}
         >
@@ -169,7 +169,7 @@ export default function TopBar({
           onClick={() => onZoomChange(zoom + zoomStep)}
           disabled={atMax}
           aria-label={T.topBar.zoomIn}
-          className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
+          className="px-1.5 py-1 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
         >
           +
         </button>
@@ -207,17 +207,17 @@ export default function TopBar({
       <button
         onClick={onThemeChange}
         title={theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}
-        className="text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-md px-2 py-1.5 transition-colors"
+        className="text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-md px-1.5 py-1 transition-colors"
       >
         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       </button>
 
       {/* User / session */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {onGuestsPage && (
           <button
             onClick={onGuestsPage}
-            className="text-iron-muted text-xs border border-iron-border/35 px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+            className="text-iron-muted text-xs border border-iron-border/35 px-2.5 py-1 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
           >
             {T.topBar.guestsButton}
           </button>
@@ -225,7 +225,7 @@ export default function TopBar({
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}
-            className="text-iron-muted text-xs border border-iron-border/35 px-3 py-1.5 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+            className="text-iron-muted text-xs border border-iron-border/35 px-2.5 py-1 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
           >
             {T.topBar.adminButton}
           </button>
@@ -233,7 +233,7 @@ export default function TopBar({
 
         {/* Active host badge (host-selection-aware sessions) */}
         {onSwitchHost ? (
-          <div className="hidden lg:flex items-center gap-1.5 bg-iron-bg border border-iron-border/35 rounded-md px-2.5 py-1">
+          <div className="hidden lg:flex items-center gap-1.5 bg-iron-bg border border-iron-border/35 rounded-md px-2 py-0.5">
             <span className="text-iron-muted text-xs leading-tight">{T.topBar.activeHost(userName)}</span>
             <span className="text-iron-border/60 text-xs">·</span>
             <button
@@ -254,7 +254,7 @@ export default function TopBar({
         {onSwitchHost && (
           <button
             onClick={onSwitchHost}
-            className="lg:hidden text-iron-green-light hover:text-iron-green text-xs border border-iron-green/30 px-2.5 py-1.5 rounded-md transition-colors font-medium"
+            className="lg:hidden text-iron-green-light hover:text-iron-green text-xs border border-iron-green/30 px-2 py-1 rounded-md transition-colors font-medium"
           >
             {T.topBar.switchHost}
           </button>
@@ -262,7 +262,7 @@ export default function TopBar({
 
         <button
           onClick={onLogout}
-          className="text-iron-muted hover:text-iron-text text-xs border border-iron-border/35 px-3 py-1.5 rounded-md transition-colors"
+          className="text-iron-muted hover:text-iron-text text-xs border border-iron-border/35 px-2.5 py-1 rounded-md transition-colors"
         >
           {T.topBar.signOut}
         </button>
