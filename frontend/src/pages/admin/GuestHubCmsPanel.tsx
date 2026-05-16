@@ -514,23 +514,34 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             </svg>
             Preview your page
           </a>
-          <a
-            href={liveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-              hub.publicStatus === 'PUBLISHED'
-                ? 'border-emerald-700/50 text-emerald-400 hover:text-emerald-300'
-                : 'border-iron-border text-iron-muted hover:text-iron-text'
-            }`}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-              <polyline points="15 3 21 3 21 9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-            View live
-          </a>
+          {hub.publicStatus === 'PUBLISHED' ? (
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-700/50 text-emerald-400 hover:text-emerald-300 text-xs font-medium transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              View live
+            </a>
+          ) : (
+            <span
+              title="Hub is not yet live — publish and activate first"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-iron-border text-iron-muted/40 text-xs font-medium cursor-not-allowed select-none"
+              aria-disabled="true"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              View live
+            </span>
+          )}
         </div>
       </div>
 
