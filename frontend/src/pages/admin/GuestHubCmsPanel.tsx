@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
 import GuestHubMenuPanel from './GuestHubMenuPanel';
 import GuestHubQrPanel from './GuestHubQrPanel';
+import ImageUploadField from '../../components/ImageUploadField';
 
 // ── Types (mirrors backend HubAdminDto) ───────────────────────────────────────
 
@@ -665,22 +666,20 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 />
               </Field>
             </div>
-            <Field label="Logo URL" error={brandingErrors.logoUrl}>
-              <Inp
-                value={brandingForm.logoUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))}
-                placeholder="https://..."
-                maxLength={500}
-              />
-            </Field>
-            <Field label="Cover image URL" error={brandingErrors.coverImageUrl}>
-              <Inp
-                value={brandingForm.coverImageUrl}
-                onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))}
-                placeholder="https://..."
-                maxLength={500}
-              />
-            </Field>
+            <ImageUploadField
+              label="Logo"
+              value={brandingForm.logoUrl}
+              onChange={url => setBrandingForm(f => ({ ...f, logoUrl: url }))}
+              error={brandingErrors.logoUrl}
+              hint="Square or landscape — min 200 × 200 px"
+            />
+            <ImageUploadField
+              label="Cover image"
+              value={brandingForm.coverImageUrl}
+              onChange={url => setBrandingForm(f => ({ ...f, coverImageUrl: url }))}
+              error={brandingErrors.coverImageUrl}
+              hint="16:9 recommended — min 1200 × 675 px"
+            />
             {brandingError && (
               <p className="text-sm text-red-400">{brandingError}</p>
             )}
@@ -792,7 +791,6 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       <div className="bg-iron-bg border border-iron-border rounded-xl p-5 text-xs text-iron-muted space-y-1">
         <p className="font-medium text-iron-text text-sm mb-2">Coming in future phases</p>
         <p>• Promotions and events</p>
-        <p>• Image uploads (currently URL-only)</p>
         <p>• Theme and colour customisation</p>
       </div>
 

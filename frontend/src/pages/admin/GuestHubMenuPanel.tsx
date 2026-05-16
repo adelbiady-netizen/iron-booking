@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
+import ImageUploadField from '../../components/ImageUploadField';
 
 // ── Local types (mirror backend DTOs) ────────────────────────────────────────
 
@@ -646,14 +647,12 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   placeholder="vegan, gluten-free"
                 />
               </Field>
-              <Field label="Image URL" error={fieldErrs.imageUrl}>
-                <Inp
-                  value={dishForm.imageUrl}
-                  onChange={e => setDishForm(f => ({ ...f, imageUrl: e.target.value }))}
-                  placeholder="https://..."
-                  maxLength={500}
-                />
-              </Field>
+              <ImageUploadField
+                label="Image"
+                value={dishForm.imageUrl}
+                onChange={url => setDishForm(f => ({ ...f, imageUrl: url }))}
+                error={fieldErrs.imageUrl}
+              />
               <div className="flex items-center gap-6 pt-1">
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-iron-muted hover:text-iron-text">
                   <input
