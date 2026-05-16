@@ -213,7 +213,7 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
     }}>
       {/* Full-bleed image */}
       <div style={{
-        height: 192, background: dish.gradient, position: 'relative',
+        height: 208, background: dish.gradient, position: 'relative',
         opacity: dish.isUnavailable ? 0.5 : 1,
         transition: 'opacity 200ms ease',
       }}>
@@ -256,8 +256,8 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
           </span>
         )}
         <h3 style={{
-          margin: 0, fontSize: 20, fontWeight: 700,
-          letterSpacing: '-0.025em', lineHeight: 1.2,
+          margin: 0, fontSize: 22, fontWeight: 800,
+          letterSpacing: '-0.03em', lineHeight: 1.2,
         }}>
           {dish.name}
         </h3>
@@ -282,8 +282,8 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
         <DietaryPills tags={dish.dietaryTags} />
         {dish.price && (
           <p style={{
-            margin: '14px 0 0', fontWeight: 700, fontSize: 17,
-            letterSpacing: '-0.015em',
+            margin: '14px 0 0', fontWeight: 800, fontSize: 18,
+            letterSpacing: '-0.02em',
             color: dish.isUnavailable ? C.muted : C.gold,
             textDecoration: dish.isUnavailable ? 'line-through' : 'none',
           }}>
@@ -382,7 +382,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
       </div>
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <div ref={heroRef} style={{ position: 'relative', width: '100%', height: 'min(90vw, 520px)', overflow: 'hidden' }}>
+      <div ref={heroRef} style={{ position: 'relative', width: '100%', height: 'min(92vw, 560px)', overflow: 'hidden' }}>
         {/* Deep warm gradient — always rendered under the image as fallback */}
         <div style={{
           position: 'absolute', inset: 0,
@@ -412,20 +412,26 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
           background: 'radial-gradient(ellipse, rgba(201,169,110,0.13) 0%, rgba(201,169,110,0.03) 40%, transparent 70%)',
           pointerEvents: 'none',
         }} />
+        {/* Uniform image darkening — 18% overlay improves text contrast on any photo */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.18)',
+          pointerEvents: 'none',
+        }} />
         {/* Bottom fade — strong, starts high for a clean identity block read */}
         <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '78%',
-          background: `linear-gradient(to bottom, transparent 0%, ${C.bg}99 45%, ${C.bg} 100%)`,
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '84%',
+          background: `linear-gradient(to bottom, transparent 0%, ${C.bg}A0 32%, ${C.bg}DC 56%, ${C.bg} 100%)`,
           pointerEvents: 'none',
         }} />
         {/* Restaurant identity */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 24px 40px' }}>
           {vm.logoUrl && !logoFailed && (
             <div style={{
-              width: 52, height: 52, borderRadius: 14, overflow: 'hidden', marginBottom: 20,
+              width: 52, height: 52, borderRadius: 16, overflow: 'hidden', marginBottom: 20,
               background: C.elevated,
-              border: `1px solid rgba(255,255,255,0.15)`,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.65)',
+              border: `1px solid rgba(255,255,255,0.18)`,
+              boxShadow: '0 4px 28px rgba(0,0,0,0.80)',
             }}>
               <img
                 src={vm.logoUrl}
@@ -442,15 +448,16 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
           {/* Gold accent line — editorial typography anchor */}
           <div style={{ width: 28, height: 2, background: C.gold, borderRadius: 1, marginBottom: 16 }} />
           <h1 style={{
-            fontSize: 'clamp(34px, 9vw, 48px)',
-            fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05, margin: 0,
+            fontSize: 'clamp(36px, 9.5vw, 52px)',
+            fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, margin: 0,
+            textShadow: '0 2px 20px rgba(0,0,0,0.75)',
           }}>
             {vm.name}
           </h1>
           {vm.tagline && (
             <p style={{
               marginTop: 12, fontSize: 15,
-              color: 'rgba(240,235,227,0.62)',
+              color: 'rgba(240,235,227,0.72)',
               letterSpacing: '0.02em', lineHeight: 1.5, marginBottom: 0,
               fontWeight: 400,
             }}>
@@ -551,7 +558,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
             <Rule />
             <div>
               <SectionLabel>Chef's selection</SectionLabel>
-              <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', margin: '10px 0 20px' }}>
+              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
                 From the kitchen
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -569,7 +576,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
             <Rule />
             <div>
               <SectionLabel>Tonight's picks</SectionLabel>
-              <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', margin: '10px 0 20px' }}>
+              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
                 Signature dishes
               </h2>
             </div>
@@ -588,13 +595,13 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                   <article
                     key={dish.id}
                     style={{
-                      flexShrink: 0, width: 192, borderRadius: 16, overflow: 'hidden',
+                      flexShrink: 0, width: 210, borderRadius: 16, overflow: 'hidden',
                       background: C.surface, border: `1px solid ${C.border}`,
                       scrollSnapAlign: 'start',
                     }}
                   >
                     <div style={{
-                      height: 148, background: dish.gradient, position: 'relative',
+                      height: 162, background: dish.gradient, position: 'relative',
                       opacity: dish.isUnavailable ? 0.45 : 1,
                       transition: 'opacity 200ms ease',
                     }}>
@@ -626,7 +633,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                       )}
                       <AvailabilityBadge availability={dish.availability} />
                     </div>
-                    <div style={{ padding: '14px 16px 16px' }}>
+                    <div style={{ padding: '14px 18px 18px' }}>
                       <p style={{ margin: 0, fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.3 }}>
                         {dish.name}
                       </p>
@@ -651,7 +658,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                       <DietaryPills tags={dish.dietaryTags} />
                       {dish.price && (
                         <p style={{
-                          margin: '8px 0 0', fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em',
+                          margin: '8px 0 0', fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em',
                           color: dish.isUnavailable ? C.muted : C.gold,
                           textDecoration: dish.isUnavailable ? 'line-through' : 'none',
                         }}>
@@ -678,7 +685,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
             <Rule />
             <div>
               <SectionLabel>Full menu</SectionLabel>
-              <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', margin: '10px 0 20px' }}>
+              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
                 Explore by category
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -686,22 +693,26 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                   <div
                     key={cat.id}
                     style={{
-                      padding: '16px 18px',
+                      padding: '18px 20px',
                       background: C.surface, border: `1px solid ${C.border}`,
-                      borderRadius: 14,
+                      borderRadius: 16,
                     }}
                   >
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: C.text }}>{cat.name}</p>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: C.text, lineHeight: 1.3 }}>{cat.name}</p>
                     {cat.description && (
                       <p style={{
-                        margin: '4px 0 0', color: C.muted, fontSize: 11, lineHeight: 1.4,
+                        margin: '5px 0 0', color: C.muted, fontSize: 11, lineHeight: 1.45,
                         display: '-webkit-box', WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical', overflow: 'hidden',
                       }}>
                         {cat.description}
                       </p>
                     )}
-                    <p style={{ margin: '5px 0 0', color: C.sub, fontSize: 11 }}>{cat.count} items</p>
+                    <p style={{ margin: '6px 0 0', color: C.sub, fontSize: 11 }}>
+                      {cat.count > 0
+                        ? `${cat.count} ${cat.count === 1 ? 'item' : 'items'}`
+                        : 'Coming soon'}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -715,7 +726,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
             <Rule />
             <div>
               <SectionLabel>Upcoming</SectionLabel>
-              <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', margin: '10px 0 20px' }}>
+              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
                 Events & specials
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
