@@ -178,6 +178,15 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
     }
   }, [restaurantId]);
 
+  // Silent tree refresh used inside save flows — never shows the spinner,
+  // so the form and error state stay mounted during the background fetch.
+  const refreshTree = useCallback(async () => {
+    try {
+      const data = await api.admin.guestHub.menu.get(restaurantId);
+      setTree(data as MenuTree);
+    } catch { /* silent — tree stays as-is, save outcome already handled */ }
+  }, [restaurantId]);
+
   useEffect(() => { void reload(); }, [reload]);
 
   function showToast(msg: string) {
@@ -252,26 +261,26 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
       setFieldErrs({ name: 'Category name is required' });
       return;
     }
+    const isNew  = view.kind === 'new-cat';
+    const editId = view.kind === 'edit-cat' ? view.catId : '';
     setBusy(true);
     try {
-      if (view.kind === 'new-cat') {
-        await api.admin.guestHub.menu.createCategory(restaurantId, {
+      if (isNew) {
+        const created = await api.admin.guestHub.menu.createCategory(restaurantId, {
           name:        catForm.name.trim(),
           description: catForm.description.trim() || null,
         });
+        await refreshTree();
         showToast('Category created');
-      } else if (view.kind === 'edit-cat') {
-        await api.admin.guestHub.menu.updateCategory(restaurantId, view.catId, {
+        setView({ kind: 'cat-dishes', catId: created.id });
+      } else if (editId) {
+        await api.admin.guestHub.menu.updateCategory(restaurantId, editId, {
           name:        catForm.name.trim(),
           description: catForm.description.trim() || null,
         });
+        await refreshTree();
         showToast('Category updated');
-      }
-      await reload();
-      if (view.kind === 'new-cat') {
-        setView({ kind: 'empty' });
-      } else if (view.kind === 'edit-cat') {
-        setView({ kind: 'cat-dishes', catId: view.catId });
+        setView({ kind: 'cat-dishes', catId: editId });
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -284,7 +293,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
           setSaveError(err.message);
         }
       } else {
-        setSaveError('Failed to save category');
+        console.error('[saveCategory] unexpected error:', err);
+        setSaveError('Failed to save category — please try again');
       }
     } finally { setBusy(false); }
   }
@@ -319,7 +329,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
         await api.admin.guestHub.menu.updateDish(restaurantId, catId, view.dishId, body);
         showToast('Dish updated');
       }
-      await reload();
+      await refreshTree();
       setView({ kind: 'cat-dishes', catId });
     } catch (err) {
       if (err instanceof ApiError) {
@@ -332,7 +342,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
           setSaveError(err.message);
         }
       } else {
-        setSaveError('Failed to save dish');
+        console.error('[saveDish] unexpected error:', err);
+        setSaveError('Failed to save dish — please try again');
       }
     } finally { setBusy(false); }
   }
