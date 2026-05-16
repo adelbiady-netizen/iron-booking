@@ -14,6 +14,13 @@ import {
   publishHub,
 } from './adminService';
 import { getHubDraftBySlug } from './service';
+import {
+  getMenuTree,
+  createCategory,
+  updateCategory,
+  createDish,
+  updateDish,
+} from './menuAdminService';
 
 const router = Router();
 
@@ -99,6 +106,67 @@ router.post('/:restaurantId/publish', scopeToRestaurant, async (req: Request, re
     }
     const result = await publishHub(hub.id, req.auth);
     return res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/admin/hub/:restaurantId/menu ──────────────────────────────────────
+// Returns the full menu tree (menus → categories → dishes).
+router.get('/:restaurantId/menu', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await getHubForRestaurant(String(req.params['restaurantId']));
+    if (!hub) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' } });
+    }
+    const tree = await getMenuTree(hub.id);
+    return res.json(tree);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/menu/categories ─────────────────────────
+router.post('/:restaurantId/menu/categories', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await getHubForRestaurant(String(req.params['restaurantId']));
+    if (!hub) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' } });
+    }
+    const category = await createCategory(hub.id, req.body as Record<string, unknown>);
+    return res.status(201).json(category);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/admin/hub/:restaurantId/menu/categories/:categoryId ────────────
+router.patch('/:restaurantId/menu/categories/:categoryId', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await getHubForRestaurant(String(req.params['restaurantId']));
+    if (!hub) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' } });
+    }
+    const category = await updateCategory(hub.id, String(req.params['categoryId']), req.body as Record<string, unknown>);
+    return res.json(category);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/menu/categories/:categoryId/dishes ──────
+router.post('/:restaurantId/menu/categories/:categoryId/dishes', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await getHubForRestaurant(String(req.params['restaurantId']));
+    if (!hub) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' } });
+    }
+    const dish = await createDish(hub.id, String(req.params['categoryId']), req.body as Record<string, unknown>);
+    return res.status(201).json(dish);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/admin/hub/:restaurantId/menu/categories/:categoryId/dishes/:dishId
+router.patch('/:restaurantId/menu/categories/:categoryId/dishes/:dishId', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await getHubForRestaurant(String(req.params['restaurantId']));
+    if (!hub) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' } });
+    }
+    const dish = await updateDish(hub.id, String(req.params['categoryId']), String(req.params['dishId']), req.body as Record<string, unknown>);
+    return res.json(dish);
   } catch (err) { next(err); }
 });
 

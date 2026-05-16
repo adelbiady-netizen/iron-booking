@@ -434,6 +434,46 @@ export const api = {
           `/admin/hub/${encodeURIComponent(restaurantId)}/publish`,
           { method: 'POST' }
         ),
+      menu: {
+        get: (restaurantId: string) =>
+          request<{
+            menus: Array<{
+              id: string; name: string; sortOrder: number; isActive: boolean;
+              categories: Array<{
+                id: string; menuId: string; name: string; description: string | null;
+                sortOrder: number; isActive: boolean; isHidden: boolean;
+                dishes: Array<{
+                  id: string; categoryId: string; name: string; subtitle: string | null;
+                  description: string | null; price: string | null; tag: string | null;
+                  dietaryTags: string[]; availability: string;
+                  isFeatured: boolean; featuredRank: number | null; sortOrder: number;
+                  imageUrl: string | null; gradient: string | null;
+                  isActive: boolean; isHidden: boolean;
+                }>;
+              }>;
+            }>;
+          }>(`/admin/hub/${encodeURIComponent(restaurantId)}/menu`),
+        createCategory: (restaurantId: string, body: { name: string; description?: string | null }) =>
+          request<{ id: string; menuId: string; name: string; description: string | null; sortOrder: number; isActive: boolean; isHidden: boolean; dishes: unknown[] }>(
+            `/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories`,
+            { method: 'POST', body: JSON.stringify(body) }
+          ),
+        updateCategory: (restaurantId: string, categoryId: string, body: Record<string, unknown>) =>
+          request<{ id: string; menuId: string; name: string; description: string | null; sortOrder: number; isActive: boolean; isHidden: boolean; dishes: unknown[] }>(
+            `/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories/${encodeURIComponent(categoryId)}`,
+            { method: 'PATCH', body: JSON.stringify(body) }
+          ),
+        createDish: (restaurantId: string, categoryId: string, body: Record<string, unknown>) =>
+          request<{ id: string; categoryId: string; name: string; subtitle: string | null; description: string | null; price: string | null; tag: string | null; dietaryTags: string[]; availability: string; isFeatured: boolean; featuredRank: number | null; sortOrder: number; imageUrl: string | null; gradient: string | null; isActive: boolean; isHidden: boolean }>(
+            `/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories/${encodeURIComponent(categoryId)}/dishes`,
+            { method: 'POST', body: JSON.stringify(body) }
+          ),
+        updateDish: (restaurantId: string, categoryId: string, dishId: string, body: Record<string, unknown>) =>
+          request<{ id: string; categoryId: string; name: string; subtitle: string | null; description: string | null; price: string | null; tag: string | null; dietaryTags: string[]; availability: string; isFeatured: boolean; featuredRank: number | null; sortOrder: number; imageUrl: string | null; gradient: string | null; isActive: boolean; isHidden: boolean }>(
+            `/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories/${encodeURIComponent(categoryId)}/dishes/${encodeURIComponent(dishId)}`,
+            { method: 'PATCH', body: JSON.stringify(body) }
+          ),
+      },
     },
   },
 

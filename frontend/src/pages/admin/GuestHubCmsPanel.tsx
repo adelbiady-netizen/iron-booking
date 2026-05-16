@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
+import GuestHubMenuPanel from './GuestHubMenuPanel';
 
 // ── Types (mirrors backend HubAdminDto) ───────────────────────────────────────
 
@@ -118,6 +119,7 @@ const ALLOWED_PLATFORMS = ['instagram', 'tiktok', 'website', 'facebook', 'twitte
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: string }) {
+  const [activeTab, setActiveTab] = useState<'branding' | 'menu'>('branding');
   const [status, setStatus] = useState<'loading' | 'not_found' | 'ready' | 'error'>('loading');
   const [hub,    setHub]    = useState<HubData | null>(null);
 
@@ -387,6 +389,32 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-iron-border">
+        {(['branding', 'menu'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+              activeTab === tab
+                ? 'border-iron-green text-iron-text'
+                : 'border-transparent text-iron-muted hover:text-iron-text'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Menu tab */}
+      {activeTab === 'menu' && (
+        <GuestHubMenuPanel restaurantId={restaurantId} />
+      )}
+
+      {/* Branding tab content below (publish bar + sections) */}
+      {activeTab === 'branding' && <>
+
       {/* Publish bar */}
       <div className={`rounded-xl border px-5 py-4 flex items-center justify-between gap-4 ${
         hasUnpublishedChanges
@@ -599,11 +627,12 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       {/* ── What's not here yet ──────────────────────────────────────────────────── */}
       <div className="bg-iron-bg border border-iron-border rounded-xl p-5 text-xs text-iron-muted space-y-1">
         <p className="font-medium text-iron-text text-sm mb-2">Coming in future phases</p>
-        <p>• Menu &amp; dish editing</p>
         <p>• Promotions and events</p>
         <p>• Image uploads (currently URL-only)</p>
         <p>• Theme and colour customisation</p>
       </div>
+
+      </>}
 
     </div>
   );
