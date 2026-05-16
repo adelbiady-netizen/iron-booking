@@ -298,6 +298,7 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
 // ─── Rendered hub page (ViewModel → JSX) ─────────────────────────────────────
 function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction: () => void }) {
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [logoFailed,    setLogoFailed]    = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
   // Slide sticky nav in once the hero's bottom edge clears 56px.
@@ -343,7 +344,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {vm.logoUrl && (
+          {vm.logoUrl && !logoFailed && (
             <div style={{
               width: 24, height: 24, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
               background: C.elevated, border: `1px solid ${C.border}`,
@@ -356,7 +357,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                 loading="lazy"
                 decoding="async"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                onError={() => setLogoFailed(true)}
               />
             </div>
           )}
@@ -419,7 +420,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
         }} />
         {/* Restaurant identity */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 24px 40px' }}>
-          {vm.logoUrl && (
+          {vm.logoUrl && !logoFailed && (
             <div style={{
               width: 52, height: 52, borderRadius: 14, overflow: 'hidden', marginBottom: 20,
               background: C.elevated,
@@ -434,7 +435,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                 loading="eager"
                 decoding="async"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                onError={() => setLogoFailed(true)}
               />
             </div>
           )}

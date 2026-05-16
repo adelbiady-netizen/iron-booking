@@ -668,17 +668,17 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             </div>
             <ImageUploadField
               label="Logo"
+              imageType="logo"
               value={brandingForm.logoUrl}
               onChange={url => setBrandingForm(f => ({ ...f, logoUrl: url }))}
               error={brandingErrors.logoUrl}
-              hint="Square or landscape — min 200 × 200 px"
             />
             <ImageUploadField
               label="Cover image"
+              imageType="cover"
               value={brandingForm.coverImageUrl}
               onChange={url => setBrandingForm(f => ({ ...f, coverImageUrl: url }))}
               error={brandingErrors.coverImageUrl}
-              hint="16:9 recommended — min 1200 × 675 px"
             />
             {brandingError && (
               <p className="text-sm text-red-400">{brandingError}</p>

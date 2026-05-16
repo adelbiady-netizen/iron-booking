@@ -649,6 +649,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
               </Field>
               <ImageUploadField
                 label="Image"
+                imageType="dish"
                 value={dishForm.imageUrl}
                 onChange={url => setDishForm(f => ({ ...f, imageUrl: url }))}
                 error={fieldErrs.imageUrl}

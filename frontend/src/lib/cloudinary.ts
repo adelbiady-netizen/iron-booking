@@ -10,21 +10,31 @@ const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME    as string | 
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined;
 const MAX_BYTES     = 5 * 1024 * 1024; // 5 MB hard limit
 
+export type ImageType = 'logo' | 'cover' | 'dish';
+
 export function isCloudinaryConfigured(): boolean {
   return Boolean(CLOUD_NAME && UPLOAD_PRESET);
 }
 
-// Inject f_auto,q_auto into a Cloudinary delivery URL.
-// f_auto: serves WebP/AVIF on modern browsers, JPEG on older ones.
-// q_auto: Cloudinary picks the optimal quality level automatically.
-// The original file is preserved in Cloudinary — only the delivery URL changes.
-function applyAutoOptimization(url: string): string {
-  return url.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
+// Inject type-appropriate Cloudinary transforms into a delivery URL.
+// logo:  cap size, preserve transparency (WebP supports alpha)
+// cover: wide OG-style crop for hero/cover images
+// dish:  square card-friendly crop
+// default: format + quality auto only
+function applyTransforms(url: string, imageType?: ImageType): string {
+  const t: Record<ImageType, string> = {
+    logo:  'w_400,c_limit,f_auto,q_auto',
+    cover: 'w_1200,h_630,c_fill,f_auto,q_auto',
+    dish:  'w_800,h_800,c_fill,f_auto,q_auto',
+  };
+  const transforms = imageType ? t[imageType] : 'f_auto,q_auto';
+  return url.replace('/image/upload/', `/image/upload/${transforms}/`);
 }
 
 export function uploadToCloudinary(
   file: File,
   onProgress?: (pct: number) => void,
+  imageType?: ImageType,
 ): Promise<string> {
   if (!isCloudinaryConfigured()) {
     return Promise.reject(new Error('Image uploads are not configured'));
@@ -59,7 +69,7 @@ export function uploadToCloudinary(
             reject(new Error('Upload returned an insecure URL'));
             return;
           }
-          resolve(applyAutoOptimization(url));
+          resolve(applyTransforms(url, imageType));
         } catch {
           reject(new Error('Unexpected response from upload service'));
         }

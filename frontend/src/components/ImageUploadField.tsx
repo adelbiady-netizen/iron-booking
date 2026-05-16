@@ -1,12 +1,20 @@
-// ─── ImageUploadField ─────────────────────────────────────────────────────────
-// Drop-in replacement for Field + Inp combos where images are needed.
-// Combines a Cloudinary upload button with a URL text fallback.
-// If Cloudinary is not configured the button is omitted — URL input still works.
-
 import { useRef, useState } from 'react';
 import { uploadToCloudinary, isCloudinaryConfigured } from '../lib/cloudinary';
+import type { ImageType } from '../lib/cloudinary';
 
 const CAN_UPLOAD = isCloudinaryConfigured();
+
+const GUIDANCE: Record<ImageType, string> = {
+  logo:  'Square or transparent PNG preferred — min 200 × 200 px',
+  cover: 'Wide hospitality photo recommended — 1200 × 630 px ideal',
+  dish:  'Clear food photo recommended — square crop works best',
+};
+
+const EMPTY_LABEL: Record<ImageType, string> = {
+  logo:  'No logo uploaded yet',
+  cover: 'No cover image uploaded yet',
+  dish:  'No dish image uploaded yet',
+};
 
 interface Props {
   label: string;
@@ -14,25 +22,25 @@ interface Props {
   onChange: (url: string) => void;
   error?: string;
   hint?: string;
+  imageType?: ImageType;
 }
 
-export default function ImageUploadField({ label, value, onChange, error, hint }: Props) {
-  const [uploading,      setUploading]      = useState(false);
-  const [uploadPct,      setUploadPct]      = useState(0);
-  const [uploadError,    setUploadError]    = useState<string | null>(null);
+export default function ImageUploadField({ label, value, onChange, error, hint, imageType }: Props) {
+  const [uploading,   setUploading]   = useState(false);
+  const [uploadPct,   setUploadPct]   = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Allow re-selecting the same file on subsequent uploads
     (e.target as HTMLInputElement).value = '';
 
     setUploadError(null);
     setUploading(true);
     setUploadPct(0);
     try {
-      const url = await uploadToCloudinary(file, setUploadPct);
+      const url = await uploadToCloudinary(file, setUploadPct, imageType);
       onChange(url);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
@@ -42,7 +50,13 @@ export default function ImageUploadField({ label, value, onChange, error, hint }
     }
   }
 
-  const shownError = uploadError ?? error;
+  function handleClear() {
+    setUploadError(null);
+    onChange('');
+  }
+
+  const shownError   = uploadError ?? error;
+  const effectiveHint = hint ?? (imageType ? GUIDANCE[imageType] : undefined);
 
   return (
     <div>
@@ -113,7 +127,14 @@ export default function ImageUploadField({ label, value, onChange, error, hint }
         </>
       )}
 
-      {/* ── Preview ── */}
+      {/* ── Empty state placeholder ── */}
+      {!value && !uploading && imageType && (
+        <div className="mt-2 flex items-center justify-center h-14 border border-dashed border-iron-border/30 rounded text-xs text-iron-muted/30">
+          {EMPTY_LABEL[imageType]}
+        </div>
+      )}
+
+      {/* ── Preview + clear button ── */}
       {value && !uploading && (
         <div className="mt-2">
           <img
@@ -122,12 +143,23 @@ export default function ImageUploadField({ label, value, onChange, error, hint }
             className="h-16 w-auto max-w-full rounded border border-iron-border object-cover"
             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
+          <button
+            type="button"
+            onClick={handleClear}
+            className="mt-1.5 flex items-center gap-1 text-xs text-iron-muted/40 hover:text-red-400 transition-colors"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Clear image
+          </button>
         </div>
       )}
 
       {/* ── Messages ── */}
-      {hint && !shownError && <p className="text-xs text-iron-muted/60 mt-1">{hint}</p>}
-      {shownError           && <p className="text-xs text-red-400 mt-1">{shownError}</p>}
+      {effectiveHint && !shownError && <p className="text-xs text-iron-muted/60 mt-1">{effectiveHint}</p>}
+      {shownError                    && <p className="text-xs text-red-400 mt-1">{shownError}</p>}
     </div>
   );
 }
