@@ -278,8 +278,11 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
         const fe = err.fieldErrors as Record<string, string[]>;
         if (Object.keys(fe).length > 0) {
           setFieldErrs(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ''])));
+        } else if (err.code === 'CONFLICT') {
+          setFieldErrs({ name: err.message });
+        } else {
+          setSaveError(err.message);
         }
-        setSaveError(err.message);
       } else {
         setSaveError('Failed to save category');
       }
@@ -323,8 +326,11 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
         const fe = err.fieldErrors as Record<string, string[]>;
         if (Object.keys(fe).length > 0) {
           setFieldErrs(Object.fromEntries(Object.entries(fe).map(([k, v]) => [k, v[0] ?? ''])));
+        } else if (err.code === 'CONFLICT') {
+          setFieldErrs({ name: err.message });
+        } else {
+          setSaveError(err.message);
         }
-        setSaveError(err.message);
       } else {
         setSaveError('Failed to save dish');
       }
@@ -462,6 +468,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   onChange={e => setCatForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Starters"
                   maxLength={80}
+                  dir="auto"
+                  className={fieldErrs.name ? 'border-red-500/60 focus:border-red-500/60' : ''}
                 />
               </Field>
               <Field label="Description" error={fieldErrs.description}>
@@ -470,6 +478,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   onChange={e => setCatForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="Optional short description"
                   maxLength={300}
+                  dir="auto"
+                  className={fieldErrs.description ? 'border-red-500/60 focus:border-red-500/60' : ''}
                 />
               </Field>
               {saveError && <p className="text-sm text-red-400">{saveError}</p>}
@@ -553,6 +563,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                     onChange={e => setDishForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="e.g. Grilled Sea Bass"
                     maxLength={100}
+                    dir="auto"
+                    className={fieldErrs.name ? 'border-red-500/60 focus:border-red-500/60' : ''}
                   />
                 </Field>
                 <Field label="Price" error={fieldErrs.price}>
