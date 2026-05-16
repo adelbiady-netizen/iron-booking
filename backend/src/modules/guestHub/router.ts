@@ -50,6 +50,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
     // Allow CDN/browser to cache for 60 s; revalidate in background.
     // Tighten or remove once real-time updates (webhooks) are wired up.
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=30');
+    res.setHeader('X-Hub-Deploy', 'c8fc7f45');
     return res.json(hub);
   } catch (err) { next(err); }
 });
