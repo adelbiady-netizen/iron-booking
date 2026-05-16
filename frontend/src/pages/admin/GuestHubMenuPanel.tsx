@@ -315,6 +315,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
     }
     setBusy(true);
     const catId = view.kind === 'new-dish' || view.kind === 'edit-dish' ? view.catId : '';
+    const cat   = findCategory(catId);
     const body: Record<string, unknown> = {
       name:         dishForm.name.trim(),
       subtitle:     dishForm.subtitle.trim()     || null,
@@ -329,6 +330,10 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
     };
     try {
       if (view.kind === 'new-dish') {
+        const existingDishes = cat?.dishes ?? [];
+        body.sortOrder = existingDishes.length === 0
+          ? 0
+          : Math.min(Math.max(...existingDishes.map(d => d.sortOrder)) + 1, 9999);
         await api.admin.guestHub.menu.createDish(restaurantId, catId, body);
         showToast('Dish added');
       } else if (view.kind === 'edit-dish') {
@@ -359,14 +364,14 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
   async function quickHideCat(catId: string, isHidden: boolean) {
     try {
       await api.admin.guestHub.menu.updateCategory(restaurantId, catId, { isHidden });
-      await reload();
+      await refreshTree();
     } catch { /* silent — UI stays consistent */ }
   }
 
   async function quickHideDish(catId: string, dishId: string, isHidden: boolean) {
     try {
       await api.admin.guestHub.menu.updateDish(restaurantId, catId, dishId, { isHidden });
-      await reload();
+      await refreshTree();
     } catch { /* silent */ }
   }
 
@@ -599,6 +604,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   onChange={e => setDishForm(f => ({ ...f, subtitle: e.target.value }))}
                   placeholder="e.g. with lemon butter sauce"
                   maxLength={150}
+                  dir="auto"
+                  className={fieldErrs.subtitle ? 'border-red-500/60 focus:border-red-500/60' : ''}
                 />
               </Field>
               <Field label="Description" error={fieldErrs.description}>
@@ -608,6 +615,8 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   placeholder="Short editorial description…"
                   maxLength={500}
                   rows={3}
+                  dir="auto"
+                  className={fieldErrs.description ? 'border-red-500/60 focus:border-red-500/60' : ''}
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
@@ -707,8 +716,8 @@ function DishRow({
             </span>
           )}
           {dish.availability !== 'AVAILABLE' && (
-            <span className="text-xs text-amber-400/80 flex-shrink-0">
-              {dish.availability === 'SOLD_OUT' ? 'Sold out' : dish.availability.toLowerCase().replace('_', ' ')}
+            <span className={`text-xs flex-shrink-0 ${dish.availability === 'SOLD_OUT' ? 'text-iron-muted/60' : 'text-amber-400/80'}`}>
+              {{ SOLD_OUT: 'Sold out', SEASONAL: 'Seasonal', BREAKFAST_ONLY: 'Breakfast only', DINNER_ONLY: 'Dinner only' }[dish.availability] ?? dish.availability}
             </span>
           )}
         </div>

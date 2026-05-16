@@ -429,21 +429,9 @@ export async function createDish(
   if (!cat) throw new NotFoundError('Category', categoryId);
 
   const raw = (body ?? {}) as Record<string, unknown>;
-  const { errors, name, ...fields } = validateDishFields({
-    name:        raw.name,
-    subtitle:    raw.subtitle,
-    description: raw.description,
-    price:       raw.price,
-    tag:         raw.tag,
-    imageUrl:    raw.imageUrl,
-    gradient:    raw.gradient,
-    dietaryTags: raw.dietaryTags,
-    availability: raw.availability,
-    isFeatured:  raw.isFeatured,
-    featuredRank: raw.featuredRank,
-    sortOrder:   raw.sortOrder,
-    isHidden:    raw.isHidden,
-  });
+  // Pass raw directly — same reason as createCategory: constructing an
+  // intermediate object causes undefined-value keys to pass 'in' checks.
+  const { errors, name, ...fields } = validateDishFields(raw);
 
   if (!name) errors.name = ['Dish name is required'];
   if (Object.keys(errors).length > 0) {
