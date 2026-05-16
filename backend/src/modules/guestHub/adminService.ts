@@ -12,6 +12,10 @@ import type { AuthPayload } from '../../middleware/auth';
 
 export type HubPublicStatus = 'DRAFT' | 'PUBLISHED' | 'INACTIVE';
 
+const VALID_THEME_PRESETS = new Set([
+  'ESPRESSO', 'OLIVE', 'WINE', 'MIDNIGHT', 'SAND', 'SLATE',
+]);
+
 export interface HubAdminBrandingDto {
   id: string;
   name: string;
@@ -21,6 +25,7 @@ export interface HubAdminBrandingDto {
   logoUrl: string | null;
   coverImageUrl: string | null;
   primaryColor: string | null;
+  themePreset: string | null;
 }
 
 export interface HubAdminSocialDto {
@@ -100,6 +105,11 @@ function validateBrandingInput(body: Record<string, unknown>): Record<string, st
     else if (!isValidUrl(coverImageUrl)) err.coverImageUrl = ['Must be a valid http/https URL'];
   }
 
+  const themePreset = typeof body.themePreset === 'string' ? body.themePreset.trim().toUpperCase() : '';
+  if (themePreset && !VALID_THEME_PRESETS.has(themePreset)) {
+    err.themePreset = [`Must be one of: ${[...VALID_THEME_PRESETS].join(', ')}`];
+  }
+
   return err;
 }
 
@@ -171,6 +181,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       logoUrl:       hub.branding.logoUrl,
       coverImageUrl: hub.branding.coverImageUrl,
       primaryColor:  hub.branding.primaryColor,
+      themePreset:   hub.branding.themePreset,
     } : null,
     socialLinks: hub.socialLinks.map(s => ({
       id:        s.id,
@@ -187,6 +198,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       logoUrl:       hub.publishedBranding.logoUrl,
       coverImageUrl: hub.publishedBranding.coverImageUrl,
       primaryColor:  null, // published branding snapshot doesn't store primaryColor yet
+      themePreset:   hub.publishedBranding.themePreset,
     } : null,
     publishedSocialLinks: hub.publishedSocialLinks.map(s => ({
       id:        s.id,
@@ -219,16 +231,17 @@ export async function upsertHubBranding(
   }
 
   const name          = (body.name as string).trim();
-  const tagline       = typeof body.tagline === 'string'       ? body.tagline.trim()       || null : null;
-  const phone         = typeof body.phone === 'string'         ? body.phone.trim()         || null : null;
-  const address       = typeof body.address === 'string'       ? body.address.trim()       || null : null;
-  const logoUrl       = typeof body.logoUrl === 'string'       ? body.logoUrl.trim()       || null : null;
-  const coverImageUrl = typeof body.coverImageUrl === 'string' ? body.coverImageUrl.trim() || null : null;
+  const tagline       = typeof body.tagline === 'string'       ? body.tagline.trim()                        || null : null;
+  const phone         = typeof body.phone === 'string'         ? body.phone.trim()                          || null : null;
+  const address       = typeof body.address === 'string'       ? body.address.trim()                        || null : null;
+  const logoUrl       = typeof body.logoUrl === 'string'       ? body.logoUrl.trim()                        || null : null;
+  const coverImageUrl = typeof body.coverImageUrl === 'string' ? body.coverImageUrl.trim()                  || null : null;
+  const themePreset   = typeof body.themePreset === 'string'   ? body.themePreset.trim().toUpperCase()      || null : null;
 
   const result = await prisma.guestHubBranding.upsert({
     where:  { hubId },
-    create: { hubId, name, tagline, phone, address, logoUrl, coverImageUrl },
-    update: {        name, tagline, phone, address, logoUrl, coverImageUrl },
+    create: { hubId, name, tagline, phone, address, logoUrl, coverImageUrl, themePreset },
+    update: {        name, tagline, phone, address, logoUrl, coverImageUrl, themePreset },
   });
 
   // TODO: append to centralized audit log when available
@@ -242,6 +255,7 @@ export async function upsertHubBranding(
     logoUrl:       result.logoUrl,
     coverImageUrl: result.coverImageUrl,
     primaryColor:  result.primaryColor,
+    themePreset:   result.themePreset,
   };
 }
 
@@ -312,8 +326,8 @@ export async function publishHub(
   await prisma.$transaction(async (tx) => {
     await tx.guestHubPublishedBranding.upsert({
       where:  { hubId },
-      create: { hubId, name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, publishedAt: now },
-      update: {        name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, publishedAt: now },
+      create: { hubId, name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
+      update: {        name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
     });
 
     await tx.guestHubPublishedSocialLink.deleteMany({ where: { hubId } });

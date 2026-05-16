@@ -769,6 +769,7 @@ model GuestHubPublishedBranding {
   address       String?
   logoUrl       String?
   coverImageUrl String?
+  themePreset   String?
   publishedAt   DateTime
 
   hub           GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
