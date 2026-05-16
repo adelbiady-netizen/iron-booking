@@ -12,6 +12,7 @@ import {
   upsertHubBranding,
   replaceHubSocialLinks,
   publishHub,
+  provisionHub,
 } from './adminService';
 import { getHubDraftBySlug } from './service';
 import {
@@ -90,6 +91,17 @@ router.put('/:restaurantId/social', scopeToRestaurant, async (req: Request, res:
       : [];
     const updated = await replaceHubSocialLinks(hub.id, links, req.auth);
     return res.json({ links: updated });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/provision ───────────────────────────────
+// Idempotent: creates GuestHub + branding + menu + QR token for a restaurant.
+// Returns existing hub without modification if already configured.
+// Hub starts in draft — not published. Admin must review and click Publish.
+router.post('/:restaurantId/provision', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hub = await provisionHub(String(req.params['restaurantId']));
+    return res.json(hub);
   } catch (err) { next(err); }
 });
 

@@ -140,6 +140,10 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   const [publishBusy,  setPublishBusy]  = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
+  // Provision
+  const [provisioning,   setProvisioning]   = useState(false);
+  const [provisionError, setProvisionError] = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
   function showToast(msg: string) {
@@ -148,6 +152,19 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────────
+
+  async function provision() {
+    setProvisioning(true);
+    setProvisionError(null);
+    try {
+      await api.admin.guestHub.provision(restaurantId);
+      await load();
+    } catch (err) {
+      setProvisionError(err instanceof ApiError ? err.message : 'Failed to create Guest Hub');
+    } finally {
+      setProvisioning(false);
+    }
+  }
 
   async function publish() {
     if (!hub) return;
@@ -308,12 +325,55 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   if (status === 'not_found') {
     return (
       <div className="max-w-lg py-8">
-        <div className="bg-iron-card border border-iron-border rounded-xl p-6">
-          <p className="text-iron-text font-medium mb-1">No Guest Hub configured</p>
-          <p className="text-iron-muted text-sm">
-            This restaurant does not have a Guest Hub linked yet. Guest Hub setup is managed
-            during onboarding. Contact support to initialize one for this location.
-          </p>
+        <div className="bg-iron-card border border-iron-border rounded-xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-iron-border">
+            <h4 className="text-sm font-semibold text-iron-text">No Guest Hub configured</h4>
+            <p className="text-iron-muted text-xs mt-1">
+              Initialize a Guest Hub to give this restaurant a public-facing branded page with menu and QR scanning.
+            </p>
+          </div>
+
+          <div className="px-6 py-5 space-y-3">
+            <p className="text-xs font-semibold text-iron-muted uppercase tracking-widest">What gets created</p>
+            <ul className="space-y-1.5 text-sm text-iron-muted">
+              <li className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5">✓</span>
+                <span>Public page at <code className="text-iron-green">/r/[slug]</code> — derived from the restaurant name</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5">✓</span>
+                <span>Draft branding pre-filled with name, phone, and address from the restaurant record</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5">✓</span>
+                <span>A default Menu section, ready for categories and dishes</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5">✓</span>
+                <span>A QR token for table-scanning (used by <code className="text-iron-green">/q/[token]</code>)</span>
+              </li>
+            </ul>
+
+            <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg px-4 py-3">
+              <p className="text-xs text-amber-300 leading-relaxed">
+                The public page will show draft content immediately, but will not appear in any listing or QR scan until you configure branding and click <strong>Publish</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t border-iron-border">
+            {provisionError && (
+              <p className="text-xs text-red-400 mb-3">{provisionError}</p>
+            )}
+            <button
+              type="button"
+              onClick={provision}
+              disabled={provisioning}
+              className="px-4 py-2 bg-iron-green hover:bg-iron-green-light text-white text-sm font-semibold rounded transition-colors disabled:opacity-50"
+            >
+              {provisioning ? 'Creating…' : 'Create Guest Hub'}
+            </button>
+          </div>
         </div>
       </div>
     );

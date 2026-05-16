@@ -3,8 +3,9 @@
 // ISOLATION: imports from ../../lib/prisma and ../../lib/errors only.
 //            No reservation, waitlist, floor, or SSE imports.
 
+import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
-import { ValidationError } from '../../lib/errors';
+import { ValidationError, NotFoundError } from '../../lib/errors';
 import type { AuthPayload } from '../../middleware/auth';
 
 // ── DTOs (admin-facing, a superset of the public DTO) ─────────────────────────
@@ -300,4 +301,70 @@ export async function publishHub(
   });
 
   return { publishedAt: now.toISOString() };
+}
+
+// ── Provisioning ───────────────────────────────────────────────────────────────
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')  // strip diacritics
+    .replace(/[^a-z0-9]+/g, '-')     // non-alnum → hyphen
+    .replace(/^-+|-+$/g, '')         // trim leading/trailing hyphens
+    .slice(0, 50)                     // max 50 chars
+    || 'restaurant';
+}
+
+async function generateUniqueSlug(base: string): Promise<string> {
+  const root = slugify(base);
+  for (let i = 0; i <= 99; i++) {
+    const candidate = i === 0 ? root : `${root}-${i + 1}`;
+    const existing = await prisma.guestHub.findUnique({
+      where:  { slug: candidate },
+      select: { id: true },
+    });
+    if (!existing) return candidate;
+  }
+  throw new Error('Cannot generate a unique slug after 100 attempts');
+}
+
+// Idempotent: creates hub + branding + menu + QR token for a restaurant.
+// If the restaurant already has a hub, returns it without modification.
+// Does NOT publish — hub starts in draft state. Admin must review and publish.
+export async function provisionHub(restaurantId: string): Promise<HubAdminDto> {
+  const existing = await getHubForRestaurant(restaurantId);
+  if (existing) return existing;
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where:  { id: restaurantId },
+    select: { id: true, name: true, phone: true, address: true },
+  });
+  if (!restaurant) throw new NotFoundError('Restaurant', restaurantId);
+
+  const slug  = await generateUniqueSlug(restaurant.name);
+  // 18 bytes → 24-char URL-safe base64 (no padding; 18 is divisible by 3)
+  const token = crypto.randomBytes(18).toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  await prisma.guestHub.create({
+    data: {
+      slug,
+      restaurantId,
+      isActive: true,
+      branding: {
+        create: {
+          name:    restaurant.name,
+          phone:   restaurant.phone   ?? null,
+          address: restaurant.address ?? null,
+        },
+      },
+      menus:    { create: { name: 'Menu', sortOrder: 0 } },
+      qrTokens: { create: { token, label: 'Default' } },
+    },
+  });
+
+  const created = await getHubForRestaurant(restaurantId);
+  if (!created) throw new Error('Provision failed: hub not found after creation');
+  return created;
 }
