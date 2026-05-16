@@ -121,7 +121,7 @@ function shapeHub(
         coverImageUrl: brandingSource.coverImageUrl,
         primaryColor:  'primaryColor' in brandingSource ? brandingSource.primaryColor : null,
         accentColor:   'accentColor'  in brandingSource ? brandingSource.accentColor  : null,
-        themePreset:   'themePreset'  in brandingSource ? brandingSource.themePreset  : null,
+        themePreset:   brandingSource.themePreset ?? null,
       }
     : null;
 
