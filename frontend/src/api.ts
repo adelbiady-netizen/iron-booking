@@ -510,7 +510,7 @@ export const api = {
               }>;
             }>;
           }>(`/admin/hub/${encodeURIComponent(restaurantId)}/menu`),
-        createCategory: (restaurantId: string, body: { name: string; description?: string | null }) =>
+        createCategory: (restaurantId: string, body: { name: string; description?: string | null; sortOrder?: number }) =>
           request<{ id: string; menuId: string; name: string; description: string | null; sortOrder: number; isActive: boolean; isHidden: boolean; dishes: unknown[] }>(
             `/admin/hub/${encodeURIComponent(restaurantId)}/menu/categories`,
             { method: 'POST', body: JSON.stringify(body) }

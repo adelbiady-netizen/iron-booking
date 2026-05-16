@@ -165,19 +165,13 @@ router.get('/:restaurantId/menu', scopeToRestaurant, async (req: Request, res: R
 // ── POST /api/admin/hub/:restaurantId/menu/categories ─────────────────────────
 router.post('/:restaurantId/menu/categories', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('[DIAG 8] POST /menu/categories hit — restaurantId:', req.params['restaurantId'], 'body:', JSON.stringify(req.body));
     const hub = await getHubForRestaurant(String(req.params['restaurantId']));
     if (!hub) {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No Guest Hub configured for this restaurant' } });
     }
-    console.log('[DIAG 9] hub resolved — hubId:', hub.id, 'body to createCategory:', JSON.stringify(req.body));
     const category = await createCategory(hub.id, req.body as Record<string, unknown>);
-    console.log('[DIAG 9] createCategory returned — id:', (category as { id?: string }).id);
     return res.status(201).json(category);
-  } catch (err) {
-    console.error('[DIAG 9] createCategory threw:', err);
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 // ── PATCH /api/admin/hub/:restaurantId/menu/categories/:categoryId ────────────
