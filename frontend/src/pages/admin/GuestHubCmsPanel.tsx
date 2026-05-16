@@ -513,8 +513,8 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       {/* QR tab */}
       {activeTab === 'qr' && (
         <GuestHubQrPanel
+          restaurantId={restaurantId}
           slug={hub.slug}
-          qrTokens={hub.qrTokens}
           publicStatus={hub.publicStatus}
           brandingName={hub.branding?.name ?? null}
           brandingTagline={hub.branding?.tagline ?? null}

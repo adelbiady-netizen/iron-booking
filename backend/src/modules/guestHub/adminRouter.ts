@@ -24,6 +24,13 @@ import {
   createDish,
   updateDish,
 } from './menuAdminService';
+import {
+  listTokens,
+  createToken,
+  updateToken,
+  deactivateToken,
+  reactivateToken,
+} from './tokenAdminService';
 
 const router = Router();
 
@@ -200,6 +207,65 @@ router.patch('/:restaurantId/menu/categories/:categoryId/dishes/:dishId', scopeT
     }
     const dish = await updateDish(hub.id, String(req.params['categoryId']), String(req.params['dishId']), req.body as Record<string, unknown>);
     return res.json(dish);
+  } catch (err) { next(err); }
+});
+
+// ── QR Token management ───────────────────────────────────────────────────────
+// hubId is derived server-side from restaurantId — never accepted from client.
+// Token string is immutable once created; only label/metadata are mutable.
+
+// ── GET /api/admin/hub/:restaurantId/tokens ────────────────────────────────────
+router.get('/:restaurantId/tokens', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tokens = await listTokens(String(req.params['restaurantId']));
+    return res.json({ tokens });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/tokens ───────────────────────────────────
+// Creates a new token. Token string is generated server-side.
+// Body: { label?: string, metadata?: { tableName?, zone?, campaign?, source? } }
+router.post('/:restaurantId/tokens', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = await createToken(String(req.params['restaurantId']), req.body as Record<string, unknown>);
+    return res.status(201).json(token);
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/admin/hub/:restaurantId/tokens/:tokenId ────────────────────────
+// Updates label and/or metadata. Token string is immutable — printed QRs are safe.
+router.patch('/:restaurantId/tokens/:tokenId', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = await updateToken(
+      String(req.params['restaurantId']),
+      String(req.params['tokenId']),
+      req.body as Record<string, unknown>,
+    );
+    return res.json(token);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/tokens/:tokenId/deactivate ──────────────
+// Stops QR resolution — any printed card pointing to this token returns 404.
+router.post('/:restaurantId/tokens/:tokenId/deactivate', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = await deactivateToken(
+      String(req.params['restaurantId']),
+      String(req.params['tokenId']),
+    );
+    return res.json(token);
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/admin/hub/:restaurantId/tokens/:tokenId/reactivate ──────────────
+// Restores QR resolution — existing printed cards start working again.
+router.post('/:restaurantId/tokens/:tokenId/reactivate', scopeToRestaurant, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = await reactivateToken(
+      String(req.params['restaurantId']),
+      String(req.params['tokenId']),
+    );
+    return res.json(token);
   } catch (err) { next(err); }
 });
 

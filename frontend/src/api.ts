@@ -457,6 +457,40 @@ export const api = {
           `/admin/hub/${encodeURIComponent(restaurantId)}/deactivate`,
           { method: 'POST' }
         ),
+      tokens: {
+        list: (restaurantId: string) =>
+          request<{
+            tokens: Array<{
+              id: string; token: string; label: string | null; isActive: boolean;
+              metadata: { tableName?: string; zone?: string; campaign?: string; source?: string };
+              createdAt: string;
+            }>;
+          }>(`/admin/hub/${encodeURIComponent(restaurantId)}/tokens`),
+        create: (restaurantId: string, body: { label?: string | null; metadata?: { tableName?: string; zone?: string; campaign?: string; source?: string } }) =>
+          request<{
+            id: string; token: string; label: string | null; isActive: boolean;
+            metadata: { tableName?: string; zone?: string; campaign?: string; source?: string };
+            createdAt: string;
+          }>(`/admin/hub/${encodeURIComponent(restaurantId)}/tokens`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (restaurantId: string, tokenId: string, body: { label?: string | null; metadata?: { tableName?: string; zone?: string; campaign?: string; source?: string } }) =>
+          request<{
+            id: string; token: string; label: string | null; isActive: boolean;
+            metadata: { tableName?: string; zone?: string; campaign?: string; source?: string };
+            createdAt: string;
+          }>(`/admin/hub/${encodeURIComponent(restaurantId)}/tokens/${encodeURIComponent(tokenId)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        deactivate: (restaurantId: string, tokenId: string) =>
+          request<{
+            id: string; token: string; label: string | null; isActive: boolean;
+            metadata: { tableName?: string; zone?: string; campaign?: string; source?: string };
+            createdAt: string;
+          }>(`/admin/hub/${encodeURIComponent(restaurantId)}/tokens/${encodeURIComponent(tokenId)}/deactivate`, { method: 'POST' }),
+        reactivate: (restaurantId: string, tokenId: string) =>
+          request<{
+            id: string; token: string; label: string | null; isActive: boolean;
+            metadata: { tableName?: string; zone?: string; campaign?: string; source?: string };
+            createdAt: string;
+          }>(`/admin/hub/${encodeURIComponent(restaurantId)}/tokens/${encodeURIComponent(tokenId)}/reactivate`, { method: 'POST' }),
+      },
       menu: {
         get: (restaurantId: string) =>
           request<{
