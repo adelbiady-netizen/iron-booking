@@ -8,23 +8,23 @@
 
 :root,
 [data-theme="dark"] {
-  --iron-bg:           15 17 16;       /* #0F1110 */
-  --iron-card:         26 29 26;       /* #1A1D1A */
-  --iron-elevated:     30 34 30;       /* #1E221E — floating surfaces */
-  --iron-border:       42 47 42;       /* #2A2F2A */
+  --iron-bg:           17 20 17;       /* #111411 — barely lifted from pitch black */
+  --iron-card:         28 32 28;       /* #1C201C — clearly above bg */
+  --iron-elevated:     40 46 40;       /* #282E28 — visibly elevated above card (12 pt gap) */
+  --iron-border:       56 63 56;       /* #383F38 — readable border in daylight */
   --iron-text:         255 255 255;    /* #FFFFFF */
-  --iron-muted:        160 167 160;    /* #A0A7A0 */
+  --iron-muted:        178 186 178;    /* #B2BAB2 — high contrast secondary text */
   --iron-green:        75 95 42;       /* #4B5F2A */
   --iron-green-light:  111 138 60;     /* #6F8A3C */
 
   /* Canvas map (hex — used in inline style backgroundColor) */
-  --canvas-bg:              #0d0e0c;   /* pure graphite charcoal — no blue bias */
+  --canvas-bg:              #101211;   /* lifted graphite — reduces "black void" in daylight */
   --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light       */
   --canvas-grid:            rgba(255,195,110,0.025); /* warm amber seams — matches floor material  */
+  --canvas-ambient:         rgba(255,215,130,0.034); /* warm chandelier bloom — daylight visibility without blue haze */
   --canvas-table-bg:        #1c1c1e;
   --canvas-status-occupied: #166534;   /* green-800 — authoritative on matte surface */
   --canvas-status-reserved: #1e40af;   /* blue-800 — authoritative on matte surface */
-  --canvas-ambient:         rgba(220,215,208,0.008); /* warm neutral — no blue, barely perceptible */
 
   color-scheme: dark;
 }
@@ -182,23 +182,23 @@ input[type="time"] {
 /* animationDelay makes every table breathe at its own organic offset.        */
 
 @keyframes table-alive {
-  0%, 100% { opacity: 0.55; }
+  0%, 100% { opacity: 0.70; }
   50%      { opacity: 1;    }
 }
 
 @keyframes table-ending {
-  0%, 100% { opacity: 0.38; }
-  50%      { opacity: 0.80; }
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.88; }
 }
 
 @keyframes table-incoming {
-  0%, 100% { opacity: 0.45; }
-  50%      { opacity: 0.90; }
+  0%, 100% { opacity: 0.62; }
+  50%      { opacity: 0.95; }
 }
 
 @keyframes table-tense {
-  0%, 100% { opacity: 0.40; }
-  50%      { opacity: 0.85; }
+  0%, 100% { opacity: 0.58; }
+  50%      { opacity: 0.92; }
 }
 
 /* ── Phase 17: Living hospitality intelligence ────────────────────────────── */

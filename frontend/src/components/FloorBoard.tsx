@@ -309,11 +309,11 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG_DARK: Record<string, string> = {
-  AVAILABLE:     'rgba(224,224,222,0.86)',   // muted neutral — recedes behind active states
-  OCCUPIED:      'rgba(220,242,224,0.96)',   // soft barely-green — active presence
-  RESERVED_SOON: 'rgba(241,235,208,0.96)',   // soft barely-amber — imminent arrival
-  RESERVED:      'rgba(213,230,247,0.96)',   // soft barely-blue — committed, calm
-  BLOCKED:       'rgba(30,32,36,0.18)',      // near-invisible — withdrawn
+  AVAILABLE:     'rgba(232,230,226,0.93)',   // slightly brighter neutral — readable in daylight
+  OCCUPIED:      'rgba(220,242,224,0.97)',   // soft barely-green — active presence
+  RESERVED_SOON: 'rgba(241,235,208,0.97)',   // soft barely-amber — imminent arrival
+  RESERVED:      'rgba(213,230,247,0.97)',   // soft barely-blue — committed, calm
+  BLOCKED:       'rgba(30,32,36,0.22)',      // near-invisible — withdrawn
 };
 // Light canvas (#EAEDE6) needs more saturation so status tables read off the pale surface
 const STATUS_BG_LIGHT: Record<string, string> = {
@@ -402,8 +402,14 @@ function tableGradient(_shape: string, status: string, _cls: string, isDark: boo
     if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(0,0,0,0.025) 0%, transparent 55%)';
     return 'linear-gradient(180deg, rgba(0,0,0,0.045) 0%, transparent 52%)';
   }
-  if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 55%)';
-  return 'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, transparent 52%)';
+  if (status === 'AVAILABLE') return [
+    'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, transparent 52%)',
+    'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
+  ].join(', ');
+  return [
+    'linear-gradient(180deg, rgba(255,255,255,0.50) 0%, transparent 50%)',
+    'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
+  ].join(', ');
 }
 
 function hasPositions(tables: FloorTable[]): boolean {
@@ -901,7 +907,7 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-4 px-5 py-3 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.30)' }}>
+      <div className="flex items-center gap-4 px-5 py-3 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.09), 0 6px 24px rgba(0,0,0,0.44)' }}>
         {/* Live service state — what's happening right now */}
         <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
         {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
@@ -933,7 +939,7 @@ export default function FloorBoard({
         )}
 
         {pressureInfo && pressureInfo.level !== 'LOW' && (
-          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium ${
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-xs font-medium ${
             pressureInfo.level === 'HIGH'
               ? 'bg-red-900/20 border-red-500/25 text-red-400'
               : 'bg-amber-900/20 border-amber-500/25 text-amber-400'
@@ -944,14 +950,14 @@ export default function FloorBoard({
           </div>
         )}
 
-        <span className="ml-auto text-[10px] text-iron-muted">{T.floorBoard.tableCount(dedupedTables.length)}</span>
+        <span className="ml-auto text-xs text-iron-muted">{T.floorBoard.tableCount(dedupedTables.length)}</span>
 
         <div className="flex items-center gap-px ml-3 rounded border border-iron-border overflow-hidden shrink-0">
           {(['floor', 'timeline'] as View[]).map(v => (
             <button
               key={v}
               onClick={() => !pickMode && setView(v)}
-              className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+              className={`px-2 py-0.5 text-xs font-medium transition-colors ${
                 view === v
                   ? 'bg-iron-green/20 text-iron-green-light'
                   : 'text-iron-muted hover:text-iron-text hover:bg-iron-border/30'
@@ -1220,10 +1226,10 @@ export default function FloorBoard({
               />
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-px h-4 rounded-full shrink-0" style={{ backgroundColor: group.color, opacity: 0.58 }} />
-                <h3 className="text-[9px] font-semibold uppercase tracking-[0.16em] text-iron-muted/48">
+                <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/85">
                   {formatSectionName(group.name, locale)}
                 </h3>
-                <div className="flex-1 h-px bg-iron-border/18" />
+                <div className="flex-1 h-px bg-iron-border/50" />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                 {group.tables.map(t => {
@@ -1306,7 +1312,7 @@ export default function FloorBoard({
               style={{ left: ctxMenu.x, top: ctxMenu.y, boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.32)' }}
             >
               <div className="px-3 py-1.5 border-b border-iron-border/50 mb-1">
-                <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">{t.name}</span>
+                <span className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{t.name}</span>
               </div>
 
               {/* Primary operational actions */}
@@ -1559,7 +1565,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
   return (
     <div className="flex items-baseline gap-1.5">
       <span className={`text-xl font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      <span className="text-iron-muted/55 text-[9px] uppercase tracking-[0.08em] font-medium">{label}</span>
+      <span className="text-iron-muted text-[10px] uppercase tracking-[0.08em] font-medium">{label}</span>
     </div>
   );
 }
@@ -2778,7 +2784,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         ? '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)'
         : '0 0 0 1px rgba(37,99,235,0.38), 0 0 36px rgba(37,99,235,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
-      halo = isDark ? '0 0 16px rgba(255,255,255,0.05)' : undefined;
+      halo = isDark ? '0 0 22px rgba(255,255,255,0.09)' : undefined;
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
   }
@@ -2786,8 +2792,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Plate depth — inset edge cue. Dark: white top highlight catches overhead light. Light: subtle shadow.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
     const depthShadow = isDark
-      ? 'inset 0 1px 0 rgba(255,255,255,0.96), inset 0 -2px 6px rgba(0,0,0,0.12)'
-      : 'inset 0 1px 0 rgba(0,0,0,0.06), inset 0 -2px 6px rgba(0,0,0,0.08)';
+      ? 'inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 rgba(255,255,255,0.28), inset -1px 0 0 rgba(0,0,0,0.10), inset 0 -2px 8px rgba(0,0,0,0.16)'
+      : 'inset 0 1px 0 rgba(0,0,0,0.07), inset 0 -2px 6px rgba(0,0,0,0.09)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
 
@@ -2915,7 +2921,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           fontSize: hasGuest ? 10 : 15,
           fontWeight: hasGuest ? 600 : 900,
           color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
-          opacity: hasGuest ? 0.62 : table.liveStatus === 'BLOCKED' ? 0.70 : 1,
+          opacity: hasGuest ? 0.88 : table.liveStatus === 'BLOCKED' ? 0.75 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           letterSpacing: hasGuest ? '0.04em' : '-0.02em',
         }}>
@@ -2936,7 +2942,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
       {!hasGuest && (
-        <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.58, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 500 }}>
+        <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 500 }}>
           {table.minCovers}–{table.maxCovers}p
         </span>
       )}
@@ -2967,7 +2973,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             {/* Metadata zone — partySize · timer; centered; OVR/⊞ float as corner badge */}
             {!isSecondary && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72 }}>
+                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.92 }}>
                   {currentRes.partySize}p
                 </span>
                 {isToday && (() => {
@@ -3021,7 +3027,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
                 {/* Text group — shrinks first; chip stays fixed */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.72, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.84, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
                   <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

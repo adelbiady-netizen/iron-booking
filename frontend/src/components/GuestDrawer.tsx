@@ -73,7 +73,7 @@ function TablePicker({ tables, excludeId, label, busy, onPick, onBack }: TablePi
             className="text-xs p-2 rounded-lg border border-iron-border hover:border-iron-green text-iron-text text-center transition-colors disabled:opacity-40"
           >
             <div className="font-semibold">{t.name}</div>
-            <div className="text-iron-muted text-[10px]">
+            <div className="text-iron-muted text-[11px]">
               {t.minCovers}–{t.maxCovers}
             </div>
           </button>
@@ -130,7 +130,7 @@ function Field({ label, children }: FieldProps) {
   );
 }
 
-const inputCls = 'w-full bg-iron-bg border border-iron-border rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors';
+const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green/70 transition-colors';
 
 // ─── Suggestion reason chips ──────────────────────────────────────────────────
 
@@ -546,7 +546,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     return (
       <section className="border-t border-iron-border pt-4 space-y-2.5">
-        <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider">
+        <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider">
           {T.guestDrawer.confirmationSection}
         </p>
 
@@ -568,7 +568,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <span className="w-1.5 h-1.5 rounded-full bg-iron-green-light/60 shrink-0" />
             <span className="text-iron-green-light text-xs">{T.guestDrawer.guestConfirmed}</span>
             {res.confirmationSentAt && (
-              <span className="text-iron-muted text-[11px]">· {T.guestDrawer.viaSms} {fmtTime(res.confirmationSentAt)}</span>
+              <span className="text-iron-muted text-xs">· {T.guestDrawer.viaSms} {fmtTime(res.confirmationSentAt)}</span>
             )}
           </div>
         ) : res.confirmationSentAt ? (
@@ -589,7 +589,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {res.remindedAt && (
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-iron-muted/40 shrink-0" />
-            <span className="text-iron-muted text-[11px]">
+            <span className="text-iron-muted text-xs">
               {T.guestDrawer.reminderSentAt} {fmtTime(res.remindedAt)}
               {res.reminderCount > 1 && ` (×${res.reminderCount})`}
               {res.reminderCount >= 2 && ` · ${T.guestDrawer.maxRemindersReached}`}
@@ -893,10 +893,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`}>
+      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/60 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-4px 0 44px rgba(0,0,0,0.68), -1px 0 0 rgba(255,255,255,0.06)' }}>
 
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-iron-border/70 bg-iron-elevated shrink-0">
+        <div className="px-5 pt-5 pb-4 border-b border-iron-border shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.07) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.32)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
               {/* Name + VIP */}
@@ -958,14 +958,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   </span>
                 )}
                 {res.isConfirmedByGuest && (
-                  <span className="text-[10px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">
+                  <span className="text-[11px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">
                     {T.guestDrawer.guestConfirmed}
                   </span>
                 )}
               </div>
 
               {/* Party + table — compact secondary line */}
-              <div className="flex items-center gap-1.5 mt-2 text-iron-muted/50 text-[11px]">
+              <div className="flex items-center gap-1.5 mt-2 text-iron-muted text-xs">
                 <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
@@ -1049,14 +1049,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {(res.hostNotes || res.guestNotes || res.occasion) && (
             <section className="space-y-2">
               {res.hostNotes && (
-                <div className="px-3 py-2 rounded-lg bg-iron-elevated border border-iron-border/60" style={{ borderLeftWidth: 2, borderLeftColor: 'rgba(217,119,6,0.55)' }}>
-                  <p className="text-[10px] text-iron-muted font-medium uppercase tracking-wider mb-0.5">Host note</p>
+                <div className="px-3 py-2 rounded-lg bg-iron-card border border-iron-border/60" style={{ borderLeftWidth: 2, borderLeftColor: 'rgba(217,119,6,0.60)' }}>
+                  <p className="text-[11px] text-iron-muted font-medium uppercase tracking-wider mb-0.5">Host note</p>
                   <p className="text-iron-text text-xs leading-relaxed">{res.hostNotes}</p>
                 </div>
               )}
               {res.guestNotes && (
                 <div className="px-3 py-2 rounded-lg bg-iron-bg border border-iron-border">
-                  <p className="text-[10px] text-iron-muted font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
+                  <p className="text-[11px] text-iron-muted font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
                   <p className="text-iron-text text-xs">{res.guestNotes}</p>
                 </div>
               )}
@@ -1075,7 +1075,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 ? 'border-amber-500/30 bg-amber-500/5'
                 : 'border-iron-green/30 bg-iron-green/5'
             }`}>
-              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider">
+              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider">
                 {smartSuggestion?.mode === 'upgrade'
                   ? T.guestDrawer.sectionSmartUpgrade
                   : T.guestDrawer.sectionSmartSuggest}
@@ -1182,7 +1182,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (others.length === 0) return null;
             return (
               <section className="border-t border-iron-border pt-4 space-y-1.5">
-                <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-2">
+                <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-2">
                   {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
                 </p>
                 {others.map(r => (
@@ -1190,8 +1190,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     <span className="text-iron-text text-xs font-semibold tabular-nums w-10 shrink-0">{normalizeTime(r.time)}</span>
                     <span className="text-iron-border text-xs">·</span>
                     <span className="text-iron-text text-xs truncate flex-1">{r.guestName}</span>
-                    <span className="text-iron-muted text-[10px] shrink-0">{T.common.guests(r.partySize)}</span>
-                    <span className={`text-[9px] px-1.5 py-px rounded font-medium shrink-0 ${
+                    <span className="text-iron-muted text-[11px] shrink-0">{T.common.guests(r.partySize)}</span>
+                    <span className={`text-[10px] px-1.5 py-px rounded font-medium shrink-0 ${
                       r.status === 'CONFIRMED' ? 'bg-iron-border/15 text-iron-muted' :
                       r.status === 'SEATED'    ? 'bg-iron-green/20 text-iron-green-light' :
                                                  'bg-iron-border/20 text-iron-muted'
@@ -1209,7 +1209,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Guest CRM */}
           {res.guest && (
             <section className="border-t border-iron-border pt-4 space-y-2">
-              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-2">
+              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
               <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`} />
@@ -1224,7 +1224,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   {res.guest.tags.map(tag => (
                     <span
                       key={tag}
-                      className="text-[10px] px-1.5 py-0.5 bg-iron-bg border border-iron-border rounded-md text-iron-muted"
+                      className="text-[11px] px-1.5 py-0.5 bg-iron-bg border border-iron-border rounded-md text-iron-muted"
                     >
                       {tag}
                     </span>
@@ -1239,7 +1239,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Actions */}
           <section ref={actionsRef} className="border-t border-iron-border pt-4">
-            <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-3">
+            <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-3">
               {T.guestDrawer.sectionActions}
             </p>
 
@@ -1605,7 +1605,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Table lock */}
           {assignedTable && mode !== 'lock' && (
             <section className="border-t border-iron-border pt-4">
-              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-3">{T.guestDrawer.sectionTableLock}</p>
+              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-3">{T.guestDrawer.sectionTableLock}</p>
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
                   <div>
@@ -1623,7 +1623,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {mode === 'lock' && assignedTable && (
             <section className="border-t border-iron-border pt-4 space-y-3">
-              <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider">{T.lockModal.title(assignedTable.name)}</p>
+              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider">{T.lockModal.title(assignedTable.name)}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCK_QUICK_REASONS.map(r => (
                   <button
@@ -1661,7 +1661,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Lifecycle timestamps */}
           <section className="border-t border-iron-border pt-4 space-y-2">
-            <p className="text-iron-muted text-[10px] font-medium uppercase tracking-wider mb-2">
+            <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-2">
               {T.guestDrawer.sectionTimeline}
             </p>
             {!res.confirmedAt && !res.seatedAt && !res.completedAt && !res.cancelledAt && !res.noShowAt && (
