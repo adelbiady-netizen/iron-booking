@@ -94,6 +94,23 @@ function IconChevronRight() {
   );
 }
 
+function IconMenu() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  );
+}
+
+// Returns the hours entry for today's weekday, or null if not available.
+function getTodayHours(hours: { label: string; value: string }[] | null): { label: string; value: string } | null {
+  if (!hours || hours.length === 0) return null;
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  return hours.find(h => h.label.toLowerCase() === today.toLowerCase()) ?? null;
+}
+
 function getSocialIcon(platform: string) {
   switch (platform.toLowerCase()) {
     case 'instagram': return <IconInstagram />;
@@ -296,10 +313,15 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
 }
 
 // ─── Rendered hub page (ViewModel → JSX) ─────────────────────────────────────
-function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction: () => void }) {
+function HubContent({ vm, onDemoAction, diningMode = false }: {
+  vm: GuestHubViewModel;
+  onDemoAction: () => void;
+  diningMode?: boolean;
+}) {
   const [stickyVisible, setStickyVisible] = useState(false);
   const [logoFailed,    setLogoFailed]    = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Slide sticky nav in once the hero's bottom edge clears 56px.
   useEffect(() => {
@@ -311,13 +333,24 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // In dining mode (QR table scan), auto-scroll to menu after page settles.
+  useEffect(() => {
+    if (!diningMode) return;
+    const t = setTimeout(() => {
+      menuRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [diningMode]);
+
   // Split featured dishes: chef-tagged items get the editorial treatment; all others go in the carousel.
   const chefsDishes    = vm.featuredDishes.filter(d => /chef/i.test(d.tag ?? ''));
   const carouselDishes = vm.featuredDishes.filter(d => !/chef/i.test(d.tag ?? ''));
 
-  const hasCategories = vm.allCategories.length > 0;
-  const hasPromotions = vm.promotions.length > 0;
-  const hasSocial     = vm.socialLinks.length > 0;
+  const hasCategories  = vm.allCategories.length > 0;
+  const hasPromotions  = vm.promotions.length > 0;
+  const hasSocial      = vm.socialLinks.length > 0;
+  const hasMenuContent = hasCategories || chefsDishes.length > 0 || carouselDishes.length > 0;
+  const todayHours     = getTodayHours(vm.hours);
 
   return (
     <div style={{
@@ -382,7 +415,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
       </div>
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <div ref={heroRef} style={{ position: 'relative', width: '100%', height: 'min(92vw, 560px)', overflow: 'hidden' }}>
+      <div ref={heroRef} style={{ position: 'relative', width: '100%', height: diningMode ? 'min(52vw, 240px)' : 'min(92vw, 560px)', overflow: 'hidden' }}>
         {/* Deep warm gradient — always rendered under the image as fallback */}
         <div style={{
           position: 'absolute', inset: 0,
@@ -425,8 +458,8 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
           pointerEvents: 'none',
         }} />
         {/* Restaurant identity */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 24px 40px' }}>
-          {vm.logoUrl && !logoFailed && (
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: diningMode ? '0 20px 18px' : '0 24px 40px' }}>
+          {!diningMode && vm.logoUrl && !logoFailed && (
             <div style={{
               width: 52, height: 52, borderRadius: 16, overflow: 'hidden', marginBottom: 20,
               background: C.elevated,
@@ -446,15 +479,15 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
             </div>
           )}
           {/* Gold accent line — editorial typography anchor */}
-          <div style={{ width: 28, height: 2, background: C.gold, borderRadius: 1, marginBottom: 16 }} />
+          <div style={{ width: 28, height: 2, background: C.gold, borderRadius: 1, marginBottom: diningMode ? 10 : 16 }} />
           <h1 style={{
-            fontSize: 'clamp(36px, 9.5vw, 52px)',
+            fontSize: diningMode ? 'clamp(22px, 5.5vw, 30px)' : 'clamp(36px, 9.5vw, 52px)',
             fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, margin: 0,
             textShadow: '0 2px 20px rgba(0,0,0,0.75)',
           }}>
             {vm.name}
           </h1>
-          {vm.tagline && (
+          {!diningMode && vm.tagline && (
             <p style={{
               marginTop: 12, fontSize: 15,
               color: 'rgba(240,235,227,0.72)',
@@ -470,87 +503,168 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
       {/* ── Page body ─────────────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 24px 80px' }}>
 
+        {/* ── Today's hours strip — instant trust signal ────────────────────── */}
+        {todayHours && (
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 11px', borderRadius: 20,
+              background: todayHours.value === 'Closed' ? 'rgba(74,65,57,0.35)' : 'rgba(201,169,110,0.10)',
+              border: `1px solid ${todayHours.value === 'Closed' ? C.border : C.goldDim}`,
+              flexShrink: 0,
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                background: todayHours.value === 'Closed' ? C.sub : C.gold,
+              }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: todayHours.value === 'Closed' ? C.muted : C.gold }}>
+                {todayHours.value === 'Closed' ? 'Closed today' : `Open today`}
+              </span>
+            </span>
+            {todayHours.value !== 'Closed' && (
+              <span style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>
+                {todayHours.value}
+              </span>
+            )}
+            {vm.address && !diningMode && (
+              <span style={{
+                fontSize: 12, color: C.sub,
+                overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0,
+              }}>
+                · {vm.address}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* ── Quick actions ─────────────────────────────────────────────────── */}
-        <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ marginTop: todayHours ? 16 : 32, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-          <button
-            type="button"
-            className="gh-cta"
-            onClick={onDemoAction}
-            style={{
-              gridColumn: '1 / -1',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              backgroundColor: C.gold, color: '#0C0A09',
-              fontWeight: 700, fontSize: 15, padding: '16px 20px',
-              borderRadius: 12, border: 'none', letterSpacing: '0.01em', width: '100%',
-            }}
-          >
-            <IconCalendar />
-            Reserve a table
-          </button>
+          {/* Primary CTA */}
+          {diningMode ? (
+            <button
+              type="button"
+              onClick={() => menuRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                backgroundColor: C.gold, color: '#0C0A09',
+                fontWeight: 700, fontSize: 15, padding: '16px 20px',
+                borderRadius: 12, border: 'none', letterSpacing: '0.01em',
+              }}
+            >
+              <IconMenu />
+              View our menu
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="gh-cta"
+              onClick={onDemoAction}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                backgroundColor: C.gold, color: '#0C0A09',
+                fontWeight: 700, fontSize: 15, padding: '16px 20px',
+                borderRadius: 12, border: 'none', letterSpacing: '0.01em',
+              }}
+            >
+              <IconCalendar />
+              Reserve a table
+            </button>
+          )}
 
-          <button
-            type="button"
-            className="gh-secondary-btn"
-            onClick={onDemoAction}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              backgroundColor: C.elevated, border: `1px solid ${C.border}`,
-              color: C.text, fontWeight: 600, fontSize: 14,
-              padding: '13px 16px', borderRadius: 12,
-            }}
-          >
-            <IconUsers />
-            Waitlist
-          </button>
-
-          {vm.phone && (
-            <a
-              href={`tel:${vm.phone}`}
-              className="gh-secondary-btn"
+          {/* Secondary CTA — scroll to menu (normal mode only) */}
+          {!diningMode && hasMenuContent && (
+            <button
+              type="button"
+              onClick={() => menuRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                backgroundColor: C.elevated, border: `1px solid ${C.border}`,
+                backgroundColor: 'transparent', border: `1px solid ${C.border}`,
                 color: C.text, fontWeight: 600, fontSize: 14,
-                padding: '13px 16px', borderRadius: 12, textDecoration: 'none',
+                padding: '13px 16px', borderRadius: 12,
               }}
             >
-              <IconPhone />
-              Call us
-            </a>
+              <IconMenu />
+              View our menu
+            </button>
           )}
 
-          {vm.directionsUrl && (
-            <a
-              href={vm.directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="gh-ghost-btn"
+          {/* Utility row — Call + Directions */}
+          {(vm.phone || (!diningMode && vm.directionsUrl)) && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: vm.phone && !diningMode && vm.directionsUrl ? '1fr 1fr' : '1fr',
+              gap: 10,
+            }}>
+              {vm.phone && (
+                <a
+                  href={`tel:${vm.phone}`}
+                  className="gh-secondary-btn"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    backgroundColor: C.elevated, border: `1px solid ${C.border}`,
+                    color: C.text, fontWeight: 600, fontSize: 14,
+                    padding: '13px 16px', borderRadius: 12, textDecoration: 'none',
+                  }}
+                >
+                  <IconPhone />
+                  {diningMode ? 'Call for service' : 'Call us'}
+                </a>
+              )}
+              {!diningMode && vm.directionsUrl && (
+                <a
+                  href={vm.directionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="gh-secondary-btn"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    backgroundColor: C.elevated, border: `1px solid ${C.border}`,
+                    color: C.text, fontWeight: 600, fontSize: 14,
+                    padding: '13px 16px', borderRadius: 12, textDecoration: 'none',
+                  }}
+                >
+                  <IconMap />
+                  Directions
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Ghost action — bottom tier */}
+          {diningMode ? (
+            <button
+              type="button"
+              className="gh-cta"
+              onClick={onDemoAction}
               style={{
-                gridColumn: '1 / -1',
-                display: 'flex', alignItems: 'center', gap: 14,
-                backgroundColor: 'transparent',
-                border: `1px solid ${C.borderSub}`,
-                color: C.text, padding: '12px 16px',
-                borderRadius: 12, textDecoration: 'none',
+                background: 'none', border: 'none', color: C.muted,
+                fontSize: 13, fontWeight: 500, padding: '4px 0', letterSpacing: '0.01em',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              <span style={{ color: C.muted, flexShrink: 0 }}><IconMap /></span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, fontSize: 14 }}>Get directions</span>
-                {vm.address && (
-                  <span style={{
-                    display: 'block', fontSize: 12, color: C.muted, marginTop: 2,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {vm.address}
-                  </span>
-                )}
-              </span>
-              <span style={{ color: C.sub, flexShrink: 0 }}><IconChevronRight /></span>
-            </a>
+              <IconCalendar />
+              Reserve for your next visit
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="gh-cta"
+              onClick={onDemoAction}
+              style={{
+                background: 'none', border: 'none', color: C.muted,
+                fontSize: 13, fontWeight: 500, padding: '4px 0', letterSpacing: '0.01em',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <IconUsers />
+              Join the waitlist
+            </button>
           )}
         </div>
+
+        {/* Menu scroll anchor — target for 'View our menu' and dining-mode auto-scroll */}
+        {hasMenuContent && <div ref={menuRef} style={{ scrollMarginTop: 68 }} />}
 
         {/* ── Chef's Selection ──────────────────────────────────────────────── */}
         {chefsDishes.length > 0 && (
@@ -713,6 +827,14 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
                         ? `${cat.count} ${cat.count === 1 ? 'item' : 'items'}`
                         : 'Coming soon'}
                     </p>
+                    {cat.dishes.length > 0 && (
+                      <p style={{ margin: '5px 0 0', color: C.sub, fontSize: 10, lineHeight: 1.4,
+                        overflow: 'hidden', display: '-webkit-box',
+                        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                      }}>
+                        {cat.dishes.slice(0, 3).map(d => d.name).join('  ·  ')}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -823,6 +945,22 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
           </>
         )}
 
+        {/* ── Menu empty state ─────────────────────────────────────────────── */}
+        {!hasMenuContent && (
+          <>
+            <Rule />
+            <div style={{ textAlign: 'center', padding: '32px 0 8px' }}>
+              <p style={{ color: C.gold, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
+                Coming soon
+              </p>
+              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.7, margin: '12px 0 0' }}>
+                We're preparing our digital menu.<br />
+                Ask our team for today's specials.
+              </p>
+            </div>
+          </>
+        )}
+
         {/* ── Footer ────────────────────────────────────────────────────────── */}
         <div style={{ marginTop: 56, paddingBottom: 16, textAlign: 'center' }}>
           <div style={{
@@ -853,7 +991,7 @@ function HubContent({ vm, onDemoAction }: { vm: GuestHubViewModel; onDemoAction:
 // Accepts a slug, handles all loading / error / not-found states, then
 // delegates rendering to HubContent once data is ready.
 
-export default function GuestHubPage({ slug }: { slug: string }) {
+export default function GuestHubPage({ slug, diningMode = false }: { slug: string; diningMode?: boolean }) {
   const hubState = useGuestHub(slug);
 
   // SEO + social share metadata — must be called before any conditional returns.
@@ -889,7 +1027,7 @@ export default function GuestHubPage({ slug }: { slug: string }) {
 
   return (
     <>
-      <HubContent vm={hubState.data} onDemoAction={showDemoNotice} />
+      <HubContent vm={hubState.data} onDemoAction={showDemoNotice} diningMode={diningMode} />
       {demoNotice && (
         <div
           role="status"

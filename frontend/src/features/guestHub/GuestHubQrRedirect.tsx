@@ -34,7 +34,7 @@ export default function GuestHubQrRedirect({ token }: { token: string }) {
         return res.json() as Promise<{ slug: string }>;
       })
       .then(({ slug }) => {
-        window.location.replace(`/r/${slug}`);
+        window.location.replace(`/r/${slug}?src=qr`);
       })
       .catch(() => {
         setError('This QR code is no longer active. Please ask staff for assistance.');

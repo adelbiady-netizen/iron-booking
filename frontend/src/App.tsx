@@ -141,8 +141,9 @@ export default function App() {
     if (slug) return <GuestHubPreviewPage slug={slug} />;
   }
   if (path.startsWith('/r/')) {
-    const slug = path.split('/')[2];
-    if (slug) return <GuestHubPage slug={slug} />;
+    const slug        = path.split('/')[2];
+    const diningMode  = new URLSearchParams(window.location.search).get('src') === 'qr';
+    if (slug) return <GuestHubPage slug={slug} diningMode={diningMode} />;
   }
   if (path.startsWith('/q/')) {
     const token = path.split('/')[2];
