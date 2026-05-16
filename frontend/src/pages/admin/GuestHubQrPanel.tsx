@@ -517,9 +517,25 @@ export default function GuestHubQrPanel({
         )}
 
         {!loadingTokens && !loadError && tokens.length === 0 && !creating && (
-          <div className="px-5 py-6 text-center">
-            <p className="text-sm text-iron-muted mb-1">No QR tokens yet.</p>
-            <p className="text-xs text-iron-muted/60">Create one to get a printable QR for this hub.</p>
+          <div className="px-5 py-10 text-center">
+            <div className="w-10 h-10 bg-iron-bg border border-iron-border rounded-xl flex items-center justify-center mx-auto mb-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <path d="M14 14h3v3M17 20h3M20 17v3"/>
+              </svg>
+            </div>
+            <p className="text-sm text-iron-text mb-1">No QR tokens yet</p>
+            <p className="text-xs text-iron-muted mb-5 max-w-xs mx-auto leading-relaxed">
+              Create your first token to get a printable QR code for tables, tents, and window signs.
+            </p>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="px-4 py-2 bg-iron-green hover:bg-iron-green-light text-white text-sm font-medium rounded transition-colors"
+            >
+              Create first token
+            </button>
           </div>
         )}
 

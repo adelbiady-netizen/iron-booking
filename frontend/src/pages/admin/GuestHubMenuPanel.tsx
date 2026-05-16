@@ -403,13 +403,11 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
   return (
     <div className="space-y-4">
 
-      {/* Info banner */}
-      <div className="flex items-start gap-2.5 bg-iron-bg border border-iron-border rounded-lg px-4 py-3">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted flex-shrink-0 mt-0.5" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <p className="text-xs text-iron-muted leading-relaxed">
-          Menu changes take effect <span className="text-iron-text">immediately</span> on the live Guest Hub page. No publish step required.
+      {/* Live indicator banner */}
+      <div className="flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-4 py-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
+        <p className="text-xs text-emerald-400/90 leading-relaxed">
+          Menu changes go <span className="font-semibold">live immediately</span> — no publish step required.
         </p>
       </div>
 
@@ -441,7 +439,22 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
 
           <div className="flex-1 overflow-y-auto">
             {allCategories.length === 0 ? (
-              <p className="text-xs text-iron-muted p-3 leading-relaxed">No categories yet. Click + to add one.</p>
+              <div className="flex flex-col items-center justify-center py-8 px-3 text-center gap-2">
+                <div className="w-9 h-9 bg-iron-bg border border-iron-border rounded-lg flex items-center justify-center">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted" aria-hidden="true">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                </div>
+                <p className="text-xs text-iron-muted leading-relaxed">No categories yet</p>
+                <button
+                  type="button"
+                  onClick={openNewCat}
+                  className="text-xs text-iron-green hover:text-iron-green-light transition-colors"
+                >
+                  + Add first
+                </button>
+              </div>
             ) : (
               allCategories.map(cat => (
                 <button
@@ -473,9 +486,31 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
 
           {/* Empty state */}
           {view.kind === 'empty' && (
-            <div className="flex flex-col items-center justify-center h-full py-16 px-6 text-center">
-              <p className="text-iron-muted text-sm mb-1">Select a category to see its dishes</p>
-              <p className="text-iron-muted/60 text-xs">or click + to create a new one</p>
+            <div className="flex flex-col items-center justify-center h-full py-16 px-6 text-center gap-3">
+              <div className="w-12 h-12 bg-iron-bg border border-iron-border rounded-xl flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted" aria-hidden="true">
+                  <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                  <path d="M7 2v20"/>
+                  <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-iron-muted text-sm">
+                  {allCategories.length === 0 ? 'No categories yet' : 'Select a category'}
+                </p>
+                <p className="text-iron-muted/60 text-xs mt-0.5">
+                  {allCategories.length === 0 ? 'Add your first to start building the menu' : 'to view and edit its dishes'}
+                </p>
+              </div>
+              {allCategories.length === 0 && (
+                <button
+                  type="button"
+                  onClick={openNewCat}
+                  className="px-3 py-1.5 bg-iron-green hover:bg-iron-green-light text-white text-xs font-medium rounded transition-colors"
+                >
+                  Add first category
+                </button>
+              )}
             </div>
           )}
 
@@ -545,7 +580,16 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                 </div>
 
                 {cat.dishes.length === 0 ? (
-                  <p className="text-iron-muted text-sm mb-4">No dishes yet.</p>
+                  <div className="border border-dashed border-iron-border/70 rounded-xl py-8 px-4 text-center mb-4">
+                    <p className="text-iron-muted text-sm mb-3">No dishes in this category yet</p>
+                    <button
+                      type="button"
+                      onClick={() => openNewDish(cat.id)}
+                      className="px-3 py-1.5 border border-iron-border/80 text-iron-green text-xs rounded-lg hover:border-iron-green/60 hover:bg-iron-green/5 transition-colors"
+                    >
+                      + Add first dish
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-2 mb-4">
                     {cat.dishes.map(dish => (
@@ -559,16 +603,18 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => openNewDish(cat.id)}
-                  className="text-xs text-iron-muted hover:text-iron-green transition-colors flex items-center gap-1"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Add dish
-                </button>
+                {cat.dishes.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => openNewDish(cat.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-iron-border/60 hover:border-iron-green/60 text-iron-muted hover:text-iron-green text-xs rounded-lg transition-colors"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Add dish
+                  </button>
+                )}
               </div>
             );
           })()}
@@ -705,11 +751,20 @@ function DishRow({
 }) {
   return (
     <div className={`flex items-center gap-2 p-2.5 rounded-lg border transition-colors ${
-      dish.isHidden ? 'border-iron-border/50 bg-iron-bg/50 opacity-60' : 'border-iron-border bg-iron-bg'
+      dish.isHidden ? 'border-iron-border/40 bg-iron-bg/30' : 'border-iron-border bg-iron-bg'
     }`}>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-iron-text truncate">{dish.name}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm truncate ${dish.isHidden ? 'text-iron-muted/70' : 'text-iron-text'}`}>{dish.name}</span>
+          {dish.isHidden && (
+            <span className="text-[10px] text-iron-muted/60 bg-iron-card border border-iron-border/60 rounded px-1.5 py-0.5 flex-shrink-0 flex items-center gap-1">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              Hidden
+            </span>
+          )}
           {dish.tag && (
             <span className="text-xs text-iron-muted/70 bg-iron-card border border-iron-border rounded px-1.5 py-0.5 flex-shrink-0">
               {dish.tag}

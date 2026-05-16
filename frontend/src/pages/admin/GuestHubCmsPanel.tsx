@@ -700,7 +700,24 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 <BrandingRow label="Cover image"  value={hub.branding.coverImageUrl} url />
               </dl>
             ) : (
-              <p className="text-iron-muted text-sm">No branding set — click Edit to add.</p>
+              <div className="flex flex-col items-center text-center py-6 gap-3">
+                <div className="w-10 h-10 bg-iron-bg border border-iron-border rounded-xl flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-iron-muted text-sm mb-1">No branding configured</p>
+                  <p className="text-iron-muted/60 text-xs">Add your restaurant name, logo, and cover image to go live</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openBrandingEdit}
+                  className="px-3 py-1.5 bg-iron-green hover:bg-iron-green-light text-white text-xs font-medium rounded transition-colors"
+                >
+                  Add branding
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -781,7 +798,10 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 ))}
               </ul>
             ) : (
-              <p className="text-iron-muted text-sm">No social links configured.</p>
+              <div className="text-center py-4">
+                <p className="text-iron-muted text-sm">No social links configured</p>
+                <p className="text-iron-muted/60 text-xs mt-1">Add Instagram, TikTok, or website links to show on your hub</p>
+              </div>
             )}
           </div>
         )}
