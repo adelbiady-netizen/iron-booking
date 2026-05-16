@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import './GuestHubPage.css';
 import { useGuestHub } from './hooks/useGuestHub';
 import GuestHubSkeleton from './components/GuestHubSkeleton';
@@ -6,20 +6,21 @@ import GuestHubError    from './components/GuestHubError';
 import type { GuestHubViewModel, SocialLinkViewModel, DishAvailability, DishViewModel } from './types/viewModel';
 import { getDietaryAbbr } from './mappers/hubMapper';
 import { useHubMeta } from './hooks/useHubMeta';
+import { getHubTheme, type HubColorPalette } from './presets/hubThemes';
 
-// ─── Colour tokens — guest-facing palette, isolated from iron-* operator UI ──
-const C = {
-  bg:       '#0C0A09',
-  surface:  '#141210',
-  elevated: '#1C1916',
-  border:   '#28231E',
-  borderSub:'#201C18',
-  text:     '#F0EBE3',
-  muted:    '#7A6F65',
-  sub:      '#4A4139',
-  gold:     '#C9A96E',
-  goldDim:  '#8C6F3E',
-} as const;
+// ─── Color context — theme-aware, isolated from iron-* operator UI ─────────────
+// Sub-components read colors via useC() instead of a module-level const,
+// so they automatically pick up whichever preset HubContent provides.
+
+const ESPRESSO_PALETTE: HubColorPalette = {
+  bg: '#0C0A09', surface: '#141210', elevated: '#1C1916',
+  border: '#28231E', borderSub: '#201C18',
+  text: '#F0EBE3', muted: '#7A6F65', sub: '#4A4139',
+  gold: '#C9A96E', goldDim: '#8C6F3E',
+};
+
+const ColorsCtx = createContext<HubColorPalette>(ESPRESSO_PALETTE);
+const useC = () => useContext(ColorsCtx);
 
 // ─── Inline SVG icon components ───────────────────────────────────────────────
 function IconCalendar() {
@@ -121,6 +122,7 @@ function getSocialIcon(platform: string) {
 
 // ─── Section label — gold uppercase 11px eyebrow text ─────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
+  const C = useC();
   return (
     <p style={{ color: C.gold, fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
       {children}
@@ -130,21 +132,23 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ─── Full-width horizontal rule between sections ──────────────────────────────
 function Rule() {
+  const C = useC();
   return <div style={{ height: 1, background: C.border, marginTop: 40, marginBottom: 40 }} />;
 }
 
 // ─── Dietary tag pills ────────────────────────────────────────────────────────
 function DietaryPills({ tags }: { tags: string[] }) {
+  const C = useC();
   if (tags.length === 0) return null;
   return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 10 }}>
       {tags.map(tag => (
         <span
           key={tag}
           title={tag}
           style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-            textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4,
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
+            textTransform: 'uppercase', padding: '2px 7px', borderRadius: 4,
             background: C.elevated, border: `1px solid ${C.border}`, color: C.muted,
           }}
         >
@@ -164,6 +168,7 @@ const AVAIL_LABELS: Record<string, string> = {
 };
 
 function AvailabilityBadge({ availability }: { availability: DishAvailability }) {
+  const C = useC();
   if (availability === 'AVAILABLE') return null;
   const isSoldOut = availability === 'SOLD_OUT';
   return (
@@ -182,6 +187,7 @@ function AvailabilityBadge({ availability }: { availability: DishAvailability })
 
 // ─── Icon container for social/action rows ────────────────────────────────────
 function IconBox({ children }: { children: React.ReactNode }) {
+  const C = useC();
   return (
     <div style={{
       width: 36, height: 36, borderRadius: 9,
@@ -195,7 +201,17 @@ function IconBox({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Social link row ──────────────────────────────────────────────────────────
+const SOCIAL_HELPER: Record<string, string> = {
+  instagram: 'Follow us on Instagram',
+  facebook:  'Like our page',
+  tiktok:    'Watch our videos',
+  website:   'Visit our website',
+  whatsapp:  'Message us on WhatsApp',
+};
+
 function SocialRow({ link }: { link: SocialLinkViewModel }) {
+  const C = useC();
+  const helper = SOCIAL_HELPER[link.platform] ?? 'View';
   return (
     <a
       href={link.href}
@@ -212,17 +228,100 @@ function SocialRow({ link }: { link: SocialLinkViewModel }) {
       <IconBox>{getSocialIcon(link.platform)}</IconBox>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{link.displayLabel}</p>
-        <p style={{ margin: 0, color: C.muted, fontSize: 12 }}>
-          {link.platform === 'website' ? link.handle : `@${link.handle}`}
-        </p>
+        <p style={{ margin: 0, color: C.muted, fontSize: 12 }}>{helper}</p>
       </div>
       <span style={{ color: C.sub }}><IconChevronRight /></span>
     </a>
   );
 }
 
+// ─── Menu dish row card — horizontal layout for category browse view ──────────
+function MenuDishCard({ dish }: { dish: DishViewModel }) {
+  const C = useC();
+  return (
+    <article
+      className="gh-dish-card"
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 14,
+        padding: '14px 16px',
+        background: C.surface, border: `1px solid ${C.border}`,
+        borderRadius: 14, opacity: dish.isUnavailable ? 0.55 : 1,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+            {dish.name}
+          </p>
+          {dish.tag && !dish.isUnavailable && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4,
+              background: 'rgba(201,169,110,0.10)', border: `1px solid ${C.goldDim}`,
+              color: C.gold, flexShrink: 0,
+            }}>
+              {dish.tag}
+            </span>
+          )}
+          {dish.isUnavailable && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+              textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4,
+              background: 'rgba(0,0,0,0.4)', border: `1px solid ${C.border}`,
+              color: C.muted, flexShrink: 0,
+            }}>
+              {AVAIL_LABELS[dish.availability] ?? dish.availability}
+            </span>
+          )}
+        </div>
+        {dish.subtitle && (
+          <p style={{ margin: '2px 0 0', color: C.gold, fontSize: 12, fontStyle: 'italic', lineHeight: 1.4 }}>
+            {dish.subtitle}
+          </p>
+        )}
+        {dish.description && (
+          <p style={{
+            margin: '6px 0 0', color: C.muted, fontSize: 12.5, lineHeight: 1.55,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {dish.description}
+          </p>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 8 }}>
+          <DietaryPills tags={dish.dietaryTags} />
+          {dish.price && (
+            <p style={{
+              margin: 0, fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', flexShrink: 0,
+              color: dish.isUnavailable ? C.muted : C.gold,
+              textDecoration: dish.isUnavailable ? 'line-through' : 'none',
+            }}>
+              {dish.price}
+            </p>
+          )}
+        </div>
+      </div>
+      {dish.imageUrl && (
+        <div style={{
+          width: 82, height: 82, borderRadius: 10, flexShrink: 0,
+          background: dish.gradient, overflow: 'hidden',
+        }}>
+          <img
+            src={dish.imageUrl}
+            alt={dish.name}
+            loading="lazy"
+            decoding="async"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      )}
+    </article>
+  );
+}
+
 // ─── Chef's Selection editorial card — full-bleed image + rich text ───────────
 function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
+  const C = useC();
   return (
     <article style={{
       borderRadius: 16, overflow: 'hidden',
@@ -230,7 +329,7 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
     }}>
       {/* Full-bleed image */}
       <div style={{
-        height: 208, background: dish.gradient, position: 'relative',
+        height: 224, background: dish.gradient, position: 'relative',
         opacity: dish.isUnavailable ? 0.5 : 1,
         transition: 'opacity 200ms ease',
       }}>
@@ -252,26 +351,29 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
         }} />
         {/* Image-to-card blend */}
         <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '35%',
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%',
           background: `linear-gradient(to bottom, transparent, ${C.surface})`,
           pointerEvents: 'none',
         }} />
-        <AvailabilityBadge availability={dish.availability} />
-      </div>
-      {/* Content */}
-      <div style={{ padding: '4px 20px 22px' }}>
+        {/* Tag badge — glass-style overlay on image */}
         {dish.tag && (
-          <span style={{
-            display: 'inline-block', marginBottom: 12,
-            background: 'rgba(201,169,110,0.12)',
+          <div style={{
+            position: 'absolute', top: 12, left: 12,
+            background: 'rgba(12,10,9,0.68)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
             color: C.gold,
             fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-            textTransform: 'uppercase', padding: '3px 10px', borderRadius: 5,
+            textTransform: 'uppercase', padding: '4px 10px', borderRadius: 6,
             border: `1px solid ${C.goldDim}`,
           }}>
             {dish.tag}
-          </span>
+          </div>
         )}
+        <AvailabilityBadge availability={dish.availability} />
+      </div>
+      {/* Content */}
+      <div style={{ padding: '16px 20px 22px' }}>
         <h3 style={{
           margin: 0, fontSize: 22, fontWeight: 800,
           letterSpacing: '-0.03em', lineHeight: 1.2,
@@ -289,7 +391,7 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
         )}
         {dish.description && (
           <p style={{
-            margin: '12px 0 0', color: C.muted, fontSize: 14, lineHeight: 1.65,
+            margin: '10px 0 0', color: C.muted, fontSize: 14, lineHeight: 1.65,
             display: '-webkit-box', WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical', overflow: 'hidden',
           }}>
@@ -299,7 +401,7 @@ function ChefsEditorialCard({ dish }: { dish: DishViewModel }) {
         <DietaryPills tags={dish.dietaryTags} />
         {dish.price && (
           <p style={{
-            margin: '14px 0 0', fontWeight: 800, fontSize: 18,
+            margin: '16px 0 0', fontWeight: 800, fontSize: 19,
             letterSpacing: '-0.02em',
             color: dish.isUnavailable ? C.muted : C.gold,
             textDecoration: dish.isUnavailable ? 'line-through' : 'none',
@@ -318,10 +420,17 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
   onDemoAction: () => void;
   diningMode?: boolean;
 }) {
+  const theme = getHubTheme(vm.themePreset);
+  const C     = theme.colors;
+
   const [stickyVisible, setStickyVisible] = useState(false);
   const [logoFailed,    setLogoFailed]    = useState(false);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const heroRef     = useRef<HTMLDivElement>(null);
+  const menuRef     = useRef<HTMLDivElement>(null);
+  const categoryRef = useRef<HTMLDivElement>(null);
+
+  const selectedCat = vm.allCategories.find(c => c.id === selectedCatId) ?? null;
 
   // Slide sticky nav in once the hero's bottom edge clears 56px.
   useEffect(() => {
@@ -342,6 +451,14 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
     return () => clearTimeout(t);
   }, [diningMode]);
 
+  // Scroll to category section when browsing into or back from a category.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      categoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [selectedCatId]);
+
   // Split featured dishes: chef-tagged items get the editorial treatment; all others go in the carousel.
   const chefsDishes    = vm.featuredDishes.filter(d => /chef/i.test(d.tag ?? ''));
   const carouselDishes = vm.featuredDishes.filter(d => !/chef/i.test(d.tag ?? ''));
@@ -353,12 +470,18 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
   const todayHours     = getTodayHours(vm.hours);
 
   return (
+    <ColorsCtx.Provider value={C}>
     <div style={{
       backgroundColor: C.bg,
       minHeight: '100dvh',
       color: C.text,
       fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, "Segoe UI", system-ui, sans-serif',
       overflowX: 'hidden',
+      // CSS custom properties picked up by .gh-* class rules in GuestHubPage.css
+      ...theme.css as React.CSSProperties,
+      // Core palette tokens for the cat-card background gradient
+      ['--gh-surface'  as string]: C.surface,
+      ['--gh-elevated' as string]: C.elevated,
     }}>
 
       {/* ── Sticky nav ──────────────────────────────────────────────────────── */}
@@ -416,10 +539,10 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <div ref={heroRef} style={{ position: 'relative', width: '100%', height: diningMode ? 'min(52vw, 240px)' : 'min(92vw, 560px)', overflow: 'hidden' }}>
-        {/* Deep warm gradient — always rendered under the image as fallback */}
+        {/* Preset hero gradient — fallback under the image, warm or cool per theme */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, #3A1A06 0%, #1E0E04 35%, #0C0A09 100%)',
+          background: theme.heroGradient,
         }} />
         {vm.coverImageUrl && (
           <img
@@ -427,6 +550,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
             alt={`${vm.name} — cover`}
             loading="eager"
             decoding="async"
+            className="gh-hero-img"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
@@ -437,20 +561,25 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           background: 'radial-gradient(ellipse at 50% 40%, transparent 25%, rgba(12,10,9,0.60) 100%)',
           pointerEvents: 'none',
         }} />
-        {/* Candlelight glow — warm centre bloom */}
-        <div style={{
-          position: 'absolute', top: '8%', left: '50%',
-          transform: 'translateX(-50%)',
-          width: '90%', height: '60%',
-          background: 'radial-gradient(ellipse, rgba(201,169,110,0.13) 0%, rgba(201,169,110,0.03) 40%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
+        {/* Accent glow — warm or cool centre bloom per preset, animated breathe */}
+        <div
+          className="gh-glow-breathe"
+          style={{
+            position: 'absolute', top: '8%', left: '50%',
+            transform: 'translateX(-50%)',
+            width: '90%', height: '60%',
+            background: `radial-gradient(ellipse, ${theme.heroGlowA} 0%, ${theme.heroGlowB} 40%, transparent 70%)`,
+            pointerEvents: 'none',
+          }}
+        />
         {/* Uniform image darkening — 18% overlay improves text contrast on any photo */}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'rgba(0,0,0,0.18)',
           pointerEvents: 'none',
         }} />
+        {/* Grain texture — atmospheric film grain at near-zero opacity */}
+        <div className="gh-grain" />
         {/* Bottom fade — strong, starts high for a clean identity block read */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: '84%',
@@ -490,7 +619,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           {!diningMode && vm.tagline && (
             <p style={{
               marginTop: 12, fontSize: 15,
-              color: 'rgba(240,235,227,0.72)',
+              color: 'rgba(240,235,227,0.82)',
               letterSpacing: '0.02em', lineHeight: 1.5, marginBottom: 0,
               fontWeight: 400,
             }}>
@@ -556,20 +685,27 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               View our menu
             </button>
           ) : (
-            <button
-              type="button"
-              className="gh-cta"
-              onClick={onDemoAction}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                backgroundColor: C.gold, color: '#0C0A09',
-                fontWeight: 700, fontSize: 15, padding: '16px 20px',
-                borderRadius: 12, border: 'none', letterSpacing: '0.01em',
-              }}
-            >
-              <IconCalendar />
-              Reserve a table
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button
+                type="button"
+                className="gh-cta"
+                onClick={onDemoAction}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  backgroundColor: C.gold, color: '#0C0A09',
+                  fontWeight: 700, fontSize: 15, padding: '16px 20px',
+                  borderRadius: 12, border: 'none', letterSpacing: '0.01em',
+                }}
+              >
+                <IconCalendar />
+                Reserve a table
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>No account required</span>
+                <span style={{ fontSize: 11, color: C.sub }}>·</span>
+                <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>Takes 60 seconds</span>
+              </div>
+            </div>
           )}
 
           {/* Secondary CTA — scroll to menu (normal mode only) */}
@@ -658,7 +794,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               }}
             >
               <IconUsers />
-              Join the waitlist
+              Notify me when a table opens
             </button>
           )}
         </div>
@@ -708,14 +844,15 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
                 {carouselDishes.map(dish => (
                   <article
                     key={dish.id}
+                    className="gh-carousel-card"
                     style={{
-                      flexShrink: 0, width: 210, borderRadius: 16, overflow: 'hidden',
+                      flexShrink: 0, width: 224, borderRadius: 16, overflow: 'hidden',
                       background: C.surface, border: `1px solid ${C.border}`,
                       scrollSnapAlign: 'start',
                     }}
                   >
                     <div style={{
-                      height: 162, background: dish.gradient, position: 'relative',
+                      height: 178, background: dish.gradient, position: 'relative',
                       opacity: dish.isUnavailable ? 0.45 : 1,
                       transition: 'opacity 200ms ease',
                     }}>
@@ -734,35 +871,44 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
                         background: 'radial-gradient(ellipse at 50% 70%, rgba(255,200,120,0.07) 0%, transparent 65%)',
                         pointerEvents: 'none',
                       }} />
+                      {/* Bottom image fade */}
+                      <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0, height: '36%',
+                        background: `linear-gradient(to bottom, transparent, ${C.surface})`,
+                        pointerEvents: 'none',
+                      }} />
                       {dish.tag && dish.availability === 'AVAILABLE' && (
                         <div style={{
                           position: 'absolute', top: 10, left: 10,
-                          background: C.elevated,
-                          color: C.muted,
-                          fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                          background: 'rgba(12,10,9,0.65)',
+                          backdropFilter: 'blur(8px)',
+                          WebkitBackdropFilter: 'blur(8px)',
+                          color: C.gold,
+                          fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
                           textTransform: 'uppercase', padding: '3px 8px', borderRadius: 5,
+                          border: `1px solid ${C.goldDim}`,
                         }}>
                           {dish.tag}
                         </div>
                       )}
                       <AvailabilityBadge availability={dish.availability} />
                     </div>
-                    <div style={{ padding: '14px 18px 18px' }}>
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+                    <div style={{ padding: '14px 16px 18px' }}>
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', lineHeight: 1.3 }}>
                         {dish.name}
                       </p>
                       {dish.subtitle && (
                         <p style={{
                           margin: '3px 0 0', color: C.gold,
                           fontSize: 12, fontWeight: 500,
-                          fontStyle: 'italic', letterSpacing: '0.01em', lineHeight: 1.3,
+                          fontStyle: 'italic', letterSpacing: '0.01em', lineHeight: 1.35,
                         }}>
                           {dish.subtitle}
                         </p>
                       )}
                       {dish.description && (
                         <p style={{
-                          margin: '6px 0 0', color: C.muted, fontSize: 12, lineHeight: 1.45,
+                          margin: '7px 0 0', color: C.muted, fontSize: 13, lineHeight: 1.5,
                           display: '-webkit-box', WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical', overflow: 'hidden',
                         }}>
@@ -772,7 +918,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
                       <DietaryPills tags={dish.dietaryTags} />
                       {dish.price && (
                         <p style={{
-                          margin: '8px 0 0', fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em',
+                          margin: '10px 0 0', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em',
                           color: dish.isUnavailable ? C.muted : C.gold,
                           textDecoration: dish.isUnavailable ? 'line-through' : 'none',
                         }}>
@@ -797,47 +943,112 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
         {hasCategories && (
           <>
             <Rule />
-            <div>
-              <SectionLabel>Full menu</SectionLabel>
-              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
-                Explore by category
-              </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {vm.allCategories.map(cat => (
-                  <div
-                    key={cat.id}
+            <div ref={categoryRef} style={{ scrollMarginTop: 72 }}>
+              {selectedCat ? (
+                /* ── Category dish list view ─────────────────────────────── */
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCatId(null)}
                     style={{
-                      padding: '18px 20px',
-                      background: C.surface, border: `1px solid ${C.border}`,
-                      borderRadius: 16,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: 'none', border: 'none', padding: '0 0 18px',
+                      color: C.muted, fontSize: 13, fontWeight: 500,
+                      cursor: 'pointer', letterSpacing: '0.01em',
                     }}
                   >
-                    <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: C.text, lineHeight: 1.3 }}>{cat.name}</p>
-                    {cat.description && (
-                      <p style={{
-                        margin: '5px 0 0', color: C.muted, fontSize: 11, lineHeight: 1.45,
-                        display: '-webkit-box', WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                      }}>
-                        {cat.description}
-                      </p>
-                    )}
-                    <p style={{ margin: '6px 0 0', color: C.sub, fontSize: 11 }}>
-                      {cat.count > 0
-                        ? `${cat.count} ${cat.count === 1 ? 'item' : 'items'}`
-                        : 'Coming soon'}
+                    ← All categories
+                  </button>
+                  <SectionLabel>Our menu</SectionLabel>
+                  <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 0' }}>
+                    {selectedCat.name}
+                  </h2>
+                  {selectedCat.description && (
+                    <p style={{ margin: '8px 0 0', color: C.muted, fontSize: 14, lineHeight: 1.55 }}>
+                      {selectedCat.description}
                     </p>
-                    {cat.dishes.length > 0 && (
-                      <p style={{ margin: '5px 0 0', color: C.sub, fontSize: 10, lineHeight: 1.4,
-                        overflow: 'hidden', display: '-webkit-box',
-                        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                      }}>
-                        {cat.dishes.slice(0, 3).map(d => d.name).join('  ·  ')}
-                      </p>
-                    )}
+                  )}
+                  <p style={{ margin: '6px 0 20px', color: C.sub, fontSize: 12, fontWeight: 500 }}>
+                    {selectedCat.count > 0
+                      ? `${selectedCat.count} ${selectedCat.count === 1 ? 'item' : 'items'}`
+                      : 'Coming soon'}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {selectedCat.dishes.length > 0
+                      ? selectedCat.dishes.map(dish => (
+                          <MenuDishCard key={dish.id} dish={dish} />
+                        ))
+                      : (
+                        <p style={{ color: C.muted, fontSize: 14, textAlign: 'center', padding: '32px 0' }}>
+                          Dishes coming soon
+                        </p>
+                      )
+                    }
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                /* ── Category tile grid ───────────────────────────────────── */
+                <div>
+                  <SectionLabel>Full menu</SectionLabel>
+                  <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
+                    Our menu
+                  </h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {vm.allCategories.map(cat => (
+                      <div
+                        key={cat.id}
+                        className="gh-cat-card"
+                        role="button"
+                        tabIndex={0}
+                        style={{ padding: '16px 18px 18px', cursor: 'pointer' }}
+                        onClick={() => setSelectedCatId(cat.id)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedCatId(cat.id);
+                          }
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, marginBottom: 4 }}>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: C.text, lineHeight: 1.25, letterSpacing: '-0.01em' }}>{cat.name}</p>
+                          <span style={{ color: C.sub, fontSize: 16, flexShrink: 0, lineHeight: 1.2 }}>›</span>
+                        </div>
+                        {cat.description && (
+                          <p style={{
+                            margin: '0 0 0', color: C.muted, fontSize: 12, lineHeight: 1.5,
+                            display: '-webkit-box', WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                          }}>
+                            {cat.description}
+                          </p>
+                        )}
+                        <div style={{ marginTop: 9 }}>
+                          <span style={{
+                            display: 'inline-block',
+                            fontSize: 10, fontWeight: 600, letterSpacing: '0.03em',
+                            padding: '2px 7px', borderRadius: 4,
+                            background: cat.count > 0 ? 'rgba(201,169,110,0.08)' : C.elevated,
+                            color: cat.count > 0 ? C.goldDim : C.sub,
+                            border: `1px solid ${cat.count > 0 ? 'rgba(201,169,110,0.18)' : C.border}`,
+                          }}>
+                            {cat.count > 0
+                              ? `${cat.count} ${cat.count === 1 ? 'item' : 'items'}`
+                              : 'Coming soon'}
+                          </span>
+                        </div>
+                        {cat.dishes.length > 0 && (
+                          <p style={{ margin: '7px 0 0', color: C.muted, fontSize: 11, lineHeight: 1.45,
+                            overflow: 'hidden', display: '-webkit-box',
+                            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                          }}>
+                            {cat.dishes.slice(0, 3).map(d => d.name).join('  ·  ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -935,7 +1146,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           <>
             <Rule />
             <div>
-              <SectionLabel>Connect</SectionLabel>
+              <SectionLabel>Follow us</SectionLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
                 {vm.socialLinks.map(link => (
                   <SocialRow key={link.platform} link={link} />
@@ -984,6 +1195,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
 
       </div>
     </div>
+    </ColorsCtx.Provider>
   );
 }
 
@@ -1040,11 +1252,11 @@ export default function GuestHubPage({ slug, diningMode = false }: { slug: strin
             transform: 'translateX(-50%)',
             zIndex: 100,
             padding: '10px 20px',
-            background: C.surface,
-            border: `1px solid ${C.border}`,
+            background: ESPRESSO_PALETTE.surface,
+            border: `1px solid ${ESPRESSO_PALETTE.border}`,
             borderRadius: 10,
             fontSize: 13,
-            color: C.muted,
+            color: ESPRESSO_PALETTE.muted,
             whiteSpace: 'nowrap',
             boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
           }}

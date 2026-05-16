@@ -329,11 +329,14 @@ export default function ReservationPanel({
                 NO_SHOW_RISK:  { cls: 'bg-red-900/20 text-red-400 border-red-500/30',          label: T.arrival.noShowRisk },
               }[aState] : null;
 
+              const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
+              // Far-future: arriving in >90 min, not yet arrived — step back visually
+              const isFarFuture = filter === 'ACTIVE' && !r.isArrived && minsUntil !== null && minsUntil > 90;
+
               const needsReminder = (() => {
                 if (!isLiveView || r.isConfirmedByGuest || !r.confirmationSentAt || r.reminderCount >= 2) return false;
                 if (!nowTime) return false;
-                const minsUntil = minutesUntilRes(r.time, nowTime);
-                return minsUntil > 0 && minsUntil <= 60;
+                return minsUntil !== null && minsUntil > 0 && minsUntil <= 60;
               })();
 
               const staleBadge = isStale
@@ -354,14 +357,29 @@ export default function ReservationPanel({
                 ? 'bg-red-900/5 hover:bg-red-900/10'
                 : aState === 'LATE'
                 ? 'bg-orange-900/5 hover:bg-orange-900/10'
+                : aState === 'DUE_NOW'
+                ? 'bg-amber-500/10 hover:bg-amber-500/15'
+                : aState === 'ARRIVING_SOON'
+                ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                : r.isArrived
+                ? 'bg-iron-green/5 hover:bg-iron-green/10'
                 : needsReminder
                 ? 'bg-amber-500/5 hover:bg-amber-500/10'
                 : 'hover:bg-white/[0.04]';
 
+              // Priority stripe — left edge signals urgency without adding noise
+              const priorityBorder =
+                aState === 'NO_SHOW_RISK' || aState === 'LATE' ? 'border-s-2 border-s-orange-500/65'
+                : aState === 'DUE_NOW'                          ? 'border-s-2 border-s-amber-400/80'
+                : aState === 'ARRIVING_SOON'                    ? 'border-s-2 border-s-amber-500/45'
+                : r.isArrived                                   ? 'border-s-2 border-s-iron-green/55'
+                : selectedId === r.id                           ? 'border-s-2 border-s-iron-green/40'
+                :                                                 'border-s-2 border-s-transparent';
+
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-white/[0.18] transition-colors ${rowBg}`}
+                  className={`w-full flex items-stretch border-b border-white/[0.18] transition-colors ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.78]' : ''}`}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
@@ -395,7 +413,7 @@ export default function ReservationPanel({
 
                     {/* Row 2 — time · guests · table */}
                     <div className="flex items-center gap-2">
-                      <span className="text-iron-text text-base font-bold tabular-nums">{normalizeTime(r.time)}</span>
+                      <span className="text-iron-text text-base font-bold tabular-nums min-w-[52px] shrink-0">{normalizeTime(r.time)}</span>
                       <span className="text-iron-muted/50">·</span>
                       <span className="text-iron-text/80 text-[13px] font-medium">{T.common.guests(r.partySize)}</span>
                       {r.table && (
@@ -406,9 +424,8 @@ export default function ReservationPanel({
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/30">·</span>
+                          <span className="text-iron-muted/50">·</span>
                           {(() => {
-                            const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
                             const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
                             return (
                               <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${

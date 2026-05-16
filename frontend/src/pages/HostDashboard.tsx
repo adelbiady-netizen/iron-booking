@@ -1362,7 +1362,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       />
 
       {/* Secondary toolbar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-iron-border bg-iron-card/30 shrink-0">
+      <div className="flex items-center justify-between px-4 py-1.5 border-b border-iron-border bg-iron-card/60 shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -1495,7 +1495,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         <button
           type="button"
           onClick={() => setPanelCollapsed(c => !c)}
-          className="shrink-0 w-4 bg-iron-elevated hover:bg-iron-card border-x border-iron-border/20 hover:border-iron-border/40 transition-colors flex items-center justify-center cursor-pointer"
+          className="shrink-0 w-4 bg-iron-elevated hover:bg-iron-card border-x border-iron-border/40 hover:border-iron-border/60 transition-colors flex items-center justify-center cursor-pointer"
           title={panelCollapsed ? 'Open reservation panel' : 'Collapse reservation panel'}
           aria-label={panelCollapsed ? 'Open reservation panel' : 'Collapse reservation panel'}
         >

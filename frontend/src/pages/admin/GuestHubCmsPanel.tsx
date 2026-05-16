@@ -22,6 +22,7 @@ interface HubBranding {
   logoUrl: string | null;
   coverImageUrl: string | null;
   primaryColor: string | null;
+  themePreset: string | null;
 }
 
 interface HubSocial {
@@ -53,6 +54,16 @@ interface HubData {
   qrTokens: HubQrToken[];
 }
 
+// Controlled preset keys — must match hubThemes.ts PRESETS keys
+const PRESET_OPTIONS = [
+  { id: 'ESPRESSO', label: 'Espresso', swatch: '#C9A96E', bg: '#0C0A09', description: 'Warm dark & amber gold', useCase: 'Fine dining · Whisky bars' },
+  { id: 'OLIVE',    label: 'Olive',    swatch: '#8FB86E', bg: '#090C09', description: 'Earthy olive-green',     useCase: 'Farm-to-table · Mediterranean' },
+  { id: 'WINE',     label: 'Wine',     swatch: '#C47080', bg: '#0C0809', description: 'Deep burgundy',           useCase: 'Wine bars · Romantic bistros' },
+  { id: 'MIDNIGHT', label: 'Midnight', swatch: '#7CA4D4', bg: '#080A0E', description: 'Deep cool blue',          useCase: 'Cocktail lounges · Late-night' },
+  { id: 'SAND',     label: 'Sand',     swatch: '#D4A855', bg: '#100E0A', description: 'Warm amber honey',        useCase: 'Brunch spots · Coastal cafés' },
+  { id: 'SLATE',    label: 'Slate',    swatch: '#9AB0C8', bg: '#0A0C0E', description: 'Cool pewter grey',        useCase: 'Modern brasseries · Rooftop bars' },
+] as const;
+
 type BrandingForm = {
   name: string;
   tagline: string;
@@ -60,6 +71,7 @@ type BrandingForm = {
   address: string;
   logoUrl: string;
   coverImageUrl: string;
+  themePreset: string;  // '' = use default (Espresso)
 };
 
 type SocialRow = { platform: string; handle: string };
@@ -138,7 +150,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
   // Branding edit
   const [editingBranding, setEditingBranding] = useState(false);
-  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', phone: '', address: '', logoUrl: '', coverImageUrl: '' });
+  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '' });
   const [brandingBusy,    setBrandingBusy]    = useState(false);
   const [brandingErrors,  setBrandingErrors]  = useState<Record<string, string>>({});
   const [brandingError,   setBrandingError]   = useState<string | null>(null);
@@ -281,6 +293,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       address:       hub?.branding?.address        ?? '',
       logoUrl:       hub?.branding?.logoUrl        ?? '',
       coverImageUrl: hub?.branding?.coverImageUrl  ?? '',
+      themePreset:   hub?.branding?.themePreset    ?? '',
     });
     setBrandingErrors({});
     setBrandingError(null);
@@ -318,6 +331,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         address:       brandingForm.address.trim()       || null,
         logoUrl:       brandingForm.logoUrl.trim()       || null,
         coverImageUrl: brandingForm.coverImageUrl.trim() || null,
+        themePreset:   brandingForm.themePreset          || null,
       });
       setHub(prev => prev
         ? { ...prev, branding: prev.branding ? { ...prev.branding, ...updated } : { ...updated }, draftUpdatedAt: new Date().toISOString() }
@@ -471,6 +485,10 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     publishWarnings.push({ key: 'nocats',   text: 'No menu categories — the menu section will appear empty' });
   if (menuSummary !== null && menuSummary.cats > 0 && menuSummary.dishes === 0)
     publishWarnings.push({ key: 'nodishes', text: 'Menu has categories but no dishes yet' });
+
+  const draftTheme     = hub.branding?.themePreset ?? null;
+  const publishedTheme = hub.publishedBranding?.themePreset ?? null;
+  const themeUnpublished = hub.lastPublishedAt !== null && draftTheme !== publishedTheme;
 
   const hasUnpublishedChanges = !hub.lastPublishedAt ||
     (hub.draftUpdatedAt !== null && hub.draftUpdatedAt > hub.lastPublishedAt);
@@ -845,6 +863,86 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               onChange={url => setBrandingForm(f => ({ ...f, coverImageUrl: url }))}
               error={brandingErrors.coverImageUrl}
             />
+
+            {/* Theme preset selector */}
+            <div>
+              <label className="block text-xs text-iron-muted mb-2">Visual theme</label>
+              <div className="grid grid-cols-2 gap-2">
+                {PRESET_OPTIONS.map(preset => {
+                  const isActive = brandingForm.themePreset === preset.id ||
+                    (!brandingForm.themePreset && preset.id === 'ESPRESSO');
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setBrandingForm(f => ({
+                        ...f,
+                        themePreset: f.themePreset === preset.id ? '' : preset.id,
+                      }))}
+                      className="rounded-lg border text-left transition-all overflow-hidden focus:outline-none"
+                      style={{
+                        backgroundColor: preset.bg,
+                        borderColor: isActive ? preset.swatch : 'rgba(255,255,255,0.07)',
+                        boxShadow: isActive ? `0 0 0 1px ${preset.swatch}` : 'none',
+                      }}
+                    >
+                      <div style={{ backgroundColor: preset.swatch, height: '3px' }} />
+                      <div className="px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span
+                            className="text-xs font-semibold leading-tight"
+                            style={{ color: isActive ? preset.swatch : 'rgba(255,255,255,0.75)' }}
+                          >
+                            {preset.label}
+                          </span>
+                          {isActive && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ color: preset.swatch, flexShrink: 0 }} aria-hidden="true">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </div>
+                        <p className="text-[10px] leading-tight mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                          {preset.useCase}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mini live preview */}
+              {(() => {
+                const active = PRESET_OPTIONS.find(p =>
+                  brandingForm.themePreset ? p.id === brandingForm.themePreset : p.id === 'ESPRESSO'
+                );
+                if (!active) return null;
+                return (
+                  <div
+                    className="mt-2.5 rounded-lg border overflow-hidden"
+                    style={{ backgroundColor: active.bg, borderColor: 'rgba(255,255,255,0.06)' }}
+                  >
+                    <div style={{ backgroundColor: active.swatch, height: '2px' }} />
+                    <div className="px-4 py-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>
+                          {brandingForm.name || 'Restaurant Name'}
+                        </p>
+                        <p className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                          {brandingForm.tagline || 'Your tagline appears here'}
+                        </p>
+                      </div>
+                      <div
+                        className="flex-shrink-0 px-2.5 py-1 rounded text-[10px] font-semibold"
+                        style={{ backgroundColor: active.swatch, color: active.bg }}
+                      >
+                        Reserve
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {brandingError && (
               <p className="text-sm text-red-400">{brandingError}</p>
             )}
@@ -856,14 +954,51 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         ) : (
           <div className="p-6">
             {hub.branding ? (
-              <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                <BrandingRow label="Display name" value={hub.branding.name} />
-                <BrandingRow label="Tagline"      value={hub.branding.tagline} />
-                <BrandingRow label="Phone"        value={hub.branding.phone} />
-                <BrandingRow label="Address"      value={hub.branding.address} />
-                <BrandingRow label="Logo URL"     value={hub.branding.logoUrl} url />
-                <BrandingRow label="Cover image"  value={hub.branding.coverImageUrl} url />
-              </dl>
+              <>
+                <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                  <BrandingRow label="Display name" value={hub.branding.name} />
+                  <BrandingRow label="Tagline"      value={hub.branding.tagline} />
+                  <BrandingRow label="Phone"        value={hub.branding.phone} />
+                  <BrandingRow label="Address"      value={hub.branding.address} />
+                  <BrandingRow label="Logo URL"     value={hub.branding.logoUrl} url />
+                  <BrandingRow label="Cover image"  value={hub.branding.coverImageUrl} url />
+                </dl>
+                {/* Active theme badge */}
+                {(() => {
+                  const draftPreset     = PRESET_OPTIONS.find(p => hub.branding!.themePreset ? p.id === hub.branding!.themePreset : p.id === 'ESPRESSO');
+                  const publishedPreset = hub.publishedBranding
+                    ? PRESET_OPTIONS.find(p => hub.publishedBranding!.themePreset ? p.id === hub.publishedBranding!.themePreset : p.id === 'ESPRESSO')
+                    : null;
+                  const hasDrift = themeUnpublished && publishedPreset && draftPreset?.id !== publishedPreset.id;
+                  return draftPreset ? (
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="text-xs text-iron-muted">Theme</span>
+                        <span
+                          className="w-4 h-4 rounded-full ring-1 ring-white/10 flex-shrink-0"
+                          style={{ background: `radial-gradient(circle at 40% 40%, ${draftPreset.swatch}, ${draftPreset.bg})` }}
+                          aria-hidden="true"
+                        />
+                        <span className="text-xs text-iron-text font-medium">{draftPreset.label}</span>
+                        <span className="text-xs text-iron-muted">— {draftPreset.description}</span>
+                        {hasDrift && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 font-medium">
+                            Draft
+                          </span>
+                        )}
+                      </div>
+                      {hasDrift && publishedPreset && (
+                        <div className="flex items-center gap-2 text-[11px] text-amber-400/80">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                          </svg>
+                          <span>Live page still shows <strong className="text-amber-300">{publishedPreset.label}</strong> — publish to apply this theme</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+              </>
             ) : (
               <div className="flex flex-col items-center text-center py-6 gap-3">
                 <div className="w-10 h-10 bg-iron-bg border border-iron-border rounded-xl flex items-center justify-center">
@@ -976,7 +1111,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       <div className="bg-iron-bg border border-iron-border rounded-xl p-5 text-xs text-iron-muted space-y-1">
         <p className="font-medium text-iron-text text-sm mb-2">Coming in future phases</p>
         <p>• Promotions and events</p>
-        <p>• Theme and colour customisation</p>
+        <p>• Custom accent colour overrides within a preset</p>
       </div>
 
       </>}

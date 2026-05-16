@@ -47,8 +47,8 @@ export default function ActionBar({ insights, onItemClick, sectionSignal, pacing
   if (deduped.length === 0 && !sectionSignal && !pacingSignal) return null;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-1.5 border-b border-iron-border bg-iron-card/80 overflow-x-auto shrink-0">
-      <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest shrink-0 select-none">
+    <div className="flex items-center gap-2 px-4 py-1.5 border-b border-iron-border bg-iron-card/90 overflow-x-auto shrink-0">
+      <span className="text-iron-muted text-xs font-semibold uppercase tracking-widest shrink-0 select-none">
         {T.actionBar.now}
       </span>
       <div className="w-px h-3 bg-iron-border shrink-0" />
@@ -56,19 +56,19 @@ export default function ActionBar({ insights, onItemClick, sectionSignal, pacing
         <button
           key={i}
           onClick={() => onItemClick(insight)}
-          className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border transition-colors shrink-0 ${
             i >= 2 ? 'hidden sm:flex' : 'flex'
           } ${
             insight.priority === 'HIGH'
-              ? 'bg-red-900/15 border-red-900/25 text-red-400 hover:bg-red-900/25 animate-action-pulse'
-              : 'bg-amber-900/10 border-amber-500/20 text-amber-400 hover:bg-amber-900/20'
+              ? 'bg-red-900/20 border-red-900/35 text-red-400 hover:bg-red-900/30 animate-action-pulse'
+              : 'bg-amber-900/15 border-amber-500/30 text-amber-400 hover:bg-amber-900/25'
           }`}
         >
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
             insight.priority === 'HIGH' ? 'bg-red-500' : 'bg-amber-400'
           }`} />
           {insight.message}
-          <kbd className="ml-1 text-[9px] opacity-40 font-mono border border-current rounded px-0.5 leading-tight select-none">
+          <kbd className="ml-1 text-[10px] opacity-50 font-mono border border-current rounded px-0.5 leading-tight select-none">
             {i + 1}
           </kbd>
         </button>
@@ -76,15 +76,15 @@ export default function ActionBar({ insights, onItemClick, sectionSignal, pacing
       {(sectionSignal || pacingSignal) && (
         <div className="ml-auto flex items-center gap-2 shrink-0">
           {sectionSignal && (
-            <span className="text-[10px] px-2 py-0.5 rounded border text-iron-muted/55 border-iron-border/35 select-none">
+            <span className="text-xs px-2 py-0.5 rounded border text-iron-muted/70 border-iron-border/50 select-none">
               {sectionSignal}
             </span>
           )}
           {pacingSignal && (
-            <span className={`text-[10px] px-2 py-0.5 rounded border select-none ${
+            <span className={`text-xs px-2 py-0.5 rounded border select-none ${
               pacingSignal === 'EASING'
-                ? 'text-emerald-500/50 border-emerald-800/25'
-                : 'text-amber-400/55 border-amber-700/20'
+                ? 'text-emerald-400/70 border-emerald-700/40'
+                : 'text-amber-400/70 border-amber-600/35'
             }`}>
               {pacingSignal === 'EASING' ? T.actionBar.pacingEasing : T.actionBar.pacingTightening}
             </span>

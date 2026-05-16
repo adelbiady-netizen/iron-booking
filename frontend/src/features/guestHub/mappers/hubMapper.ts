@@ -240,6 +240,7 @@ export function mapGuestHub(api: ApiGuestHub): GuestHubViewModel {
     coverImageUrl: api.branding?.coverImageUrl ?? null,
     primaryColor:  api.branding?.primaryColor ?? '#C9A96E',
     accentColor:   api.branding?.accentColor  ?? '#8C6F3E',
+    themePreset:   api.branding?.themePreset  ?? null,
     featuredDishes: api.featuredDishes.map((d, i) => mapDish(d, i)),
     allCategories,
     promotions:    api.promotions.map(mapPromotion),

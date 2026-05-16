@@ -27,13 +27,13 @@
 
 /* ── Primary CTA — gold Reserve button ───────────────────────────────────── */
 .gh-cta:hover  { opacity: 0.88; }
-.gh-cta:active { transform: scale(0.972); opacity: 0.82; }
+.gh-cta:active { transform: scale(0.985); opacity: 0.82; }
 
 /* ── Secondary filled buttons — Waitlist, Call ───────────────────────────── */
 /* !important overrides inline style props on hover */
 .gh-secondary-btn:hover  {
-  background-color: #232019 !important;
-  border-color: #332C26 !important;
+  background-color: var(--gh-surface-hover, #232019) !important;
+  border-color: var(--gh-border-hover, #332C26) !important;
 }
 .gh-secondary-btn:active { transform: scale(0.972); }
 
@@ -46,8 +46,8 @@
 
 /* ── Row links — social / contact ────────────────────────────────────────── */
 .gh-row-link:hover  {
-  background-color: #1C1916 !important;
-  border-color: #332C26 !important;
+  background-color: var(--gh-row-hover-bg, #1C1916) !important;
+  border-color: var(--gh-border-hover, #332C26) !important;
 }
 .gh-row-link:active { transform: scale(0.99); }
 
@@ -109,4 +109,169 @@
 /* ── QR redirect — gold ring spinner ─────────────────────────────────────── */
 @keyframes gh-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Hero cover image — cinematic slow drift ─────────────────────────────── */
+@keyframes gh-hero-drift {
+  from { transform: scale(1.000) translateY(0px); }
+  to   { transform: scale(1.035) translateY(6px); }
+}
+
+.gh-hero-img {
+  animation: gh-hero-drift 18s ease-in-out alternate infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* ── Grain / noise texture overlay ───────────────────────────────────────── */
+@keyframes gh-grain-shift {
+  0%   { transform: translate(0,    0   ); }
+  20%  { transform: translate(-4%,  -8% ); }
+  40%  { transform: translate(-12%,  4% ); }
+  60%  { transform: translate(6%,  -20% ); }
+  80%  { transform: translate(-8%,   6% ); }
+  100% { transform: translate(3%,  -14% ); }
+}
+
+.gh-grain {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: gh-grain-shift 6s steps(1) infinite;
+}
+
+/* ── Ambient glow — warm candlelight breathe ─────────────────────────────── */
+@keyframes gh-glow-breathe {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.6; }
+}
+
+.gh-glow-breathe {
+  animation: gh-glow-breathe 7s ease-in-out infinite;
+}
+
+/* ── Primary CTA — glint sweep on hover ──────────────────────────────────── */
+@keyframes gh-glint {
+  from { transform: translateX(-100%) skewX(-15deg); opacity: 1; }
+  to   { transform: translateX(320%)  skewX(-15deg); opacity: 0; }
+}
+
+.gh-cta {
+  position: relative;
+  overflow: hidden;
+}
+
+/* box-shadow ring so overflow:hidden doesn't clip keyboard focus outline */
+.gh-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201,169,110,0.85);
+}
+
+.gh-cta::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(to right,
+    transparent 0%,
+    rgba(255,255,255,0.22) 50%,
+    transparent 100%);
+  transform: translateX(-120%) skewX(-15deg);
+  pointer-events: none;
+}
+
+.gh-cta:hover::after {
+  animation: gh-glint 0.55s ease-out forwards;
+}
+
+/* ── Carousel dish cards — subtle lift on hover ──────────────────────────── */
+.gh-carousel-card {
+  transition:
+    box-shadow   220ms ease,
+    border-color 220ms ease,
+    transform    200ms ease;
+}
+
+.gh-carousel-card:hover {
+  box-shadow:
+    0 8px 28px rgba(0,0,0,0.50),
+    0 2px 8px  rgba(0,0,0,0.28);
+  border-color: var(--gh-carousel-border-hover, rgba(201,169,110,0.18)) !important;
+  transform: translateY(-2px);
+}
+
+/* ── Category cards — layered luxury depth ───────────────────────────────── */
+.gh-cat-card {
+  position: relative;
+  background: linear-gradient(160deg, var(--gh-elevated, #1E1B17) 0%, var(--gh-surface, #141210) 100%);
+  border: 1px solid var(--gh-cat-border, rgba(201,169,110,0.12));
+  border-radius: 16px;
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.30),
+    0 1px 3px  rgba(0,0,0,0.20);
+  transition:
+    box-shadow   220ms ease,
+    border-color 220ms ease,
+    transform    200ms ease;
+}
+
+/* Gloss sheen — top-left corner catch light */
+.gh-cat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg,
+    rgba(255,255,255,0.032) 0%,
+    transparent 55%);
+  pointer-events: none;
+}
+
+/* Accent line — editorial chapter-header feel, color follows preset */
+.gh-cat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(to right, var(--gh-cat-glow, rgba(201,169,110,0.55)), transparent 75%);
+  border-radius: 16px 16px 0 0;
+  pointer-events: none;
+}
+
+.gh-cat-card:hover {
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.45),
+    0 2px 8px  rgba(0,0,0,0.28);
+  border-color: var(--gh-cat-border-hover, rgba(201,169,110,0.24));
+  transform: translateY(-1px);
+}
+
+/* ── Menu dish cards — hover warmth ──────────────────────────────────────── */
+.gh-dish-card {
+  transition:
+    border-color 200ms ease,
+    box-shadow   200ms ease;
+}
+.gh-dish-card:hover {
+  border-color: var(--gh-cat-border-hover, rgba(201,169,110,0.18)) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+}
+
+/* ── Reduced motion — disable all new animations ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .gh-hero-img            { animation: none !important; }
+  .gh-grain               { animation: none !important; }
+  .gh-glow-breathe        { animation: none !important; }
+  .gh-cta::after          { display: none !important; }
+  .gh-cat-card            { transition: none !important; }
+  .gh-cat-card:hover      { transform: none !important; }
+  .gh-carousel-card       { transition: none !important; }
+  .gh-carousel-card:hover { transform: none !important; }
+  .gh-dish-card           { transition: none !important; }
+  .gh-dish-card:hover     { box-shadow: none !important; }
 }
