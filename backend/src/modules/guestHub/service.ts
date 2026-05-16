@@ -121,7 +121,9 @@ function shapeHub(
         coverImageUrl: brandingSource.coverImageUrl,
         primaryColor:  'primaryColor' in brandingSource ? brandingSource.primaryColor : null,
         accentColor:   'accentColor'  in brandingSource ? brandingSource.accentColor  : null,
-        themePreset:   brandingSource.themePreset ?? null,
+        // Published snapshot written before themePreset was added will have null.
+        // Fall back to draft so existing hubs show the correct theme immediately.
+        themePreset:   brandingSource.themePreset ?? hub.branding?.themePreset ?? null,
       }
     : null;
 
