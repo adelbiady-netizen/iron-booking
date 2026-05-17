@@ -5,6 +5,7 @@ import HQLoginPage from './pages/HQLoginPage';
 import HostDashboard from './pages/HostDashboard';
 import SetupPage from './pages/SetupPage';
 import AdminPortal from './pages/admin/AdminPortal';
+import RestaurantPortal from './pages/admin/RestaurantPortal';
 import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
 import WaitlistKioskPage from './pages/WaitlistKioskPage';
@@ -53,8 +54,8 @@ export default function App() {
 
   useEffect(() => {
     // Load auth from the correct store based on entry route.
-    // /hq uses iron_hq_auth; everything else uses iron_auth.
-    const isHQ = window.location.pathname.startsWith('/hq');
+    // /hq and /restaurant-admin use iron_hq_auth; everything else uses iron_auth.
+    const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
     const stored = isHQ ? getStoredHQAuth() : getStoredAuth();
     setSessionToken(stored?.token ?? null);
     setAuth(stored ?? null);
@@ -83,7 +84,7 @@ export default function App() {
   }
 
   function handleLogin(token: string, user: AuthState['user']) {
-    const isHQ = window.location.pathname.startsWith('/hq');
+    const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
     if (isHQ) {
       storeHQAuth(token, user);
     } else {
@@ -92,10 +93,13 @@ export default function App() {
     setSessionToken(token);
     setAuth({ token, user });
     setAdminView(user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN');
+    if (user.role === 'RESTAURANT_ADMIN' && !window.location.pathname.startsWith('/restaurant-admin')) {
+      window.location.replace('/restaurant-admin');
+    }
   }
 
   function handleLogout() {
-    const isHQ = window.location.pathname.startsWith('/hq');
+    const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
     if (isHQ) {
       clearHQAuth();
     } else {
@@ -185,10 +189,14 @@ export default function App() {
       return <HQLoginPage onLogin={handleLogin} />;
     }
 
-    // Logged in but wrong role — show access-denied WITHOUT signing them out.
-    // "Back to Dashboard" preserves their existing host session at /.
+    // Logged in but wrong role — redirect RESTAURANT_ADMIN to their portal;
+    // other low-privilege roles see an access-denied screen without being signed out.
     const HQ_ROLES: UserRole[] = ['SUPER_ADMIN', 'HQ_ADMIN'];
     if (!HQ_ROLES.includes(auth.user.role)) {
+      if (auth.user.role === 'RESTAURANT_ADMIN') {
+        window.location.replace('/restaurant-admin');
+        return <></>;
+      }
       return (
         <div className="h-screen bg-iron-bg flex items-center justify-center p-4">
           <div className="w-full max-w-sm">
@@ -241,6 +249,29 @@ export default function App() {
             onLogout={handleLogout}
           />
         </div>
+      </div>
+    );
+  }
+
+  // ── /restaurant-admin — scoped portal for RESTAURANT_ADMIN ───────────────────
+  if (path.startsWith('/restaurant-admin')) {
+    if (!ready) {
+      return (
+        <div className="h-screen bg-iron-bg flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
+    if (!auth) {
+      return <HQLoginPage onLogin={handleLogin} />;
+    }
+    if (auth.user.role !== 'RESTAURANT_ADMIN') {
+      window.location.replace('/hq');
+      return <></>;
+    }
+    return (
+      <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <RestaurantPortal auth={auth} onLogout={handleLogout} />
       </div>
     );
   }
