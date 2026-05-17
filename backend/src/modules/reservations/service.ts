@@ -8,7 +8,6 @@ import {
 } from '../../lib/errors';
 import { getTableAvailability } from '../../engine/availability';
 import { MAP_VISIBILITY_MINUTES } from '../../engine/occupancy';
-import { getFloorState } from '../tables/service';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -1001,31 +1000,12 @@ export async function validateTableAssignment(
     } else if (tableAvail?.blockedBy) {
       throw new ConflictError(`Table ${table.name} is blocked: ${tableAvail.blockedBy}`);
     } else {
-      // Cross-reference: fetch what getFloorState returns for this same table/time
-      // so the 409 response body exposes both sides of the divergence simultaneously.
-      let floorDebug: unknown = null;
-      try {
-        const floorState = await getFloorState(restaurantId, date, time);
-        const ft = floorState.find((t: any) => t.id === tableId);
-        if (ft) {
-          floorDebug = {
-            liveStatus:           (ft as any).liveStatus,
-            canFitIncomingTurn:   (ft as any).canFitIncomingTurn,
-            effectiveGapMinutes:  (ft as any).effectiveGapMinutes,
-            requiredGapMinutes:   (ft as any).requiredGapMinutes,
-            nextReservationStart: (ft as any).nextReservationStart,
-            _debug:               (ft as any)._debug,
-          };
-        }
-      } catch { /* non-fatal — don't block the ConflictError */ }
-
       throw new ConflictError(
         `Table ${table.name} is not available at that time`,
         {
           conflictingReservationId: tableAvail?.conflictingReservationId,
           nextAvailableAt: tableAvail?.nextAvailableAt,
           validatorDebug: tableAvail?._debug,
-          floorDebug,
         }
       );
     }
