@@ -95,21 +95,27 @@ export const MAP_VISIBILITY_MINUTES = 90;
 // non-AVAILABLE at the selected board time?
 //
 // Returns true when ALL of:
-//   (a) the reservation is within MAP_VISIBILITY_MINUTES in the future, AND
+//   (a) the reservation is within MAP_VISIBILITY_MINUTES + extraMinutes in the future, AND
 //   (b) it hasn't expired as a no-show (started < NO_SHOW_AFTER_MINUTES ago), AND
 //   (c) the turn hasn't ended yet (resEnd > slotTime).
 //
-// Reservations further than MAP_VISIBILITY_MINUTES away are list-only — they do
-// not visually occupy the table on the floor map.
+// extraMinutes is the restaurant's bufferBetweenTurnsMinutes. Passing it here
+// aligns the board visibility window with validateTableAssignment()'s effective
+// conflict window (duration + buffer), eliminating the gray zone where a table
+// appears AVAILABLE on the board but the validator rejects it.
+//
+// Callers that do not pass extraMinutes get the historic MAP_VISIBILITY_MINUTES
+// behaviour (default 0 — backward-compatible).
 export function reservationIsUpcoming(
-  res:      { time: string; duration: number },
-  date:     Date,
-  slotTime: Date,
+  res:         { time: string; duration: number },
+  date:        Date,
+  slotTime:    Date,
+  extraMinutes = 0,
 ): boolean {
   const resStart     = parseTimeOnDate(date, res.time);
   const resEnd       = addMinutes(resStart, res.duration);
   const minutesUntil = (resStart.getTime() - slotTime.getTime()) / 60_000;
   return minutesUntil >= -NO_SHOW_AFTER_MINUTES
-    && minutesUntil <= MAP_VISIBILITY_MINUTES
+    && minutesUntil <= MAP_VISIBILITY_MINUTES + extraMinutes
     && resEnd > slotTime;
 }

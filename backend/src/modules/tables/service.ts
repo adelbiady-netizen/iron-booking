@@ -9,7 +9,7 @@ import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, reservationOve
 // This is what powers the host's table board.
 
 export async function getFloorState(restaurantId: string, date: Date, time: string) {
-  const [tables, reservations, blocks] = await Promise.all([
+  const [tables, reservations, blocks, restaurantRow] = await Promise.all([
     prisma.table.findMany({
       where: { restaurantId, isActive: true },
       include: { section: true },
@@ -32,7 +32,18 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         endTime: { gte: parseTimeOnDate(date, time) },
       },
     }),
+    prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { settings: true },
+    }),
   ]);
+
+  // Align the board visibility window with validateTableAssignment()'s effective
+  // conflict window (duration + buffer). Without this offset, tables whose next
+  // reservation falls between MAP_VISIBILITY_MINUTES and (duration + buffer) minutes
+  // away appear AVAILABLE on the board but are rejected by the validator —
+  // breaking best-fit suggestions and move operations.
+  const bufferMinutes = ((restaurantRow?.settings as Record<string, unknown>)?.bufferBetweenTurnsMinutes as number) ?? 15;
 
   const slotTime = parseTimeOnDate(date, time);
 
@@ -115,7 +126,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       .filter((r) => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
         if (r.status === 'SEATED') return false;
-        return reservationIsUpcoming(r, date, slotTime);
+        return reservationIsUpcoming(r, date, slotTime, bufferMinutes);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
