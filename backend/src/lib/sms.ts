@@ -210,3 +210,79 @@ export async function sendReminderSms(
   const body = buildReminderBody(lang, guestName, restaurantName, time, confirmUrl);
   return sendWhatsApp(restaurantId, phone, body);
 }
+
+// ── Reservation received notification ─────────────────────────────────────────
+// Sent once, immediately after a manual host reservation is created.
+// No confirmation link — this is an acknowledgment only.
+
+export interface ReservationReceivedPayload {
+  guestName:      string;
+  restaurantName: string;
+  date:           Date;    // Prisma @db.Date → UTC midnight
+  time:           string;  // HH:MM 24h
+  partySize:      number;
+  status:         string;  // 'PENDING' | 'CONFIRMED'
+}
+
+function formatDayOfWeekHe(date: Date): string {
+  const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  return `יום ${days[date.getUTCDay()]}`;
+}
+
+function formatDayOfWeekEn(date: Date): string {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[date.getUTCDay()];
+}
+
+export function buildReservationReceivedMessage(
+  lang: 'en' | 'he',
+  p: ReservationReceivedPayload
+): string {
+  const firstName = p.guestName.split(' ')[0];
+
+  if (lang === 'he') {
+    const day        = formatDayOfWeekHe(p.date);
+    const guestsWord = p.partySize === 1 ? 'אורח' : 'אורחים';
+    const statusLine = p.status === 'CONFIRMED'
+      ? 'ההזמנה שלך מאושרת.'
+      : 'נשלח אישור סופי בקרוב.';
+    return (
+      `שלום ${firstName} 👋\n` +
+      `ההזמנה שלך התקבלה ב־${p.restaurantName}\n\n` +
+      `${day} • ${p.time}\n` +
+      `${p.partySize} ${guestsWord}\n\n` +
+      statusLine
+    );
+  }
+
+  const day        = formatDayOfWeekEn(p.date);
+  const guestsWord = p.partySize === 1 ? 'guest' : 'guests';
+  const statusLine = p.status === 'CONFIRMED'
+    ? 'Your reservation is confirmed.'
+    : 'A final confirmation will be sent soon.';
+  return (
+    `Hi ${firstName} 👋\n` +
+    `Your reservation request was received by ${p.restaurantName}.\n\n` +
+    `${day} • ${p.time}\n` +
+    `${p.partySize} ${guestsWord}\n\n` +
+    statusLine
+  );
+}
+
+// Fetches restaurant name, then delegates to sendWhatsApp (which fetches credentials).
+// Two lightweight SELECT queries — acceptable on the fire-and-forget path after the
+// response has already been sent.
+export async function sendReservationReceivedMessage(
+  restaurantId: string,
+  phone: string,
+  lang: 'en' | 'he',
+  payload: Omit<ReservationReceivedPayload, 'restaurantName'>
+): Promise<SmsResult> {
+  const restaurant = await prisma.restaurant.findUnique({
+    where:  { id: restaurantId },
+    select: { name: true },
+  });
+  const restaurantName = restaurant?.name ?? '';
+  const body = buildReservationReceivedMessage(lang, { ...payload, restaurantName });
+  return sendWhatsApp(restaurantId, phone, body);
+}

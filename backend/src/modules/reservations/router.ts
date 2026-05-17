@@ -11,7 +11,7 @@ import {
   ListReservationsQuery,
 } from './schema';
 import * as service from './service';
-import { sendConfirmationSms, sendReminderSms } from '../../lib/sms';
+import { sendConfirmationSms, sendReminderSms, sendReservationReceivedMessage } from '../../lib/sms';
 import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
@@ -55,6 +55,24 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
     const r = await service.createReservation(req.auth.restaurantId, req.body, actorName(req));
     res.status(201).json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+
+    // Fire-and-forget: send "reservation received" WhatsApp to the guest.
+    // Only for manual host-created reservations with a phone number.
+    // Failure is logged but never surfaces to the host — the reservation already exists.
+    if (r.guestPhone) {
+      const lang = r.guestLang === 'he' ? 'he' : 'en';
+      void sendReservationReceivedMessage(
+        req.auth.restaurantId,
+        r.guestPhone,
+        lang,
+        { guestName: r.guestName, date: r.date, time: r.time, partySize: r.partySize, status: r.status },
+      ).catch((err: unknown) => {
+        console.error(
+          `[ReservationReceived] Failed to notify guest for reservation ${r.id}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+    }
   } catch (err) { next(err); }
 });
 
