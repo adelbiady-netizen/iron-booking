@@ -1260,13 +1260,19 @@ export default function GuestHubPage({ slug, diningMode = false, isDemo = false 
     demoTimerRef.current = setTimeout(() => setDemoNotice(false), 2800);
   }
 
+  // On live guest pages navigate to the real booking flow; on the admin
+  // preview (/guest-hub-demo) keep the informational toast instead.
+  const handleReserveAction = isDemo
+    ? showDemoNotice
+    : () => { window.location.href = `/book/${encodeURIComponent(slug)}`; };
+
   if (hubState.status === 'loading')   return <GuestHubSkeleton />;
   if (hubState.status === 'not_found') return <GuestHubError notFound onRetry={() => {}} />;
   if (hubState.status === 'error')     return <GuestHubError onRetry={hubState.retry} />;
 
   return (
     <>
-      <HubContent vm={hubState.data} onDemoAction={showDemoNotice} diningMode={diningMode} />
+      <HubContent vm={hubState.data} onDemoAction={handleReserveAction} diningMode={diningMode} />
       {demoNotice && (
         <div
           role="status"
