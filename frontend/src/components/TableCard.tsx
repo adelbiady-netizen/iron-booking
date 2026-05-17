@@ -113,7 +113,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       )}
 
       {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
-        const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
+        const mr = minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now());
         const isCombined   = currentRes.combinedTableIds.length > 0;
         const isSecondary  = isCombined && currentRes.combinedTableIds.includes(table.id);
         return (

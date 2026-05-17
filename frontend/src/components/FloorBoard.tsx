@@ -811,8 +811,15 @@ export default function FloorBoard({
 
   // ── Turn data ─────────────────────────────────────────────────────────────────
   const turnData = new Map<string, Reservation[]>();
+  console.debug('[FloorBoard turnData] nowTime:', nowTime, '| reservations count:', reservations.length);
   for (const r of reservations) {
     if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
+    const norm = normalizeTime(r.time);
+    if (nowTime && norm < nowTime) {
+      console.debug('[FloorBoard turnData] FILTERED OUT', r.id, 'time:', r.time, 'norm:', norm, 'nowTime:', nowTime);
+      continue;
+    }
+    console.debug('[FloorBoard turnData] KEPT', r.id, 'time:', r.time, 'norm:', norm, 'nowTime:', nowTime, 'source: turnData');
     const arr = turnData.get(r.tableId) ?? [];
     arr.push(r);
     turnData.set(r.tableId, arr);
@@ -834,7 +841,7 @@ export default function FloorBoard({
   const isToday    = !date || date === todayStr;
   const freeingSoon = isToday ? dedupedTables.filter(t => {
     if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation) return false;
-    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, Date.now());
+    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, operationalNow ?? Date.now());
     return mr > 0 && mr <= 15;
   }).length : 0;
 
@@ -1131,7 +1138,7 @@ export default function FloorBoard({
                 Suppressed during pick/assign modes: those modes trigger rapid re-renders on every
                 tap and SEF is the costliest component (N² density, 30+ SVG gradients). */}
             {!pickMode && !waitlistAssignEntry && (
-              <SpatialEnergyField tables={canvasTables} pressureScore={pressureScore} timeWarmth={timeWarmth} serviceEnergy={serviceEnergy} />
+              <SpatialEnergyField tables={canvasTables} pressureScore={pressureScore} timeWarmth={timeWarmth} serviceEnergy={serviceEnergy} operationalNow={operationalNow} />
             )}
 
             {/* Chair silhouettes — semantic furniture geometry around table perimeters */}
@@ -2129,11 +2136,12 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }: {
+function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy, operationalNow }: {
   tables: FloorTable[];
   pressureScore: number;
   timeWarmth: number;
   serviceEnergy: number;
+  operationalNow?: number;
 }) {
   const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
   const overdue  = tables.filter(t => t.liveStatus === 'OCCUPIED' &&   t.currentReservation?.isOverdue);
@@ -2154,7 +2162,7 @@ function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }
   // A different color (warm gold) from overdue (red): this is momentum, not alarm.
   const readying = tables.filter(t => {
     if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation || t.currentReservation.isOverdue) return false;
-    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, Date.now());
+    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, operationalNow ?? Date.now());
     return mr > 0 && mr <= 20;
   });
 
@@ -2621,7 +2629,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Base (non-pick) colors
   const isOverdue = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
   const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
-    ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
+    ? minutesUntilEnd(table.currentReservation.expectedEndTime, _operationalNow ?? Date.now()) : null;
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
   // Stable/recession states — reduce visual weight to let urgent tables surface
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
@@ -3024,7 +3032,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* OCCUPIED */}
       {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
-        const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
+        const mr = minutesUntilEnd(currentRes.expectedEndTime, _operationalNow ?? Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
         const nameColor = isOverdue ? '#991b1b'
@@ -3216,6 +3224,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
     {/* Multi-turn stack — operational timeline anchored below table boundary.
         Reservation schedule always visible. Operational truth > geometric purity. */}
+    {turnsToShow.length > 0 && console.debug('[MapTable chip stack]', table.name, 'nowTime:', _nowTime, 'turnsToShow:', turnsToShow.map(r => r.time), 'source: turnData') as unknown as null}
     {turnsToShow.length > 0 && (
       <div
         style={{
