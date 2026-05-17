@@ -26,12 +26,14 @@ export interface ShiftMetrics {
 export class ApiError extends Error {
   readonly fieldErrors: Record<string, string[]>;
   readonly code: string;
+  readonly status: number;
   readonly details: unknown;
-  constructor(message: string, fieldErrors: Record<string, string[]> = {}, code = '', details?: unknown) {
+  constructor(message: string, fieldErrors: Record<string, string[]> = {}, code = '', details?: unknown, status = 0) {
     super(message);
     this.name = 'ApiError';
     this.fieldErrors = fieldErrors;
     this.code = code;
+    this.status = status;
     this.details = details;
   }
 }
@@ -104,11 +106,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (res.status === 401) {
     // Clear only the auth key that matches the current route context, then
-    // redirect to the correct login page (not always /) so the user lands
-    // on the right screen after session expiry.
+    // redirect to the correct login page so the user lands on the right screen
+    // after session expiry. /restaurant-admin uses iron_hq_auth, same as /hq.
     _sessionToken = null;
-    const isHQ = window.location.pathname.startsWith('/hq');
-    if (isHQ) {
+    if (window.location.pathname.startsWith('/restaurant-admin')) {
+      clearHQAuth();
+      window.location.replace('/restaurant-admin');
+    } else if (window.location.pathname.startsWith('/hq')) {
       clearHQAuth();
       window.location.replace('/hq');
     } else {
@@ -124,7 +128,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } | null;
     const fieldErrors = body?.error?.details?.fieldErrors ?? {};
     const details = body?.error?.details as unknown;
-    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`, fieldErrors, body?.error?.code ?? '', details);
+    throw new ApiError(body?.error?.message ?? `HTTP ${res.status}`, fieldErrors, body?.error?.code ?? '', details, res.status);
   }
 
   if (res.status === 204) return undefined as unknown as T;

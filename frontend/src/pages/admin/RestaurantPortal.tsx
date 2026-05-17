@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { api } from '../../api';
+import { api, ApiError } from '../../api';
 import type { AuthState } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -120,6 +120,9 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
     canManageOnlineRestrictions: boolean;
   } | null>(null);
 
+  // Session / access error (shown instead of content)
+  const [sessionError, setSessionError] = useState<'forbidden' | 'not-found' | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -132,9 +135,21 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
+  // Re-fetches only permissions — called after a 403 mutation so the section
+  // collapses immediately without a full page reload.
+  async function refreshPermissions() {
+    try {
+      const detail = await api.admin.restaurants.get(restaurantId);
+      setPermissions(detail.portalPermissions ?? null);
+      setEditSchedule(false);
+      setShowAddRestriction(false);
+    } catch { /* best-effort — full reload will fix any remaining stale state */ }
+  }
+
   const loadData = useCallback(async () => {
     if (!restaurantId) return;
     setLoading(true);
+    setSessionError(null);
     try {
       const [detail, rl] = await Promise.all([
         api.admin.restaurants.get(restaurantId),
@@ -148,8 +163,15 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
           openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating,
         })));
       }
-    } catch { /* ignore — user sees stale defaults */ }
-    finally { setLoading(false); }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 403) setSessionError('forbidden');
+        else if (err.status === 404) setSessionError('not-found');
+        // 401 is handled globally by api.ts — it clears auth and redirects to login
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [restaurantId]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -168,7 +190,12 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
       setEditSchedule(false);
       showToast('Schedule saved');
     } catch (err) {
-      setScheduleError(err instanceof Error ? err.message : 'Save failed');
+      if (err instanceof ApiError && err.status === 403) {
+        setScheduleError('Access to this tool has been removed. Contact your administrator.');
+        refreshPermissions();
+      } else {
+        setScheduleError(err instanceof Error ? err.message : 'Save failed');
+      }
     } finally {
       setScheduleBusy(false);
     }
@@ -203,7 +230,12 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
       setRestrictionForm(DEFAULT_RESTRICTION_FORM);
       showToast('Restriction added');
     } catch (err) {
-      setRestrictionError(err instanceof Error ? err.message : 'Failed to add restriction');
+      if (err instanceof ApiError && err.status === 403) {
+        setRestrictionError('Access to this tool has been removed. Contact your administrator.');
+        refreshPermissions();
+      } else {
+        setRestrictionError(err instanceof Error ? err.message : 'Failed to add restriction');
+      }
     } finally {
       setRestrictionCreateBusy(false);
     }
@@ -213,8 +245,12 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
     try {
       await api.admin.restaurants.onlineRestrictions.delete(restaurantId, rid);
       setRestrictions(r => r.filter(x => x.id !== rid));
-    } catch {
-      showToast('Failed to delete restriction');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        refreshPermissions();
+      } else {
+        showToast('Failed to delete restriction');
+      }
     }
   }
 
@@ -240,6 +276,9 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <span className="text-iron-muted text-xs hidden sm:block">
+            {auth.user.firstName} {auth.user.lastName}
+          </span>
           <button
             onClick={() => setHqTheme(t => t === 'dark' ? 'light' : 'dark')}
             className="text-iron-muted hover:text-iron-text text-xs px-2 py-1 rounded hover:bg-iron-bg transition-colors"
@@ -264,6 +303,28 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
             <div className="flex items-center justify-center py-16">
               <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
             </div>
+          ) : sessionError ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-12 h-12 rounded-full bg-iron-surface border border-iron-border flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-iron-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              {sessionError === 'not-found' ? (
+                <>
+                  <p className="text-iron-text font-medium mb-1">Restaurant not found</p>
+                  <p className="text-iron-muted text-sm">This restaurant may have been removed. Contact Iron Booking support.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-iron-text font-medium mb-1">Access denied</p>
+                  <p className="text-iron-muted text-sm">Your account does not have access to this restaurant. Contact Iron Booking support.</p>
+                </>
+              )}
+              <button onClick={onLogout} className="mt-6 text-xs text-iron-muted hover:text-iron-text underline transition-colors">
+                Sign out
+              </button>
+            </div>
           ) : (() => {
             const canHours        = permissions?.canManageOperatingHours     ?? false;
             const canRestrictions = permissions?.canManageOnlineRestrictions ?? false;
@@ -285,6 +346,8 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
 
             return (
             <>
+              <p className="text-iron-muted text-sm">Manage the tools Iron has enabled for your restaurant.</p>
+
               {/* Weekly Schedule */}
               {canHours && (editSchedule ? (
                 <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">

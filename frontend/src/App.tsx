@@ -95,6 +95,8 @@ export default function App() {
     setAdminView(user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN');
     if (user.role === 'RESTAURANT_ADMIN' && !window.location.pathname.startsWith('/restaurant-admin')) {
       window.location.replace('/restaurant-admin');
+    } else if ((user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN') && window.location.pathname.startsWith('/restaurant-admin')) {
+      window.location.replace('/hq');
     }
   }
 
