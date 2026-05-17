@@ -7,7 +7,6 @@ import {
   ValidationError,
 } from '../../lib/errors';
 import { getTableAvailability } from '../../engine/availability';
-import { MAP_VISIBILITY_MINUTES } from '../../engine/occupancy';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -448,13 +447,13 @@ export async function seatReservation(
   const nowMins = nowH * 60 + nowM;
 
   // Check for near-term reservations on the target table. Only flag reservations
-  // within the effective validator window (MAP_VISIBILITY_MINUTES + buffer) from
-  // now — this matches the board visibility threshold so a table shown AVAILABLE
-  // always passes this check and vice versa.
+  // within the effective validator window (defaultTurnMinutes + buffer) from
+  // now — matches the board visibility threshold (reservationIsUpcoming forward cap)
+  // so a table shown AVAILABLE always passes this check and vice versa.
   // Skip this check when the caller has already selected IDs to reorganize.
   if (reorganizeIds.length === 0) {
     const todayDateObj = parseDateArg(todayLocal);
-    const windowEndMins = nowMins + MAP_VISIBILITY_MINUTES + settings.bufferBetweenTurnsMinutes;
+    const windowEndMins = nowMins + settings.defaultTurnMinutes + settings.bufferBetweenTurnsMinutes;
 
     const allOnTable = await prisma.reservation.findMany({
       where: {

@@ -812,15 +812,12 @@ export default function FloorBoard({
 
   // ── Turn data ─────────────────────────────────────────────────────────────────
   const turnData = new Map<string, Reservation[]>();
-  console.debug('[FloorBoard turnData] nowTime:', nowTime, '| reservations count:', reservations.length);
   for (const r of reservations) {
     if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
     const norm = normalizeTime(r.time);
     if (nowTime && norm < nowTime) {
-      console.debug('[FloorBoard turnData] FILTERED OUT', r.id, 'time:', r.time, 'norm:', norm, 'nowTime:', nowTime);
       continue;
     }
-    console.debug('[FloorBoard turnData] KEPT', r.id, 'time:', r.time, 'norm:', norm, 'nowTime:', nowTime, 'source: turnData');
     const arr = turnData.get(r.tableId) ?? [];
     arr.push(r);
     turnData.set(r.tableId, arr);
@@ -3242,7 +3239,6 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
     {/* Multi-turn stack — operational timeline anchored below table boundary.
         Reservation schedule always visible. Operational truth > geometric purity. */}
-    {turnsToShow.length > 0 && console.debug('[MapTable chip stack]', table.name, 'nowTime:', _nowTime, 'turnsToShow:', turnsToShow.map(r => r.time), 'source: turnData') as unknown as null}
     {turnsToShow.length > 0 && (
       <div
         style={{
