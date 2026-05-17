@@ -4,6 +4,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd } from '../utils/time';
+import { isLiveServiceView } from '../utils/arrival';
 
 function waitMins(addedAt: string, opNow: number): number {
   return Math.floor((opNow - new Date(addedAt).getTime()) / 60_000);
@@ -37,10 +38,16 @@ interface Props {
   date?: string;
 }
 
-export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip, date }: Props) {
+export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip, date, nowTime }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
+  // Suppress urgency styling (amber RESERVED_SOON) when viewing a future boardTime.
+  // Live/current board keeps exact existing behaviour (isLiveView=true).
+  const isLiveView = date && nowTime ? isLiveServiceView(date, nowTime) : true;
+  const displayStatus = (isLiveView || table.liveStatus !== 'RESERVED_SOON')
+    ? table.liveStatus
+    : 'RESERVED';
   const STATUS_STYLE: Record<string, StatusStyle> = {
     AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
     OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
@@ -53,7 +60,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
-  const style = STATUS_STYLE[table.liveStatus] ?? STATUS_STYLE['AVAILABLE'];
+  const style = STATUS_STYLE[displayStatus] ?? STATUS_STYLE['AVAILABLE'];
 
   return (
     <button
