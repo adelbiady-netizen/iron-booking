@@ -1264,7 +1264,17 @@ export default function GuestHubPage({ slug, diningMode = false, isDemo = false 
   // preview (/guest-hub-demo) keep the informational toast instead.
   const handleReserveAction = isDemo
     ? showDemoNotice
-    : () => { window.location.href = `/book/${encodeURIComponent(slug)}`; };
+    : () => {
+        if (hubState.status === 'ready') {
+          try {
+            sessionStorage.setItem(`gh_branding_${slug}`, JSON.stringify({
+              primaryColor: hubState.data.primaryColor,
+              themePreset:  hubState.data.themePreset,
+            }));
+          } catch { /* sessionStorage unavailable — private browsing or quota */ }
+        }
+        window.location.href = `/book/${encodeURIComponent(slug)}`;
+      };
 
   if (hubState.status === 'loading')   return <GuestHubSkeleton />;
   if (hubState.status === 'not_found') return <GuestHubError notFound onRetry={() => {}} />;

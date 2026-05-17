@@ -5,7 +5,7 @@ import { api, ApiError } from '../api';
 import { useLocale } from '../i18n/useLocale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { PublicFooter } from '../components/PublicFooter';
-import { usePublicTheme } from '../utils/publicTheme';
+import { usePublicTheme, HUB_TO_BG_MOOD } from '../utils/publicTheme';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -108,7 +108,21 @@ export default function BookingPage({ slug }: Props) {
   useEffect(() => {
     api.public.book.getProfile(slug)
       .then(p => {
-        setProfile(p);
+        let enriched = p;
+        try {
+          const raw = sessionStorage.getItem(`gh_branding_${slug}`);
+          if (raw) {
+            const gh = JSON.parse(raw) as { primaryColor?: unknown; themePreset?: unknown };
+            if (!enriched.primaryColor && typeof gh.primaryColor === 'string') {
+              enriched = { ...enriched, primaryColor: gh.primaryColor };
+            }
+            if (!enriched.backgroundMood && typeof gh.themePreset === 'string') {
+              const mood = HUB_TO_BG_MOOD[gh.themePreset];
+              if (mood) enriched = { ...enriched, backgroundMood: mood };
+            }
+          }
+        } catch { /* sessionStorage unavailable or malformed JSON — ignore */ }
+        setProfile(enriched);
         const today = new Date();
         for (let i = 0; i < p.maxAdvanceBookingDays; i++) {
           const d = new Date(today);

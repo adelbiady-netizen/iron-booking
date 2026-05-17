@@ -52,6 +52,18 @@ const PRESET_GLOW: Record<PresetKey | 'default', string> = {
   italiano:      '0.12',  // Italiano — understated, cinematic
 };
 
+// Maps Guest Hub theme preset keys to the booking page's backgroundMood values.
+// Used by BookingPage when the guest arrives via the Hub Reserve CTA.
+// MIDNIGHT and SLATE intentionally map to 'dark' (no override — default navy is close enough).
+export const HUB_TO_BG_MOOD: Record<string, string> = {
+  ESPRESSO: 'espresso',
+  OLIVE:    'olive',
+  SAND:     'warm',
+  WINE:     'cream',
+  MIDNIGHT: 'dark',
+  SLATE:    'dark',
+};
+
 interface BrandingInput {
   primaryColor?: string | null;
   accentColor?: string | null;
