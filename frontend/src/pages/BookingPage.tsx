@@ -364,7 +364,17 @@ export default function BookingPage({ slug }: Props) {
             )}
             {/* Normal slot grid — shown when at least one slot is not online-blocked */}
             {!state.data.isFullyBooked && state.data.slots.length > 0 && !state.data.slots.every(s => s.onlineBlocked) && (
-              <SlotGrid slots={state.data.slots} onSelect={handleSlotSelect} />
+              <>
+                {state.data.slots.some(s => s.onlineBlocked) && (
+                  <div className="mb-3">
+                    <StatusBanner
+                      icon="○" color="neutral"
+                      text={state.data.slots.find(s => s.onlineBlocked && s.guestMessage)?.guestMessage ?? t('booking.partialOnlineBlockedNotice')}
+                    />
+                  </div>
+                )}
+                <SlotGrid slots={state.data.slots} onSelect={handleSlotSelect} />
+              </>
             )}
 
             {/* Alternatives */}

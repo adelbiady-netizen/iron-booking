@@ -45,6 +45,7 @@
     "tryAgain": "נסה שוב",
     "onlineBlockedTitle": "הזמנה מקוונת אינה זמינה",
     "onlineBlockedDefault": "ההזמנה המקוונת אינה זמינה לשעה זו. אנא התקשרו למסעדה להזמנה.",
+    "partialOnlineBlockedNotice": "חלק מהשעות אינן זמינות להזמנה מקוונת. אנא התקשרו למסעדה לזמינות נוספת.",
     "securingTable": "מאבטח את השולחן שלך…",
     "slots": {
       "lastTablePopular": "שולחן אחרון · פופולרי",
