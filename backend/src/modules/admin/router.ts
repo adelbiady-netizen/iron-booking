@@ -740,4 +740,72 @@ router.post('/groups/:id/users', superAdminOnly, validate(CreateHqUserSchema), a
   } catch (err) { next(err); }
 });
 
+// ─── Online Booking Restrictions ─────────────────────────────────────────────
+// Manage per-date/time-range online booking blocks.
+// These only affect the public slot engine — host/admin reservation creation is unaffected.
+
+const OnlineRestrictionSchema = z.object({
+  date:            z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+  startTime:       z.string().regex(HHmm, 'startTime must be HH:mm').nullable().optional(),
+  endTime:         z.string().regex(HHmm, 'endTime must be HH:mm').nullable().optional(),
+  restrictionType: z.string().default('BLOCK'),
+  reason:          z.string().nullable().optional(),
+  guestMessage:    z.string().max(200).nullable().optional(),
+});
+
+// GET /admin/restaurants/:id/online-restrictions
+router.get('/restaurants/:id/online-restrictions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    const rows = await prisma.onlineBookingRestriction.findMany({
+      where:   { restaurantId: p(req, 'id'), isActive: true },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    });
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// POST /admin/restaurants/:id/online-restrictions
+router.post('/restaurants/:id/online-restrictions', validate(OnlineRestrictionSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    const body = req.body as z.infer<typeof OnlineRestrictionSchema>;
+
+    if (body.startTime && body.endTime && body.startTime >= body.endTime) {
+      throw new BusinessRuleError('startTime must be before endTime');
+    }
+
+    const row = await prisma.onlineBookingRestriction.create({
+      data: {
+        restaurantId:    p(req, 'id'),
+        date:            body.date,
+        startTime:       body.startTime ?? null,
+        endTime:         body.endTime ?? null,
+        restrictionType: body.restrictionType ?? 'BLOCK',
+        reason:          body.reason ?? null,
+        guestMessage:    body.guestMessage ?? null,
+        createdBy:       req.auth.userId,
+      },
+    });
+    res.status(201).json(row);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/restaurants/:id/online-restrictions/:rid
+router.delete('/restaurants/:id/online-restrictions/:rid', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const row = await prisma.onlineBookingRestriction.findFirst({
+      where: { id: p(req, 'rid'), restaurantId: p(req, 'id') },
+    });
+    if (!row) throw new NotFoundError('OnlineBookingRestriction', p(req, 'rid'));
+
+    await prisma.onlineBookingRestriction.delete({ where: { id: p(req, 'rid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 export default router;

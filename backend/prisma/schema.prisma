@@ -101,9 +101,10 @@ model Restaurant {
   sections         Section[]
   reservations     Reservation[]
   waitlistEntries  WaitlistEntry[]
-  blockedPeriods   BlockedPeriod[]
-  operatingHours   OperatingHour[]
-  floorObjects     FloorObject[]
+  blockedPeriods              BlockedPeriod[]
+  operatingHours              OperatingHour[]
+  floorObjects                FloorObject[]
+  onlineBookingRestrictions   OnlineBookingRestriction[]
 
   @@map("restaurants")
 }
@@ -813,4 +814,27 @@ model GuestHubQrToken {
 
   @@unique([hubId, label])
   @@map("guest_hub_qr_token")
+}
+
+// ─── Online Booking Restrictions ─────────────────────────────────────────────
+// Per-date/time-range rules that block public online booking for specific slots.
+// Never affects host/admin manual reservation creation — public slot engine only.
+
+model OnlineBookingRestriction {
+  id              String   @id @default(uuid())
+  restaurantId    String
+  date            String   // "YYYY-MM-DD"
+  startTime       String?  // "HH:mm" — null = full-day restriction
+  endTime         String?  // "HH:mm" — null = full-day restriction
+  restrictionType String   @default("BLOCK")  // BLOCK | PHONE_ONLY | VIP_ONLY | DEPOSIT_REQUIRED | WAITLIST_ONLY | MEMBERS_EVENT
+  reason          String?  // internal note, shown only to host
+  guestMessage    String?  // message shown in public booking widget
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  createdBy       String   // staff user id
+
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, date])
+  @@map("online_booking_restrictions")
 }

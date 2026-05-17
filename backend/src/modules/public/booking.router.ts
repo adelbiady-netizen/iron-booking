@@ -19,7 +19,9 @@ interface PublicSlot {
   tier: 'IDEAL' | 'GOOD' | 'LIMITED';
   tablesLeft: number;
   softState: 'HIGH_DEMAND' | 'SHORT_WINDOW' | null;
-  _score: number;  // stripped before API response; used for alternative ranking
+  onlineBlocked: boolean;      // true when an OnlineBookingRestriction covers this slot
+  guestMessage: string | null; // restriction message to surface in the booking widget
+  _score: number;              // stripped before API response; used for alternative ranking
 }
 
 interface BookingAlternative {
@@ -87,15 +89,16 @@ type RestaurantWithHours = NonNullable<Awaited<ReturnType<typeof findRestaurantB
 // time slot in memory. Avoids the N-query loop in getAvailableSlots().
 
 async function computePublicSlots(
-  restaurantId:   string,
-  date:           Date,
-  partySize:      number,
-  openTime:       string,
-  lastSeating:    string,
+  restaurantId:    string,
+  date:            Date,
+  dateStr:         string,  // "YYYY-MM-DD" for restriction lookup
+  partySize:       number,
+  openTime:        string,
+  lastSeating:     string,
   intervalMinutes: number,
   durationMinutes: number,
-  bufferMinutes:  number,
-  minBookingTime: Date
+  bufferMinutes:   number,
+  minBookingTime:  Date
 ): Promise<PublicSlot[]> {
   const firstSlot = parseTimeOnDate(date, openTime);
   const lastSlot  = parseTimeOnDate(date, lastSeating);
@@ -105,7 +108,7 @@ async function computePublicSlots(
   const queryEnd   = addMinutes(addMinutes(lastSlot, durationMinutes), bufferMinutes);
 
   // Single-pass data fetch
-  const [tables, reservations, blocks] = await Promise.all([
+  const [tables, reservations, blocks, restrictions] = await Promise.all([
     prisma.table.findMany({
       where: {
         restaurantId,
@@ -134,6 +137,10 @@ async function computePublicSlots(
       },
       select: { tableId: true, startTime: true, endTime: true },
     }),
+    prisma.onlineBookingRestriction.findMany({
+      where: { restaurantId, date: dateStr, isActive: true },
+      select: { startTime: true, endTime: true, guestMessage: true },
+    }),
   ]);
 
   if (tables.length === 0) return [];
@@ -152,6 +159,21 @@ async function computePublicSlots(
 
     // Skip past the minimum advance booking window
     if (cursor < minBookingTime) {
+      cursor = addMinutes(cursor, intervalMinutes);
+      continue;
+    }
+
+    // Check online booking restrictions — push as blocked slot, skip table eval
+    const onlineRestriction = restrictions.find(r => {
+      if (!r.startTime || !r.endTime) return true; // null = full-day
+      return timeStr >= r.startTime && timeStr < r.endTime;
+    });
+    if (onlineRestriction) {
+      slots.push({
+        time: timeStr, available: false, tier: 'IDEAL', tablesLeft: 0,
+        softState: null, onlineBlocked: true,
+        guestMessage: onlineRestriction.guestMessage ?? null, _score: 0,
+      });
       cursor = addMinutes(cursor, intervalMinutes);
       continue;
     }
@@ -204,9 +226,9 @@ async function computePublicSlots(
       const pacingScore = Math.max(0, 1 - windowCount / Math.max(1, tables.length));
       const _score      = fitScore * 0.40 + pacingScore * 0.35;
 
-      slots.push({ time: timeStr, available: true, tier, tablesLeft: availableCount, softState, _score });
+      slots.push({ time: timeStr, available: true, tier, tablesLeft: availableCount, softState, onlineBlocked: false, guestMessage: null, _score });
     } else {
-      slots.push({ time: timeStr, available: false, tier: 'IDEAL', tablesLeft: 0, softState: null, _score: 0 });
+      slots.push({ time: timeStr, available: false, tier: 'IDEAL', tablesLeft: 0, softState: null, onlineBlocked: false, guestMessage: null, _score: 0 });
     }
 
     cursor = addMinutes(cursor, intervalMinutes);
@@ -246,8 +268,9 @@ async function findAlternatives(
     const hours = restaurant.operatingHours.find(h => h.dayOfWeek === d.getUTCDay());
     if (!hours?.isOpen) continue;
 
+    const dStr  = d.toISOString().split('T')[0]!;
     const slots = await computePublicSlots(
-      restaurant.id, d, partySize,
+      restaurant.id, d, dStr, partySize,
       hours.openTime, hours.lastSeating,
       s.slotIntervalMinutes, s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
       minBookingTime
@@ -533,7 +556,7 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
     }
 
     const slots        = await computePublicSlots(
-      restaurant.id, dateObj, partySize,
+      restaurant.id, dateObj, date, partySize,
       hours.openTime, hours.lastSeating,
       s.slotIntervalMinutes, s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
       minBookingTime
@@ -616,6 +639,29 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     }
     if (body.time < hours.openTime || body.time > hours.lastSeating) {
       return res.status(400).json({ error: { code: 'OUTSIDE_HOURS', message: 'That time is outside of operating hours.' } });
+    }
+
+    // Online booking restriction guard — public guests only; host POSTs bypass this
+    const onlineBlock = await prisma.onlineBookingRestriction.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        date: body.date,
+        isActive: true,
+        OR: [
+          { startTime: null },
+          { endTime: null },
+          { startTime: { lte: body.time }, endTime: { gt: body.time } },
+        ],
+      },
+      select: { guestMessage: true },
+    });
+    if (onlineBlock) {
+      return res.status(400).json({
+        error: {
+          code: 'ONLINE_BOOKING_BLOCKED',
+          message: onlineBlock.guestMessage ?? 'Online booking is not available for this time. Please call us to reserve.',
+        },
+      });
     }
 
     // Execute booking (serializable transaction — secures the slot)
