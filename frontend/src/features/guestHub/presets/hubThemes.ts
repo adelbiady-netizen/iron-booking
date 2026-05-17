@@ -1,9 +1,13 @@
 // ─── Guest Hub brand presets ───────────────────────────────────────────────────
-// Six curated visual moods for the public page.
+// Six curated hospitality atmosphere presets for the public page.
 // Operators choose a preset; Iron Booking controls the design system within it.
 //
 // LOCKED across all presets: typography, spacing, border-radius, layout, motion.
-// CONTROLLED per preset: accent tone, background warmth, border mood, glow.
+// CONTROLLED per preset: surface warmth, accent tone, border mood, hero atmosphere.
+//
+// Design principle: surfaces carry the mood — not just the accent color.
+// Each theme shifts bg, surface, elevated, and border as a coherent temperature
+// system so switching presets feels like walking into a different venue.
 
 export interface HubColorPalette {
   bg:        string;
@@ -24,8 +28,8 @@ export interface HubTheme {
   description: string;   // one-line descriptor for admin UI
   colors:      HubColorPalette;
   heroGradient: string;  // fallback gradient when no cover image
-  heroGlowA:    string;  // inner glow rgba (e.g. rgba(…,0.13))
-  heroGlowB:    string;  // outer glow rgba (e.g. rgba(…,0.03))
+  heroGlowA:    string;  // inner glow rgba (e.g. rgba(…,0.16))
+  heroGlowB:    string;  // outer glow rgba (e.g. rgba(…,0.04))
   css: {
     // CSS custom properties applied to the page root wrapper
     '--gh-cat-border':            string;  // category card border (gold-alpha)
@@ -42,141 +46,195 @@ export interface HubTheme {
 
 const PRESETS: Record<string, HubTheme> = {
 
+  // ── ESPRESSO — warm Italian evening ─────────────────────────────────────────
+  // Surfaces carry brown wood warmth. Amber candlelight accent.
+  // Venue feel: candlelit trattoria, aged oak tables, espresso on the bar.
   ESPRESSO: {
     id: 'ESPRESSO', label: 'Espresso',
-    description: 'Warm dark & amber gold — the Iron Booking signature',
+    description: 'Warm Italian evening — amber candlelight & oak tables',
     colors: {
-      bg: '#0C0A09', surface: '#141210', elevated: '#1C1916',
-      border: '#28231E', borderSub: '#201C18',
-      text: '#F0EBE3', muted: '#7A6F65', sub: '#4A4139',
-      gold: '#C9A96E', goldDim: '#8C6F3E',
+      bg:        '#0D0A07',
+      surface:   '#181310',
+      elevated:  '#231A12',
+      border:    '#342618',
+      borderSub: '#281E14',
+      text:      '#F5EDE2',
+      muted:     '#887568',
+      sub:       '#504238',
+      gold:      '#C9A96E',
+      goldDim:   '#8E6A38',
     },
-    heroGradient: 'linear-gradient(180deg, #3A1A06 0%, #1E0E04 35%, #0C0A09 100%)',
-    heroGlowA: 'rgba(201,169,110,0.13)',
-    heroGlowB: 'rgba(201,169,110,0.03)',
+    heroGradient: 'linear-gradient(180deg, #3A1E08 0%, #1E0E04 35%, #0D0A07 100%)',
+    heroGlowA: 'rgba(201,169,110,0.16)',
+    heroGlowB: 'rgba(201,169,110,0.04)',
     css: {
-      '--gh-cat-border':            'rgba(201,169,110,0.12)',
-      '--gh-cat-border-hover':      'rgba(201,169,110,0.24)',
-      '--gh-cat-glow':              'rgba(201,169,110,0.55)',
-      '--gh-carousel-border-hover': 'rgba(201,169,110,0.18)',
-      '--gh-surface-hover':         '#1E1914',
-      '--gh-border-hover':          '#302820',
-      '--gh-row-hover-bg':          '#1C1916',
+      '--gh-cat-border':            'rgba(201,169,110,0.14)',
+      '--gh-cat-border-hover':      'rgba(201,169,110,0.28)',
+      '--gh-cat-glow':              'rgba(201,169,110,0.60)',
+      '--gh-carousel-border-hover': 'rgba(201,169,110,0.22)',
+      '--gh-surface-hover':         '#241C14',
+      '--gh-border-hover':          '#3E2E20',
+      '--gh-row-hover-bg':          '#201610',
     },
   },
 
-  OLIVE: {
-    id: 'OLIVE', label: 'Olive',
-    description: 'Earthy olive-green — farm-to-table, garden bistro',
-    colors: {
-      bg: '#090C09', surface: '#111410', elevated: '#181C15',
-      border: '#222819', borderSub: '#1A2015',
-      text: '#EDF0E8', muted: '#6E7A60', sub: '#3E4A32',
-      gold: '#8FB86E', goldDim: '#5C7A44',
-    },
-    heroGradient: 'linear-gradient(180deg, #182A08 0%, #0C1804 35%, #090C09 100%)',
-    heroGlowA: 'rgba(143,184,110,0.13)',
-    heroGlowB: 'rgba(143,184,110,0.03)',
-    css: {
-      '--gh-cat-border':            'rgba(143,184,110,0.12)',
-      '--gh-cat-border-hover':      'rgba(143,184,110,0.24)',
-      '--gh-cat-glow':              'rgba(143,184,110,0.50)',
-      '--gh-carousel-border-hover': 'rgba(143,184,110,0.18)',
-      '--gh-surface-hover':         '#1B1E14',
-      '--gh-border-hover':          '#283020',
-      '--gh-row-hover-bg':          '#181C14',
-    },
-  },
-
+  // ── WINE — deep burgundy, premium service ────────────────────────────────────
+  // Surfaces carry deep plum-wine character. Restrained rose-burgundy accent.
+  // Venue feel: wine cellar, dark mahogany, crystal glasses, silver service.
   WINE: {
     id: 'WINE', label: 'Wine',
-    description: 'Deep burgundy — intimate wine bar, private dining',
+    description: 'Deep burgundy — premium dinner service & wine cellar elegance',
     colors: {
-      bg: '#0C0809', surface: '#140E10', elevated: '#1C1416',
-      border: '#2A1E22', borderSub: '#221618',
-      text: '#F0E8EC', muted: '#7A6068', sub: '#4A333A',
-      gold: '#C47080', goldDim: '#904050',
+      bg:        '#0C0609',
+      surface:   '#180A14',
+      elevated:  '#20101C',
+      border:    '#3A1C2C',
+      borderSub: '#2A1220',
+      text:      '#F5EAF0',
+      muted:     '#7A6072',
+      sub:       '#4E2E42',
+      gold:      '#C06882',
+      goldDim:   '#8C3A58',
     },
-    heroGradient: 'linear-gradient(180deg, #3A0A14 0%, #1E0408 35%, #0C0809 100%)',
-    heroGlowA: 'rgba(196,112,128,0.13)',
-    heroGlowB: 'rgba(196,112,128,0.03)',
+    heroGradient: 'linear-gradient(180deg, #3A0818 0%, #1E0408 35%, #0C0609 100%)',
+    heroGlowA: 'rgba(192,104,130,0.18)',
+    heroGlowB: 'rgba(192,104,130,0.04)',
     css: {
-      '--gh-cat-border':            'rgba(196,112,128,0.14)',
-      '--gh-cat-border-hover':      'rgba(196,112,128,0.26)',
-      '--gh-cat-glow':              'rgba(196,112,128,0.50)',
-      '--gh-carousel-border-hover': 'rgba(196,112,128,0.20)',
-      '--gh-surface-hover':         '#1E1416',
-      '--gh-border-hover':          '#30222A',
-      '--gh-row-hover-bg':          '#1A1216',
+      '--gh-cat-border':            'rgba(192,104,130,0.16)',
+      '--gh-cat-border-hover':      'rgba(192,104,130,0.30)',
+      '--gh-cat-glow':              'rgba(192,104,130,0.58)',
+      '--gh-carousel-border-hover': 'rgba(192,104,130,0.24)',
+      '--gh-surface-hover':         '#2A1424',
+      '--gh-border-hover':          '#4A2438',
+      '--gh-row-hover-bg':          '#22101E',
     },
   },
 
+  // ── OLIVE — Mediterranean garden ─────────────────────────────────────────────
+  // Surfaces carry earthy olive-green character. Vibrant natural-green accent.
+  // Venue feel: garden terrace under olive trees, natural stone, linen napkins.
+  OLIVE: {
+    id: 'OLIVE', label: 'Olive',
+    description: 'Mediterranean garden — natural earth warmth & terrace dining',
+    colors: {
+      bg:        '#0A0D08',
+      surface:   '#141A0C',
+      elevated:  '#1E2812',
+      border:    '#2E4018',
+      borderSub: '#222E16',
+      text:      '#EEF4E4',
+      muted:     '#728060',
+      sub:       '#485838',
+      gold:      '#96C070',
+      goldDim:   '#5E8040',
+    },
+    heroGradient: 'linear-gradient(180deg, #1A3008 0%, #0E1A04 35%, #0A0D08 100%)',
+    heroGlowA: 'rgba(150,192,112,0.15)',
+    heroGlowB: 'rgba(150,192,112,0.04)',
+    css: {
+      '--gh-cat-border':            'rgba(150,192,112,0.14)',
+      '--gh-cat-border-hover':      'rgba(150,192,112,0.28)',
+      '--gh-cat-glow':              'rgba(150,192,112,0.55)',
+      '--gh-carousel-border-hover': 'rgba(150,192,112,0.20)',
+      '--gh-surface-hover':         '#28341A',
+      '--gh-border-hover':          '#3E5228',
+      '--gh-row-hover-bg':          '#1C2410',
+    },
+  },
+
+  // ── MIDNIGHT — dark cocktail lounge ──────────────────────────────────────────
+  // Surfaces carry deep midnight-navy character. Electric steel-blue accent.
+  // Venue feel: rooftop cocktail bar, city lights, blue-hour, premium spirits.
   MIDNIGHT: {
     id: 'MIDNIGHT', label: 'Midnight',
-    description: 'Deep cool blue — omakase, premium cocktail lounge',
+    description: 'Dark cocktail lounge — navy depth & city-light sophistication',
     colors: {
-      bg: '#080A0E', surface: '#101318', elevated: '#181C24',
-      border: '#202630', borderSub: '#181E28',
-      text: '#E8ECF5', muted: '#637080', sub: '#3A4454',
-      gold: '#7CA4D4', goldDim: '#4A6EA0',
+      bg:        '#080A12',
+      surface:   '#0E1224',
+      elevated:  '#141E38',
+      border:    '#1E3054',
+      borderSub: '#162040',
+      text:      '#E4EEF8',
+      muted:     '#5A708A',
+      sub:       '#2E4466',
+      gold:      '#6098D8',
+      goldDim:   '#3A6298',
     },
-    heroGradient: 'linear-gradient(180deg, #0A1828 0%, #060E18 35%, #080A0E 100%)',
-    heroGlowA: 'rgba(124,164,212,0.13)',
-    heroGlowB: 'rgba(124,164,212,0.03)',
+    heroGradient: 'linear-gradient(180deg, #081838 0%, #040C1E 35%, #080A12 100%)',
+    heroGlowA: 'rgba(96,152,216,0.18)',
+    heroGlowB: 'rgba(96,152,216,0.04)',
     css: {
-      '--gh-cat-border':            'rgba(124,164,212,0.14)',
-      '--gh-cat-border-hover':      'rgba(124,164,212,0.26)',
-      '--gh-cat-glow':              'rgba(124,164,212,0.50)',
-      '--gh-carousel-border-hover': 'rgba(124,164,212,0.20)',
-      '--gh-surface-hover':         '#161C28',
-      '--gh-border-hover':          '#242E40',
-      '--gh-row-hover-bg':          '#141A24',
+      '--gh-cat-border':            'rgba(96,152,216,0.16)',
+      '--gh-cat-border-hover':      'rgba(96,152,216,0.30)',
+      '--gh-cat-glow':              'rgba(96,152,216,0.58)',
+      '--gh-carousel-border-hover': 'rgba(96,152,216,0.24)',
+      '--gh-surface-hover':         '#1A2A48',
+      '--gh-border-hover':          '#283E60',
+      '--gh-row-hover-bg':          '#10162E',
     },
   },
 
+  // ── SAND — golden hour, coastal café ─────────────────────────────────────────
+  // Warmest surfaces of all presets — amber gold bleeds through every layer.
+  // Brightest accent. Venue feel: Mediterranean terrace, golden-hour brunch.
   SAND: {
     id: 'SAND', label: 'Sand',
-    description: 'Warm amber honey — Mediterranean, beach club',
+    description: 'Golden hour warmth — coastal café & Mediterranean brunch',
     colors: {
-      bg: '#100E0A', surface: '#181410', elevated: '#221C16',
-      border: '#2E2618', borderSub: '#241E14',
-      text: '#F2EDE4', muted: '#8A7E6C', sub: '#58503E',
-      gold: '#D4A855', goldDim: '#A07828',
+      bg:        '#100C07',
+      surface:   '#1E1610',
+      elevated:  '#2C2010',
+      border:    '#40281A',
+      borderSub: '#30200E',
+      text:      '#F8EEE0',
+      muted:     '#9A8870',
+      sub:       '#6A5238',
+      gold:      '#D4A840',
+      goldDim:   '#A07820',
     },
-    heroGradient: 'linear-gradient(180deg, #402808 0%, #221404 35%, #100E0A 100%)',
-    heroGlowA: 'rgba(212,168,85,0.13)',
-    heroGlowB: 'rgba(212,168,85,0.03)',
+    heroGradient: 'linear-gradient(180deg, #482C06 0%, #241406 35%, #100C07 100%)',
+    heroGlowA: 'rgba(212,168,64,0.22)',
+    heroGlowB: 'rgba(212,168,64,0.05)',
     css: {
-      '--gh-cat-border':            'rgba(212,168,85,0.14)',
-      '--gh-cat-border-hover':      'rgba(212,168,85,0.26)',
-      '--gh-cat-glow':              'rgba(212,168,85,0.55)',
-      '--gh-carousel-border-hover': 'rgba(212,168,85,0.20)',
-      '--gh-surface-hover':         '#201A12',
-      '--gh-border-hover':          '#322616',
-      '--gh-row-hover-bg':          '#1E1812',
+      '--gh-cat-border':            'rgba(212,168,64,0.16)',
+      '--gh-cat-border-hover':      'rgba(212,168,64,0.30)',
+      '--gh-cat-glow':              'rgba(212,168,64,0.62)',
+      '--gh-carousel-border-hover': 'rgba(212,168,64,0.24)',
+      '--gh-surface-hover':         '#342618',
+      '--gh-border-hover':          '#4E3622',
+      '--gh-row-hover-bg':          '#26200E',
     },
   },
 
+  // ── SLATE — modern urban, contemporary ───────────────────────────────────────
+  // Cool, desaturated precision. No warmth — brushed steel and concrete character.
+  // Venue feel: contemporary Michelin-starred urban restaurant, clean geometry.
   SLATE: {
     id: 'SLATE', label: 'Slate',
-    description: 'Cool pewter grey — contemporary urban, fusion cuisine',
+    description: 'Modern urban precision — cool neutral & contemporary cuisine',
     colors: {
-      bg: '#0A0C0E', surface: '#131618', elevated: '#1C2022',
-      border: '#252A2E', borderSub: '#1E2428',
-      text: '#E8EAF0', muted: '#6A7280', sub: '#404850',
-      gold: '#9AB0C8', goldDim: '#607888',
+      bg:        '#0A0C10',
+      surface:   '#13161E',
+      elevated:  '#1C2030',
+      border:    '#282E3A',
+      borderSub: '#1E2430',
+      text:      '#E8EBF5',
+      muted:     '#6A7888',
+      sub:       '#404E60',
+      gold:      '#8AAFC8',
+      goldDim:   '#506880',
     },
-    heroGradient: 'linear-gradient(180deg, #0C1828 0%, #080E14 35%, #0A0C0E 100%)',
-    heroGlowA: 'rgba(154,176,200,0.13)',
-    heroGlowB: 'rgba(154,176,200,0.03)',
+    heroGradient: 'linear-gradient(180deg, #0E1C2E 0%, #080E18 35%, #0A0C10 100%)',
+    heroGlowA: 'rgba(138,175,200,0.12)',
+    heroGlowB: 'rgba(138,175,200,0.03)',
     css: {
-      '--gh-cat-border':            'rgba(154,176,200,0.14)',
-      '--gh-cat-border-hover':      'rgba(154,176,200,0.26)',
-      '--gh-cat-glow':              'rgba(154,176,200,0.50)',
-      '--gh-carousel-border-hover': 'rgba(154,176,200,0.20)',
-      '--gh-surface-hover':         '#1A1E24',
-      '--gh-border-hover':          '#262C34',
-      '--gh-row-hover-bg':          '#171B20',
+      '--gh-cat-border':            'rgba(138,175,200,0.14)',
+      '--gh-cat-border-hover':      'rgba(138,175,200,0.26)',
+      '--gh-cat-glow':              'rgba(138,175,200,0.50)',
+      '--gh-carousel-border-hover': 'rgba(138,175,200,0.20)',
+      '--gh-surface-hover':         '#222838',
+      '--gh-border-hover':          '#303A48',
+      '--gh-row-hover-bg':          '#181E2C',
     },
   },
 };

@@ -56,12 +56,12 @@ interface HubData {
 
 // Controlled preset keys — must match hubThemes.ts PRESETS keys
 const PRESET_OPTIONS = [
-  { id: 'ESPRESSO', label: 'Espresso', swatch: '#C9A96E', bg: '#0C0A09', description: 'Warm dark & amber gold', useCase: 'Fine dining · Whisky bars' },
-  { id: 'OLIVE',    label: 'Olive',    swatch: '#8FB86E', bg: '#090C09', description: 'Earthy olive-green',     useCase: 'Farm-to-table · Mediterranean' },
-  { id: 'WINE',     label: 'Wine',     swatch: '#C47080', bg: '#0C0809', description: 'Deep burgundy',           useCase: 'Wine bars · Romantic bistros' },
-  { id: 'MIDNIGHT', label: 'Midnight', swatch: '#7CA4D4', bg: '#080A0E', description: 'Deep cool blue',          useCase: 'Cocktail lounges · Late-night' },
-  { id: 'SAND',     label: 'Sand',     swatch: '#D4A855', bg: '#100E0A', description: 'Warm amber honey',        useCase: 'Brunch spots · Coastal cafés' },
-  { id: 'SLATE',    label: 'Slate',    swatch: '#9AB0C8', bg: '#0A0C0E', description: 'Cool pewter grey',        useCase: 'Modern brasseries · Rooftop bars' },
+  { id: 'ESPRESSO', label: 'Espresso', swatch: '#C9A96E', bg: '#0D0A07', description: 'Warm Italian evening · amber candlelight', useCase: 'Fine dining · Trattorias · Whisky bars' },
+  { id: 'OLIVE',    label: 'Olive',    swatch: '#96C070', bg: '#0A0D08', description: 'Mediterranean garden · natural earth warmth', useCase: 'Farm-to-table · Garden terraces' },
+  { id: 'WINE',     label: 'Wine',     swatch: '#C06882', bg: '#0C0609', description: 'Deep burgundy · premium dinner service',     useCase: 'Wine bars · Romantic bistros' },
+  { id: 'MIDNIGHT', label: 'Midnight', swatch: '#6098D8', bg: '#080A12', description: 'Dark cocktail lounge · city-light depth',   useCase: 'Cocktail lounges · Rooftop bars' },
+  { id: 'SAND',     label: 'Sand',     swatch: '#D4A840', bg: '#100C07', description: 'Golden hour warmth · coastal café',         useCase: 'Brunch spots · Mediterranean cafés' },
+  { id: 'SLATE',    label: 'Slate',    swatch: '#8AAFC8', bg: '#0A0C10', description: 'Modern urban precision · cool neutral',     useCase: 'Contemporary restaurants · Michelin dining' },
 ] as const;
 
 type BrandingForm = {
