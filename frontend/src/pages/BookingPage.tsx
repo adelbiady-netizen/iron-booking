@@ -20,8 +20,9 @@ type BookingPhase =
   | { phase: 'details';       date: string; partySize: number; slot: string }
   | { phase: 'submitting' }
   | { phase: 'confirmed';  result: BookingResult }
-  | { phase: 'slot-taken'; alternatives: BookingAlternative[] }
-  | { phase: 'error';      message: string }
+  | { phase: 'slot-taken';     alternatives: BookingAlternative[] }
+  | { phase: 'online-blocked'; message: string }
+  | { phase: 'error';          message: string }
   | { phase: 'waitlist';         date: string; partySize: number; slotsData: AvailabilityResponse }
   | { phase: 'waitlist-success'; result: PublicWaitlistResult };
 
@@ -168,6 +169,8 @@ export default function BookingPage({ slug }: Props) {
       if (err instanceof ApiError && err.code === 'SLOT_TAKEN') {
         const details = err.details as { alternatives?: BookingAlternative[] } | undefined;
         setState({ phase: 'slot-taken', alternatives: details?.alternatives ?? [] });
+      } else if (err instanceof ApiError && err.code === 'ONLINE_BOOKING_BLOCKED') {
+        setState({ phase: 'online-blocked', message: err.message });
       } else {
         setState({ phase: 'error', message: err instanceof ApiError ? err.message : 'Something went wrong. Please try again.' });
       }
@@ -352,7 +355,15 @@ export default function BookingPage({ slug }: Props) {
             {!state.data.isFullyBooked && state.data.slots.length === 0 && !state.data.isClosed && !state.data.isPast && (
               <StatusBanner icon="○" color="neutral" text={t('booking.noTimesAvailable')} />
             )}
-            {!state.data.isFullyBooked && state.data.slots.length > 0 && (
+            {/* All slots online-blocked → show calm explanation instead of a fully-dimmed grid */}
+            {!state.data.isFullyBooked && state.data.slots.length > 0 && state.data.slots.every(s => s.onlineBlocked) && (
+              <StatusBanner
+                icon="○" color="neutral"
+                text={state.data.slots.find(s => s.onlineBlocked && s.guestMessage)?.guestMessage ?? t('booking.onlineBlockedDefault')}
+              />
+            )}
+            {/* Normal slot grid — shown when at least one slot is not online-blocked */}
+            {!state.data.isFullyBooked && state.data.slots.length > 0 && !state.data.slots.every(s => s.onlineBlocked) && (
               <SlotGrid slots={state.data.slots} onSelect={handleSlotSelect} />
             )}
 
@@ -487,6 +498,19 @@ export default function BookingPage({ slug }: Props) {
               <p className="text-white/40 text-sm leading-relaxed mb-5">{state.message}</p>
               <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-secondary">
                 {t('booking.tryAgain')}
+              </button>
+            </div>
+          </GlassCard>
+        )}
+
+        {state.phase === 'online-blocked' && (
+          <GlassCard>
+            <div className="text-center py-4" role="alert">
+              <div className="pub-outcome-icon pub-outcome-icon--neutral" aria-hidden="true">◌</div>
+              <h2 className="text-white text-xl font-semibold mb-2">{t('booking.onlineBlockedTitle')}</h2>
+              <p className="text-white/40 text-sm leading-relaxed mb-5">{state.message}</p>
+              <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-secondary">
+                {t('booking.chooseDifferentDate')}
               </button>
             </div>
           </GlassCard>
@@ -807,10 +831,19 @@ function SlotPill({ slot, onSelect }: { slot: PublicSlot; onSelect: (time: strin
   }[slot.tier];
 
   if (!slot.available) {
+    // Online-blocked: no line-through (tables are free — booking is restricted online)
+    // Capacity-blocked: line-through (tables are genuinely full)
+    const isOnlineBlocked = slot.onlineBlocked === true;
     return (
       <div
         className="text-center rounded-xl py-3 text-[12px]"
-        style={{ background: 'rgba(255,255,255,0.018)', border: '1px solid rgba(255,255,255,0.048)', color: 'rgba(255,255,255,0.22)', textDecoration: 'line-through' }}
+        style={{
+          background: isOnlineBlocked ? 'rgba(255,255,255,0.012)' : 'rgba(255,255,255,0.018)',
+          border:     `1px solid ${isOnlineBlocked ? 'rgba(255,255,255,0.036)' : 'rgba(255,255,255,0.048)'}`,
+          color:      'rgba(255,255,255,0.20)',
+          textDecoration: isOnlineBlocked ? 'none' : 'line-through',
+          cursor: 'default',
+        }}
       >
         {fmtTime(slot.time, isRTL)}
       </div>

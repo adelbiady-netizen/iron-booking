@@ -43,6 +43,8 @@
     "chooseDifferentDate": "בחר תאריך אחר",
     "errorTitle": "משהו השתבש",
     "tryAgain": "נסה שוב",
+    "onlineBlockedTitle": "הזמנה מקוונת אינה זמינה",
+    "onlineBlockedDefault": "ההזמנה המקוונת אינה זמינה לשעה זו. אנא התקשרו למסעדה להזמנה.",
     "securingTable": "מאבטח את השולחן שלך…",
     "slots": {
       "lastTablePopular": "שולחן אחרון · פופולרי",

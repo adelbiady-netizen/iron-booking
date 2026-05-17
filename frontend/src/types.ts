@@ -493,6 +493,8 @@ export interface PublicSlot {
   tier: 'IDEAL' | 'GOOD' | 'LIMITED';
   tablesLeft: number;
   softState?: 'HIGH_DEMAND' | 'SHORT_WINDOW' | null;
+  onlineBlocked?: boolean;      // true when an OnlineBookingRestriction covers this slot
+  guestMessage?: string | null; // host-authored message, surfaced when slot is online-blocked
 }
 
 export interface BookingAlternative {

@@ -41,6 +41,8 @@
     "chooseDifferentDate": "Choose a different date",
     "errorTitle": "Something went wrong",
     "tryAgain": "Try again",
+    "onlineBlockedTitle": "Online booking unavailable",
+    "onlineBlockedDefault": "Online booking is unavailable for this time. Please call the restaurant to reserve.",
     "securingTable": "Securing your table…",
     "slots": {
       "lastTablePopular": "Last table · Popular",
