@@ -56,12 +56,12 @@ interface HubData {
 
 // Controlled preset keys — must match hubThemes.ts PRESETS keys
 const PRESET_OPTIONS = [
-  { id: 'ESPRESSO', label: 'Espresso', swatch: '#C9A96E', bg: '#0D0A07', description: 'Warm Italian evening · amber candlelight', useCase: 'Fine dining · Trattorias · Whisky bars' },
-  { id: 'OLIVE',    label: 'Olive',    swatch: '#96C070', bg: '#0A0D08', description: 'Mediterranean garden · natural earth warmth', useCase: 'Farm-to-table · Garden terraces' },
-  { id: 'WINE',     label: 'Wine',     swatch: '#C06882', bg: '#0C0609', description: 'Deep burgundy · premium dinner service',     useCase: 'Wine bars · Romantic bistros' },
-  { id: 'MIDNIGHT', label: 'Midnight', swatch: '#6098D8', bg: '#080A12', description: 'Dark cocktail lounge · city-light depth',   useCase: 'Cocktail lounges · Rooftop bars' },
-  { id: 'SAND',     label: 'Sand',     swatch: '#D4A840', bg: '#100C07', description: 'Golden hour warmth · coastal café',         useCase: 'Brunch spots · Mediterranean cafés' },
-  { id: 'SLATE',    label: 'Slate',    swatch: '#8AAFC8', bg: '#0A0C10', description: 'Modern urban precision · cool neutral',     useCase: 'Contemporary restaurants · Michelin dining' },
+  { id: 'ESPRESSO', label: 'Espresso', swatch: '#C9A96E', bg: '#0D0A07', description: 'Warm Italian evening · amber candlelight', useCase: 'Fine dining · Trattorias · Whisky bars',          recommendation: 'Recommended for Italian evening dining' },
+  { id: 'OLIVE',    label: 'Olive',    swatch: '#96C070', bg: '#0A0D08', description: 'Mediterranean garden · natural earth warmth', useCase: 'Farm-to-table · Garden terraces',              recommendation: 'Ideal for Mediterranean hospitality' },
+  { id: 'WINE',     label: 'Wine',     swatch: '#C06882', bg: '#0C0609', description: 'Deep burgundy · premium dinner service',     useCase: 'Wine bars · Romantic bistros',                 recommendation: 'Perfect for premium dinner atmosphere' },
+  { id: 'MIDNIGHT', label: 'Midnight', swatch: '#6098D8', bg: '#080A12', description: 'Dark cocktail lounge · city-light depth',   useCase: 'Cocktail lounges · Rooftop bars',               recommendation: 'Best for cocktail lounges & late-night venues' },
+  { id: 'SAND',     label: 'Sand',     swatch: '#D4A840', bg: '#100C07', description: 'Golden hour warmth · coastal café',         useCase: 'Brunch spots · Mediterranean cafés',           recommendation: 'Great for cafés and daylight brunch' },
+  { id: 'SLATE',    label: 'Slate',    swatch: '#8AAFC8', bg: '#0A0C10', description: 'Modern urban precision · cool neutral',     useCase: 'Contemporary restaurants · Michelin dining',   recommendation: 'Best for modern sushi & contemporary concepts' },
 ] as const;
 
 type BrandingForm = {
@@ -140,6 +140,30 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 
 const ALLOWED_PLATFORMS = ['instagram', 'tiktok', 'website', 'facebook', 'twitter', 'youtube'];
+
+// ── Theme suggestion helper ───────────────────────────────────────────────────
+// Pure keyword match against venue name + tagline — no AI, fully deterministic.
+// Returns the two best-fit preset IDs and a short venue-type phrase, or null.
+
+type ThemeSuggestion = { themeIds: [string, string]; phrase: string } | null;
+
+function getThemeSuggestion(name: string, tagline: string): ThemeSuggestion {
+  const text = `${name} ${tagline}`.toLowerCase();
+  const rules: Array<{ terms: string[]; themeIds: [string, string]; phrase: string }> = [
+    { terms: ['italian','trattoria','osteria','risotto','pasta','aperitivo'],          themeIds: ['ESPRESSO','WINE'],     phrase: 'Italian evening dining' },
+    { terms: ['wine','cellar','bistro','romantic','candlelight','french'],              themeIds: ['WINE','ESPRESSO'],    phrase: 'candlelit dinner service' },
+    { terms: ['mediterranean','greek','terrace','garden','levantine','mezze','mezze'], themeIds: ['OLIVE','SAND'],       phrase: 'Mediterranean & garden dining' },
+    { terms: ['cocktail','lounge','spirits','rooftop','mixology','speakeasy'],         themeIds: ['MIDNIGHT','SLATE'],   phrase: 'cocktail bars & late-night venues' },
+    { terms: ['café','cafe','brunch','breakfast','coffee','bakery','patisserie'],       themeIds: ['SAND','ESPRESSO'],   phrase: 'café, brunch & daylight dining' },
+    { terms: ['modern','contemporary','michelin','sushi','fusion','japanese','nordic'], themeIds: ['SLATE','MIDNIGHT'],  phrase: 'contemporary & modern concepts' },
+    { terms: ['seafood','coastal','beach','ocean'],                                    themeIds: ['SAND','OLIVE'],       phrase: 'coastal & garden dining' },
+    { terms: ['steakhouse','grill','bbq','smokehouse'],                                themeIds: ['ESPRESSO','MIDNIGHT'],  phrase: 'grill & robust dining atmospheres' },
+  ];
+  for (const rule of rules) {
+    if (rule.terms.some(t => text.includes(t))) return { themeIds: rule.themeIds, phrase: rule.phrase };
+  }
+  return null;
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -867,6 +891,32 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             {/* Theme preset selector */}
             <div>
               <label className="block text-xs text-iron-muted mb-2">Visual theme</label>
+
+              {/* Smart suggestion — keyword match only, no AI claims */}
+              {(() => {
+                const suggestion = getThemeSuggestion(brandingForm.name, brandingForm.tagline);
+                if (!suggestion) return null;
+                const hasImages = !!(brandingForm.logoUrl || brandingForm.coverImageUrl);
+                const [id1, id2] = suggestion.themeIds;
+                const p1 = PRESET_OPTIONS.find(p => p.id === id1);
+                const p2 = PRESET_OPTIONS.find(p => p.id === id2);
+                const prefix = hasImages ? 'Your branding may pair well with' : 'Tends to suit';
+                return (
+                  <div
+                    className="mb-3 px-3 py-2 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.025)', borderLeft: `2px solid ${p1?.swatch ?? 'rgba(255,255,255,0.12)'}` }}
+                  >
+                    <p className="text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                      {prefix}{' '}
+                      {p1 && <span style={{ color: p1.swatch }}>{p1.label}</span>}
+                      {p1 && p2 && <span style={{ color: 'rgba(255,255,255,0.28)' }}> or </span>}
+                      {p2 && <span style={{ color: p2.swatch }}>{p2.label}</span>}
+                      <span style={{ color: 'rgba(255,255,255,0.28)' }}> — well-suited for {suggestion.phrase}</span>
+                    </p>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-2">
                 {PRESET_OPTIONS.map(preset => {
                   const isActive = brandingForm.themePreset === preset.id ||
@@ -903,6 +953,9 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                         </div>
                         <p className="text-[10px] leading-tight mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
                           {preset.useCase}
+                        </p>
+                        <p className="text-[9px] leading-tight mt-1.5" style={{ color: isActive ? `${preset.swatch}99` : 'rgba(255,255,255,0.18)' }}>
+                          {preset.recommendation}
                         </p>
                       </div>
                     </button>
