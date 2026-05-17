@@ -33,9 +33,9 @@ export default function GuestHubSkeleton() {
       fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, "Segoe UI", system-ui, sans-serif',
     }}>
 
-      {/* Hero — matches new min(90vw, 520px) height */}
+      {/* Hero — matches actual page min(92vw, 560px) height */}
       <div style={{
-        height: 'min(90vw, 520px)',
+        height: 'min(92vw, 560px)',
         background: 'linear-gradient(180deg, #241206 0%, #130A04 40%, #0C0A09 100%)',
         position: 'relative',
         overflow: 'hidden',

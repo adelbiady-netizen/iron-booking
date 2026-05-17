@@ -155,7 +155,7 @@ export default function App() {
     const token = path.split('/')[2];
     if (token) return <GuestHubQrRedirect token={token} />;
   }
-  if (path === '/guest-hub-demo') return <GuestHubPage slug="ember-stone" />;
+  if (path === '/guest-hub-demo') return <GuestHubPage slug="ember-stone" isDemo />;
 
   if (path === '/privacy')      return <PrivacyPage />;
   if (path === '/terms')        return <TermsPage />;

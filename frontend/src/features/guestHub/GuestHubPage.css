@@ -251,6 +251,11 @@
   transform: translateY(-1px);
 }
 
+.gh-cat-card:focus-visible {
+  outline: 2px solid var(--gh-cat-glow, rgba(201,169,110,0.85));
+  outline-offset: 3px;
+}
+
 /* ── Menu dish cards — hover warmth ──────────────────────────────────────── */
 .gh-dish-card {
   transition:

@@ -1230,7 +1230,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
 // Accepts a slug, handles all loading / error / not-found states, then
 // delegates rendering to HubContent once data is ready.
 
-export default function GuestHubPage({ slug, diningMode = false }: { slug: string; diningMode?: boolean }) {
+export default function GuestHubPage({ slug, diningMode = false, isDemo = false }: { slug: string; diningMode?: boolean; isDemo?: boolean }) {
   const hubState = useGuestHub(slug);
 
   // SEO + social share metadata — must be called before any conditional returns.
@@ -1288,7 +1288,9 @@ export default function GuestHubPage({ slug, diningMode = false }: { slug: strin
             boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
           }}
         >
-          This is a live preview — connect a restaurant to activate this action
+          {isDemo
+            ? 'This is a live preview — connect a restaurant to activate this action'
+            : 'Online booking coming soon — call us or ask staff to reserve'}
         </div>
       )}
     </>
