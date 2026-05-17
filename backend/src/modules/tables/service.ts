@@ -2,7 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { Prisma, ReservationStatus } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, reservationOverlapsSlotTime, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -61,30 +61,50 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     }
 
     // A SEATED reservation keeps the table OCCUPIED until the host manually
-    // completes it — time expiry never auto-clears the table. When the
-    // scheduled end has passed, minutesRemaining goes negative and the
-    // frontend shows an "over time" visual. The host must click Complete.
+    // completes it — time expiry never auto-clears the table on the live board.
+    // For future-planning boardTimes (slotTime is ahead of real wall-clock time
+    // AND past the turn's scheduled end) the table is released so hosts can see
+    // accurate availability when planning ahead. Live-board overdue tables always
+    // remain OCCUPIED regardless — the host decides when to complete the turn.
     const seated = reservations.find(
       (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id))
         && r.status === 'SEATED'
     );
     if (seated) {
-      const seatedAtMs    = new Date(seated.seatedAt!).getTime();
-      const expectedEndMs = seatedAtMs + seated.duration * 60_000;
-      const minutesRemaining = Math.round((expectedEndMs - Date.now()) / 60_000);
-      const isOverdue = minutesRemaining < 0;
-      return {
-        ...table,
-        locked: effectiveLocked,
-        liveStatus: 'OCCUPIED' as const,
-        currentReservation: {
-          ...seated,
-          minutesRemaining,
-          expectedEndTime: new Date(expectedEndMs).toISOString(),
-          isOverdue,
-        },
-        upcomingReservations: [],
-      };
+      // Detect future-planning mode: boardTime is past this turn's scheduled end
+      // AND ahead of the real current time. Both conditions must hold so an
+      // overdue table (slotTime slightly past scheduledEnd but still on the live
+      // board) stays OCCUPIED until the host manually completes the turn.
+      // reservationOverlapsSlotTime uses scheduled time + duration (virtual-local
+      // time space) — safe from the seatedAt UTC-offset issue.
+      const realNow    = new Date();
+      const realNowStr = `${String(realNow.getHours()).padStart(2, '0')}:${String(realNow.getMinutes()).padStart(2, '0')}`;
+      const realNowVirtual      = parseTimeOnDate(date, realNowStr);
+      const releasedForPlanning = !reservationOverlapsSlotTime(seated, date, slotTime)
+                                  && slotTime > realNowVirtual;
+
+      if (!releasedForPlanning) {
+        const seatedAtMs    = new Date(seated.seatedAt!).getTime();
+        const expectedEndMs = seatedAtMs + seated.duration * 60_000;
+        const minutesRemaining = Math.round((expectedEndMs - Date.now()) / 60_000);
+        const isOverdue = minutesRemaining < 0;
+        return {
+          ...table,
+          locked: effectiveLocked,
+          liveStatus: 'OCCUPIED' as const,
+          currentReservation: {
+            ...seated,
+            minutesRemaining,
+            expectedEndTime: new Date(expectedEndMs).toISOString(),
+            isOverdue,
+          },
+          upcomingReservations: [],
+        };
+      }
+      // releasedForPlanning=true: fall through to upcoming / AVAILABLE logic.
+      // The upcoming filter below already excludes SEATED status, so this turn
+      // won't reappear there; the next PENDING/CONFIRMED reservation (if any)
+      // will surface correctly as RESERVED or RESERVED_SOON.
     }
 
     // Find all non-SEATED reservations for today that should mark this table on the
