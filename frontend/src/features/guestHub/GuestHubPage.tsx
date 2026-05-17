@@ -818,7 +818,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               }}
             >
               <IconUsers />
-              Notify me when a table opens
+              Check available dates
             </button>
           )}
         </div>

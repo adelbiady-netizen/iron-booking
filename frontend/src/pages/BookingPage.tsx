@@ -201,6 +201,8 @@ export default function BookingPage({ slug }: Props) {
   const hasCover    = !!profile?.coverImageUrl;
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const showVideo   = !!profile?.heroVideoUrl && !reducedMotion;
+  const canGoBack   = typeof window !== 'undefined' && window.history.length > 1;
+  const showBackLink = canGoBack && state.phase !== 'confirmed' && state.phase !== 'waitlist-success';
 
   return (
     <div dir={dir} className="relative flex flex-col overflow-x-hidden" style={{ background: '#090c12' }}>
@@ -210,6 +212,19 @@ export default function BookingPage({ slug }: Props) {
       <div className="fixed top-4 right-4 z-50">
         <LanguageSwitcher variant="public" />
       </div>
+
+      {showBackLink && (
+        <div className="fixed top-4 left-4 z-50">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-colors text-sm"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px' }}
+          >
+            {dir === 'ltr' ? '←' : '→'} Back to restaurant
+          </button>
+        </div>
+      )}
 
       {/* ── Hero section — image + identity + booking card ───────────────────── */}
       <div
