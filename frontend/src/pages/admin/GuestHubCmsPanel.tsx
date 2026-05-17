@@ -165,6 +165,76 @@ function getThemeSuggestion(name: string, tagline: string): ThemeSuggestion {
   return null;
 }
 
+// ── Brand readiness calculator ────────────────────────────────────────────────
+// Pure function — no side effects. Used in-component for live editorial guidance.
+
+interface ReadinessInput {
+  logoUrl:       string | null | undefined;
+  coverImageUrl: string | null | undefined;
+  tagline:       string | null | undefined;
+  address:       string | null | undefined;
+  phone:         string | null | undefined;
+  hasSocial:     boolean;
+  menuCats:      number;
+  dishImages:    number;
+}
+
+interface ReadinessResult {
+  score: number;
+  label: string;
+  tips:  string[];
+}
+
+const READINESS_WEIGHTS = {
+  logo:       15,
+  cover:      15,
+  tagline:    15,
+  address:    10,
+  phone:      10,
+  social:     10,
+  menuCats:   15,
+  dishImages: 10,
+} as const;
+
+function calcReadiness(input: ReadinessInput): ReadinessResult {
+  const checks = {
+    logo:       !!input.logoUrl?.trim(),
+    cover:      !!input.coverImageUrl?.trim(),
+    tagline:    !!input.tagline?.trim(),
+    address:    !!input.address?.trim(),
+    phone:      !!input.phone?.trim(),
+    social:     input.hasSocial,
+    menuCats:   input.menuCats > 0,
+    dishImages: input.dishImages > 0,
+  };
+
+  const score = (Object.keys(checks) as Array<keyof typeof checks>).reduce(
+    (acc, key) => checks[key] ? acc + READINESS_WEIGHTS[key] : acc, 0,
+  );
+
+  const label =
+    score < 20 ? 'Starting' :
+    score < 40 ? 'Building Presence' :
+    score < 70 ? 'Guest Ready' :
+    score < 90 ? 'Hospitality Ready' :
+                 'Premium Experience Ready';
+
+  const ALL_TIPS: Array<{ key: keyof typeof checks; text: string }> = [
+    { key: 'cover',      text: 'Add a cover image to improve first impressions' },
+    { key: 'logo',       text: 'A venue logo anchors your brand from first glance' },
+    { key: 'tagline',    text: 'A venue description helps guests understand your concept' },
+    { key: 'menuCats',   text: 'A menu section builds anticipation before arrival' },
+    { key: 'dishImages', text: 'Menu photos help increase browsing engagement' },
+    { key: 'address',    text: 'Guests trust restaurants with a visible address' },
+    { key: 'phone',      text: 'Guests trust restaurants with visible contact details' },
+    { key: 'social',     text: 'An Instagram or website link extends your online presence' },
+  ];
+
+  const tips = ALL_TIPS.filter(t => !checks[t.key]).slice(0, 4).map(t => t.text);
+
+  return { score, label, tips };
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: string }) {
@@ -190,8 +260,8 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
   const [publishError,   setPublishError]   = useState<string | null>(null);
   const [publishConfirm, setPublishConfirm] = useState(false);
 
-  // Menu summary for publish warnings (fetched silently after hub loads)
-  const [menuSummary, setMenuSummary] = useState<{ cats: number; dishes: number } | null>(null);
+  // Menu summary for publish warnings + brand readiness (fetched silently after hub loads)
+  const [menuSummary, setMenuSummary] = useState<{ cats: number; dishes: number; dishImages: number } | null>(null);
 
   // Provision
   const [provisioning,   setProvisioning]   = useState(false);
@@ -290,17 +360,21 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     void (async () => {
       try {
         const data = await api.admin.guestHub.menu.get(restaurantId) as {
-          menus: Array<{ categories: Array<{ dishes: unknown[] }> }>;
+          menus: Array<{ categories: Array<{ dishes: Array<{ imageUrl?: string | null }> }> }>;
         };
         let cats = 0;
         let dishes = 0;
+        let dishImages = 0;
         for (const menu of data.menus) {
           cats += menu.categories.length;
           for (const cat of menu.categories) {
             dishes += cat.dishes.length;
+            for (const dish of cat.dishes) {
+              if (dish.imageUrl) dishImages++;
+            }
           }
         }
-        setMenuSummary({ cats, dishes });
+        setMenuSummary({ cats, dishes, dishImages });
       } catch {
         // silent — warnings are best-effort
       }
@@ -769,6 +843,57 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
           </div>
         )}
       </div>
+
+      {/* ── Brand Readiness ─────────────────────────────────────────────────────── */}
+      {(() => {
+        // Use live form values when editing so the score updates as fields are filled in.
+        const effective = editingBranding
+          ? { logoUrl: brandingForm.logoUrl, coverImageUrl: brandingForm.coverImageUrl,
+              tagline: brandingForm.tagline, address: brandingForm.address, phone: brandingForm.phone }
+          : { logoUrl: hub.branding?.logoUrl, coverImageUrl: hub.branding?.coverImageUrl,
+              tagline: hub.branding?.tagline, address: hub.branding?.address, phone: hub.branding?.phone };
+
+        const hasSocial = hub.socialLinks.some(
+          s => s.platform === 'instagram' || s.platform === 'website',
+        );
+        const { score, label, tips } = calcReadiness({
+          ...effective,
+          hasSocial,
+          menuCats:   menuSummary?.cats       ?? 0,
+          dishImages: menuSummary?.dishImages ?? 0,
+        });
+
+        const labelOpacity =
+          score < 20 ? 0.32 : score < 40 ? 0.44 : score < 70 ? 0.56 : score < 90 ? 0.72 : 0.88;
+
+        return (
+          <div className="rounded-xl border border-iron-border bg-iron-card overflow-hidden">
+            <div className="px-5 py-4 flex items-center justify-between gap-4">
+              <p className="text-xs font-medium tracking-wide" style={{ color: 'rgba(255,255,255,0.36)' }}>
+                Brand Readiness
+              </p>
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-xl font-semibold text-iron-text tabular-nums" style={{ letterSpacing: '-0.02em' }}>
+                  {score}<span className="text-sm font-normal text-iron-muted">%</span>
+                </span>
+                <span className="text-xs" style={{ color: `rgba(255,255,255,${labelOpacity})` }}>
+                  {label}
+                </span>
+              </div>
+            </div>
+            {tips.length > 0 && (
+              <div className="border-t border-iron-border/50 px-5 py-3 space-y-1.5">
+                {tips.map(tip => (
+                  <p key={tip} className="flex items-start gap-2.5 text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                    <span className="mt-1.5 flex-shrink-0 w-1 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }} aria-hidden="true" />
+                    {tip}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Pre-publish review panel */}
       {publishConfirm && (
