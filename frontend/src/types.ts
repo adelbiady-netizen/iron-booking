@@ -104,6 +104,11 @@ export interface FloorTable extends Table {
     isOverdue: boolean;        // true when minutesRemaining < 0; host must manually complete
   }) | null;
   upcomingReservations: Array<Reservation & { minutesUntil: number }>;
+  // Gap analysis — set by backend, used by frontend scoring to prevent "Best fit" on tight tables
+  nextReservationStart: string | null;  // ISO of the next future reservation's start time
+  effectiveGapMinutes: number | null;   // minutes from board time to next reservation (null = no next res)
+  requiredGapMinutes: number;           // defaultTurnMinutes + bufferBetweenTurnsMinutes
+  canFitIncomingTurn: boolean;          // effectiveGapMinutes === null || effectiveGapMinutes >= requiredGapMinutes
 }
 
 export type UserRole =

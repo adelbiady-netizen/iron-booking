@@ -1,14 +1,22 @@
 import { prisma } from '../../lib/prisma';
 import { Prisma, ReservationStatus } from '@prisma/client';
+import { addMinutes } from 'date-fns';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, reservationOverlapsSlotTime, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, reservationOverlapsSlotTime, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES, MAP_VISIBILITY_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
 // This is what powers the host's table board.
 
 export async function getFloorState(restaurantId: string, date: Date, time: string) {
+  // Hoist slotTime so the blocks query can use the correct interval window.
+  // Using a conservative lookahead (max turn 120 min + buffer 15 min = 135 min)
+  // ensures we capture any blocked period that a new assignment would overlap,
+  // matching getTableAvailability() semantics.  Per-table filtering below uses
+  // the real settings to avoid false positives.
+  const slotTime = parseTimeOnDate(date, time);
+
   const [tables, reservations, blocks, restaurantRow] = await Promise.all([
     prisma.table.findMany({
       where: { restaurantId, isActive: true },
@@ -25,27 +33,36 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         guest: { select: { id: true, firstName: true, lastName: true, isVip: true, tags: true } },
       },
     }),
+    // Fetch blocks that could overlap any turn starting at slotTime.
+    // This is an interval check (not a point-in-time check) so a block that
+    // starts after slotTime but within a normal turn's window is also captured,
+    // aligning with getTableAvailability()'s effective-slot overlap check.
     prisma.blockedPeriod.findMany({
       where: {
         restaurantId,
-        startTime: { lte: parseTimeOnDate(date, time) },
-        endTime: { gte: parseTimeOnDate(date, time) },
+        startTime: { lt: addMinutes(slotTime, 135) },  // 120 max turn + 15 buffer
+        endTime:   { gt: addMinutes(slotTime, -15) },  // 15 min pre-slot buffer
       },
     }),
     prisma.restaurant.findUnique({
       where: { id: restaurantId },
-      select: { settings: true },
+      select: { settings: true, timezone: true },
     }),
   ]);
 
-  // Align the board visibility window with validateTableAssignment()'s effective
-  // conflict window (duration + buffer). Without this offset, tables whose next
-  // reservation falls between MAP_VISIBILITY_MINUTES and (duration + buffer) minutes
-  // away appear AVAILABLE on the board but are rejected by the validator —
-  // breaking best-fit suggestions and move operations.
-  const bufferMinutes = ((restaurantRow?.settings as Record<string, unknown>)?.bufferBetweenTurnsMinutes as number) ?? 15;
-
-  const slotTime = parseTimeOnDate(date, time);
+  const settings        = (restaurantRow?.settings as Record<string, unknown>) ?? {};
+  const bufferMinutes   = (settings.bufferBetweenTurnsMinutes as number) ?? 15;
+  const defaultDuration = (settings.defaultTurnMinutes       as number) ?? 90;
+  // Use restaurant timezone for the real-now comparison — the server runs in UTC
+  // on Render, so new Date().getHours() returns UTC, not restaurant-local time.
+  // Without this fix, slotTime > realNowVirtual is true during live service for
+  // any UTC+ restaurant, causing releasedForPlanning to fire incorrectly and
+  // releasing still-occupied SEATED tables as AVAILABLE on the live board.
+  const timezone        = (restaurantRow?.timezone as string) ?? 'UTC';
+  const realNowStr      = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date());
+  const realNowVirtual  = parseTimeOnDate(date, realNowStr);
 
   // A table is "placed" only when BOTH axes are meaningfully positioned (> 5 px).
   // Using AND (not OR) prevents a table dragged along one axis only — e.g. (100, 0)
@@ -53,12 +70,38 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
   const positionedTables = tables.filter(t => t.posX > 5 && t.posY > 5);
   const effectiveTables  = positionedTables.length > 0 ? positionedTables : tables;
 
+  const requiredGapMinutes = defaultDuration + bufferMinutes;
+
   return effectiveTables.map((table) => {
     // Respect lockedUntil expiry without a DB write
     const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotTime);
 
-    // Check blocks first
-    const block = blocks.find((b) => b.tableId === table.id || b.tableId === null);
+    // Gap analysis: next non-SEATED reservation starting strictly after slotTime.
+    // Used for canFitIncomingTurn and exposed in debug fields so the frontend
+    // scoring layer can gate "Best fit" without trusting liveStatus alone.
+    const nextFutureRes = reservations
+      .filter(r => {
+        if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
+        if (r.status === 'SEATED') return false;
+        return parseTimeOnDate(date, r.time) > slotTime;
+      })
+      .sort((a, b) => a.time.localeCompare(b.time))[0] ?? null;
+    const nextReservationStart = nextFutureRes
+      ? parseTimeOnDate(date, nextFutureRes.time).toISOString()
+      : null;
+    const effectiveGapMinutes = nextFutureRes
+      ? Math.round((parseTimeOnDate(date, nextFutureRes.time).getTime() - slotTime.getTime()) / 60_000)
+      : null;
+    const canFitIncomingTurn = effectiveGapMinutes === null || effectiveGapMinutes >= requiredGapMinutes;
+
+    // Check blocks: does any block overlap the effective assignment window?
+    const effectiveBlockStart = addMinutes(slotTime, -bufferMinutes);
+    const effectiveBlockEnd   = addMinutes(slotTime, defaultDuration + bufferMinutes);
+    const block = blocks.find(
+      (b) => (b.tableId === table.id || b.tableId === null)
+          && b.startTime < effectiveBlockEnd
+          && b.endTime   > effectiveBlockStart
+    );
     if (block) {
       return {
         ...table,
@@ -68,31 +111,46 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         blockType: block.type,
         currentReservation: null,
         upcomingReservations: [],
+        nextReservationStart,
+        effectiveGapMinutes,
+        requiredGapMinutes,
+        canFitIncomingTurn,
+        _debug: { reason: 'blocked', blockId: block.id, slotTime: slotTime.toISOString(), realNowVirtual: realNowVirtual.toISOString(), bufferMinutes, defaultDuration },
       };
     }
 
     // A SEATED reservation keeps the table OCCUPIED until the host manually
     // completes it — time expiry never auto-clears the table on the live board.
-    // For future-planning boardTimes (slotTime is ahead of real wall-clock time
-    // AND past the turn's scheduled end) the table is released so hosts can see
-    // accurate availability when planning ahead. Live-board overdue tables always
-    // remain OCCUPIED regardless — the host decides when to complete the turn.
+    // For future-planning boardTimes (slotTime is ≥5 min ahead of real wall-clock
+    // AND past the turn's scheduled end+buffer) the table is released so hosts
+    // can plan ahead. The 5-minute threshold prevents 1-min HH:mm rounding jitter
+    // from releasing a SEATED table during live service (ghost-SEATED bug).
     const seated = reservations.find(
       (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id))
         && r.status === 'SEATED'
     );
     if (seated) {
-      // Detect future-planning mode: boardTime is past this turn's scheduled end
-      // AND ahead of the real current time. Both conditions must hold so an
-      // overdue table (slotTime slightly past scheduledEnd but still on the live
-      // board) stays OCCUPIED until the host manually completes the turn.
-      // reservationOverlapsSlotTime uses scheduled time + duration (virtual-local
-      // time space) — safe from the seatedAt UTC-offset issue.
-      const realNow    = new Date();
-      const realNowStr = `${String(realNow.getHours()).padStart(2, '0')}:${String(realNow.getMinutes()).padStart(2, '0')}`;
-      const realNowVirtual      = parseTimeOnDate(date, realNowStr);
-      const releasedForPlanning = !reservationOverlapsSlotTime(seated, date, slotTime)
-                                  && slotTime > realNowVirtual;
+      const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
+      // Mirror reservationConflicts() backward boundary: resEnd ≤ slotTime − buffer → no conflict.
+      const seatedClearedBuffer = seatedScheduledEnd <= addMinutes(slotTime, -bufferMinutes);
+      // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.
+      const releasedForPlanning = seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
+
+      const seatedDebug = {
+        seatedResId: seated.id,
+        seatedResTime: seated.time,
+        seatedResDuration: seated.duration,
+        seatedResStatus: seated.status,
+        seatedResTableId: seated.tableId,
+        seatedScheduledEnd: seatedScheduledEnd.toISOString(),
+        seatedClearedBuffer,
+        releasedForPlanning,
+        slotTime: slotTime.toISOString(),
+        realNowVirtual: realNowVirtual.toISOString(),
+        slotMinusRealNowMins: Math.round((slotTime.getTime() - realNowVirtual.getTime()) / 60_000),
+        bufferMinutes,
+        defaultDuration,
+      };
 
       if (!releasedForPlanning) {
         const seatedAtMs    = new Date(seated.seatedAt!).getTime();
@@ -110,23 +168,31 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
             isOverdue,
           },
           upcomingReservations: [],
+          nextReservationStart,
+          effectiveGapMinutes,
+          requiredGapMinutes,
+          canFitIncomingTurn,
+          _debug: { reason: 'occupied', ...seatedDebug },
         };
       }
       // releasedForPlanning=true: fall through to upcoming / AVAILABLE logic.
-      // The upcoming filter below already excludes SEATED status, so this turn
-      // won't reappear there; the next PENDING/CONFIRMED reservation (if any)
-      // will surface correctly as RESERVED or RESERVED_SOON.
+      // The upcoming filter below excludes SEATED status, so this turn won't
+      // reappear there; the next PENDING/CONFIRMED reservation (if any) surfaces
+      // correctly as RESERVED or RESERVED_SOON.
     }
 
-    // Find all non-SEATED reservations for today that should mark this table on the
-    // floor map. Uses reservationIsUpcoming() — all future same-date reservations are
-    // included (no upper cap). RESERVED (blue) for > 15 min away, RESERVED_SOON (amber)
-    // for ≤ 15 min. The no-show grace period (30 min past start) still applies.
+    const seatedNotFound = !seated;
+
+    // Find all non-SEATED reservations that should mark this table non-AVAILABLE.
+    // Forward cap = defaultDuration + bufferMinutes so the board agrees exactly
+    // with reservationConflicts() (validator fires when slotEnd+buffer > resStart,
+    // i.e. minutesUntil < duration+buffer).  Previously used MAP_VISIBILITY_MINUTES
+    // (90) which diverged when defaultTurnMinutes ≠ 90.
     const upcoming = reservations
       .filter((r) => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
         if (r.status === 'SEATED') return false;
-        return reservationIsUpcoming(r, date, slotTime, bufferMinutes);
+        return reservationIsUpcoming(r, date, slotTime, bufferMinutes, defaultDuration);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -139,7 +205,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       return {
         ...table,
         locked: effectiveLocked,
-        liveStatus: minutesUntil <= 15 ? ('RESERVED_SOON' as const) : ('RESERVED' as const),
+        liveStatus: minutesUntil <= RESERVED_SOON_MINUTES ? ('RESERVED_SOON' as const) : ('RESERVED' as const),
         currentReservation: null,
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
@@ -147,6 +213,23 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
             (parseTimeOnDate(date, r.time).getTime() - slotTime.getTime()) / 60000
           ),
         })),
+        nextReservationStart,
+        effectiveGapMinutes,
+        requiredGapMinutes,
+        canFitIncomingTurn,
+        _debug: {
+          reason: 'upcoming',
+          seatedNotFound,
+          seatedReleasedForPlanning: seated ? true : null,
+          upcomingResId: nextRes.id,
+          upcomingResTime: nextRes.time,
+          minutesUntil,
+          forwardCapMinutes: defaultDuration + bufferMinutes,
+          slotTime: slotTime.toISOString(),
+          realNowVirtual: realNowVirtual.toISOString(),
+          bufferMinutes,
+          defaultDuration,
+        },
       };
     }
 
@@ -156,6 +239,30 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       liveStatus: 'AVAILABLE' as const,
       currentReservation: null,
       upcomingReservations: [],
+      nextReservationStart,
+      effectiveGapMinutes,
+      requiredGapMinutes,
+      canFitIncomingTurn,
+      _debug: {
+        reason: 'available',
+        seatedNotFound,
+        seatedReleasedForPlanning: seated ? true : null,
+        seatedResId: seated?.id ?? null,
+        seatedResTime: seated?.time ?? null,
+        seatedScheduledEnd: seated
+          ? addMinutes(parseTimeOnDate(date, seated.time), seated.duration).toISOString()
+          : null,
+        seatedClearedBuffer: seated
+          ? addMinutes(parseTimeOnDate(date, seated.time), seated.duration) <= addMinutes(slotTime, -bufferMinutes)
+          : null,
+        slotTime: slotTime.toISOString(),
+        realNowVirtual: realNowVirtual.toISOString(),
+        slotMinusRealNowMins: Math.round((slotTime.getTime() - realNowVirtual.getTime()) / 60_000),
+        bufferMinutes,
+        defaultDuration,
+        forwardCapMinutes: defaultDuration + bufferMinutes,
+        upcomingChecked: reservations.filter(r => r.tableId === table.id || r.combinedTableIds.includes(table.id)).length,
+      },
     };
   });
 }

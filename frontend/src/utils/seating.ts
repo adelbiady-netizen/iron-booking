@@ -33,6 +33,12 @@ export function scoreTable(
   if (!table.isActive) return null;
   if (table.liveStatus === 'BLOCKED') return null;
 
+  // Hard gate: if the backend reports insufficient gap before the next reservation,
+  // this table must never be recommended — the validator will reject it.
+  // canFitIncomingTurn is set by getFloorState() using requiredGapMinutes =
+  // defaultTurnMinutes + bufferBetweenTurnsMinutes, matching reservationConflicts().
+  if (table.canFitIncomingTurn === false) return null;
+
   let score = 0;
 
   // 1. Capacity fit
@@ -56,10 +62,13 @@ export function scoreTable(
   }
 
   // 3. Upcoming conflict: does seating now clash with next reservation?
+  // Use requiredGapMinutes from backend (defaultDuration + buffer) when available;
+  // fall back to ASSUMED_DURATION_MIN for stale/missing data.
+  const requiredGap = table.requiredGapMinutes ?? ASSUMED_DURATION_MIN;
   const nextRes = table.upcomingReservations[0];
   let hasConflict = false;
   let conflictMin: number | null = null;
-  if (nextRes && nextRes.minutesUntil < ASSUMED_DURATION_MIN) {
+  if (nextRes && nextRes.minutesUntil < requiredGap) {
     hasConflict = true;
     conflictMin = nextRes.minutesUntil;
     score += nextRes.minutesUntil < 45 ? -40 : -20;
@@ -71,7 +80,8 @@ export function scoreTable(
 
   if (score <= 0) return null;
 
-  // Label
+  // Label — "Best fit" requires: good capacity, ready now, no upcoming conflict.
+  // canFitIncomingTurn=false tables are already gated out above (return null).
   const goodFit  = entry.partySize >= table.minCovers;
   const readyNow = table.liveStatus === 'AVAILABLE' && !table.locked;
   let label: TableSuggestion['label'];
