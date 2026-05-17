@@ -380,6 +380,14 @@ export const api = {
         request<{ id: string; primaryColor: string | null; accentColor: string | null; publicThemePreset: string | null; logoUrl: string | null; coverImageUrl: string | null; heroVideoUrl: string | null; buttonStyle: string | null; cardStyle: string | null; backgroundMood: string | null; backgroundColorHex: string | null; backgroundGradientHex: string | null; websiteUrl: string | null; instagramUrl: string | null; googleMapsUrl: string | null; wazeUrl: string | null }>(`/admin/restaurants/${id}/branding`, { method: 'PATCH', body: JSON.stringify(body) }),
       updateOperatingHours: (id: string, hours: Array<{ dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string }>) =>
         request<Array<{ dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string }>>(`/admin/restaurants/${id}/operating-hours`, { method: 'PUT', body: JSON.stringify({ hours }) }),
+      onlineRestrictions: {
+        list: (id: string) =>
+          request<Array<{ id: string; date: string; startTime: string | null; endTime: string | null; restrictionType: string; reason: string | null; guestMessage: string | null; createdAt: string; createdBy: string }>>(`/admin/restaurants/${id}/online-restrictions`),
+        create: (id: string, body: { date: string; startTime?: string | null; endTime?: string | null; restrictionType?: string; reason?: string | null; guestMessage?: string | null }) =>
+          request<{ id: string; date: string; startTime: string | null; endTime: string | null; restrictionType: string; reason: string | null; guestMessage: string | null; createdAt: string; createdBy: string }>(`/admin/restaurants/${id}/online-restrictions`, { method: 'POST', body: JSON.stringify(body) }),
+        delete: (id: string, rid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/online-restrictions/${rid}`, { method: 'DELETE' }),
+      },
     },
     groups: {
       list: () =>

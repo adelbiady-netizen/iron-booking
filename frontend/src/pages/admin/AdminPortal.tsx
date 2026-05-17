@@ -20,6 +20,20 @@ interface WizardUser { firstName: string; lastName: string; email: string; passw
 
 interface ScheduleRow { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string; }
 
+interface OnlineRestriction {
+  id: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  restrictionType: string;
+  reason: string | null;
+  guestMessage: string | null;
+  createdAt: string;
+  createdBy: string;
+}
+
+interface RestrictionForm { date: string; fullDay: boolean; startTime: string; endTime: string; reason: string; guestMessage: string; }
+
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map(d => ({
@@ -33,6 +47,7 @@ const DEFAULT_SETTINGS: WizardSettings = {
   lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,
 };
 const DEFAULT_USER: WizardUser = { firstName: '', lastName: '', email: '', password: '', role: 'HOST' };
+const DEFAULT_RESTRICTION_FORM: RestrictionForm = { date: '', fullDay: true, startTime: '', endTime: '', reason: '', guestMessage: '' };
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 
@@ -327,6 +342,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [scheduleBusy,  setScheduleBusy]  = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
 
+  // Online Booking Restrictions state
+  const [restrictions,          setRestrictions]          = useState<OnlineRestriction[]>([]);
+  const [showAddRestriction,    setShowAddRestriction]    = useState(false);
+  const [restrictionForm,       setRestrictionForm]       = useState<RestrictionForm>(DEFAULT_RESTRICTION_FORM);
+  const [restrictionCreateBusy, setRestrictionCreateBusy] = useState(false);
+  const [restrictionError,      setRestrictionError]      = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -353,12 +375,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const loadDetail = useCallback(async (id: string) => {
     setDetailBusy(true);
     try {
-      const [d, u] = await Promise.all([
+      const [d, u, rl] = await Promise.all([
         api.admin.restaurants.get(id),
         api.admin.users.list(id),
+        api.admin.restaurants.onlineRestrictions.list(id).catch(() => [] as OnlineRestriction[]),
       ]);
       setDetail(d);
       setUsers(u);
+      setRestrictions(rl);
       const s = d.settings as Record<string, unknown>;
       setInfoForm({ name: d.name, timezone: d.timezone, phone: d.phone ?? '', email: d.email ?? '', address: d.address ?? '' });
       setSettingsForm({
@@ -399,6 +423,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setEditWhatsapp(false);
     setEditBranding(false);
     setShowAddUser(false);
+    setShowAddRestriction(false);
+    setRestrictionForm(DEFAULT_RESTRICTION_FORM);
+    setRestrictionError(null);
     loadDetail(id);
   }
 
@@ -581,6 +608,46 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setScheduleError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setScheduleBusy(false);
+    }
+  }
+
+  async function handleCreateRestriction() {
+    if (!selectedId) return;
+    const f = restrictionForm;
+    if (!f.date) { setRestrictionError('Date is required'); return; }
+    if (!f.fullDay) {
+      if (!f.startTime || !f.endTime) { setRestrictionError('Start time and end time are both required for a time-range rule'); return; }
+      if (f.startTime >= f.endTime) { setRestrictionError('Start time must be before end time'); return; }
+    }
+    setRestrictionCreateBusy(true);
+    setRestrictionError(null);
+    try {
+      await api.admin.restaurants.onlineRestrictions.create(selectedId, {
+        date:         f.date,
+        startTime:    f.fullDay ? null : f.startTime,
+        endTime:      f.fullDay ? null : f.endTime,
+        reason:       f.reason || null,
+        guestMessage: f.guestMessage || null,
+      });
+      const updated = await api.admin.restaurants.onlineRestrictions.list(selectedId);
+      setRestrictions(updated);
+      setShowAddRestriction(false);
+      setRestrictionForm(DEFAULT_RESTRICTION_FORM);
+      showToast('Restriction added');
+    } catch (err) {
+      setRestrictionError(err instanceof Error ? err.message : 'Failed to add restriction');
+    } finally {
+      setRestrictionCreateBusy(false);
+    }
+  }
+
+  async function handleDeleteRestriction(rid: string) {
+    if (!selectedId) return;
+    try {
+      await api.admin.restaurants.onlineRestrictions.delete(selectedId, rid);
+      setRestrictions(r => r.filter(x => x.id !== rid));
+    } catch {
+      showToast('Failed to delete restriction');
     }
   }
 
@@ -1201,6 +1268,120 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </div>
           </div>
         )}
+
+        {/* Online Booking Restrictions */}
+        <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-medium">Online Booking Restrictions</h3>
+            {!showAddRestriction && (
+              <button
+                onClick={() => { setShowAddRestriction(true); setRestrictionError(null); }}
+                className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
+              >+ Add rule</button>
+            )}
+          </div>
+          <p className="text-[11px] text-iron-muted mb-4">
+            Blocks online guest booking for specific dates or time windows.
+            Staff can still create reservations manually from this dashboard.
+          </p>
+
+          {restrictions.length === 0 && !showAddRestriction && (
+            <p className="text-xs text-iron-muted italic">No active restrictions.</p>
+          )}
+
+          {restrictions.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {restrictions.map(r => (
+                <div key={r.id} className="flex items-start justify-between gap-3 bg-iron-bg rounded px-3 py-2.5 border border-iron-border/50">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-iron-text font-medium">{r.date}</span>
+                      <span className="text-xs text-iron-muted bg-iron-surface px-1.5 py-0.5 rounded">
+                        {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : 'Full day'}
+                      </span>
+                    </div>
+                    {r.reason && <p className="text-xs text-iron-muted mt-0.5">{r.reason}</p>}
+                    {r.guestMessage && (
+                      <p className="text-xs text-iron-muted mt-0.5 italic">"{r.guestMessage}"</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteRestriction(r.id)}
+                    className="shrink-0 text-xs text-iron-muted hover:text-red-400 px-1.5 py-1 rounded hover:bg-iron-bg transition-colors"
+                    title="Delete restriction"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAddRestriction && (
+            <div className="border-t border-iron-border/50 pt-4 mt-2 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Date *">
+                  <Input
+                    type="date"
+                    value={restrictionForm.date}
+                    onChange={e => setRestrictionForm(f => ({ ...f, date: e.target.value }))}
+                  />
+                </Field>
+                <div className="flex items-center gap-2 pt-5">
+                  <input
+                    type="checkbox"
+                    id="restrictionFullDay"
+                    checked={restrictionForm.fullDay}
+                    onChange={e => setRestrictionForm(f => ({ ...f, fullDay: e.target.checked }))}
+                    className="w-4 h-4 cursor-pointer accent-iron-green"
+                  />
+                  <label htmlFor="restrictionFullDay" className="text-sm text-iron-text cursor-pointer select-none">Full day</label>
+                </div>
+              </div>
+              {!restrictionForm.fullDay && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Start time *">
+                    <Input
+                      type="time"
+                      value={restrictionForm.startTime}
+                      onChange={e => setRestrictionForm(f => ({ ...f, startTime: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="End time *">
+                    <Input
+                      type="time"
+                      value={restrictionForm.endTime}
+                      onChange={e => setRestrictionForm(f => ({ ...f, endTime: e.target.value }))}
+                    />
+                  </Field>
+                </div>
+              )}
+              <Field label="Reason (internal — not shown to guests)">
+                <Input
+                  value={restrictionForm.reason}
+                  onChange={e => setRestrictionForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="Private event, staff training, kitchen closed…"
+                />
+              </Field>
+              <Field label="Guest message (optional — shown in booking widget if set)">
+                <Input
+                  value={restrictionForm.guestMessage}
+                  maxLength={200}
+                  onChange={e => setRestrictionForm(f => ({ ...f, guestMessage: e.target.value }))}
+                  placeholder="Online booking unavailable for this date. Please call us to reserve."
+                />
+              </Field>
+              {restrictionError && <p className="text-xs text-red-400">{restrictionError}</p>}
+              <div className="flex gap-3 pt-1">
+                <button onClick={handleCreateRestriction} disabled={restrictionCreateBusy} className={btnPrimary}>
+                  {restrictionCreateBusy ? 'Adding…' : 'Add rule'}
+                </button>
+                <button
+                  onClick={() => { setShowAddRestriction(false); setRestrictionForm(DEFAULT_RESTRICTION_FORM); setRestrictionError(null); }}
+                  className={btnSecondary}
+                >Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* WhatsApp Integration */}
         {editWhatsapp ? (
