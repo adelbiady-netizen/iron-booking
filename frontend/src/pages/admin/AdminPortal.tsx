@@ -1296,7 +1296,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-iron-text font-medium">{r.date}</span>
-                      <span className="text-xs text-iron-muted bg-iron-surface px-1.5 py-0.5 rounded">
+                      <span dir="ltr" className="text-xs text-iron-muted bg-iron-surface px-1.5 py-0.5 rounded">
                         {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : 'Full day'}
                       </span>
                     </div>
