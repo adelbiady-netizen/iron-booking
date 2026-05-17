@@ -65,7 +65,8 @@
       "emailPlaceholder": "you@example.com",
       "specialRequestsPlaceholder": "אלרגיות, צרכי נגישות, העדפות ישיבה…",
       "phoneHint": "אישור ההזמנה יישלח לכאן",
-      "completeReservation": "השלם הזמנה"
+      "completeReservation": "השלם הזמנה",
+      "requiredHint": "נא להזין שם ומספר טלפון להמשך."
     },
     "occasions": {
       "birthday": "יום הולדת",
@@ -96,6 +97,7 @@
     },
     "confirmed": {
       "title": "אתה ברשימה",
+      "titleConfirmed": "ההזמנה אושרה",
       "confirmedSub": "השולחן שלך מאושר.",
       "pendingSub": "נאשר את ההזמנה שלך בקרוב.",
       "pendingBadge": "ממתין לאישור",

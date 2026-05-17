@@ -382,7 +382,12 @@ export default function BookingPage({ slug }: Props) {
 
             {/* Available slots */}
             {!state.data.isFullyBooked && state.data.slots.length === 0 && !state.data.isClosed && !state.data.isPast && (
-              <StatusBanner icon="○" color="neutral" text={t('booking.noTimesAvailable')} />
+              <>
+                <StatusBanner icon="○" color="neutral" text={t('booking.noTimesAvailable')} />
+                <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-bare mt-2">
+                  {t('booking.chooseDifferentDate')}
+                </button>
+              </>
             )}
             {/* All slots online-blocked → show calm explanation instead of a fully-dimmed grid */}
             {!state.data.isFullyBooked && state.data.slots.length > 0 && state.data.slots.every(s => s.onlineBlocked) && (
@@ -638,7 +643,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function PartySelector({ value, max, onChange }: { value: number; max: number; onChange: (n: number) => void }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-5">
+    <div dir="ltr" className="flex items-center gap-5">
       <button
         onClick={() => onChange(Math.max(1, value - 1))}
         aria-label={t('common.decreaseParty')}
@@ -1064,6 +1069,11 @@ function GuestForm({ form, onChange, onSubmit }: {
         <PrimaryBtn type="submit" disabled={!isValid}>
           {t('booking.form.completeReservation')}
         </PrimaryBtn>
+        {!isValid && (
+          <p className="text-center text-[11px] mt-2" style={{ color: 'var(--pub-text-muted)' }}>
+            {t('booking.form.requiredHint')}
+          </p>
+        )}
       </div>
     </form>
   );
@@ -1222,7 +1232,7 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
       <div className="text-center mb-5">
         <div className="pub-outcome-icon pub-outcome-icon--brand" aria-hidden="true">✓</div>
         <h2 className="text-white text-2xl font-semibold tracking-tight mb-1.5">
-          {t('booking.confirmed.title')}
+          {t(result.status === 'CONFIRMED' ? 'booking.confirmed.titleConfirmed' : 'booking.confirmed.title')}
         </h2>
         <p className="text-[13px]" style={{ color: 'var(--pub-text-tertiary)' }}>
           {t(result.status === 'CONFIRMED' ? 'booking.confirmed.confirmedSub' : 'booking.confirmed.pendingSub')}

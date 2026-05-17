@@ -63,7 +63,8 @@
       "emailPlaceholder": "you@example.com",
       "specialRequestsPlaceholder": "Allergies, accessibility needs, seating preferences…",
       "phoneHint": "Your confirmation will be sent here",
-      "completeReservation": "Complete reservation"
+      "completeReservation": "Complete reservation",
+      "requiredHint": "Enter your name and phone number to continue."
     },
     "occasions": {
       "birthday": "Birthday",
@@ -94,6 +95,7 @@
     },
     "confirmed": {
       "title": "You're on the list",
+      "titleConfirmed": "Reservation confirmed",
       "confirmedSub": "Your table is confirmed.",
       "pendingSub": "We'll confirm your reservation shortly.",
       "pendingBadge": "Pending confirmation",
