@@ -3,6 +3,7 @@ import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import type { SseStatus } from '../hooks/useServerEvents';
 import LanguageSwitcher from './LanguageSwitcher';
+import LocalizedDateInput from './LocalizedDateInput';
 
 // 30-minute time slots covering the full day — guarantees 24h display regardless of browser locale
 const TIME_SLOTS_24H: string[] = Array.from({ length: 48 }, (_, i) => {
@@ -108,10 +109,9 @@ export default function TopBar({
       {/* Date navigation */}
       <div className="flex items-center gap-1">
         <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
-        <input
-          type="date"
+        <LocalizedDateInput
           value={date}
-          onChange={e => onDateChange(e.target.value)}
+          onValueChange={onDateChange}
           className="bg-iron-bg border border-iron-border/50 rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green/50 transition-colors cursor-pointer"
         />
         <NavBtn onClick={onNextDay} title={T.topBar.nextDay}>›</NavBtn>

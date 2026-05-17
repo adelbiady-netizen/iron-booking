@@ -6,6 +6,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
 import { getDefaultDuration } from '../utils/duration';
+import LocalizedDateInput from './LocalizedDateInput';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -642,15 +643,13 @@ export default function CreateDrawer({
                 {/* Date */}
                 <div>
                   <Label>{T.createDrawer.fieldDate}</Label>
-                  <Input
-                    type="date"
+                  <LocalizedDateInput
                     value={resDate}
-                    onChange={e => {
-                      const d = e.target.value;
+                    onValueChange={d => {
                       setResDate(d);
                       onDateTimeChange?.(d, resTime);
                     }}
-                    lang={locale === 'he' ? 'he' : undefined}
+                    className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
                     required
                   />
                 </div>
