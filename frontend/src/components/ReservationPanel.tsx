@@ -11,10 +11,11 @@ import { normalizeTime } from '../utils/time';
 // Unified name + phone search — works for "052", "1234", "Yossi", "lev".
 // Phone match strips all non-digits from both sides so formatting never matters.
 // Requires ≥2 digit chars to avoid matching every number on a single "0".
-function matchesSearch(name: string, phone: string | null | undefined, q: string): boolean {
+function matchesSearch(name: string, phone: string | null | undefined, q: string, occasion?: string | null): boolean {
   if (!q.trim()) return true;
   const ql = q.trim().toLowerCase();
   if (name.toLowerCase().includes(ql)) return true;
+  if (occasion && occasion.toLowerCase().includes(ql)) return true;
   const qDigits = ql.replace(/\D/g, '');
   if (qDigits.length >= 2) {
     const phoneDigits = (phone ?? '').replace(/\D/g, '');
@@ -102,9 +103,10 @@ export default function ReservationPanel({
     CANCELLED: T.reservationStatus.CANCELLED,
     NO_SHOW:   T.reservationStatus.NO_SHOW,
   };
-  const noTableCount = reservations.filter(
-    r => ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table
-  ).length;
+  const noTableCount = reservations
+    .filter(r => matchesSearch(r.guestName, r.guestPhone, search, r.occasion))
+    .filter(r => ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table)
+    .length;
 
   const FILTERS: { label: string; value: FilterValue; count?: number }[] = [
     { label: T.reservationPanel.filterActive,  value: 'ACTIVE' },
@@ -123,7 +125,7 @@ export default function ReservationPanel({
       if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
       return false;
     })
-    .filter(r => matchesSearch(r.guestName, r.guestPhone, search))
+    .filter(r => matchesSearch(r.guestName, r.guestPhone, search, r.occasion))
     .sort((a, b) => a.time.localeCompare(b.time));
 
   return (
@@ -442,11 +444,14 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 3 — optional signal chips */}
-                    {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt) && (
+                    {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {r.occasion && (
                           <span className="text-xs text-iron-green-light/75 font-medium">{r.occasion}</span>
                         )}
+                        {r.guest?.tags && r.guest.tags.slice(0, 3).map(tag => (
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full border border-iron-border/40 text-iron-muted/70 font-medium">{tag}</span>
+                        ))}
                         {r.isConfirmedByGuest && (
                           <span className="text-xs text-emerald-400">{T.reservationPanel.confirmedTick}</span>
                         )}
@@ -490,8 +495,9 @@ export default function ReservationPanel({
 
   {ctxMenu && createPortal(
     (() => {
+      const hasSeat = ['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status);
       const menuW = 184;
-      const menuH = 108;
+      const menuH = hasSeat ? 108 : 56;
       let left = ctxMenu.x + 4;
       let top  = ctxMenu.y + 4;
       const flipX = left + menuW > window.innerWidth  - 8;
@@ -500,8 +506,6 @@ export default function ReservationPanel({
       if (flipY) top  = ctxMenu.y - menuH - 4;
       left = Math.max(8, left);
       top  = Math.max(8, top);
-
-      const hasSeat = ['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status);
 
       return (
         <div
