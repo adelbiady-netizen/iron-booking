@@ -572,10 +572,10 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
             pointerEvents: 'none',
           }}
         />
-        {/* Uniform image darkening — 18% overlay improves text contrast on any photo */}
+        {/* Uniform image darkening — overlay lifts text contrast on any cover photo */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.18)',
+          background: 'rgba(0,0,0,0.26)',
           pointerEvents: 'none',
         }} />
         {/* Grain texture — atmospheric film grain at near-zero opacity */}
@@ -618,10 +618,11 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           </h1>
           {!diningMode && vm.tagline && (
             <p style={{
-              marginTop: 12, fontSize: 15,
+              marginTop: 10, fontSize: 15,
               color: 'rgba(240,235,227,0.82)',
-              letterSpacing: '0.02em', lineHeight: 1.5, marginBottom: 0,
-              fontWeight: 400,
+              letterSpacing: '0.025em', lineHeight: 1.55, marginBottom: 0,
+              fontWeight: 400, fontStyle: 'italic',
+              textShadow: '0 1px 10px rgba(0,0,0,0.60)',
             }}>
               {vm.tagline}
             </p>
@@ -666,8 +667,20 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           </div>
         )}
 
+        {/* ── Welcome microcopy — soft trust line, normal mode only ────────── */}
+        {!diningMode && (
+          <p style={{
+            margin: `${todayHours ? 14 : 22}px 0 0`,
+            fontSize: 12.5, color: C.muted,
+            letterSpacing: '0.02em', lineHeight: 1.65,
+            textAlign: 'center', opacity: 0.82,
+          }}>
+            Browse the menu, discover highlights, and reserve with confidence.
+          </p>
+        )}
+
         {/* ── Quick actions ─────────────────────────────────────────────────── */}
-        <div style={{ marginTop: todayHours ? 16 : 32, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ marginTop: diningMode ? (todayHours ? 16 : 32) : 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {/* Primary CTA */}
           {diningMode ? (
@@ -723,6 +736,17 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               <IconMenu />
               View our menu
             </button>
+          )}
+
+          {/* Category name preview — dim section names hinting at browsable content */}
+          {!diningMode && hasCategories && (
+            <p style={{
+              margin: '-2px 0 0', fontSize: 11, color: C.sub,
+              textAlign: 'center', letterSpacing: '0.04em', lineHeight: 1.5,
+            }}>
+              {vm.allCategories.slice(0, 4).map(c => c.name).join('  ·  ')}
+              {vm.allCategories.length > 4 ? '  ·  …' : ''}
+            </p>
           )}
 
           {/* Utility row — Call + Directions */}
@@ -990,9 +1014,12 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
                 /* ── Category tile grid ───────────────────────────────────── */
                 <div>
                   <SectionLabel>Full menu</SectionLabel>
-                  <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
+                  <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 6px' }}>
                     Our menu
                   </h2>
+                  <p style={{ margin: '0 0 20px', fontSize: 13, color: C.muted, lineHeight: 1.5, letterSpacing: '0.01em' }}>
+                    Tap any section to explore
+                  </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {vm.allCategories.map(cat => (
                       <div
