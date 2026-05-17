@@ -32,15 +32,6 @@ function IconCalendar() {
   );
 }
 
-function IconUsers() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  );
-}
 
 function IconPhone() {
   return (
@@ -657,12 +648,28 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               </span>
             )}
             {vm.address && !diningMode && (
-              <span style={{
-                fontSize: 12, color: C.sub,
-                overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0,
-              }}>
-                · {vm.address}
-              </span>
+              vm.directionsUrl ? (
+                <a
+                  href={vm.directionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 12, color: C.sub, textDecoration: 'none',
+                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0,
+                  }}
+                >
+                  <IconMap />
+                  {vm.address}
+                </a>
+              ) : (
+                <span style={{
+                  fontSize: 12, color: C.sub,
+                  overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0,
+                }}>
+                  · {vm.address}
+                </span>
+              )
             )}
           </div>
         )}
@@ -806,22 +813,79 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               <IconCalendar />
               Reserve for your next visit
             </button>
-          ) : (
+          ) : hasMenuContent ? (
             <button
               type="button"
-              className="gh-cta"
-              onClick={onDemoAction}
+              onClick={() => menuRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               style={{
                 background: 'none', border: 'none', color: C.muted,
-                fontSize: 13, fontWeight: 500, padding: '4px 0', letterSpacing: '0.01em',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: 12, fontWeight: 500, padding: '2px 0', letterSpacing: '0.01em',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                cursor: 'pointer',
               }}
             >
-              <IconUsers />
-              Check available dates
+              View our menu ↓
             </button>
-          )}
+          ) : null}
         </div>
+
+        {/* ── Promotions & events — placed above menu so all visitors see them ── */}
+        {hasPromotions && (
+          <>
+            <Rule />
+            <div>
+              <SectionLabel>Upcoming</SectionLabel>
+              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
+                Events & specials
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {vm.promotions.map(promo => (
+                  <div
+                    key={promo.id}
+                    style={{
+                      padding: '18px 18px 20px',
+                      background: C.surface, border: `1px solid ${C.border}`,
+                      borderRadius: 14, position: 'relative', overflow: 'hidden',
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', left: 0, top: 0, bottom: 0, width: 2,
+                      background: promo.tagColor === 'gold' ? C.gold : C.border,
+                      borderRadius: '14px 0 0 14px',
+                    }} />
+                    <div style={{ paddingLeft: 14 }}>
+                      {promo.tag && (
+                        <span style={{
+                          display: 'inline-block', marginBottom: 8,
+                          background: promo.tagColor === 'gold' ? 'rgba(201,169,110,0.12)' : C.elevated,
+                          color: promo.tagColor === 'gold' ? C.gold : C.muted,
+                          fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+                          textTransform: 'uppercase', padding: '3px 9px', borderRadius: 5,
+                          border: promo.tagColor === 'gold' ? `1px solid ${C.goldDim}` : `1px solid ${C.border}`,
+                        }}>
+                          {promo.tag}
+                        </span>
+                      )}
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.3 }}>
+                        {promo.title}
+                      </p>
+                      {promo.description && (
+                        <p style={{ margin: '7px 0 0', color: C.muted, fontSize: 13, lineHeight: 1.55 }}>
+                          {promo.description}
+                        </p>
+                      )}
+                      {promo.schedule && (
+                        <p style={{ margin: '10px 0 0', color: C.gold, fontSize: 12, fontWeight: 500, letterSpacing: '0.01em' }}>
+                          {promo.schedule}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Menu scroll anchor — target for 'View our menu' and dining-mode auto-scroll */}
         {hasMenuContent && <div ref={menuRef} style={{ scrollMarginTop: 68 }} />}
@@ -1080,90 +1144,42 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           </>
         )}
 
-        {/* ── Promotions & events ───────────────────────────────────────────── */}
-        {hasPromotions && (
-          <>
-            <Rule />
-            <div>
-              <SectionLabel>Upcoming</SectionLabel>
-              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '8px 0 20px' }}>
-                Events & specials
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {vm.promotions.map(promo => (
-                  <div
-                    key={promo.id}
-                    style={{
-                      padding: '18px 18px 20px',
-                      background: C.surface, border: `1px solid ${C.border}`,
-                      borderRadius: 14, position: 'relative', overflow: 'hidden',
-                    }}
-                  >
-                    <div style={{
-                      position: 'absolute', left: 0, top: 0, bottom: 0, width: 2,
-                      background: promo.tagColor === 'gold' ? C.gold : C.border,
-                      borderRadius: '14px 0 0 14px',
-                    }} />
-                    <div style={{ paddingLeft: 14 }}>
-                      {promo.tag && (
-                        <span style={{
-                          display: 'inline-block', marginBottom: 8,
-                          background: promo.tagColor === 'gold' ? 'rgba(201,169,110,0.12)' : C.elevated,
-                          color: promo.tagColor === 'gold' ? C.gold : C.muted,
-                          fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-                          textTransform: 'uppercase', padding: '3px 9px', borderRadius: 5,
-                          border: promo.tagColor === 'gold' ? `1px solid ${C.goldDim}` : `1px solid ${C.border}`,
-                        }}>
-                          {promo.tag}
-                        </span>
-                      )}
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.3 }}>
-                        {promo.title}
-                      </p>
-                      {promo.description && (
-                        <p style={{ margin: '7px 0 0', color: C.muted, fontSize: 13, lineHeight: 1.55 }}>
-                          {promo.description}
-                        </p>
-                      )}
-                      {promo.schedule && (
-                        <p style={{ margin: '10px 0 0', color: C.gold, fontSize: 12, fontWeight: 500, letterSpacing: '0.01em' }}>
-                          {promo.schedule}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
         {/* ── Hours ─────────────────────────────────────────────────────────── */}
         {vm.hours && vm.hours.length > 0 && (
           <>
             <Rule />
             <div>
               <SectionLabel>Hours</SectionLabel>
-              <div style={{
-                marginTop: 14, background: C.surface,
-                border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden',
-              }}>
-                {vm.hours.map((h, i) => (
-                  <div
-                    key={h.label}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '14px 18px',
-                      borderBottom: i < vm.hours!.length - 1 ? `1px solid ${C.borderSub}` : undefined,
-                    }}
-                  >
-                    <span style={{ fontSize: 14, color: C.muted }}>{h.label}</span>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: h.value === 'Closed' ? C.sub : C.text }}>
-                      {h.value}
-                    </span>
+              {(() => {
+                const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+                return (
+                  <div style={{
+                    marginTop: 14, background: C.surface,
+                    border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden',
+                  }}>
+                    {vm.hours.map((h, i) => {
+                      const isToday = h.label.toLowerCase() === todayLabel.toLowerCase();
+                      return (
+                        <div
+                          key={h.label}
+                          style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '14px 18px',
+                            borderBottom: i < vm.hours!.length - 1 ? `1px solid ${C.borderSub}` : undefined,
+                          }}
+                        >
+                          <span style={{ fontSize: 14, color: isToday ? C.gold : C.muted, fontWeight: isToday ? 600 : 400 }}>
+                            {h.label}
+                          </span>
+                          <span style={{ fontSize: 14, fontWeight: isToday ? 700 : 500, color: isToday ? C.gold : h.value === 'Closed' ? C.sub : C.text }}>
+                            {h.value}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </>
         )}
