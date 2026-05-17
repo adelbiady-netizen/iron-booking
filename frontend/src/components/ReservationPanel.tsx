@@ -394,10 +394,12 @@ export default function ReservationPanel({
 
                     {/* Row 1 — name + badge */}
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-iron-text text-[16px] font-semibold tracking-tight truncate flex-1 leading-snug">
-                        {r.guestName}
+                      <span className="flex-1 min-w-0 flex items-center gap-1">
+                        <span className="text-iron-text text-[16px] font-semibold tracking-tight truncate leading-snug min-w-0">
+                          {r.guestName}
+                        </span>
                         {r.guest?.isVip && (
-                          <span className="ms-1.5 text-amber-400 text-xs font-bold">{T.common.vip}</span>
+                          <span className="shrink-0 text-amber-400 text-xs font-bold">{T.common.vip}</span>
                         )}
                       </span>
                       {!r.guestPhone && (
