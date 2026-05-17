@@ -123,6 +123,24 @@ async function assertRestaurantAccess(req: Request, restaurantId: string): Promi
   throw new ForbiddenError('Access denied');
 }
 
+// Helper: check a portal permission for RESTAURANT_ADMIN callers.
+// HQ_ADMIN and SUPER_ADMIN bypass all portal permission checks — they always pass.
+// Returns 403 if the RESTAURANT_ADMIN's row is absent or the flag is false.
+async function assertPortalPermission(
+  req: Request,
+  restaurantId: string,
+  permission: 'canManageOperatingHours' | 'canManageOnlineRestrictions',
+): Promise<void> {
+  if (req.auth.role === 'SUPER_ADMIN' || req.auth.role === 'HQ_ADMIN') return;
+  const perms = await prisma.restaurantPortalPermissions.findUnique({
+    where: { restaurantId },
+    select: { [permission]: true },
+  });
+  if (!perms || !perms[permission]) {
+    throw new ForbiddenError(`Permission denied: ${permission} is not enabled for this restaurant`);
+  }
+}
+
 // ─── Restaurant-scoped routes (accessible to RESTAURANT_ADMIN and above) ──────
 // Registered BEFORE the HQ_ADMIN gate so RESTAURANT_ADMIN (level 50) can reach them.
 // Each route carries its own authenticate + requireRole('RESTAURANT_ADMIN') guard.
@@ -157,7 +175,8 @@ router.get('/restaurants/:id', authenticate, requireRole('RESTAURANT_ADMIN'), as
     const restaurant = await prisma.restaurant.findFirst({
       where: { id: p(req, 'id'), isSystem: false },
       include: {
-        operatingHours: { orderBy: { dayOfWeek: 'asc' } },
+        operatingHours:    { orderBy: { dayOfWeek: 'asc' } },
+        portalPermissions: true,
         _count: { select: { users: true, tables: true, reservations: true } },
       },
     });
@@ -170,6 +189,7 @@ router.get('/restaurants/:id', authenticate, requireRole('RESTAURANT_ADMIN'), as
 router.put('/restaurants/:id/operating-hours', authenticate, requireRole('RESTAURANT_ADMIN'), validate(OperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
+    await assertPortalPermission(req, p(req, 'id'), 'canManageOperatingHours');
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
 
@@ -228,6 +248,7 @@ router.get('/restaurants/:id/online-restrictions', authenticate, requireRole('RE
 router.post('/restaurants/:id/online-restrictions', authenticate, requireRole('RESTAURANT_ADMIN'), validate(OnlineRestrictionSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
+    await assertPortalPermission(req, p(req, 'id'), 'canManageOnlineRestrictions');
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
 
@@ -257,6 +278,7 @@ router.post('/restaurants/:id/online-restrictions', authenticate, requireRole('R
 router.delete('/restaurants/:id/online-restrictions/:rid', authenticate, requireRole('RESTAURANT_ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
+    await assertPortalPermission(req, p(req, 'id'), 'canManageOnlineRestrictions');
     const row = await prisma.onlineBookingRestriction.findFirst({
       where: { id: p(req, 'rid'), restaurantId: p(req, 'id') },
     });

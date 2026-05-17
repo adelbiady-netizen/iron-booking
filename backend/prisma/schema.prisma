@@ -105,8 +105,24 @@ model Restaurant {
   operatingHours              OperatingHour[]
   floorObjects                FloorObject[]
   onlineBookingRestrictions   OnlineBookingRestriction[]
+  portalPermissions           RestaurantPortalPermissions?
 
   @@map("restaurants")
+}
+
+// ─── Restaurant Portal Permissions ───────────────────────────────────────────
+// Per-restaurant feature gates for the RESTAURANT_ADMIN portal.
+// Default false = deny-by-default; HQ explicitly grants each capability.
+
+model RestaurantPortalPermissions {
+  id                          String     @id @default(uuid())
+  restaurant                  Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId                String     @unique
+  canManageOperatingHours     Boolean    @default(false)
+  canManageOnlineRestrictions Boolean    @default(false)
+  updatedAt                   DateTime   @updatedAt
+
+  @@map("restaurant_portal_permissions")
 }
 
 // ─── Users (Staff) ──────────────────────────────────────────────────────────

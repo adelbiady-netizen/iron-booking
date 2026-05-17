@@ -217,6 +217,10 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   instagramUrl:  string | null;
   googleMapsUrl: string | null;
   wazeUrl:       string | null;
+  portalPermissions: {
+    canManageOperatingHours:     boolean;
+    canManageOnlineRestrictions: boolean;
+  } | null;
 }
 
 export interface AdminUser {

@@ -114,6 +114,12 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
   const [restrictionCreateBusy, setRestrictionCreateBusy] = useState(false);
   const [restrictionError,      setRestrictionError]      = useState<string | null>(null);
 
+  // Portal permissions (from GET /restaurants/:id response)
+  const [permissions, setPermissions] = useState<{
+    canManageOperatingHours: boolean;
+    canManageOnlineRestrictions: boolean;
+  } | null>(null);
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
 
@@ -135,6 +141,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
         api.admin.restaurants.onlineRestrictions.list(restaurantId).catch(() => [] as OnlineRestriction[]),
       ]);
       setRestrictions(rl);
+      setPermissions(detail.portalPermissions ?? null);
       if (detail.operatingHours?.length === 7) {
         setScheduleRows(detail.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -257,10 +264,29 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
             <div className="flex items-center justify-center py-16">
               <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : (
+          ) : (() => {
+            const canHours        = permissions?.canManageOperatingHours     ?? false;
+            const canRestrictions = permissions?.canManageOnlineRestrictions ?? false;
+            const hasAnyTool      = canHours || canRestrictions;
+
+            if (!hasAnyTool) {
+              return (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-12 h-12 rounded-full bg-iron-surface border border-iron-border flex items-center justify-center mb-4">
+                    <svg className="w-5 h-5 text-iron-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </div>
+                  <p className="text-iron-text font-medium mb-1">Your portal access is currently limited</p>
+                  <p className="text-iron-muted text-sm">Please contact Iron Booking support to enable tools for your restaurant.</p>
+                </div>
+              );
+            }
+
+            return (
             <>
               {/* Weekly Schedule */}
-              {editSchedule ? (
+              {canHours && (editSchedule ? (
                 <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
                   <h3 className="font-medium text-iron-text">Weekly Schedule</h3>
                   <div className="overflow-x-auto">
@@ -348,10 +374,10 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
                     ))}
                   </div>
                 </div>
-              )}
+              ))}
 
               {/* Online Booking Restrictions */}
-              <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+              {canRestrictions && <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-medium text-iron-text">Online Booking Restrictions</h3>
                   {!showAddRestriction && (
@@ -462,9 +488,10 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
             </>
-          )}
+            );
+          })()}
         </div>
       </div>
 
