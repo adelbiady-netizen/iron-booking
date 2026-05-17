@@ -95,8 +95,9 @@
       "preferredTimeLabel": "שעה מועדפת",
       "phoneSent": "אישור נשלח לטלפון שלך."
     },
+    "backToRestaurant": "חזרה למסעדה",
     "confirmed": {
-      "title": "אתה ברשימה",
+      "title": "בקשת ההזמנה התקבלה",
       "titleConfirmed": "ההזמנה אושרה",
       "confirmedSub": "השולחן שלך מאושר.",
       "pendingSub": "נאשר את ההזמנה שלך בקרוב.",

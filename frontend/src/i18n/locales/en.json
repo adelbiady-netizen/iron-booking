@@ -93,8 +93,9 @@
       "preferredTimeLabel": "Preferred time",
       "phoneSent": "A confirmation has been sent to your phone."
     },
+    "backToRestaurant": "Back to restaurant",
     "confirmed": {
-      "title": "You're on the list",
+      "title": "Booking request received",
       "titleConfirmed": "Reservation confirmed",
       "confirmedSub": "Your table is confirmed.",
       "pendingSub": "We'll confirm your reservation shortly.",

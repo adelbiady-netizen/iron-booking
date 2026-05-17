@@ -228,14 +228,14 @@ export default function BookingPage({ slug }: Props) {
       </div>
 
       {showBackLink && (
-        <div className="fixed top-4 left-4 z-50">
+        <div className={`fixed top-4 ${dir === 'ltr' ? 'left-4' : 'right-4'} z-50`}>
           <button
             type="button"
             onClick={() => window.history.back()}
             className="flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-colors text-sm"
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px' }}
           >
-            {dir === 'ltr' ? '←' : '→'} Back to restaurant
+            {dir === 'ltr' ? '←' : '→'} {t('booking.backToRestaurant')}
           </button>
         </div>
       )}
@@ -384,7 +384,7 @@ export default function BookingPage({ slug }: Props) {
             {!state.data.isFullyBooked && state.data.slots.length === 0 && !state.data.isClosed && !state.data.isPast && (
               <>
                 <StatusBanner icon="○" color="neutral" text={t('booking.noTimesAvailable')} />
-                <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-bare mt-2">
+                <button onClick={() => setState({ phase: 'select' })} className="pub-btn pub-btn-bare mt-4">
                   {t('booking.chooseDifferentDate')}
                 </button>
               </>
@@ -993,8 +993,10 @@ function GuestForm({ form, onChange, onSubmit }: {
   onSubmit: (e: React.FormEvent) => void;
 }) {
   const { t } = useTranslation();
+  const [formTouched, setFormTouched] = useState(false);
 
   function field(key: keyof FormState, value: string) {
+    setFormTouched(true);
     onChange({ ...form, [key]: value });
   }
 
@@ -1069,7 +1071,7 @@ function GuestForm({ form, onChange, onSubmit }: {
         <PrimaryBtn type="submit" disabled={!isValid}>
           {t('booking.form.completeReservation')}
         </PrimaryBtn>
-        {!isValid && (
+        {!isValid && formTouched && (
           <p className="text-center text-[11px] mt-2" style={{ color: 'var(--pub-text-muted)' }}>
             {t('booking.form.requiredHint')}
           </p>
