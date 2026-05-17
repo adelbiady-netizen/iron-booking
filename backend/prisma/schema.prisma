@@ -141,14 +141,15 @@ model User {
 }
 
 enum UserRole {
-  SUPER_ADMIN    // system-wide admin (all restaurants, cross-group)
-  HQ_ADMIN       // group-level admin (all branches within their group)
-  GROUP_MANAGER  // group-level manager (limited cross-branch access)
-  OWNER          // restaurant owner (restaurant-scoped, highest branch role)
-  ADMIN          // restaurant-level admin (kept for backward compatibility)
-  MANAGER        // restaurant manager
-  HOST           // floor host
-  SERVER         // server (read-mostly)
+  SUPER_ADMIN       // system-wide admin (all restaurants, cross-group)
+  HQ_ADMIN          // group-level admin (all branches within their group)
+  GROUP_MANAGER     // group-level manager (limited cross-branch access)
+  RESTAURANT_ADMIN  // single-restaurant admin (portal access scoped to own restaurant)
+  OWNER             // restaurant owner (restaurant-scoped, highest branch role)
+  ADMIN             // restaurant-level admin (kept for backward compatibility)
+  MANAGER           // restaurant manager
+  HOST              // floor host
+  SERVER            // server (read-mostly)
 }
 
 // ─── Operating Hours ─────────────────────────────────────────────────────────

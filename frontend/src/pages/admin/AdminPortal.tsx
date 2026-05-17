@@ -250,7 +250,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [listLoading, setListLoading]  = useState(true);
 
   // View state
-  const isSuperAdmin = auth.user.role === 'SUPER_ADMIN';
+  const isSuperAdmin      = auth.user.role === 'SUPER_ADMIN';
+  const isRestaurantAdmin = auth.user.role === 'RESTAURANT_ADMIN';
 
   const [view,       setView]       = useState<'splash' | 'create' | 'detail' | 'create-group' | 'group-detail'>('splash');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -372,6 +373,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   useEffect(() => { loadRestaurants(); }, [loadRestaurants]);
 
+  // RESTAURANT_ADMIN: auto-navigate into their single restaurant on load.
+  // view === 'splash' guard prevents re-triggering after they're already inside.
+  useEffect(() => {
+    if (auth.user.role === 'RESTAURANT_ADMIN' && restaurants.length === 1 && view === 'splash') {
+      selectRestaurant(restaurants[0].id);
+    }
+  // selectRestaurant is stable (only calls setState + loadDetail which is useCallback([]))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurants]);
+
   const loadDetail = useCallback(async (id: string) => {
     setDetailBusy(true);
     try {
@@ -415,6 +426,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   }
 
   function selectRestaurant(id: string, tab: 'info' | 'settings' | 'users' | 'guest-hub' = 'info') {
+    if (auth.user.role === 'RESTAURANT_ADMIN' && id !== auth.user.restaurant?.id) return;
     setSelectedId(id);
     setView('detail');
     setActiveTab(tab);
@@ -2378,8 +2390,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-iron-border flex flex-col bg-iron-surface flex-shrink-0 overflow-hidden">
+        {/* Sidebar — hidden for RESTAURANT_ADMIN (single restaurant, no switching) */}
+        {!isRestaurantAdmin && <div className="w-64 border-r border-iron-border flex flex-col bg-iron-surface flex-shrink-0 overflow-hidden">
           {/* Locations / Groups tabs — SUPER_ADMIN only */}
           {isSuperAdmin && (
             <div className="flex border-b border-iron-border flex-shrink-0">
@@ -2460,7 +2472,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               )}
             </div>
           </>)}
-        </div>
+        </div>}
 
         {/* Main content */}
         <div className="flex-1 overflow-hidden flex">

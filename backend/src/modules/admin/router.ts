@@ -72,12 +72,28 @@ router.post('/bootstrap', validate(BootstrapSchema), async (req: Request, res: R
   } catch (err) { next(err); }
 });
 
-// ─── All routes below require at least HQ_ADMIN ──────────────────────────────
-// SUPER_ADMIN (100) passes. HQ_ADMIN (80) passes.
-// Mutation routes each carry an explicit requireRole('SUPER_ADMIN') guard.
-router.use(authenticate, requireRole('HQ_ADMIN'));
+// ─── Schemas shared by pre-gate and post-gate routes ─────────────────────────
 
-const superAdminOnly = requireRole('SUPER_ADMIN');
+const HHmm = /^\d{2}:\d{2}$/;
+
+const OperatingHoursSchema = z.object({
+  hours: z.array(z.object({
+    dayOfWeek:   z.number().int().min(0).max(6),
+    isOpen:      z.boolean(),
+    openTime:    z.string().regex(HHmm),
+    closeTime:   z.string().regex(HHmm),
+    lastSeating: z.string().regex(HHmm),
+  })).length(7),
+});
+
+const OnlineRestrictionSchema = z.object({
+  date:            z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+  startTime:       z.string().regex(HHmm, 'startTime must be HH:mm').nullable().optional(),
+  endTime:         z.string().regex(HHmm, 'endTime must be HH:mm').nullable().optional(),
+  restrictionType: z.string().default('BLOCK'),
+  reason:          z.string().nullable().optional(),
+  guestMessage:    z.string().max(200).nullable().optional(),
+});
 
 // Helper: validate an HQ_ADMIN's groupId matches a restaurant's groupId.
 // SUPER_ADMIN always passes. Throws ForbiddenError otherwise.
@@ -87,6 +103,175 @@ async function assertGroupAccess(req: Request, restaurantGroupId: string | null)
     throw new ForbiddenError('Access denied: restaurant is not in your group');
   }
 }
+
+// Helper: per-role restaurant isolation — explicit checks only, no fallthrough.
+// SUPER_ADMIN: unrestricted. HQ_ADMIN: group-scoped. RESTAURANT_ADMIN: own restaurant only.
+// All other roles (including GROUP_MANAGER): denied — must be added explicitly if needed.
+async function assertRestaurantAccess(req: Request, restaurantId: string): Promise<void> {
+  if (req.auth.role === 'SUPER_ADMIN') return;
+  if (req.auth.role === 'HQ_ADMIN') {
+    const r = await prisma.restaurant.findFirst({ where: { id: restaurantId }, select: { groupId: true } });
+    await assertGroupAccess(req, r?.groupId ?? null);
+    return;
+  }
+  if (req.auth.role === 'RESTAURANT_ADMIN') {
+    if (req.auth.restaurantId !== restaurantId) {
+      throw new ForbiddenError('Access denied: restaurant is not yours');
+    }
+    return;
+  }
+  throw new ForbiddenError('Access denied');
+}
+
+// ─── Restaurant-scoped routes (accessible to RESTAURANT_ADMIN and above) ──────
+// Registered BEFORE the HQ_ADMIN gate so RESTAURANT_ADMIN (level 50) can reach them.
+// Each route carries its own authenticate + requireRole('RESTAURANT_ADMIN') guard.
+// assertRestaurantAccess enforces isolation inside every handler.
+
+// GET /admin/restaurants — role-scoped list
+router.get('/restaurants', authenticate, requireRole('RESTAURANT_ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let where: { isSystem: boolean; groupId?: string; id?: string };
+    if (req.auth.role === 'SUPER_ADMIN') {
+      where = { isSystem: false };
+    } else if (req.auth.role === 'HQ_ADMIN') {
+      where = { isSystem: false, groupId: req.auth.groupId ?? '__none__' };
+    } else if (req.auth.role === 'RESTAURANT_ADMIN') {
+      where = { isSystem: false, id: req.auth.restaurantId };
+    } else {
+      throw new ForbiddenError('Access denied');
+    }
+    const rows = await prisma.restaurant.findMany({
+      where,
+      include: { _count: { select: { users: true, tables: true, reservations: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// GET /admin/restaurants/:id
+router.get('/restaurants/:id', authenticate, requireRole('RESTAURANT_ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { id: p(req, 'id'), isSystem: false },
+      include: {
+        operatingHours: { orderBy: { dayOfWeek: 'asc' } },
+        _count: { select: { users: true, tables: true, reservations: true } },
+      },
+    });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    res.json(restaurant);
+  } catch (err) { next(err); }
+});
+
+// PUT /admin/restaurants/:id/operating-hours — replace all 7 day records
+router.put('/restaurants/:id/operating-hours', authenticate, requireRole('RESTAURANT_ADMIN'), validate(OperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    const { hours } = req.body as z.infer<typeof OperatingHoursSchema>;
+
+    for (const h of hours) {
+      if (h.isOpen && h.lastSeating > h.closeTime) {
+        throw new BusinessRuleError(`Day ${h.dayOfWeek}: last seating (${h.lastSeating}) cannot be after close time (${h.closeTime})`);
+      }
+    }
+
+    const openDays = hours.filter(h => h.isOpen);
+    const earliestOpen = openDays.length > 0
+      ? openDays.reduce((a, b) => a.openTime <= b.openTime ? a : b).openTime
+      : null;
+
+    await prisma.$transaction([
+      ...hours.map(h =>
+        prisma.operatingHour.upsert({
+          where:  { restaurantId_dayOfWeek: { restaurantId: p(req, 'id'), dayOfWeek: h.dayOfWeek } },
+          update: { isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
+          create: { restaurantId: p(req, 'id'), dayOfWeek: h.dayOfWeek, isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
+        })
+      ),
+      ...(earliestOpen ? [
+        prisma.restaurant.update({
+          where: { id: p(req, 'id') },
+          data:  { settings: { ...(restaurant.settings as object), openingHour: earliestOpen } },
+        }),
+      ] : []),
+    ]);
+
+    const updated = await prisma.operatingHour.findMany({
+      where:   { restaurantId: p(req, 'id') },
+      orderBy: { dayOfWeek: 'asc' },
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// GET /admin/restaurants/:id/online-restrictions
+router.get('/restaurants/:id/online-restrictions', authenticate, requireRole('RESTAURANT_ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    const rows = await prisma.onlineBookingRestriction.findMany({
+      where:   { restaurantId: p(req, 'id'), isActive: true },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    });
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// POST /admin/restaurants/:id/online-restrictions
+router.post('/restaurants/:id/online-restrictions', authenticate, requireRole('RESTAURANT_ADMIN'), validate(OnlineRestrictionSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    const body = req.body as z.infer<typeof OnlineRestrictionSchema>;
+
+    if (body.startTime && body.endTime && body.startTime >= body.endTime) {
+      throw new BusinessRuleError('startTime must be before endTime');
+    }
+
+    const row = await prisma.onlineBookingRestriction.create({
+      data: {
+        restaurantId:    p(req, 'id'),
+        date:            body.date,
+        startTime:       body.startTime ?? null,
+        endTime:         body.endTime ?? null,
+        restrictionType: body.restrictionType ?? 'BLOCK',
+        reason:          body.reason ?? null,
+        guestMessage:    body.guestMessage ?? null,
+        createdBy:       req.auth.userId,
+      },
+    });
+    res.status(201).json(row);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/restaurants/:id/online-restrictions/:rid
+router.delete('/restaurants/:id/online-restrictions/:rid', authenticate, requireRole('RESTAURANT_ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const row = await prisma.onlineBookingRestriction.findFirst({
+      where: { id: p(req, 'rid'), restaurantId: p(req, 'id') },
+    });
+    if (!row) throw new NotFoundError('OnlineBookingRestriction', p(req, 'rid'));
+    await prisma.onlineBookingRestriction.delete({ where: { id: p(req, 'rid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ─── All routes below require at least HQ_ADMIN ──────────────────────────────
+// SUPER_ADMIN (100) passes. HQ_ADMIN (80) passes.
+// Mutation routes each carry an explicit requireRole('SUPER_ADMIN') guard.
+router.use(authenticate, requireRole('HQ_ADMIN'));
+
+const superAdminOnly = requireRole('SUPER_ADMIN');
 
 // POST /admin/create-super-admin — create an additional SUPER_ADMIN account
 const CreateSuperAdminSchema = z.object({
@@ -118,20 +303,6 @@ router.post('/create-super-admin', superAdminOnly, validate(CreateSuperAdminSche
 
 // ─── Restaurants ─────────────────────────────────────────────────────────────
 
-// GET /admin/restaurants — SUPER_ADMIN sees all; HQ_ADMIN sees their group only
-router.get('/restaurants', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const where = req.auth.role === 'SUPER_ADMIN'
-      ? { isSystem: false }
-      : { isSystem: false, groupId: req.auth.groupId ?? '__none__' };
-    const rows = await prisma.restaurant.findMany({
-      where,
-      include: { _count: { select: { users: true, tables: true, reservations: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(rows);
-  } catch (err) { next(err); }
-});
 
 const CreateRestaurantSchema = z.object({
   name:     z.string().min(1),
@@ -177,21 +348,6 @@ router.post('/restaurants', superAdminOnly, validate(CreateRestaurantSchema), as
   } catch (err) { next(err); }
 });
 
-// GET /admin/restaurants/:id
-router.get('/restaurants/:id', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const restaurant = await prisma.restaurant.findFirst({
-      where: { id: p(req, 'id'), isSystem: false },
-      include: {
-        operatingHours: { orderBy: { dayOfWeek: 'asc' } },
-        _count: { select: { users: true, tables: true, reservations: true } },
-      },
-    });
-    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
-    await assertGroupAccess(req, restaurant.groupId);
-    res.json(restaurant);
-  } catch (err) { next(err); }
-});
 
 const UpdateRestaurantSchema = z.object({
   name:      z.string().min(1).optional(),
@@ -353,61 +509,6 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
   } catch (err) { next(err); }
 });
 
-const HHmm = /^\d{2}:\d{2}$/;
-const OperatingHoursSchema = z.object({
-  hours: z.array(z.object({
-    dayOfWeek:   z.number().int().min(0).max(6),
-    isOpen:      z.boolean(),
-    openTime:    z.string().regex(HHmm),
-    closeTime:   z.string().regex(HHmm),
-    lastSeating: z.string().regex(HHmm),
-  })).length(7),
-});
-
-// PUT /admin/restaurants/:id/operating-hours — replace all 7 day records
-router.put('/restaurants/:id/operating-hours', superAdminOnly, validate(OperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
-    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
-
-    const { hours } = req.body as z.infer<typeof OperatingHoursSchema>;
-
-    // Validate lastSeating ≤ closeTime for open days
-    for (const h of hours) {
-      if (h.isOpen && h.lastSeating > h.closeTime) {
-        throw new BusinessRuleError(`Day ${h.dayOfWeek}: last seating (${h.lastSeating}) cannot be after close time (${h.closeTime})`);
-      }
-    }
-
-    // Bulk upsert all 7 days + keep settings.openingHour in sync (earliest open day)
-    const openDays = hours.filter(h => h.isOpen);
-    const earliestOpen = openDays.length > 0
-      ? openDays.reduce((a, b) => a.openTime <= b.openTime ? a : b).openTime
-      : null;
-
-    await prisma.$transaction([
-      ...hours.map(h =>
-        prisma.operatingHour.upsert({
-          where:  { restaurantId_dayOfWeek: { restaurantId: p(req, 'id'), dayOfWeek: h.dayOfWeek } },
-          update: { isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
-          create: { restaurantId: p(req, 'id'), dayOfWeek: h.dayOfWeek, isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
-        })
-      ),
-      ...(earliestOpen ? [
-        prisma.restaurant.update({
-          where: { id: p(req, 'id') },
-          data:  { settings: { ...(restaurant.settings as object), openingHour: earliestOpen } },
-        }),
-      ] : []),
-    ]);
-
-    const updated = await prisma.operatingHour.findMany({
-      where:   { restaurantId: p(req, 'id') },
-      orderBy: { dayOfWeek: 'asc' },
-    });
-    res.json(updated);
-  } catch (err) { next(err); }
-});
 
 // POST /admin/restaurants/:id/sample-layout — seeds default sections + tables
 router.post('/restaurants/:id/sample-layout', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
@@ -737,74 +838,6 @@ router.post('/groups/:id/users', superAdminOnly, validate(CreateHqUserSchema), a
       },
     });
     res.status(201).json(user);
-  } catch (err) { next(err); }
-});
-
-// ─── Online Booking Restrictions ─────────────────────────────────────────────
-// Manage per-date/time-range online booking blocks.
-// These only affect the public slot engine — host/admin reservation creation is unaffected.
-
-const OnlineRestrictionSchema = z.object({
-  date:            z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
-  startTime:       z.string().regex(HHmm, 'startTime must be HH:mm').nullable().optional(),
-  endTime:         z.string().regex(HHmm, 'endTime must be HH:mm').nullable().optional(),
-  restrictionType: z.string().default('BLOCK'),
-  reason:          z.string().nullable().optional(),
-  guestMessage:    z.string().max(200).nullable().optional(),
-});
-
-// GET /admin/restaurants/:id/online-restrictions
-router.get('/restaurants/:id/online-restrictions', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
-    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
-
-    const rows = await prisma.onlineBookingRestriction.findMany({
-      where:   { restaurantId: p(req, 'id'), isActive: true },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
-    });
-    res.json(rows);
-  } catch (err) { next(err); }
-});
-
-// POST /admin/restaurants/:id/online-restrictions
-router.post('/restaurants/:id/online-restrictions', validate(OnlineRestrictionSchema), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
-    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
-
-    const body = req.body as z.infer<typeof OnlineRestrictionSchema>;
-
-    if (body.startTime && body.endTime && body.startTime >= body.endTime) {
-      throw new BusinessRuleError('startTime must be before endTime');
-    }
-
-    const row = await prisma.onlineBookingRestriction.create({
-      data: {
-        restaurantId:    p(req, 'id'),
-        date:            body.date,
-        startTime:       body.startTime ?? null,
-        endTime:         body.endTime ?? null,
-        restrictionType: body.restrictionType ?? 'BLOCK',
-        reason:          body.reason ?? null,
-        guestMessage:    body.guestMessage ?? null,
-        createdBy:       req.auth.userId,
-      },
-    });
-    res.status(201).json(row);
-  } catch (err) { next(err); }
-});
-
-// DELETE /admin/restaurants/:id/online-restrictions/:rid
-router.delete('/restaurants/:id/online-restrictions/:rid', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const row = await prisma.onlineBookingRestriction.findFirst({
-      where: { id: p(req, 'rid'), restaurantId: p(req, 'id') },
-    });
-    if (!row) throw new NotFoundError('OnlineBookingRestriction', p(req, 'rid'));
-
-    await prisma.onlineBookingRestriction.delete({ where: { id: p(req, 'rid') } });
-    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

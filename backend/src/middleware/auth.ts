@@ -43,14 +43,15 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 // Values are cardinal — only relative ordering matters.
 // HQ roles sit above ADMIN; OWNER is a restaurant-level alias for ADMIN.
 const roleHierarchy: Record<UserRole, number> = {
-  SUPER_ADMIN:   100, // system-wide (all restaurants, cross-group)
-  HQ_ADMIN:       80, // group-wide (all branches in their group)
-  GROUP_MANAGER:  60, // limited cross-branch within their group
-  OWNER:          40, // restaurant owner (same scope as ADMIN)
-  ADMIN:          40, // restaurant-level admin (backward compat)
-  MANAGER:        30,
-  HOST:           20,
-  SERVER:         10,
+  SUPER_ADMIN:      100, // system-wide (all restaurants, cross-group)
+  HQ_ADMIN:          80, // group-wide (all branches in their group)
+  GROUP_MANAGER:     60, // limited cross-branch within their group
+  RESTAURANT_ADMIN:  50, // single-restaurant portal admin
+  OWNER:             40, // restaurant owner (same scope as ADMIN)
+  ADMIN:             40, // restaurant-level admin (backward compat)
+  MANAGER:           30,
+  HOST:              20,
+  SERVER:            10,
 };
 
 export function requireRole(...roles: UserRole[]) {

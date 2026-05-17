@@ -107,11 +107,12 @@ export interface FloorTable extends Table {
 }
 
 export type UserRole =
-  | 'SUPER_ADMIN'    // system-wide admin
-  | 'HQ_ADMIN'       // group-level admin (all branches in their group)
-  | 'GROUP_MANAGER'  // group-level manager (limited cross-branch)
-  | 'OWNER'          // restaurant owner (restaurant-scoped, same tier as ADMIN)
-  | 'ADMIN'          // restaurant-level admin (backward compat)
+  | 'SUPER_ADMIN'       // system-wide admin
+  | 'HQ_ADMIN'          // group-level admin (all branches in their group)
+  | 'GROUP_MANAGER'     // group-level manager (limited cross-branch)
+  | 'RESTAURANT_ADMIN'  // single-restaurant portal admin (scoped to own restaurant)
+  | 'OWNER'             // restaurant owner (restaurant-scoped, same tier as ADMIN)
+  | 'ADMIN'             // restaurant-level admin (backward compat)
   | 'MANAGER'
   | 'HOST'
   | 'SERVER';
