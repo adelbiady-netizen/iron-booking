@@ -247,6 +247,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [editParty,      setEditParty]      = useState('');
   const [editDuration,   setEditDuration]   = useState(0);
   const [originalDuration, setOriginalDuration] = useState(0);
+  const [editOccasion,   setEditOccasion]   = useState('');
   const [editNotes,      setEditNotes]      = useState('');
   const [editHostNotes,  setEditHostNotes]  = useState('');
   const [editTableId,         setEditTableId]         = useState<string | null>(null);
@@ -310,6 +311,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     setEditParty(String(res.partySize));
     setEditDuration(res.duration);
     setOriginalDuration(res.duration);
+    setEditOccasion(res.occasion ?? '');
     setEditNotes(res.guestNotes ?? '');
     setEditHostNotes(res.hostNotes ?? '');
     setEditTableId(res.tableId ?? null);
@@ -437,7 +439,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
         }),
         duration:   editDuration,
-        // Only include when changed; empty string clears an existing note
+        // Only include when changed; empty string clears an existing value
+        ...(editOccasion.trim() !== (res.occasion ?? '')        ? { occasion:   editOccasion.trim() }  : {}),
         ...(editNotes.trim() !== (res.guestNotes ?? '')         ? { guestNotes: editNotes.trim() }     : {}),
         ...(editHostNotes.trim() !== (res.hostNotes ?? '')      ? { hostNotes:  editHostNotes.trim() } : {}),
       }),
@@ -1508,6 +1511,15 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     value={editHostNotes}
                     onChange={e => setEditHostNotes(e.target.value)}
                     placeholder={T.guestDrawer.placeholderHostNotes}
+                  />
+                </Field>
+                <Field label={T.guestDrawer.fieldOccasion}>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    value={editOccasion}
+                    onChange={e => setEditOccasion(e.target.value)}
+                    placeholder={T.guestDrawer.placeholderOccasion}
                   />
                 </Field>
                 <div className="flex gap-2 pt-1">
