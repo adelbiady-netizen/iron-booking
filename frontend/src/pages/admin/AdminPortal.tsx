@@ -337,6 +337,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [logoUpload,     setLogoUpload]     = useState<{ progress: number | null; error: string | null }>({ progress: null, error: null });
   const [coverUpload,    setCoverUpload]    = useState<{ progress: number | null; error: string | null }>({ progress: null, error: null });
 
+  // Restaurant Portal permissions
+  const [portalPermBusy,  setPortalPermBusy]  = useState(false);
+  const [portalPermError, setPortalPermError] = useState<string | null>(null);
+
   // Weekly schedule edit state
   const [editSchedule,  setEditSchedule]  = useState(false);
   const [scheduleRows,  setScheduleRows]  = useState<ScheduleRow[]>(DEFAULT_SCHEDULE);
@@ -709,6 +713,23 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setBrandingError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setBrandingBusy(false);
+    }
+  }
+
+  // ── Portal permissions toggle ──────────────────────────────────────────────────
+
+  async function handleTogglePortalPerm(key: 'canManageOperatingHours' | 'canManageOnlineRestrictions') {
+    if (!selectedId || !detail) return;
+    setPortalPermBusy(true);
+    setPortalPermError(null);
+    const current = detail.portalPermissions?.[key] ?? false;
+    try {
+      const updated = await api.admin.restaurants.updatePortalPermissions(selectedId, { [key]: !current });
+      setDetail(d => d ? { ...d, portalPermissions: updated } : d);
+    } catch (err) {
+      setPortalPermError(err instanceof Error ? err.message : 'Failed to update permission');
+    } finally {
+      setPortalPermBusy(false);
     }
   }
 
@@ -1910,6 +1931,37 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </dl>
           </div>
         )}
+
+        {/* Restaurant Portal Access */}
+        <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+          <div className="mb-4">
+            <h3 className="font-medium mb-1">Restaurant Portal Access</h3>
+            <p className="text-[11px] text-iron-muted">These controls decide what the restaurant can manage inside its own portal.</p>
+          </div>
+          <div className="space-y-3">
+            {([
+              { key: 'canManageOperatingHours'     as const, label: 'Manage Operating Hours' },
+              { key: 'canManageOnlineRestrictions' as const, label: 'Manage Online Booking Restrictions' },
+            ] as const).map(({ key, label }) => {
+              const enabled = detail?.portalPermissions?.[key] ?? false;
+              return (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm text-iron-text">{label}</span>
+                  <button
+                    role="switch"
+                    aria-checked={enabled}
+                    disabled={portalPermBusy}
+                    onClick={() => handleTogglePortalPerm(key)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none disabled:opacity-50 ${enabled ? 'bg-iron-green' : 'bg-iron-border'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {portalPermError && <p className="text-xs text-red-400 mt-3">{portalPermError}</p>}
+        </div>
       </div>
     );
   }

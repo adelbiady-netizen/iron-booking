@@ -393,6 +393,33 @@ router.patch('/restaurants/:id', superAdminOnly, validate(UpdateRestaurantSchema
   } catch (err) { next(err); }
 });
 
+const PortalPermissionsSchema = z.object({
+  canManageOperatingHours:     z.boolean().optional(),
+  canManageOnlineRestrictions: z.boolean().optional(),
+});
+
+// PATCH /admin/restaurants/:id/portal-permissions — HQ_ADMIN/SUPER_ADMIN only
+router.patch('/restaurants/:id/portal-permissions', validate(PortalPermissionsSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false }, select: { groupId: true } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+    if (req.auth.role !== 'SUPER_ADMIN') {
+      await assertGroupAccess(req, restaurant.groupId);
+    }
+    const body = req.body as z.infer<typeof PortalPermissionsSchema>;
+    const perms = await prisma.restaurantPortalPermissions.upsert({
+      where:  { restaurantId: p(req, 'id') },
+      update: { ...body },
+      create: {
+        restaurantId:                p(req, 'id'),
+        canManageOperatingHours:     body.canManageOperatingHours     ?? false,
+        canManageOnlineRestrictions: body.canManageOnlineRestrictions ?? false,
+      },
+    });
+    res.json(perms);
+  } catch (err) { next(err); }
+});
+
 const UpdateSettingsSchema = z.object({
   defaultTurnMinutes:        z.number().int().min(15).max(480).optional(),
   slotIntervalMinutes:       z.number().int().optional(),
