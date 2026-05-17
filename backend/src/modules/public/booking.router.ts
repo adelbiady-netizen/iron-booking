@@ -8,6 +8,7 @@ import { parseTimeOnDate, formatTime } from '../../engine/availability';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { config } from '../../config';
+import { eventBus } from '../../lib/eventBus';
 
 const router = Router();
 
@@ -594,7 +595,6 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       return res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many booking attempts. Please try again in a minute.' } });
     }
 
-    console.log('[reserve] incoming lang:', req.body?.lang);
     const parsed = ReserveSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid booking data.' } });
@@ -689,6 +689,9 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       }
       throw err;
     }
+
+    // Notify host dashboard immediately — same pattern as reservations/router.ts
+    eventBus.emit('floor_updated', { restaurantId: restaurant.id });
 
     // ── Post-booking side effects (all non-fatal) ─────────────────────────────
 
