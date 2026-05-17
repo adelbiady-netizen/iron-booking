@@ -4,6 +4,13 @@ import { useT } from '../i18n/useT';
 import type { SseStatus } from '../hooks/useServerEvents';
 import LanguageSwitcher from './LanguageSwitcher';
 
+// 30-minute time slots covering the full day — guarantees 24h display regardless of browser locale
+const TIME_SLOTS_24H: string[] = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2);
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${String(h).padStart(2, '0')}:${m}`;
+});
+
 interface Props {
   date: string;
   time: string;
@@ -123,12 +130,16 @@ export default function TopBar({
       {/* Time navigation */}
       <div className="flex items-center gap-1">
         <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-        <input
-          type="time"
+        <select
           value={time}
           onChange={e => onTimeChange(e.target.value)}
           className="bg-iron-bg border border-iron-border/50 rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green/50 transition-colors cursor-pointer min-w-[7.5rem]"
-        />
+          style={{ colorScheme: 'dark' } as React.CSSProperties}
+        >
+          {TIME_SLOTS_24H.map(slot => (
+            <option key={slot} value={slot}>{slot}</option>
+          ))}
+        </select>
         <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
       </div>
 

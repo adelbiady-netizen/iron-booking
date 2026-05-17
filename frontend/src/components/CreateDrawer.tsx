@@ -650,6 +650,7 @@ export default function CreateDrawer({
                       setResDate(d);
                       onDateTimeChange?.(d, resTime);
                     }}
+                    lang={locale === 'he' ? 'he' : undefined}
                     required
                   />
                 </div>
