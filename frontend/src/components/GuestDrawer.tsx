@@ -437,8 +437,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
         }),
         duration:   editDuration,
-        guestNotes: editNotes.trim() || undefined,
-        hostNotes:  editHostNotes.trim() || undefined,
+        // Only include when changed; empty string clears an existing note
+        ...(editNotes.trim() !== (res.guestNotes ?? '')         ? { guestNotes: editNotes.trim() }     : {}),
+        ...(editHostNotes.trim() !== (res.hostNotes ?? '')      ? { hostNotes:  editHostNotes.trim() } : {}),
       }),
       T.guestDrawer.toastUpdated
     );
