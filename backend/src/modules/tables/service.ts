@@ -3,7 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { addMinutes } from 'date-fns';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, reservationOverlapsSlotTime, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES, MAP_VISIBILITY_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -77,8 +77,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotTime);
 
     // Gap analysis: next non-SEATED reservation starting strictly after slotTime.
-    // Used for canFitIncomingTurn and exposed in debug fields so the frontend
-    // scoring layer can gate "Best fit" without trusting liveStatus alone.
+    // Used by the frontend scoring layer to gate "Best fit" on canFitIncomingTurn.
     const nextFutureRes = reservations
       .filter(r => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
@@ -115,7 +114,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         effectiveGapMinutes,
         requiredGapMinutes,
         canFitIncomingTurn,
-        _debug: { reason: 'blocked', blockId: block.id, slotTime: slotTime.toISOString(), realNowVirtual: realNowVirtual.toISOString(), bufferMinutes, defaultDuration },
       };
     }
 
@@ -135,22 +133,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       const seatedClearedBuffer = seatedScheduledEnd <= addMinutes(slotTime, -bufferMinutes);
       // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.
       const releasedForPlanning = seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
-
-      const seatedDebug = {
-        seatedResId: seated.id,
-        seatedResTime: seated.time,
-        seatedResDuration: seated.duration,
-        seatedResStatus: seated.status,
-        seatedResTableId: seated.tableId,
-        seatedScheduledEnd: seatedScheduledEnd.toISOString(),
-        seatedClearedBuffer,
-        releasedForPlanning,
-        slotTime: slotTime.toISOString(),
-        realNowVirtual: realNowVirtual.toISOString(),
-        slotMinusRealNowMins: Math.round((slotTime.getTime() - realNowVirtual.getTime()) / 60_000),
-        bufferMinutes,
-        defaultDuration,
-      };
 
       if (!releasedForPlanning) {
         const seatedAtMs    = new Date(seated.seatedAt!).getTime();
@@ -172,7 +154,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
           effectiveGapMinutes,
           requiredGapMinutes,
           canFitIncomingTurn,
-          _debug: { reason: 'occupied', ...seatedDebug },
         };
       }
       // releasedForPlanning=true: fall through to upcoming / AVAILABLE logic.
@@ -180,8 +161,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // reappear there; the next PENDING/CONFIRMED reservation (if any) surfaces
       // correctly as RESERVED or RESERVED_SOON.
     }
-
-    const seatedNotFound = !seated;
 
     // Find all non-SEATED reservations that should mark this table non-AVAILABLE.
     // Forward cap = defaultDuration + bufferMinutes so the board agrees exactly
@@ -217,19 +196,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         effectiveGapMinutes,
         requiredGapMinutes,
         canFitIncomingTurn,
-        _debug: {
-          reason: 'upcoming',
-          seatedNotFound,
-          seatedReleasedForPlanning: seated ? true : null,
-          upcomingResId: nextRes.id,
-          upcomingResTime: nextRes.time,
-          minutesUntil,
-          forwardCapMinutes: defaultDuration + bufferMinutes,
-          slotTime: slotTime.toISOString(),
-          realNowVirtual: realNowVirtual.toISOString(),
-          bufferMinutes,
-          defaultDuration,
-        },
       };
     }
 
@@ -243,26 +209,6 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       effectiveGapMinutes,
       requiredGapMinutes,
       canFitIncomingTurn,
-      _debug: {
-        reason: 'available',
-        seatedNotFound,
-        seatedReleasedForPlanning: seated ? true : null,
-        seatedResId: seated?.id ?? null,
-        seatedResTime: seated?.time ?? null,
-        seatedScheduledEnd: seated
-          ? addMinutes(parseTimeOnDate(date, seated.time), seated.duration).toISOString()
-          : null,
-        seatedClearedBuffer: seated
-          ? addMinutes(parseTimeOnDate(date, seated.time), seated.duration) <= addMinutes(slotTime, -bufferMinutes)
-          : null,
-        slotTime: slotTime.toISOString(),
-        realNowVirtual: realNowVirtual.toISOString(),
-        slotMinusRealNowMins: Math.round((slotTime.getTime() - realNowVirtual.getTime()) / 60_000),
-        bufferMinutes,
-        defaultDuration,
-        forwardCapMinutes: defaultDuration + bufferMinutes,
-        upcomingChecked: reservations.filter(r => r.tableId === table.id || r.combinedTableIds.includes(table.id)).length,
-      },
     };
   });
 }
