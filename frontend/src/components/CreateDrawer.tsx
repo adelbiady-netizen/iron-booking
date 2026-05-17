@@ -6,7 +6,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
 import { getDefaultDuration } from '../utils/duration';
-import LocalizedDateInput from './LocalizedDateInput';
+import MiniCalendar from './MiniCalendar';
 
 type Mode = 'reservation' | 'walkin';
 
@@ -100,7 +100,7 @@ export default function CreateDrawer({
   onDateTimeChange,
 }: Props) {
   const T = useT();
-  const { locale } = useLocale();
+  const { locale, intlLocale } = useLocale();
   const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : initialMode);
 
   // Reservation fields
@@ -469,6 +469,23 @@ export default function CreateDrawer({
     await doSubmitWalkIn(seatNow);
   }
 
+  // ── Booking subtext: time · party · date ─────────────────────────────────────
+  function bookingSubtext(): string {
+    if (!resDate || !resTime) return '';
+    const parts = resDate.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return '';
+    const fmtDate = new Intl.DateTimeFormat(intlLocale, {
+      weekday: intlLocale === 'he-IL' ? 'long' : 'short',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(parts[0], parts[1] - 1, parts[2]));
+    const guestW = locale === 'he'
+      ? (resParty === 1 ? 'אורח' : 'אורחים')
+      : (resParty === 1 ? 'guest' : 'guests');
+    return `${resTime} · ${resParty} ${guestW} · ${fmtDate}`;
+  }
+
   // ── Confirm button label ──────────────────────────────────────────────────────
   // Shows which table(s) will be used so the host can confirm at a glance.
   function confirmLabel(): string {
@@ -641,16 +658,14 @@ export default function CreateDrawer({
                 </div>
 
                 {/* Date */}
-                <div>
+                <div className="col-span-2">
                   <Label>{T.createDrawer.fieldDate}</Label>
-                  <LocalizedDateInput
+                  <MiniCalendar
                     value={resDate}
                     onValueChange={d => {
                       setResDate(d);
                       onDateTimeChange?.(d, resTime);
                     }}
-                    className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
-                    required
                   />
                 </div>
 
@@ -969,9 +984,12 @@ export default function CreateDrawer({
                   type="submit"
                   form="create-res-form"
                   disabled={busy || (suggestBusy && !resTable)}
-                  className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-3 rounded-lg text-sm transition-colors"
+                  className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors leading-tight"
                 >
-                  {confirmLabel()}
+                  <span className="block">{confirmLabel()}</span>
+                  {!busy && bookingSubtext() && (
+                    <span className="block text-[10px] font-normal opacity-75 mt-0.5">{bookingSubtext()}</span>
+                  )}
                 </button>
               )}
             </div>
