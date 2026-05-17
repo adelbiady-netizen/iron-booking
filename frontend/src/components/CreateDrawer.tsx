@@ -231,6 +231,11 @@ export default function CreateDrawer({
     return () => clearTimeout(t);
   }, [wiPhone]);
 
+  // Sync board to drawer's initial time on mount (component is conditionally
+  // rendered, so mount == drawer open).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onDateTimeChange?.(resDate, resTime); }, []);
+
   // ── Auto-allocation + suggestion fetch ───────────────────────────────────────
   // Fires when booking params change. Fetches suggestions + best result in parallel.
   // When params change (new date/time/party), clears the override so the system
