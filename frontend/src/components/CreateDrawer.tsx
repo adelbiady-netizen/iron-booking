@@ -1339,26 +1339,20 @@ export default function CreateDrawer({
       </aside>
 
       {wiConflictWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
-            <p className="text-sm font-medium text-iron-text mb-1">Upcoming reservation</p>
-            <p className="text-sm text-iron-muted mb-5">
-              {wiConflictWarning.tableName} has a reservation at {wiConflictWarning.conflictTime}.
-              Seat this walk-in anyway?
-            </p>
-            <div className="flex gap-3 justify-end">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+          <div
+            className="bg-iron-elevated border border-iron-border/50 rounded-xl p-5 mx-4 w-72 space-y-3"
+            style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.40)' }}
+          >
+            <div>
+              <p className="text-iron-text text-sm font-semibold">{wiConflictWarning.tableName} is reserved</p>
+              <p className="text-iron-muted text-xs mt-0.5">
+                Upcoming reservation at {wiConflictWarning.conflictTime}. Seating this walk-in may displace it.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
               <button
-                className="px-4 py-2 text-sm rounded-lg border border-iron-border text-iron-muted hover:bg-iron-surface transition-colors"
-                onClick={() => {
-                  const { unseatedReservation } = wiConflictWarning;
-                  setWiConflictWarning(null);
-                  onCreated(unseatedReservation);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 text-sm rounded-lg bg-iron-accent text-white hover:opacity-90 transition-opacity"
+                className="w-full text-left text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors"
                 onClick={async () => {
                   const { unseatedReservation, reservationId, tableId, combinedTableIds } = wiConflictWarning;
                   try {
@@ -1373,6 +1367,16 @@ export default function CreateDrawer({
                 }}
               >
                 Seat anyway
+              </button>
+              <button
+                className="text-xs text-iron-muted hover:text-iron-text py-1.5 transition-colors"
+                onClick={() => {
+                  const { unseatedReservation } = wiConflictWarning;
+                  setWiConflictWarning(null);
+                  onCreated(unseatedReservation);
+                }}
+              >
+                Cancel
               </button>
             </div>
           </div>
