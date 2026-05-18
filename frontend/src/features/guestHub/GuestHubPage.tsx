@@ -618,14 +618,14 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
             fetchPriority="high"
             decoding="async"
             className="gh-hero-img"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 65%' }}
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         )}
         {/* Vignette — darkens edges for cinematic depth */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(ellipse at 50% 40%, transparent 25%, rgba(12,10,9,0.60) 100%)',
+          background: 'radial-gradient(ellipse at 50% 40%, transparent 25%, rgba(12,10,9,0.45) 100%)',
           pointerEvents: 'none',
         }} />
         {/* Accent glow — warm or cool centre bloom per preset, animated breathe */}
@@ -647,10 +647,10 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
         }} />
         {/* Grain texture — atmospheric film grain at near-zero opacity */}
         <div className="gh-grain" />
-        {/* Bottom fade — reveals more of the image while keeping text readable */}
+        {/* Bottom fade — tight text-protection zone, exposes upper image atmosphere */}
         <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '78%',
-          background: `linear-gradient(to bottom, transparent 0%, ${C.bg}88 40%, ${C.bg}D0 62%, ${C.bg} 100%)`,
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '52%',
+          background: `linear-gradient(to bottom, transparent 0%, ${C.bg}60 42%, ${C.bg}C8 68%, ${C.bg} 100%)`,
           pointerEvents: 'none',
         }} />
         {/* Restaurant identity — centered column composition */}
@@ -683,7 +683,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           <h1 style={{
             fontSize: diningMode ? 'clamp(22px, 5.5vw, 30px)' : 'clamp(32px, 8.5vw, 46px)',
             fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, margin: 0,
-            textShadow: '0 2px 20px rgba(0,0,0,0.75)',
+            textShadow: '0 2px 24px rgba(0,0,0,0.90), 0 1px 6px rgba(0,0,0,0.60)',
           }}>
             {vm.name}
           </h1>
@@ -693,7 +693,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               color: 'rgba(201,169,110,0.78)',
               letterSpacing: '0.10em', lineHeight: 1.4, marginBottom: 0,
               fontWeight: 600, textTransform: 'uppercase',
-              textShadow: '0 1px 8px rgba(0,0,0,0.55)',
+              textShadow: '0 1px 12px rgba(0,0,0,0.80)',
             }}>
               {vm.cuisine}
             </p>
@@ -704,7 +704,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               color: 'rgba(240,235,227,0.82)',
               letterSpacing: '0.025em', lineHeight: 1.55, marginBottom: 0,
               fontWeight: 400, fontStyle: 'italic',
-              textShadow: '0 1px 10px rgba(0,0,0,0.60)',
+              textShadow: '0 1px 14px rgba(0,0,0,0.82)',
             }}>
               {vm.tagline}
             </p>
