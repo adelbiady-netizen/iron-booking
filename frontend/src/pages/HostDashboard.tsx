@@ -4,7 +4,7 @@ import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
-import { arrivalState, minutesUntilRes, isLiveServiceView } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased, FLOOR_RELEASE_MINUTES } from '../utils/arrival';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import TopBar from '../components/TopBar';
@@ -325,6 +325,30 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // advancing the clock forward (even within the ±90 min window) suppresses
   // arrival alerts rather than flooding the panel with false LATE/NO_SHOW badges.
   const isLiveView = liveMode && isLiveServiceView(date, time);
+
+  // Floor-release filter: reservations 50+ minutes past their booking time no longer
+  // block the table. Strip them from upcomingReservations so the table shows AVAILABLE
+  // on the floor map. The sidebar "needs action" section handles these separately.
+  // Only active in live view — never in browse/planning mode.
+  const displayFloorTables = useMemo(() => {
+    if (!isLiveView) return floorTables;
+    return floorTables.map(t => {
+      if (t.liveStatus !== 'RESERVED_SOON' && t.liveStatus !== 'RESERVED') return t;
+      const active = t.upcomingReservations.filter(
+        r => minutesUntilRes(r.time, time) > -FLOOR_RELEASE_MINUTES,
+      );
+      if (active.length === t.upcomingReservations.length) return t;
+      if (active.length === 0) {
+        return { ...t, liveStatus: 'AVAILABLE' as const, upcomingReservations: [] };
+      }
+      const firstMins = minutesUntilRes(active[0].time, time);
+      return {
+        ...t,
+        liveStatus: (firstMins <= 15 ? 'RESERVED_SOON' : 'RESERVED') as FloorTable['liveStatus'],
+        upcomingReservations: active,
+      };
+    });
+  }, [floorTables, isLiveView, time]);
 
   // Derive live-synced objects from ID-based quickTable state.
   // Because these are computed from the live arrays they update automatically
@@ -768,6 +792,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (!isLiveView) return [];
     return reservations
       .filter(r => r.status === 'CONFIRMED')
+      .filter(r => !isFloorReleased(r.time, r.status, time)) // floor-released → sidebar "needs action" only
       .flatMap(r => {
         const state = arrivalState(r.time, r.status, time);
         if (state !== 'LATE' && state !== 'NO_SHOW_RISK') return [];
@@ -1483,7 +1508,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
         <FloorBoard
-          tables={floorTables}
+          tables={displayFloorTables}
           floorObjs={floorObjs}
           selectedId={selectedRes?.id ?? null}
           onSelect={handleSelect}

@@ -199,6 +199,9 @@ export const T = {
     reorganizeRemovedFrom: (table: string) => `Removed from ${table}`,
     reorganizeAssign:    'Assign table',
     reorganizeOpen:      'Open',
+    overdueHeader:    (n: number) => `Overdue · needs action (${n})`,
+    overdueMinutes:   (n: number) => `${n}m late`,
+    overdueOpen:      'Open',
   },
 
   // ── Waitlist assign mode ───────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
-import { arrivalState, minutesUntilRes, isStaleReservation } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased } from '../utils/arrival';
 import { normalizeTime } from '../utils/time';
 
 // Unified name + phone search — works for "052", "1234", "Yossi", "lev".
@@ -238,6 +238,53 @@ export default function ReservationPanel({
       ) : (
         <>
           <div className="flex-1 overflow-y-auto">
+            {/* Overdue section — CONFIRMED/PENDING reservations 50+ min past their time
+                that still have a table assigned. Floor map released these already;
+                host must manually mark no-show or recover. */}
+            {(() => {
+              if (!isLiveView || !nowTime) return null;
+              const safeNow = nowTime;
+              const items = reservations
+                .filter(r => ['PENDING', 'CONFIRMED'].includes(r.status) && r.table)
+                .filter(r => isFloorReleased(r.time, r.status, safeNow))
+                .sort((a, b) => a.time.localeCompare(b.time));
+              if (items.length === 0) return null;
+              return (
+                <div className="border-b border-red-500/20 bg-red-900/[0.10]">
+                  <div className="px-3.5 py-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse shrink-0" />
+                    <span className="text-red-400 text-xs font-semibold uppercase tracking-widest flex-1">
+                      {T.reservationPanel.overdueHeader(items.length)}
+                    </span>
+                  </div>
+                  {items.map(r => {
+                    const minsLate = Math.abs(minutesUntilRes(r.time, safeNow));
+                    return (
+                      <div key={r.id} className="px-3.5 py-2.5 border-t border-red-500/10 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-iron-text text-sm font-semibold truncate">{r.guestName}</span>
+                            <span className="text-iron-muted text-xs shrink-0 tabular-nums">{r.time}</span>
+                            <span className="text-iron-muted text-xs shrink-0">{T.common.guests(r.partySize)}</span>
+                          </div>
+                          <p className="text-red-400/65 text-[10px] mt-0.5">
+                            {r.table?.name} · {T.reservationPanel.overdueMinutes(minsLate)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onSelect(r)}
+                          className="text-xs font-medium px-2.5 py-1 rounded-md border border-red-500/40 text-red-400 hover:bg-red-500/15 transition-colors shrink-0"
+                        >
+                          {T.reservationPanel.overdueOpen}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Reorganize queue — shown above normal list when reservations need reassignment */}
             {reorganizeQueue && reorganizeQueue.length > 0 && (
               <div className="border-b border-amber-500/20 bg-amber-500/5">
