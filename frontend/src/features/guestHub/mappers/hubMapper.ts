@@ -74,6 +74,7 @@ interface ApiSocialLink {
 interface ApiBranding {
   name: string;
   tagline: string | null;
+  cuisine: string | null;
   phone: string | null;
   address: string | null;
   directionsUrl: string | null;
@@ -233,6 +234,7 @@ export function mapGuestHub(api: ApiGuestHub): GuestHubViewModel {
     slug:          api.slug,
     name:          api.branding?.name ?? api.slug,
     tagline:       api.branding?.tagline ?? null,
+    cuisine:       api.branding?.cuisine ?? null,
     phone:         api.branding?.phone ?? null,
     address:       api.branding?.address ?? null,
     directionsUrl: api.branding?.directionsUrl ?? null,

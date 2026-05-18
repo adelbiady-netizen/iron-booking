@@ -329,7 +329,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
-  const [brandingForm,   setBrandingForm]   = useState({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
+  const [brandingForm,   setBrandingForm]   = useState({ cuisine: '', primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
   const [brandingBusy,   setBrandingBusy]   = useState(false);
   const [brandingError,  setBrandingError]  = useState<string | null>(null);
   const [logoPreview,    setLogoPreview]    = useState<string | null>(null);
@@ -411,7 +411,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
-      setBrandingForm({ primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '', websiteUrl: d.websiteUrl ?? '', instagramUrl: d.instagramUrl ?? '', googleMapsUrl: d.googleMapsUrl ?? '', wazeUrl: d.wazeUrl ?? '' });
+      setBrandingForm({ cuisine: d.cuisine ?? '', primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '', websiteUrl: d.websiteUrl ?? '', instagramUrl: d.instagramUrl ?? '', googleMapsUrl: d.googleMapsUrl ?? '', wazeUrl: d.wazeUrl ?? '' });
       if (d.operatingHours?.length === 7) {
         setScheduleRows(d.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -673,6 +673,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setBrandingError(null);
     try {
       const result = await api.admin.restaurants.updateBranding(selectedId, {
+        cuisine:           brandingForm.cuisine           || null,
         primaryColor:      brandingForm.primaryColor      || null,
         accentColor:       brandingForm.accentColor       || null,
         publicThemePreset: brandingForm.publicThemePreset || null,
@@ -1506,6 +1507,24 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <section>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Brand Identity</p>
 
+                  {/* Cuisine */}
+                  <div className="mb-6">
+                    <p className="text-xs text-iron-text font-medium mb-0.5">Cuisine type</p>
+                    <p className="text-[11px] text-iron-muted mb-2">Shown on the Guest Hub under the restaurant name. Use a short descriptor like "Italian · Fine Dining" or "Mediterranean · Casual".</p>
+                    <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <input
+                        value={brandingForm.cuisine}
+                        onChange={e => setBrandingForm(f => ({ ...f, cuisine: e.target.value }))}
+                        placeholder="e.g. Italian · Fine Dining"
+                        maxLength={80}
+                        className="flex-1 bg-transparent text-sm text-iron-text placeholder-iron-muted/30 focus:outline-none"
+                      />
+                      {brandingForm.cuisine && (
+                        <span className="text-iron-muted text-[10px] tabular-nums shrink-0">{brandingForm.cuisine.length}/80</span>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Logo */}
                   <div className="flex items-start gap-4 mb-6">
                     <div
@@ -1845,7 +1864,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
                 onClick={() => {
-                  setBrandingForm({ primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
+                  setBrandingForm({ cuisine: '', primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
                   setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setCoverPreview(p => { if (p) URL.revokeObjectURL(p); return null; });
                   setBrandingError(null);

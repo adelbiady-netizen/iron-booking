@@ -607,6 +607,17 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           }}>
             {vm.name}
           </h1>
+          {!diningMode && vm.cuisine && (
+            <p style={{
+              marginTop: 9, fontSize: 12,
+              color: 'rgba(201,169,110,0.78)',
+              letterSpacing: '0.10em', lineHeight: 1.4, marginBottom: 0,
+              fontWeight: 600, textTransform: 'uppercase',
+              textShadow: '0 1px 8px rgba(0,0,0,0.55)',
+            }}>
+              {vm.cuisine}
+            </p>
+          )}
           {!diningMode && vm.tagline && (
             <p style={{
               marginTop: 10, fontSize: 15,

@@ -495,6 +495,7 @@ router.post('/restaurants/:id/whatsapp/test', superAdminOnly, async (req: Reques
 });
 
 const UpdateBrandingSchema = z.object({
+  cuisine:           z.string().max(80).nullable().optional(),
   primaryColor:      z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   accentColor:       z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   publicThemePreset: z.enum(['luxury','casual','family','nightlife','minimal','fineDining','mediterranean','italiano']).nullable().optional(),
@@ -520,6 +521,7 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
     const updated = await prisma.restaurant.update({
       where: { id: p(req, 'id') },
       data: {
+        cuisine:           req.body.cuisine           ?? null,
         primaryColor:      req.body.primaryColor      ?? null,
         accentColor:       req.body.accentColor       ?? null,
         publicThemePreset: req.body.publicThemePreset ?? null,
@@ -539,6 +541,7 @@ router.patch('/restaurants/:id/branding', superAdminOnly, validate(UpdateBrandin
     });
     res.json({
       id:                    updated.id,
+      cuisine:               updated.cuisine,
       primaryColor:          updated.primaryColor,
       accentColor:           updated.accentColor,
       publicThemePreset:     updated.publicThemePreset,

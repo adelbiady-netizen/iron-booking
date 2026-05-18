@@ -207,6 +207,7 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   ultramsgInstanceId: string | null;
   whatsappPhone:      string | null;
   tokenSet:           boolean;
+  cuisine:            string | null;
   primaryColor:       string | null;
   accentColor:        string | null;
   publicThemePreset:  string | null;

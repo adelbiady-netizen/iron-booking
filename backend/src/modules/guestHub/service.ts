@@ -100,6 +100,7 @@ async function queryHub(where: { slug: string; isActive?: true }, showHidden = f
 function shapeHub(
   hub: NonNullable<Awaited<ReturnType<typeof queryHub>>>,
   useDraft = false,
+  restaurantCuisine: string | null = null,
 ): GuestHubDto {
   // Public route uses published snapshot with draft fallback.
   // Preview route uses draft directly.
@@ -114,6 +115,7 @@ function shapeHub(
     ? {
         name:          brandingSource.name,
         tagline:       brandingSource.tagline,
+        cuisine:       restaurantCuisine,
         phone:         brandingSource.phone,
         address:       brandingSource.address,
         directionsUrl: 'directionsUrl' in brandingSource ? brandingSource.directionsUrl : null,
@@ -179,13 +181,20 @@ function shapeHub(
   return { slug: hub.slug, branding, menus, featuredDishes, promotions, events, socialLinks };
 }
 
+async function fetchRestaurantCuisine(restaurantId: string | null): Promise<string | null> {
+  if (!restaurantId) return null;
+  const r = await prisma.restaurant.findUnique({ where: { id: restaurantId }, select: { cuisine: true } });
+  return r?.cuisine ?? null;
+}
+
 export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
   const hub = await queryHub({ slug, isActive: true });
   if (!hub) return null;
   // Only PUBLISHED hubs are publicly visible. DRAFT and INACTIVE hubs return 404.
   // Existing hubs received publicStatus=PUBLISHED as default during schema migration.
   if (hub.publicStatus !== 'PUBLISHED') return null;
-  return shapeHub(hub, false);
+  const cuisine = await fetchRestaurantCuisine(hub.restaurantId);
+  return shapeHub(hub, false, cuisine);
 }
 
 // Used by the authenticated preview endpoint — reads draft tables, no isActive filter,
@@ -193,7 +202,8 @@ export async function getHubBySlug(slug: string): Promise<GuestHubDto | null> {
 export async function getHubDraftBySlug(slug: string): Promise<GuestHubDto | null> {
   const hub = await queryHub({ slug }, true);
   if (!hub) return null;
-  return shapeHub(hub, true);
+  const cuisine = await fetchRestaurantCuisine(hub.restaurantId);
+  return shapeHub(hub, true, cuisine);
 }
 
 // Resolves a QR token to the hub slug. Token is stable even if the slug changes.

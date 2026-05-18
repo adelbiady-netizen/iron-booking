@@ -66,6 +66,7 @@ export interface HubSocialLinkDto {
 export interface HubBrandingDto {
   name: string;
   tagline: string | null;
+  cuisine: string | null;
   phone: string | null;
   address: string | null;
   directionsUrl: string | null;
