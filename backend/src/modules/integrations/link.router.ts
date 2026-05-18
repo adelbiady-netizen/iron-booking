@@ -59,11 +59,19 @@ router.get('/call', (req, res) => {
     ? LINK_GROUP_ROUTES[groupStr]
     : undefined;
 
-  const restaurantLookup = groupRoute
-    ? prisma.restaurant.findFirst({
-        where:  { name: groupRoute.restaurantName },
-        select: { id: true },
-      })
+  // Fix B2: for known groups, chain a DNIS fallback if the name lookup misses.
+  // Protects against minor DB name drift without adding a new routing abstraction.
+  const restaurantLookup: Promise<{ id: string } | null> = groupRoute
+    ? prisma.restaurant
+        .findFirst({ where: { name: groupRoute.restaurantName }, select: { id: true } })
+        .then(r => {
+          if (r) return r;
+          if (calledStr) {
+            console.warn('[link/call] group', groupStr, '→ name lookup missed, trying DNIS fallback on', calledStr);
+            return prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } });
+          }
+          return null;
+        })
     : calledStr
       ? prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } })
       : Promise.resolve(null);
@@ -118,7 +126,7 @@ router.get('/call', (req, res) => {
     console.log('[link/call] Emitting incoming_call event:', log.phone);
     eventBus.emit('incoming_call', {
       phone:        log.phone,
-      restaurantId: log.restaurantId ?? null,
+      restaurantId: log.restaurantId ?? undefined, // Fix B1: undefined broadcasts; null was silently dropped by SSE relay
       createdAt:    log.createdAt.toISOString(),
     });
   }).catch((err: unknown) => {
