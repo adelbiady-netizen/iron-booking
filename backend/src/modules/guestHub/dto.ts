@@ -67,6 +67,8 @@ export interface HubBrandingDto {
   name: string;
   tagline: string | null;
   about: string | null;
+  estYear: number | null;
+  features: string[];
   cuisine: string | null;
   phone: string | null;
   address: string | null;

@@ -111,6 +111,16 @@ function getSocialIcon(platform: string) {
   }
 }
 
+// ─── Feature vocabulary — keys must match backend VALID_FEATURES set ─────────
+const FEATURE_LABELS: Record<string, string> = {
+  OUTDOOR_SEATING: 'Outdoor Seating',
+  PRIVATE_DINING:  'Private Dining',
+  LIVE_MUSIC:      'Live Music',
+  VEGAN_OPTIONS:   'Vegan Options',
+  ROOFTOP:         'Rooftop',
+  CHEFS_CHOICE:    "Chef's Choice",
+};
+
 // ─── Section label — gold uppercase 11px eyebrow text ─────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   const C = useC();
@@ -629,6 +639,16 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               {vm.tagline}
             </p>
           )}
+          {!diningMode && vm.estYear && (
+            <p style={{
+              marginTop: 8, fontSize: 11,
+              color: 'rgba(240,235,227,0.42)',
+              letterSpacing: '0.10em', lineHeight: 1.4, marginBottom: 0,
+              fontWeight: 500, textTransform: 'uppercase',
+            }}>
+              Est. {vm.estYear}
+            </p>
+          )}
         </div>
       </div>
 
@@ -806,6 +826,24 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
                   Directions
                 </a>
               )}
+            </div>
+          )}
+
+          {/* ── Feature trust signals — muted pills, hidden in diningMode ──────── */}
+          {!diningMode && vm.features.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+              {vm.features.map(f => (
+                <span
+                  key={f}
+                  style={{
+                    fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+                    textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20,
+                    background: C.elevated, border: `1px solid ${C.border}`, color: C.muted,
+                  }}
+                >
+                  {FEATURE_LABELS[f] ?? f}
+                </span>
+              ))}
             </div>
           )}
 

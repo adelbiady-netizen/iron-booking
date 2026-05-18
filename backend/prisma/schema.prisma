@@ -625,6 +625,8 @@ model GuestHubBranding {
   name          String
   tagline       String?
   about         String?  // short identity paragraph shown on Guest Hub (max 250 chars)
+  estYear       Int?     // establishment year, e.g. 2018 — displayed as "Est. 2018" in hero
+  features      String[] @default([]) // fixed vocab: OUTDOOR_SEATING | PRIVATE_DINING | LIVE_MUSIC | VEGAN_OPTIONS | ROOFTOP | CHEFS_CHOICE
   phone         String?
   address       String?
   directionsUrl String?
@@ -785,6 +787,8 @@ model GuestHubPublishedBranding {
   name          String
   tagline       String?
   about         String?
+  estYear       Int?
+  features      String[] @default([])
   phone         String?
   address       String?
   logoUrl       String?

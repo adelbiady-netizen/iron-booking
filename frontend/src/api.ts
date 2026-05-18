@@ -429,14 +429,14 @@ export const api = {
           id: string; slug: string; restaurantId: string | null; isActive: boolean;
           publicStatus: 'DRAFT' | 'PUBLISHED' | 'INACTIVE';
           lastPublishedAt: string | null; draftUpdatedAt: string | null;
-          branding: { id: string; name: string; tagline: string | null; about: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; primaryColor: string | null; themePreset: string | null } | null;
+          branding: { id: string; name: string; tagline: string | null; about: string | null; estYear: number | null; features: string[]; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; primaryColor: string | null; themePreset: string | null } | null;
           socialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
-          publishedBranding: { id: string; name: string; tagline: string | null; about: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; primaryColor: string | null; themePreset: string | null } | null;
+          publishedBranding: { id: string; name: string; tagline: string | null; about: string | null; estYear: number | null; features: string[]; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; primaryColor: string | null; themePreset: string | null } | null;
           publishedSocialLinks: Array<{ id: string; platform: string; handle: string; sortOrder: number }>;
           qrTokens: Array<{ id: string; token: string; label: string | null; isActive: boolean; metadata: Record<string, unknown> | null }>;
         }>(`/admin/hub/${encodeURIComponent(restaurantId)}`),
-      updateBranding: (restaurantId: string, body: { name: string; tagline: string | null; about?: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; themePreset?: string | null }) =>
-        request<{ id: string; name: string; tagline: string | null; about: string | null; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; primaryColor: string | null; themePreset: string | null }>(
+      updateBranding: (restaurantId: string, body: { name: string; tagline: string | null; about?: string | null; estYear?: number | null; features?: string[]; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; themePreset?: string | null }) =>
+        request<{ id: string; name: string; tagline: string | null; about: string | null; estYear: number | null; features: string[]; phone: string | null; address: string | null; logoUrl: string | null; coverImageUrl: string | null; primaryColor: string | null; themePreset: string | null }>(
           `/admin/hub/${encodeURIComponent(restaurantId)}/branding`,
           { method: 'PATCH', body: JSON.stringify(body) }
         ),

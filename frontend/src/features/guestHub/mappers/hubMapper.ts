@@ -75,6 +75,8 @@ interface ApiBranding {
   name: string;
   tagline: string | null;
   about: string | null;
+  estYear: number | null;
+  features: string[];
   cuisine: string | null;
   phone: string | null;
   address: string | null;
@@ -236,6 +238,8 @@ export function mapGuestHub(api: ApiGuestHub): GuestHubViewModel {
     name:          api.branding?.name ?? api.slug,
     tagline:       api.branding?.tagline ?? null,
     about:         api.branding?.about   ?? null,
+    estYear:       api.branding?.estYear  ?? null,
+    features:      api.branding?.features ?? [],
     cuisine:       api.branding?.cuisine ?? null,
     phone:         api.branding?.phone ?? null,
     address:       api.branding?.address ?? null,

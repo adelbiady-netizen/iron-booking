@@ -18,6 +18,8 @@ interface HubBranding {
   name: string;
   tagline: string | null;
   about: string | null;
+  estYear: number | null;
+  features: string[];
   phone: string | null;
   address: string | null;
   logoUrl: string | null;
@@ -65,10 +67,21 @@ const PRESET_OPTIONS = [
   { id: 'SLATE',    label: 'Slate',    swatch: '#8AAFC8', bg: '#0A0C10', description: 'Modern urban precision · cool neutral',     useCase: 'Contemporary restaurants · Michelin dining',   recommendation: 'Best for modern sushi & contemporary concepts' },
 ] as const;
 
+const FEATURE_OPTIONS = [
+  { id: 'OUTDOOR_SEATING', label: 'Outdoor Seating' },
+  { id: 'PRIVATE_DINING',  label: 'Private Dining' },
+  { id: 'LIVE_MUSIC',      label: 'Live Music' },
+  { id: 'VEGAN_OPTIONS',   label: 'Vegan Options' },
+  { id: 'ROOFTOP',         label: 'Rooftop' },
+  { id: 'CHEFS_CHOICE',    label: "Chef's Choice" },
+] as const;
+
 type BrandingForm = {
   name: string;
   tagline: string;
   about: string;
+  estYear: string;      // string in form, parsed to int on save; '' = not set
+  features: string[];
   phone: string;
   address: string;
   logoUrl: string;
@@ -246,7 +259,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
   // Branding edit
   const [editingBranding, setEditingBranding] = useState(false);
-  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', about: '', phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '' });
+  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', about: '', estYear: '', features: [], phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '' });
   const [brandingBusy,    setBrandingBusy]    = useState(false);
   const [brandingErrors,  setBrandingErrors]  = useState<Record<string, string>>({});
   const [brandingError,   setBrandingError]   = useState<string | null>(null);
@@ -387,14 +400,16 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
   function openBrandingEdit() {
     setBrandingForm({
-      name:          hub?.branding?.name          ?? '',
-      tagline:       hub?.branding?.tagline        ?? '',
-      about:         hub?.branding?.about          ?? '',
-      phone:         hub?.branding?.phone          ?? '',
-      address:       hub?.branding?.address        ?? '',
-      logoUrl:       hub?.branding?.logoUrl        ?? '',
-      coverImageUrl: hub?.branding?.coverImageUrl  ?? '',
-      themePreset:   hub?.branding?.themePreset    ?? '',
+      name:          hub?.branding?.name                    ?? '',
+      tagline:       hub?.branding?.tagline                 ?? '',
+      about:         hub?.branding?.about                   ?? '',
+      estYear:       hub?.branding?.estYear?.toString()     ?? '',
+      features:      hub?.branding?.features                ?? [],
+      phone:         hub?.branding?.phone                   ?? '',
+      address:       hub?.branding?.address                 ?? '',
+      logoUrl:       hub?.branding?.logoUrl                 ?? '',
+      coverImageUrl: hub?.branding?.coverImageUrl           ?? '',
+      themePreset:   hub?.branding?.themePreset             ?? '',
     });
     setBrandingErrors({});
     setBrandingError(null);
@@ -413,6 +428,12 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     else if (brandingForm.name.length > 100)   e.name          = 'Max 100 characters';
     if (brandingForm.tagline.length > 200)     e.tagline       = 'Max 200 characters';
     if (brandingForm.about.length > 250)       e.about         = 'Max 250 characters';
+    if (brandingForm.estYear.trim()) {
+      const y = parseInt(brandingForm.estYear, 10);
+      if (isNaN(y) || y < 1850 || y > new Date().getFullYear()) {
+        e.estYear = `Must be a year between 1850 and ${new Date().getFullYear()}`;
+      }
+    }
     if (brandingForm.phone.length > 30)        e.phone         = 'Max 30 characters';
     if (brandingForm.address.length > 300)     e.address       = 'Max 300 characters';
     if (!isValidUrl(brandingForm.logoUrl))     e.logoUrl       = 'Must be a valid https:// URL';
@@ -426,10 +447,15 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     setBrandingBusy(true);
     setBrandingError(null);
     try {
+      const parsedEstYear = brandingForm.estYear.trim()
+        ? parseInt(brandingForm.estYear.trim(), 10)
+        : null;
       const updated = await api.admin.guestHub.updateBranding(restaurantId, {
         name:          brandingForm.name.trim(),
         tagline:       brandingForm.tagline.trim()       || null,
         about:         brandingForm.about.trim()         || null,
+        estYear:       parsedEstYear,
+        features:      brandingForm.features,
         phone:         brandingForm.phone.trim()         || null,
         address:       brandingForm.address.trim()       || null,
         logoUrl:       brandingForm.logoUrl.trim()       || null,
@@ -1001,6 +1027,39 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               </div>
               <p className="text-[10px] text-iron-muted mt-1">Short identity paragraph shown under the restaurant name. Keep it factual and under 2 sentences.</p>
             </Field>
+            <Field label="Est. Year" error={brandingErrors.estYear}>
+              <Inp
+                value={brandingForm.estYear}
+                onChange={e => setBrandingForm(f => ({ ...f, estYear: e.target.value }))}
+                placeholder="e.g. 2018"
+                maxLength={4}
+                inputMode="numeric"
+                pattern="[0-9]*"
+              />
+              <p className="text-[10px] text-iron-muted mt-1">Displayed as "Est. 2018" in the hero. Leave blank to hide.</p>
+            </Field>
+            <div>
+              <label className="block text-xs text-iron-muted mb-2">Venue features</label>
+              <div className="grid grid-cols-2 gap-2">
+                {FEATURE_OPTIONS.map(f => (
+                  <label key={f.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={brandingForm.features.includes(f.id)}
+                      onChange={e => setBrandingForm(prev => ({
+                        ...prev,
+                        features: e.target.checked
+                          ? [...prev.features, f.id]
+                          : prev.features.filter(x => x !== f.id),
+                      }))}
+                      className="w-3.5 h-3.5 rounded accent-iron-green"
+                    />
+                    <span className="text-sm text-iron-text">{f.label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] text-iron-muted mt-2">Selected signals appear as compact tags on your Guest Hub page.</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Phone" error={brandingErrors.phone}>
                 <Inp

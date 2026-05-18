@@ -115,15 +115,17 @@ function shapeHub(
     ? {
         name:          brandingSource.name,
         tagline:       brandingSource.tagline,
-        about:         'about' in brandingSource ? brandingSource.about : null,
+        about:         'about'         in brandingSource ? brandingSource.about         : null,
+        estYear:       'estYear'       in brandingSource ? brandingSource.estYear       : null,
+        features:      'features'      in brandingSource ? brandingSource.features      : [],
         cuisine:       restaurantCuisine,
         phone:         brandingSource.phone,
         address:       brandingSource.address,
         directionsUrl: 'directionsUrl' in brandingSource ? brandingSource.directionsUrl : null,
         logoUrl:       brandingSource.logoUrl,
         coverImageUrl: brandingSource.coverImageUrl,
-        primaryColor:  'primaryColor' in brandingSource ? brandingSource.primaryColor : null,
-        accentColor:   'accentColor'  in brandingSource ? brandingSource.accentColor  : null,
+        primaryColor:  'primaryColor'  in brandingSource ? brandingSource.primaryColor  : null,
+        accentColor:   'accentColor'   in brandingSource ? brandingSource.accentColor   : null,
         // Published snapshot written before themePreset was added will have null.
         // Fall back to draft so existing hubs show the correct theme immediately.
         themePreset:   brandingSource.themePreset ?? hub.branding?.themePreset ?? null,

@@ -16,11 +16,17 @@ const VALID_THEME_PRESETS = new Set([
   'ESPRESSO', 'OLIVE', 'WINE', 'MIDNIGHT', 'SAND', 'SLATE',
 ]);
 
+const VALID_FEATURES = new Set([
+  'OUTDOOR_SEATING', 'PRIVATE_DINING', 'LIVE_MUSIC', 'VEGAN_OPTIONS', 'ROOFTOP', 'CHEFS_CHOICE',
+]);
+
 export interface HubAdminBrandingDto {
   id: string;
   name: string;
   tagline: string | null;
   about: string | null;
+  estYear: number | null;
+  features: string[];
   phone: string | null;
   address: string | null;
   logoUrl: string | null;
@@ -90,6 +96,29 @@ function validateBrandingInput(body: Record<string, unknown>): Record<string, st
 
   const about = typeof body.about === 'string' ? body.about.trim() : '';
   if (about.length > 250) err.about = ['About must be 250 characters or fewer'];
+
+  const estYearRaw = body.estYear;
+  if (estYearRaw !== null && estYearRaw !== undefined) {
+    const estYear = Number(estYearRaw);
+    const currentYear = new Date().getFullYear();
+    if (!Number.isInteger(estYear) || estYear < 1850 || estYear > currentYear) {
+      err.estYear = [`Establishment year must be between 1850 and ${currentYear}`];
+    }
+  }
+
+  const featuresRaw = body.features;
+  if (featuresRaw !== undefined && featuresRaw !== null) {
+    if (!Array.isArray(featuresRaw)) {
+      err.features = ['Features must be an array'];
+    } else if (featuresRaw.length > 8) {
+      err.features = ['Maximum 8 features allowed'];
+    } else {
+      const invalid = (featuresRaw as unknown[]).filter(f => typeof f !== 'string' || !VALID_FEATURES.has(f as string));
+      if (invalid.length > 0) {
+        err.features = [`Invalid feature(s): ${invalid.join(', ')}. Must be one of: ${[...VALID_FEATURES].join(', ')}`];
+      }
+    }
+  }
 
   const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
   if (phone.length > 30) err.phone = ['Phone must be 30 characters or fewer'];
@@ -181,6 +210,8 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       name:          hub.branding.name,
       tagline:       hub.branding.tagline,
       about:         hub.branding.about,
+      estYear:       hub.branding.estYear,
+      features:      hub.branding.features,
       phone:         hub.branding.phone,
       address:       hub.branding.address,
       logoUrl:       hub.branding.logoUrl,
@@ -199,6 +230,8 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       name:          hub.publishedBranding.name,
       tagline:       hub.publishedBranding.tagline,
       about:         hub.publishedBranding.about,
+      estYear:       hub.publishedBranding.estYear,
+      features:      hub.publishedBranding.features,
       phone:         hub.publishedBranding.phone,
       address:       hub.publishedBranding.address,
       logoUrl:       hub.publishedBranding.logoUrl,
@@ -237,18 +270,20 @@ export async function upsertHubBranding(
   }
 
   const name          = (body.name as string).trim();
-  const tagline       = typeof body.tagline === 'string'       ? body.tagline.trim()                        || null : null;
-  const about         = typeof body.about === 'string'         ? body.about.trim()                          || null : null;
-  const phone         = typeof body.phone === 'string'         ? body.phone.trim()                          || null : null;
-  const address       = typeof body.address === 'string'       ? body.address.trim()                        || null : null;
-  const logoUrl       = typeof body.logoUrl === 'string'       ? body.logoUrl.trim()                        || null : null;
-  const coverImageUrl = typeof body.coverImageUrl === 'string' ? body.coverImageUrl.trim()                  || null : null;
-  const themePreset   = typeof body.themePreset === 'string'   ? body.themePreset.trim().toUpperCase()      || null : null;
+  const tagline       = typeof body.tagline === 'string'       ? body.tagline.trim()                   || null : null;
+  const about         = typeof body.about === 'string'         ? body.about.trim()                     || null : null;
+  const estYear       = (body.estYear !== null && body.estYear !== undefined) ? Number(body.estYear)   : null;
+  const features      = Array.isArray(body.features)           ? (body.features as string[])           : [];
+  const phone         = typeof body.phone === 'string'         ? body.phone.trim()                     || null : null;
+  const address       = typeof body.address === 'string'       ? body.address.trim()                   || null : null;
+  const logoUrl       = typeof body.logoUrl === 'string'       ? body.logoUrl.trim()                   || null : null;
+  const coverImageUrl = typeof body.coverImageUrl === 'string' ? body.coverImageUrl.trim()             || null : null;
+  const themePreset   = typeof body.themePreset === 'string'   ? body.themePreset.trim().toUpperCase() || null : null;
 
   const result = await prisma.guestHubBranding.upsert({
     where:  { hubId },
-    create: { hubId, name, tagline, about, phone, address, logoUrl, coverImageUrl, themePreset },
-    update: {        name, tagline, about, phone, address, logoUrl, coverImageUrl, themePreset },
+    create: { hubId, name, tagline, about, estYear, features, phone, address, logoUrl, coverImageUrl, themePreset },
+    update: {        name, tagline, about, estYear, features, phone, address, logoUrl, coverImageUrl, themePreset },
   });
 
   // TODO: append to centralized audit log when available
@@ -258,6 +293,8 @@ export async function upsertHubBranding(
     name:          result.name,
     tagline:       result.tagline,
     about:         result.about,
+    estYear:       result.estYear,
+    features:      result.features,
     phone:         result.phone,
     address:       result.address,
     logoUrl:       result.logoUrl,
@@ -334,8 +371,8 @@ export async function publishHub(
   await prisma.$transaction(async (tx) => {
     await tx.guestHubPublishedBranding.upsert({
       where:  { hubId },
-      create: { hubId, name: b.name, tagline: b.tagline, about: b.about, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
-      update: {        name: b.name, tagline: b.tagline, about: b.about, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
+      create: { hubId, name: b.name, tagline: b.tagline, about: b.about, estYear: b.estYear, features: b.features, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
+      update: {        name: b.name, tagline: b.tagline, about: b.about, estYear: b.estYear, features: b.features, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
     });
 
     await tx.guestHubPublishedSocialLink.deleteMany({ where: { hubId } });
