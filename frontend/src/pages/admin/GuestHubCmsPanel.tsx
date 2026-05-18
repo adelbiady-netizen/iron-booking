@@ -26,6 +26,8 @@ interface HubBranding {
   coverImageUrl: string | null;
   primaryColor: string | null;
   themePreset: string | null;
+  galleryImages: string[];
+  galleryEnabled: boolean;
 }
 
 interface HubSocial {
@@ -87,6 +89,8 @@ type BrandingForm = {
   logoUrl: string;
   coverImageUrl: string;
   themePreset: string;  // '' = use default (Espresso)
+  galleryImages: string[];
+  galleryEnabled: boolean;
 };
 
 type SocialRow = { platform: string; handle: string };
@@ -259,7 +263,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
   // Branding edit
   const [editingBranding, setEditingBranding] = useState(false);
-  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', about: '', estYear: '', features: [], phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '' });
+  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', about: '', estYear: '', features: [], phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '', galleryImages: [], galleryEnabled: false });
   const [brandingBusy,    setBrandingBusy]    = useState(false);
   const [brandingErrors,  setBrandingErrors]  = useState<Record<string, string>>({});
   const [brandingError,   setBrandingError]   = useState<string | null>(null);
@@ -400,16 +404,18 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
   function openBrandingEdit() {
     setBrandingForm({
-      name:          hub?.branding?.name                    ?? '',
-      tagline:       hub?.branding?.tagline                 ?? '',
-      about:         hub?.branding?.about                   ?? '',
-      estYear:       hub?.branding?.estYear?.toString()     ?? '',
-      features:      hub?.branding?.features                ?? [],
-      phone:         hub?.branding?.phone                   ?? '',
-      address:       hub?.branding?.address                 ?? '',
-      logoUrl:       hub?.branding?.logoUrl                 ?? '',
-      coverImageUrl: hub?.branding?.coverImageUrl           ?? '',
-      themePreset:   hub?.branding?.themePreset             ?? '',
+      name:           hub?.branding?.name                    ?? '',
+      tagline:        hub?.branding?.tagline                 ?? '',
+      about:          hub?.branding?.about                   ?? '',
+      estYear:        hub?.branding?.estYear?.toString()     ?? '',
+      features:       hub?.branding?.features                ?? [],
+      phone:          hub?.branding?.phone                   ?? '',
+      address:        hub?.branding?.address                 ?? '',
+      logoUrl:        hub?.branding?.logoUrl                 ?? '',
+      coverImageUrl:  hub?.branding?.coverImageUrl           ?? '',
+      themePreset:    hub?.branding?.themePreset             ?? '',
+      galleryImages:  hub?.branding?.galleryImages           ?? [],
+      galleryEnabled: hub?.branding?.galleryEnabled          ?? false,
     });
     setBrandingErrors({});
     setBrandingError(null);
@@ -451,16 +457,18 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         ? parseInt(brandingForm.estYear.trim(), 10)
         : null;
       const updated = await api.admin.guestHub.updateBranding(restaurantId, {
-        name:          brandingForm.name.trim(),
-        tagline:       brandingForm.tagline.trim()       || null,
-        about:         brandingForm.about.trim()         || null,
-        estYear:       parsedEstYear,
-        features:      brandingForm.features,
-        phone:         brandingForm.phone.trim()         || null,
-        address:       brandingForm.address.trim()       || null,
-        logoUrl:       brandingForm.logoUrl.trim()       || null,
-        coverImageUrl: brandingForm.coverImageUrl.trim() || null,
-        themePreset:   brandingForm.themePreset          || null,
+        name:           brandingForm.name.trim(),
+        tagline:        brandingForm.tagline.trim()       || null,
+        about:          brandingForm.about.trim()         || null,
+        estYear:        parsedEstYear,
+        features:       brandingForm.features,
+        phone:          brandingForm.phone.trim()         || null,
+        address:        brandingForm.address.trim()       || null,
+        logoUrl:        brandingForm.logoUrl.trim()       || null,
+        coverImageUrl:  brandingForm.coverImageUrl.trim() || null,
+        themePreset:    brandingForm.themePreset          || null,
+        galleryImages:  brandingForm.galleryImages,
+        galleryEnabled: brandingForm.galleryEnabled,
       });
       setHub(prev => prev
         ? { ...prev, branding: prev.branding ? { ...prev.branding, ...updated } : { ...updated }, draftUpdatedAt: new Date().toISOString() }
@@ -1199,6 +1207,73 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Gallery */}
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-iron-muted uppercase tracking-widest mb-1">Gallery</p>
+                <p className="text-xs text-iron-muted/70">Atmosphere images shown as a square carousel on the Guest Hub. Upload up to 10 images.</p>
+              </div>
+
+              {/* Enable toggle */}
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div
+                  role="switch"
+                  aria-checked={brandingForm.galleryEnabled}
+                  onClick={() => setBrandingForm(f => ({ ...f, galleryEnabled: !f.galleryEnabled }))}
+                  className="relative flex-shrink-0 w-9 h-5 rounded-full transition-colors cursor-pointer"
+                  style={{ background: brandingForm.galleryEnabled ? '#4ade80' : 'rgba(255,255,255,0.12)' }}
+                >
+                  <span
+                    className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow"
+                    style={{ transform: brandingForm.galleryEnabled ? 'translateX(16px)' : 'translateX(0)' }}
+                  />
+                </div>
+                <span className="text-xs text-iron-text">
+                  {brandingForm.galleryEnabled ? 'Gallery visible on hub' : 'Gallery hidden (images saved but not shown)'}
+                </span>
+              </label>
+
+              {/* Image slots */}
+              <div className="space-y-2">
+                {brandingForm.galleryImages.map((url, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <ImageUploadField
+                        label={`Image ${idx + 1}`}
+                        imageType="dish"
+                        value={url}
+                        onChange={newUrl => setBrandingForm(f => {
+                          const imgs = [...f.galleryImages];
+                          imgs[idx] = newUrl;
+                          return { ...f, galleryImages: imgs };
+                        })}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBrandingForm(f => ({ ...f, galleryImages: f.galleryImages.filter((_, i) => i !== idx) }))}
+                      className="mt-5 flex-shrink-0 px-2 py-1.5 text-xs text-iron-muted hover:text-red-400 border border-iron-border rounded transition-colors"
+                      title="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {brandingForm.galleryImages.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={() => setBrandingForm(f => ({ ...f, galleryImages: [...f.galleryImages, ''] }))}
+                    className="w-full py-2 text-xs text-iron-muted hover:text-iron-text border border-dashed border-iron-border rounded-lg transition-colors"
+                  >
+                    + Add image {brandingForm.galleryImages.length > 0 ? `(${brandingForm.galleryImages.length}/10)` : ''}
+                  </button>
+                )}
+              </div>
+              {brandingErrors.galleryImages && (
+                <p className="text-xs text-red-400">{brandingErrors.galleryImages}</p>
+              )}
             </div>
 
             {brandingError && (

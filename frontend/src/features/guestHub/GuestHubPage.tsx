@@ -137,6 +137,67 @@ function Rule() {
   return <div style={{ height: 1, background: C.border, marginTop: 40, marginBottom: 40 }} />;
 }
 
+// ─── Gallery carousel ─────────────────────────────────────────────────────────
+// Square 1:1 scroll-snap cards. Hidden in diningMode (guard is in the caller).
+// Lazy loads all images. Fallback: if galleryEnabled=false or no images, never renders.
+function GalleryCarousel({ images }: { images: string[] }) {
+  const C = useC();
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>Gallery</span>
+        <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', margin: '6px 0 0', color: C.text }}>
+          Inside the experience
+        </h2>
+      </div>
+      <div style={{
+        margin: '0 -24px',
+        paddingLeft: 24,
+        paddingRight: 24,
+        display: 'flex',
+        gap: 10,
+        overflowX: 'auto',
+        scrollSnapType: 'x mandatory',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      }}>
+        {images.map((url, i) => (
+          <div
+            key={i}
+            style={{
+              flexShrink: 0,
+              width: 'min(72vw, 280px)',
+              aspectRatio: '1 / 1',
+              borderRadius: 16,
+              overflow: 'hidden',
+              scrollSnapAlign: 'start',
+              position: 'relative',
+              background: C.elevated,
+              border: `1px solid ${C.border}`,
+            }}
+          >
+            <img
+              src={url}
+              alt={`Gallery image ${i + 1}`}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(to top, rgba(0,0,0,0.28) 0%, transparent 55%)',
+              pointerEvents: 'none',
+            }} />
+          </div>
+        ))}
+        {/* Trailing spacer so last card doesn't hug the edge */}
+        <div style={{ flexShrink: 0, width: 8 }} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Dietary tag pills ────────────────────────────────────────────────────────
 function DietaryPills({ tags }: { tags: string[] }) {
   const C = useC();
@@ -882,6 +943,14 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
             </button>
           ) : null}
         </div>
+
+        {/* ── Gallery carousel — atmosphere images, opt-in via galleryEnabled ─── */}
+        {!diningMode && vm.galleryEnabled && vm.galleryImages.length > 0 && (
+          <>
+            <Rule />
+            <GalleryCarousel images={vm.galleryImages} />
+          </>
+        )}
 
         {/* ── Promotions & events — placed above menu so all visitors see them ── */}
         {hasPromotions && (

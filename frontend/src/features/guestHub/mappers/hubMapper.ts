@@ -86,6 +86,8 @@ interface ApiBranding {
   primaryColor: string | null;
   accentColor: string | null;
   themePreset: string | null;
+  galleryImages: string[];
+  galleryEnabled: boolean;
 }
 
 export interface ApiGuestHub {
@@ -249,6 +251,8 @@ export function mapGuestHub(api: ApiGuestHub): GuestHubViewModel {
     primaryColor:  api.branding?.primaryColor ?? '#C9A96E',
     accentColor:   api.branding?.accentColor  ?? '#8C6F3E',
     themePreset:   api.branding?.themePreset  ?? null,
+    galleryImages:  api.branding?.galleryImages  ?? [],
+    galleryEnabled: api.branding?.galleryEnabled ?? false,
     featuredDishes: api.featuredDishes.map((d, i) => mapDish(d, i)),
     allCategories,
     promotions:    api.promotions.map(mapPromotion),

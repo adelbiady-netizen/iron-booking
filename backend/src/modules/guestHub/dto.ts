@@ -78,6 +78,8 @@ export interface HubBrandingDto {
   primaryColor: string | null;
   accentColor: string | null;
   themePreset: string | null;
+  galleryImages: string[];
+  galleryEnabled: boolean;
 }
 
 export interface GuestHubDto {

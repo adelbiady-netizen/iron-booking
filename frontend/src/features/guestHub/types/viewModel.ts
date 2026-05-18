@@ -79,6 +79,8 @@ export interface GuestHubViewModel {
   primaryColor: string;       // safe default: '#C9A96E'
   accentColor: string;        // safe default: '#8C6F3E'
   themePreset: string | null; // e.g. 'ESPRESSO' | 'OLIVE' | 'WINE' | 'MIDNIGHT' | 'SAND' | 'SLATE'
+  galleryImages:  string[];
+  galleryEnabled: boolean;
   featuredDishes: DishViewModel[];
   allCategories: MenuCategoryViewModel[];  // flattened from menus[].categories
   promotions: PromotionViewModel[];

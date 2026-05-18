@@ -33,6 +33,8 @@ export interface HubAdminBrandingDto {
   coverImageUrl: string | null;
   primaryColor: string | null;
   themePreset: string | null;
+  galleryImages: string[];
+  galleryEnabled: boolean;
 }
 
 export interface HubAdminSocialDto {
@@ -143,6 +145,18 @@ function validateBrandingInput(body: Record<string, unknown>): Record<string, st
     err.themePreset = [`Must be one of: ${[...VALID_THEME_PRESETS].join(', ')}`];
   }
 
+  const galleryImagesRaw = body.galleryImages;
+  if (galleryImagesRaw !== undefined && galleryImagesRaw !== null) {
+    if (!Array.isArray(galleryImagesRaw)) {
+      err.galleryImages = ['galleryImages must be an array'];
+    } else if ((galleryImagesRaw as unknown[]).length > 10) {
+      err.galleryImages = ['Maximum 10 gallery images allowed'];
+    } else {
+      const badUrls = (galleryImagesRaw as unknown[]).filter(u => typeof u !== 'string' || !isValidUrl(u as string));
+      if (badUrls.length > 0) err.galleryImages = ['All gallery images must be valid https:// URLs'];
+    }
+  }
+
   return err;
 }
 
@@ -206,18 +220,20 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
     lastPublishedAt: hub.lastPublishedAt?.toISOString() ?? null,
     draftUpdatedAt,
     branding: hub.branding ? {
-      id:            hub.branding.id,
-      name:          hub.branding.name,
-      tagline:       hub.branding.tagline,
-      about:         hub.branding.about,
-      estYear:       hub.branding.estYear,
-      features:      hub.branding.features,
-      phone:         hub.branding.phone,
-      address:       hub.branding.address,
-      logoUrl:       hub.branding.logoUrl,
-      coverImageUrl: hub.branding.coverImageUrl,
-      primaryColor:  hub.branding.primaryColor,
-      themePreset:   hub.branding.themePreset,
+      id:             hub.branding.id,
+      name:           hub.branding.name,
+      tagline:        hub.branding.tagline,
+      about:          hub.branding.about,
+      estYear:        hub.branding.estYear,
+      features:       hub.branding.features,
+      phone:          hub.branding.phone,
+      address:        hub.branding.address,
+      logoUrl:        hub.branding.logoUrl,
+      coverImageUrl:  hub.branding.coverImageUrl,
+      primaryColor:   hub.branding.primaryColor,
+      themePreset:    hub.branding.themePreset,
+      galleryImages:  hub.branding.galleryImages,
+      galleryEnabled: hub.branding.galleryEnabled,
     } : null,
     socialLinks: hub.socialLinks.map(s => ({
       id:        s.id,
@@ -226,18 +242,20 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       sortOrder: s.sortOrder,
     })),
     publishedBranding: hub.publishedBranding ? {
-      id:            hub.publishedBranding.id,
-      name:          hub.publishedBranding.name,
-      tagline:       hub.publishedBranding.tagline,
-      about:         hub.publishedBranding.about,
-      estYear:       hub.publishedBranding.estYear,
-      features:      hub.publishedBranding.features,
-      phone:         hub.publishedBranding.phone,
-      address:       hub.publishedBranding.address,
-      logoUrl:       hub.publishedBranding.logoUrl,
-      coverImageUrl: hub.publishedBranding.coverImageUrl,
-      primaryColor:  null, // published branding snapshot doesn't store primaryColor yet
-      themePreset:   hub.publishedBranding.themePreset,
+      id:             hub.publishedBranding.id,
+      name:           hub.publishedBranding.name,
+      tagline:        hub.publishedBranding.tagline,
+      about:          hub.publishedBranding.about,
+      estYear:        hub.publishedBranding.estYear,
+      features:       hub.publishedBranding.features,
+      phone:          hub.publishedBranding.phone,
+      address:        hub.publishedBranding.address,
+      logoUrl:        hub.publishedBranding.logoUrl,
+      coverImageUrl:  hub.publishedBranding.coverImageUrl,
+      primaryColor:   null, // published branding snapshot doesn't store primaryColor yet
+      themePreset:    hub.publishedBranding.themePreset,
+      galleryImages:  [],    // published snapshot pre-dates gallery; fallback to draft
+      galleryEnabled: false,
     } : null,
     publishedSocialLinks: hub.publishedSocialLinks.map(s => ({
       id:        s.id,
@@ -279,28 +297,36 @@ export async function upsertHubBranding(
   const logoUrl       = typeof body.logoUrl === 'string'       ? body.logoUrl.trim()                   || null : null;
   const coverImageUrl = typeof body.coverImageUrl === 'string' ? body.coverImageUrl.trim()             || null : null;
   const themePreset   = typeof body.themePreset === 'string'   ? body.themePreset.trim().toUpperCase() || null : null;
+  const galleryImages = Array.isArray(body.galleryImages)      ? (body.galleryImages as string[])      : undefined;
+  const galleryEnabled = typeof body.galleryEnabled === 'boolean' ? body.galleryEnabled               : undefined;
 
   const result = await prisma.guestHubBranding.upsert({
     where:  { hubId },
-    create: { hubId, name, tagline, about, estYear, features, phone, address, logoUrl, coverImageUrl, themePreset },
-    update: {        name, tagline, about, estYear, features, phone, address, logoUrl, coverImageUrl, themePreset },
+    create: { hubId, name, tagline, about, estYear, features, phone, address, logoUrl, coverImageUrl, themePreset,
+              ...(galleryImages  !== undefined ? { galleryImages }  : {}),
+              ...(galleryEnabled !== undefined ? { galleryEnabled } : {}) },
+    update: {        name, tagline, about, estYear, features, phone, address, logoUrl, coverImageUrl, themePreset,
+              ...(galleryImages  !== undefined ? { galleryImages }  : {}),
+              ...(galleryEnabled !== undefined ? { galleryEnabled } : {}) },
   });
 
   // TODO: append to centralized audit log when available
 
   return {
-    id:            result.id,
-    name:          result.name,
-    tagline:       result.tagline,
-    about:         result.about,
-    estYear:       result.estYear,
-    features:      result.features,
-    phone:         result.phone,
-    address:       result.address,
-    logoUrl:       result.logoUrl,
-    coverImageUrl: result.coverImageUrl,
-    primaryColor:  result.primaryColor,
-    themePreset:   result.themePreset,
+    id:             result.id,
+    name:           result.name,
+    tagline:        result.tagline,
+    about:          result.about,
+    estYear:        result.estYear,
+    features:       result.features,
+    phone:          result.phone,
+    address:        result.address,
+    logoUrl:        result.logoUrl,
+    coverImageUrl:  result.coverImageUrl,
+    primaryColor:   result.primaryColor,
+    themePreset:    result.themePreset,
+    galleryImages:  result.galleryImages,
+    galleryEnabled: result.galleryEnabled,
   };
 }
 
