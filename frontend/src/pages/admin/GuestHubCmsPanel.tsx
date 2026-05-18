@@ -467,7 +467,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
         logoUrl:        brandingForm.logoUrl.trim()       || null,
         coverImageUrl:  brandingForm.coverImageUrl.trim() || null,
         themePreset:    brandingForm.themePreset          || null,
-        galleryImages:  brandingForm.galleryImages,
+        galleryImages:  brandingForm.galleryImages.filter(u => u.trim() !== ''),
         galleryEnabled: brandingForm.galleryEnabled,
       });
       setHub(prev => prev

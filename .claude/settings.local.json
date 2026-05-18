@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npm run *)",
       "WebFetch(domain:www.ironbooking.com)",
-      "Bash(vercel --prod --yes)"
+      "Bash(vercel --prod --yes)",
+      "Bash(npx prisma *)",
+      "Bash(git push *)",
+      "Bash(npx tsc *)",
+      "Bash(curl -s https://www.ironbooking.com)",
+      "Bash(curl -s https://frontend-ten-sand-18.vercel.app)"
     ]
   }
 }
