@@ -43,15 +43,16 @@ function SuggestionCell({ suggestion, selected, multiMode, onPick, walkInMode }:
   const { tableId, tableName, minCovers, maxCovers, status, reasons } = suggestion;
   if (!tableId) return null;
 
-  const isTooSmall    = reasons.some(r => r.code === 'TOO_SMALL');
+  const isTooSmall     = reasons.some(r => r.code === 'TOO_SMALL');
   const isTableBlocked = reasons.some(r => r.code === 'TABLE_BLOCKED');
-  // In walk-in mode, time-based CONFLICT is overridable — only TABLE_BLOCKED is hard.
+  const isOccupiedNow  = reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+  // Walk-in: future-reservation CONFLICT is overridable. TABLE_BLOCKED and occupied-now are always hard.
   const isDisabled = walkInMode
-    ? isTableBlocked
+    ? isTableBlocked || isOccupiedNow
     : reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED');
 
-  // TOO_SMALL → amber advisory. Walk-in CONFLICT → amber overridable hint.
-  const isWalkInConflict = walkInMode && reasons.some(r => r.code === 'CONFLICT') && !isTableBlocked;
+  // TOO_SMALL → amber advisory. Walk-in future CONFLICT → amber overridable hint.
+  const isWalkInConflict = walkInMode && reasons.some(r => r.code === 'CONFLICT' && !r.occupied) && !isTableBlocked;
   const displayStatus: TablePickerStatus =
     (isTooSmall || isWalkInConflict) && !selected ? 'tight' : status;
 

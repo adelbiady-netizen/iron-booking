@@ -6,7 +6,7 @@ import { Table, Section, ReservationStatus } from '@prisma/client';
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export type ScoredReason =
-  | { code: 'CONFLICT'; at?: string }
+  | { code: 'CONFLICT'; at?: string; occupied?: boolean }
   | { code: 'TOO_SMALL' }
   | { code: 'TABLE_BLOCKED' }
   | { code: 'PERFECT_FIT' }
@@ -156,7 +156,9 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
         ...base,
         score: 0,
         status: 'blocked',
-        reasons: [{ code: 'CONFLICT', at: conflict.time }],
+        // occupied=true when a guest is physically seated now — hard block even in walk-in mode.
+        // occupied=false (future CONFIRMED/PENDING) — soft block, host may override for walk-ins.
+        reasons: [{ code: 'CONFLICT', at: conflict.time, occupied: conflict.status === 'SEATED' }],
       });
       continue;
     }

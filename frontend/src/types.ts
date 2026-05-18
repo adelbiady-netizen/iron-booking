@@ -279,7 +279,7 @@ export interface FloorSuggestion {
 export type TablePickerStatus = 'recommended' | 'possible' | 'tight' | 'blocked';
 
 export type ScoredReason =
-  | { code: 'CONFLICT'; at?: string }
+  | { code: 'CONFLICT'; at?: string; occupied?: boolean }
   | { code: 'TOO_SMALL' }
   | { code: 'TABLE_BLOCKED' }
   | { code: 'PERFECT_FIT' }

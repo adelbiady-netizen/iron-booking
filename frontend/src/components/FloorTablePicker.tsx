@@ -90,9 +90,10 @@ export default function FloorTablePicker({ tables, floorObjs, suggestions, selec
     const isTableBlocked = s.reasons.some(r => r.code === 'TABLE_BLOCKED');
     const hardBlocked    = s.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED');
     if (hardBlocked) {
-      // Walk-in: time-based CONFLICT is overridable — show amber/tight, keep clickable.
-      // TABLE_BLOCKED is always hard regardless of mode.
-      if (walkInMode && !isTableBlocked) {
+      // Walk-in: a future-reservation CONFLICT is overridable — show amber/tight, keep clickable.
+      // TABLE_BLOCKED and occupied-now (SEATED guest) are always hard regardless of mode.
+      const isOccupiedNow = s.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+      if (walkInMode && !isTableBlocked && !isOccupiedNow) {
         return { bg: 'rgba(245,158,11,0.15)', border: '#fbbf24', bw: 1.5, shadow: undefined, disabled: false, nameColor: 'rgb(var(--iron-text))' };
       }
       return { bg: 'rgba(82,82,91,0.20)', border: '#52525b', bw: 1.5, shadow: undefined, disabled: true, nameColor: '#71717a' };

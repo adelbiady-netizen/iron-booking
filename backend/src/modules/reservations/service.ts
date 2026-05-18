@@ -510,6 +510,25 @@ export async function seatReservation(
     );
   }
 
+  // Hard safety guard — never allow double-seating regardless of overrideConflicts.
+  // Checks for a currently SEATED reservation on the target table (or any combined table).
+  const occupiedCheck = await prisma.reservation.findFirst({
+    where: {
+      restaurantId,
+      date: parseDateArg(todayLocal),
+      status: 'SEATED',
+      id: { not: id },
+      OR: [
+        { tableId },
+        ...resolvedCombinedIds.map(cid => ({ tableId: cid })),
+      ],
+    },
+    select: { id: true },
+  });
+  if (occupiedCheck) {
+    throw new BusinessRuleError('Table is currently occupied — cannot seat another guest');
+  }
+
   return prisma.$transaction(async (tx) => {
     // Displace only the reservations the host explicitly selected.
     // Validate each: must belong to this restaurant, table, date, and be seateable.
