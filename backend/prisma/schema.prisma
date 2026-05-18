@@ -624,6 +624,7 @@ model GuestHubBranding {
   hubId         String   @unique
   name          String
   tagline       String?
+  about         String?  // short identity paragraph shown on Guest Hub (max 250 chars)
   phone         String?
   address       String?
   directionsUrl String?
@@ -783,6 +784,7 @@ model GuestHubPublishedBranding {
   hubId         String   @unique
   name          String
   tagline       String?
+  about         String?
   phone         String?
   address       String?
   logoUrl       String?

@@ -20,6 +20,7 @@ export interface HubAdminBrandingDto {
   id: string;
   name: string;
   tagline: string | null;
+  about: string | null;
   phone: string | null;
   address: string | null;
   logoUrl: string | null;
@@ -86,6 +87,9 @@ function validateBrandingInput(body: Record<string, unknown>): Record<string, st
 
   const tagline = typeof body.tagline === 'string' ? body.tagline.trim() : '';
   if (tagline.length > 200) err.tagline = ['Tagline must be 200 characters or fewer'];
+
+  const about = typeof body.about === 'string' ? body.about.trim() : '';
+  if (about.length > 250) err.about = ['About must be 250 characters or fewer'];
 
   const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
   if (phone.length > 30) err.phone = ['Phone must be 30 characters or fewer'];
@@ -176,6 +180,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       id:            hub.branding.id,
       name:          hub.branding.name,
       tagline:       hub.branding.tagline,
+      about:         hub.branding.about,
       phone:         hub.branding.phone,
       address:       hub.branding.address,
       logoUrl:       hub.branding.logoUrl,
@@ -193,6 +198,7 @@ export async function getHubForRestaurant(restaurantId: string): Promise<HubAdmi
       id:            hub.publishedBranding.id,
       name:          hub.publishedBranding.name,
       tagline:       hub.publishedBranding.tagline,
+      about:         hub.publishedBranding.about,
       phone:         hub.publishedBranding.phone,
       address:       hub.publishedBranding.address,
       logoUrl:       hub.publishedBranding.logoUrl,
@@ -232,6 +238,7 @@ export async function upsertHubBranding(
 
   const name          = (body.name as string).trim();
   const tagline       = typeof body.tagline === 'string'       ? body.tagline.trim()                        || null : null;
+  const about         = typeof body.about === 'string'         ? body.about.trim()                          || null : null;
   const phone         = typeof body.phone === 'string'         ? body.phone.trim()                          || null : null;
   const address       = typeof body.address === 'string'       ? body.address.trim()                        || null : null;
   const logoUrl       = typeof body.logoUrl === 'string'       ? body.logoUrl.trim()                        || null : null;
@@ -240,8 +247,8 @@ export async function upsertHubBranding(
 
   const result = await prisma.guestHubBranding.upsert({
     where:  { hubId },
-    create: { hubId, name, tagline, phone, address, logoUrl, coverImageUrl, themePreset },
-    update: {        name, tagline, phone, address, logoUrl, coverImageUrl, themePreset },
+    create: { hubId, name, tagline, about, phone, address, logoUrl, coverImageUrl, themePreset },
+    update: {        name, tagline, about, phone, address, logoUrl, coverImageUrl, themePreset },
   });
 
   // TODO: append to centralized audit log when available
@@ -250,6 +257,7 @@ export async function upsertHubBranding(
     id:            result.id,
     name:          result.name,
     tagline:       result.tagline,
+    about:         result.about,
     phone:         result.phone,
     address:       result.address,
     logoUrl:       result.logoUrl,
@@ -326,8 +334,8 @@ export async function publishHub(
   await prisma.$transaction(async (tx) => {
     await tx.guestHubPublishedBranding.upsert({
       where:  { hubId },
-      create: { hubId, name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
-      update: {        name: b.name, tagline: b.tagline, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
+      create: { hubId, name: b.name, tagline: b.tagline, about: b.about, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
+      update: {        name: b.name, tagline: b.tagline, about: b.about, phone: b.phone, address: b.address, logoUrl: b.logoUrl, coverImageUrl: b.coverImageUrl, themePreset: b.themePreset, publishedAt: now },
     });
 
     await tx.guestHubPublishedSocialLink.deleteMany({ where: { hubId } });

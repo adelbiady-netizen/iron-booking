@@ -67,6 +67,7 @@ export interface GuestHubViewModel {
   slug: string;
   name: string;               // safe default: slug if branding missing
   tagline: string | null;
+  about: string | null;
   cuisine: string | null;
   phone: string | null;
   address: string | null;

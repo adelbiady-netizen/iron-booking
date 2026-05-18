@@ -685,15 +685,15 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           </div>
         )}
 
-        {/* ── Welcome microcopy — soft trust line, normal mode only ────────── */}
+        {/* ── About / identity paragraph — replaces generic microcopy when set ── */}
         {!diningMode && (
           <p style={{
             margin: `${todayHours ? 14 : 22}px 0 0`,
-            fontSize: 12.5, color: C.muted,
-            letterSpacing: '0.02em', lineHeight: 1.65,
-            textAlign: 'center', opacity: 0.82,
+            fontSize: 13, color: C.muted,
+            letterSpacing: '0.015em', lineHeight: 1.65,
+            textAlign: 'center', opacity: 0.90,
           }}>
-            Browse the menu, discover highlights, and reserve with confidence.
+            {vm.about ?? 'Browse the menu, discover highlights, and reserve with confidence.'}
           </p>
         )}
 

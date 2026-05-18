@@ -17,6 +17,7 @@ interface HubBranding {
   id: string;
   name: string;
   tagline: string | null;
+  about: string | null;
   phone: string | null;
   address: string | null;
   logoUrl: string | null;
@@ -67,6 +68,7 @@ const PRESET_OPTIONS = [
 type BrandingForm = {
   name: string;
   tagline: string;
+  about: string;
   phone: string;
   address: string;
   logoUrl: string;
@@ -244,7 +246,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
   // Branding edit
   const [editingBranding, setEditingBranding] = useState(false);
-  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '' });
+  const [brandingForm,    setBrandingForm]    = useState<BrandingForm>({ name: '', tagline: '', about: '', phone: '', address: '', logoUrl: '', coverImageUrl: '', themePreset: '' });
   const [brandingBusy,    setBrandingBusy]    = useState(false);
   const [brandingErrors,  setBrandingErrors]  = useState<Record<string, string>>({});
   const [brandingError,   setBrandingError]   = useState<string | null>(null);
@@ -387,6 +389,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     setBrandingForm({
       name:          hub?.branding?.name          ?? '',
       tagline:       hub?.branding?.tagline        ?? '',
+      about:         hub?.branding?.about          ?? '',
       phone:         hub?.branding?.phone          ?? '',
       address:       hub?.branding?.address        ?? '',
       logoUrl:       hub?.branding?.logoUrl        ?? '',
@@ -409,6 +412,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     if (!brandingForm.name.trim())             e.name          = 'Display name is required';
     else if (brandingForm.name.length > 100)   e.name          = 'Max 100 characters';
     if (brandingForm.tagline.length > 200)     e.tagline       = 'Max 200 characters';
+    if (brandingForm.about.length > 250)       e.about         = 'Max 250 characters';
     if (brandingForm.phone.length > 30)        e.phone         = 'Max 30 characters';
     if (brandingForm.address.length > 300)     e.address       = 'Max 300 characters';
     if (!isValidUrl(brandingForm.logoUrl))     e.logoUrl       = 'Must be a valid https:// URL';
@@ -425,6 +429,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       const updated = await api.admin.guestHub.updateBranding(restaurantId, {
         name:          brandingForm.name.trim(),
         tagline:       brandingForm.tagline.trim()       || null,
+        about:         brandingForm.about.trim()         || null,
         phone:         brandingForm.phone.trim()         || null,
         address:       brandingForm.address.trim()       || null,
         logoUrl:       brandingForm.logoUrl.trim()       || null,
@@ -979,6 +984,22 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 placeholder="e.g. Modern Mediterranean cuisine"
                 maxLength={200}
               />
+            </Field>
+            <Field label="About" error={brandingErrors.about}>
+              <div className="relative">
+                <textarea
+                  value={brandingForm.about}
+                  onChange={e => setBrandingForm(f => ({ ...f, about: e.target.value }))}
+                  placeholder={`e.g. Family-owned Italian kitchen open since 2014. Handmade pasta, wood-fired grill, and a 70-seat terrace in the heart of Tel Aviv.`}
+                  maxLength={250}
+                  rows={3}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green resize-none"
+                />
+                <span className="absolute bottom-2 right-3 text-[10px] text-iron-muted tabular-nums pointer-events-none">
+                  {brandingForm.about.length}/250
+                </span>
+              </div>
+              <p className="text-[10px] text-iron-muted mt-1">Short identity paragraph shown under the restaurant name. Keep it factual and under 2 sentences.</p>
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Phone" error={brandingErrors.phone}>

@@ -115,6 +115,7 @@ function shapeHub(
     ? {
         name:          brandingSource.name,
         tagline:       brandingSource.tagline,
+        about:         'about' in brandingSource ? brandingSource.about : null,
         cuisine:       restaurantCuisine,
         phone:         brandingSource.phone,
         address:       brandingSource.address,
