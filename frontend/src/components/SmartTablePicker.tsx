@@ -35,22 +35,25 @@ interface CellProps {
   selected: boolean;
   multiMode: boolean;
   onPick: (id: string) => void;
+  walkInMode?: boolean;
 }
 
-function SuggestionCell({ suggestion, selected, multiMode, onPick }: CellProps) {
+function SuggestionCell({ suggestion, selected, multiMode, onPick, walkInMode }: CellProps) {
   const T = useT();
   const { tableId, tableName, minCovers, maxCovers, status, reasons } = suggestion;
   if (!tableId) return null;
 
-  // Capacity mismatches (TOO_SMALL) are advisory — hosts may intentionally over-seat.
-  // Only genuine unavailability (CONFLICT, TABLE_BLOCKED) hard-disables a table.
-  const isTooSmall = reasons.some(r => r.code === 'TOO_SMALL');
-  const isDisabled = reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED');
+  const isTooSmall    = reasons.some(r => r.code === 'TOO_SMALL');
+  const isTableBlocked = reasons.some(r => r.code === 'TABLE_BLOCKED');
+  // In walk-in mode, time-based CONFLICT is overridable — only TABLE_BLOCKED is hard.
+  const isDisabled = walkInMode
+    ? isTableBlocked
+    : reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED');
 
-  // Show TOO_SMALL tables as "tight" (amber warning) so the host can still select
-  // them while being informed of the capacity advisory.
+  // TOO_SMALL → amber advisory. Walk-in CONFLICT → amber overridable hint.
+  const isWalkInConflict = walkInMode && reasons.some(r => r.code === 'CONFLICT') && !isTableBlocked;
   const displayStatus: TablePickerStatus =
-    isTooSmall && !selected ? 'tight' : status;
+    (isTooSmall || isWalkInConflict) && !selected ? 'tight' : status;
 
   const primaryReason = reasons[0] ? resolveReason(reasons[0], T.tablePicker.reasonText) : '';
 
@@ -100,6 +103,7 @@ interface Props {
   onMultiPick?: (ids: string[]) => void;
   noTableLabel?: string;
   showNoTable?: boolean;
+  walkInMode?: boolean;
 }
 
 /**
@@ -121,6 +125,7 @@ export default function SmartTablePicker({
   selectedId, onPick,
   selectedIds, onMultiPick,
   noTableLabel, showNoTable = false,
+  walkInMode = false,
 }: Props) {
   const T = useT();
 
@@ -175,6 +180,7 @@ export default function SmartTablePicker({
             selected={isCellSelected(s.tableId!)}
             multiMode={multiMode}
             onPick={handleCellPick}
+            walkInMode={walkInMode}
           />
         ))}
       </div>

@@ -1252,6 +1252,7 @@ export default function CreateDrawer({
                     floorObjs={floorObjs ?? []}
                     suggestions={wiSuggestions}
                     selectedIds={[wiTable, ...wiCombinedTableIds].filter(Boolean)}
+                    walkInMode={true}
                     onMultiPick={ids => {
                       setWiTable(ids[0] ?? '');
                       setWiCombinedTableIds(ids.slice(1));

@@ -24,9 +24,10 @@ interface Props {
   suggestions: BackendTableSuggestion[];
   selectedIds: string[];
   onMultiPick: (ids: string[]) => void;
+  walkInMode?: boolean;
 }
 
-export default function FloorTablePicker({ tables, floorObjs, suggestions, selectedIds, onMultiPick }: Props) {
+export default function FloorTablePicker({ tables, floorObjs, suggestions, selectedIds, onMultiPick, walkInMode = false }: Props) {
   // Bounding box — must run unconditionally (hooks before any early return)
   const { minX, minY, contentW, contentH, hasLayout } = useMemo(() => {
     const pts = tables.filter(t => t.isActive && (t.posX > 5 || t.posY > 5));
@@ -61,6 +62,7 @@ export default function FloorTablePicker({ tables, floorObjs, suggestions, selec
         suggestBusy={false}
         selectedIds={selectedIds}
         onMultiPick={onMultiPick}
+        walkInMode={walkInMode}
       />
     );
   }
@@ -85,8 +87,14 @@ export default function FloorTablePicker({ tables, floorObjs, suggestions, selec
       return { bg: 'rgb(var(--iron-card))', border: 'rgb(var(--iron-border))', bw: 1.5, shadow: undefined, disabled: false, nameColor: 'rgb(var(--iron-text))' };
     }
     // Only hard-conflict / explicit table-block → disable. Capacity mismatches (TOO_SMALL) are advisory.
-    const hardBlocked = s.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED');
+    const isTableBlocked = s.reasons.some(r => r.code === 'TABLE_BLOCKED');
+    const hardBlocked    = s.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED');
     if (hardBlocked) {
+      // Walk-in: time-based CONFLICT is overridable — show amber/tight, keep clickable.
+      // TABLE_BLOCKED is always hard regardless of mode.
+      if (walkInMode && !isTableBlocked) {
+        return { bg: 'rgba(245,158,11,0.15)', border: '#fbbf24', bw: 1.5, shadow: undefined, disabled: false, nameColor: 'rgb(var(--iron-text))' };
+      }
       return { bg: 'rgba(82,82,91,0.20)', border: '#52525b', bw: 1.5, shadow: undefined, disabled: true, nameColor: '#71717a' };
     }
     switch (s.status) {
