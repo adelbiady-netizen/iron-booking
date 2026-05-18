@@ -1217,7 +1217,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, floorTables, showToast]);
 
-  // Called after a reservation is created — refresh everything and open it in the drawer
+  // Called after a reservation is created — update state optimistically and open it in the drawer.
+  // No explicit setRefreshKey: SSE floor_updated fires for every mutation and triggers
+  // the background refresh, same as handleUpdated. Avoids a double-fetch alongside SSE.
   const handleCreated = useCallback((created: Reservation) => {
     setCreateMode(null);
     setPreselectedTableId(null);
@@ -1227,7 +1229,27 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       const idx = prev.findIndex(r => r.id === created.id);
       return idx === -1 ? [...prev, created] : prev.map(r => r.id === created.id ? created : r);
     });
-    setRefreshKey(k => k + 1);
+    // Optimistic floor update for seated walk-ins: show OCCUPIED immediately without waiting
+    // for the SSE-triggered refetch, so the floor board reflects the seat as soon as the
+    // backend confirms it.
+    if (created.status === 'SEATED' && created.tableId) {
+      const now = Date.now();
+      const expectedEndTime = new Date(now + (created.duration ?? 90) * 60_000).toISOString();
+      setFloorTables(prev => prev.map(t => {
+        if (t.id !== created.tableId) return t;
+        return {
+          ...t,
+          liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
+          currentReservation: {
+            ...created,
+            minutesRemaining: created.duration,
+            expectedEndTime,
+            isOverdue: false,
+          },
+          upcomingReservations: t.upcomingReservations.filter(r => r.id !== created.id),
+        };
+      }));
+    }
     setSelectedRes(created);
     setHighlightId(created.id);
     showToast(created.status === 'SEATED' ? T.hostDashboard.toastSeated : T.hostDashboard.toastCreated);

@@ -183,6 +183,7 @@ export default function CreateDrawer({
     conflictTime: string;
     tableName: string;
   } | null>(null);
+  const [seatAnywayBusy, setSeatAnywayBusy] = useState(false);
   const [phoneWarning, setPhoneWarning] = useState(false);
   const [pendingSeat,  setPendingSeat]  = useState(false);
 
@@ -1352,24 +1353,32 @@ export default function CreateDrawer({
             </div>
             <div className="flex flex-col gap-1.5">
               <button
-                className="w-full text-left text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                disabled={seatAnywayBusy}
+                className="w-full text-left text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 onClick={async () => {
+                  if (seatAnywayBusy) return;
+                  setSeatAnywayBusy(true);
                   const { unseatedReservation, reservationId, tableId, combinedTableIds } = wiConflictWarning;
                   try {
                     const seated = await api.reservations.seat(reservationId, tableId, true, combinedTableIds);
                     setWiConflictWarning(null);
                     onCreated(seated);
                   } catch (err: unknown) {
+                    setSeatAnywayBusy(false);
                     setWiConflictWarning(null);
                     onCreated(unseatedReservation);
                     setError(err instanceof Error ? err.message : 'Failed to seat walk-in');
                   }
                 }}
               >
-                Seat anyway
+                {seatAnywayBusy && (
+                  <span className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                )}
+                {seatAnywayBusy ? 'Seating…' : 'Seat anyway'}
               </button>
               <button
-                className="text-xs text-iron-muted hover:text-iron-text py-1.5 transition-colors"
+                disabled={seatAnywayBusy}
+                className="text-xs text-iron-muted hover:text-iron-text py-1.5 transition-colors disabled:opacity-40"
                 onClick={() => {
                   const { unseatedReservation } = wiConflictWarning;
                   setWiConflictWarning(null);
