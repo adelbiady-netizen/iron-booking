@@ -55,7 +55,6 @@ export function useServerEvents(handlers: EventHandlers): SseStatus {
       };
 
       es.addEventListener('incoming_call', (e: MessageEvent) => {
-        console.log('[CALL-DBG] SSE raw event received — data:', e.data);
         try {
           const data = JSON.parse(e.data) as unknown;
           handlersRef.current['incoming_call']?.(data);
