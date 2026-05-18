@@ -352,7 +352,16 @@ export default function ReservationPanel({
               ? (() => {
                   const isImminent = (r: (typeof visible)[0]) =>
                     !!nowTime && minutesUntilRes(r.time, nowTime) >= 0 && minutesUntilRes(r.time, nowTime) <= 30;
-                  const arrivedBucket = visible
+                  // Past-due: reservation time has already passed in live view.
+                  // These are operationally the hottest rows and must stay pinned at top
+                  // regardless of when other reservations were added.
+                  const isPastDue = (r: (typeof visible)[0]) =>
+                    !!isLiveView && !!nowTime && minutesUntilRes(r.time, nowTime) < 0;
+                  const lateBucket = visible
+                    .filter(r => isPastDue(r))
+                    .sort((a, b) => a.time.localeCompare(b.time)); // earliest = most overdue first
+                  const remaining = visible.filter(r => !isPastDue(r));
+                  const arrivedBucket = remaining
                     .filter(r => r.isArrived)
                     .sort((a, b) => {
                       if (a.arrivedAt && b.arrivedAt) return a.arrivedAt.localeCompare(b.arrivedAt);
@@ -361,9 +370,10 @@ export default function ReservationPanel({
                       return a.time.localeCompare(b.time);
                     });
                   return [
+                    ...lateBucket,
                     ...arrivedBucket,
-                    ...visible.filter(r => !r.isArrived && isImminent(r)),
-                    ...visible.filter(r => !r.isArrived && !isImminent(r)),
+                    ...remaining.filter(r => !r.isArrived && isImminent(r)),
+                    ...remaining.filter(r => !r.isArrived && !isImminent(r)),
                   ];
                 })()
               : visible

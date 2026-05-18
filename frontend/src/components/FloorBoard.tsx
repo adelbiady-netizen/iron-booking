@@ -2961,8 +2961,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         opacity,
         padding: '6px 8px',
         overflow: 'hidden',
-        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-        textAlign: 'left',
+        display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+        textAlign: 'start',
         cursor,
         transition: `opacity var(--duration-fast) ease-out, transform var(--duration-fast) var(--ease-hospitality), filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
@@ -3063,15 +3063,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           : isDark ? '#15803d' : '#166534';
         const nameWeight = isOverdue ? 800 : 700;
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative' }}>
-            {/* Name zone — always centered; badges are absolute overlays so they don't shift the anchor */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative', paddingBottom: 4 }}>
+            {/* Name zone — always centered */}
             <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {currentRes.guestName}
             </p>
-            {/* Metadata zone — partySize · timer; centered; OVR/⊞ float as corner badge */}
+            {/* Metadata zone — partySize · timer; centered */}
             {!isSecondary && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3 }}>
-                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.92 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3, flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0, direction: 'ltr' }}>
+                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.92, flexShrink: 0 }}>
                   {currentRes.partySize}p
                 </span>
                 {isToday && (() => {
@@ -3086,20 +3086,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                   const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 600;
                   const timerSize = isOverdue || mr <= 20 ? 12 : 11;
                   return (
-                    <span style={{ fontSize: timerSize, color: timerColor, fontWeight: timerWeight }}>
+                    <span style={{ fontSize: timerSize, color: timerColor, fontWeight: timerWeight, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                       · {timerStr}
                     </span>
                   );
                 })()}
               </div>
             )}
-            {/* Corner badge — absolute so it never displaces the centered name/metadata */}
-            {!isSecondary && isOverdue && (
-              <span style={{ position: 'absolute', bottom: 3, right: 4, fontSize: 9, color: '#dc2626', fontWeight: 700, background: 'rgba(220,38,38,0.14)', border: '1px solid rgba(220,38,38,0.32)', borderRadius: 4, padding: '1px 4px', letterSpacing: '0.04em' }}>
-                OVR
-              </span>
-            )}
-            {!isSecondary && isCombined && !isOverdue && (
+            {/* Combined-table badge — floats at bottom-right corner */}
+            {!isSecondary && isCombined && (
               <span style={{ position: 'absolute', bottom: 3, right: 4, fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
                 ⊞
               </span>
