@@ -579,6 +579,13 @@ model CallLog {
   recordUrl    String?
   createdAt    DateTime    @default(now())
 
+  // ── Phase-128 routing metadata ────────────────────────────────────────────
+  // Null on records created before Phase 128.
+  routingStatus  String?   // "resolved" | "unresolved"
+  category       String?   // "reservation" | future categories
+  channel        String?   // "phone" | "sms" | future channels
+  restaurantName String?   // denormalised; set when group routing resolves to a known target
+
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
 
   @@index([phone])
