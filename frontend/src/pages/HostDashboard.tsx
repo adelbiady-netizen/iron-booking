@@ -207,13 +207,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     incoming_call: (data) => {
       const d = data as { phone: string; createdAt: string };
       const now = Date.now();
+      console.log('[CALL-DBG] handler entry — phone:', d.phone, 'lastCallRef:', JSON.stringify(lastCallRef.current), 'incomingCall:', !!incomingCall);
 
       // 1. Deduplication — same phone within 10 s
-      if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) return;
+      if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) {
+        console.log('[CALL-DBG] DEDUP SUPPRESSED — age ms:', now - lastCallRef.current.at);
+        return;
+      }
       lastCallRef.current = { phone: d.phone, at: now };
 
       // 2. Drawer already open — update content + visual ping, no interruption
       if (incomingCall) {
+        console.log('[CALL-DBG] drawer already open — pinging existing drawer');
         setIncomingCall(d);
         if (callHighlightTimer.current) clearTimeout(callHighlightTimer.current);
         setCallHighlight(true);
@@ -227,6 +232,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       const typing = tag === 'input' || tag === 'textarea' || tag === 'select'
         || !!(el as HTMLElement | null)?.isContentEditable;
 
+      console.log('[CALL-DBG] typing:', typing, '— calling', typing ? 'setCallNotification' : 'setIncomingCall');
       if (typing) {
         setCallNotification(d);
       } else {
