@@ -530,6 +530,39 @@ export async function seatReservation(
   }
 
   return prisma.$transaction(async (tx) => {
+    // Walk-in override: unassign future reservations on the target table so they
+    // surface in the ללא שולחן list for immediate reassignment by the host.
+    // Uses the same conflict window as Check 1 (defaultTurnMinutes + buffer from now).
+    if (overrideConflicts && reorganizeIds.length === 0) {
+      const todayDateObj = parseDateArg(todayLocal);
+      const windowEndMins = nowMins + settings.defaultTurnMinutes + settings.bufferBetweenTurnsMinutes;
+      const futureOnTable = await tx.reservation.findMany({
+        where: {
+          restaurantId,
+          date: todayDateObj,
+          tableId,
+          status: { in: ['CONFIRMED', 'PENDING'] },
+          id: { not: id },
+        },
+        select: { id: true, guestName: true, time: true },
+      });
+      for (const displaced of futureOnTable.filter(f => {
+        const [fH, fM] = f.time.split(':').map(Number);
+        const resMins = fH * 60 + fM;
+        return resMins > nowMins && resMins <= windowEndMins;
+      })) {
+        await tx.reservation.update({
+          where: { id: displaced.id },
+          data: { tableId: null, combinedTableIds: [] },
+        });
+        await logActivity(tx, displaced.id, 'REORGANIZE_TRIGGERED', actorName, {
+          displacedFrom: tableId,
+          byReservation: id,
+          byGuestName: r.guestName,
+        });
+      }
+    }
+
     // Displace only the reservations the host explicitly selected.
     // Validate each: must belong to this restaurant, table, date, and be seateable.
     if (reorganizeIds.length > 0) {
