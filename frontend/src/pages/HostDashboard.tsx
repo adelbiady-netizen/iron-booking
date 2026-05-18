@@ -201,6 +201,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
   const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | undefined>(undefined);
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
+  const [tablePickWalkIn,      setTablePickWalkIn]      = useState(false);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
 
   const sseStatus = useServerEvents({
@@ -953,6 +954,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickMode(false);
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
+    setTablePickWalkIn(false);
   }, []);
 
   const handlePickCancel = useCallback(() => {
@@ -961,7 +963,20 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickMode(false);
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
+    setTablePickWalkIn(false);
   }, []);
+
+  const handlePickTablesFromDrawer = useCallback((
+    currentIds: string[],
+    suggestions: BackendTableSuggestion[],
+    callback: (ids: string[] | null) => void,
+    action?: 'seat' | 'move' | 'change-table',
+    guestName?: string,
+    walkIn?: boolean,
+  ) => {
+    setTablePickWalkIn(!!walkIn);
+    handlePickTables(currentIds, suggestions, callback, action, guestName);
+  }, [handlePickTables]);
 
   const handleChooseTable = useCallback(async (r: Reservation) => {
     let sug: BackendTableSuggestion[] = [];
@@ -1476,6 +1491,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onPickCancel={handlePickCancel}
           pickAction={tablePickAction}
           pickGuestName={tablePickGuestName}
+          pickWalkInMode={tablePickWalkIn}
           waitlistAssignEntry={waitlistAssignEntry}
           waitlistAssignTableId={waitlistAssignTableId}
           onWaitlistTablePick={handleWaitlistTablePick}
@@ -1608,7 +1624,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
             onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}
             onCreated={handleCreated}
-            onPickTables={handlePickTables}
+            onPickTables={handlePickTablesFromDrawer}
             onPickTablesCancel={handlePickCancel}
             onDateTimeChange={handleDrawerDateTimeChange}
           />

@@ -33,7 +33,7 @@ interface Props {
   defaultTurnMinutes?: number;
   onClose: () => void;
   onCreated: (r: Reservation) => void;
-  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void) => void;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, walkIn?: boolean) => void;
   onPickTablesCancel?: () => void;
   /** Called whenever the reservation date or time changes so the parent can keep
    *  the floor board in sync with the drawer. */
@@ -389,6 +389,9 @@ export default function CreateDrawer({
           setWiManualOverride(true);
         }
       },
+      undefined,
+      undefined,
+      true,
     );
   }
 

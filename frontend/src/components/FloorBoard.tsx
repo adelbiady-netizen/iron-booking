@@ -363,6 +363,8 @@ interface Props {
   onPickCancel?: () => void;
   pickAction?: 'seat' | 'move' | 'change-table';
   pickGuestName?: string;
+  // Walk-in pick: future-reserved tables are amber/selectable; occupied tables stay hard-blocked.
+  pickWalkInMode?: boolean;
   // Waitlist table assignment mode
   waitlistAssignEntry?: WaitlistEntry | null;
   waitlistAssignTableId?: string | null;
@@ -446,7 +448,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
-  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName,
+  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName, pickWalkInMode = false,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
@@ -584,10 +586,13 @@ export default function FloorBoard({
               if (!t.isActive) return false;
               if (pickAction === 'move' && pickIds.includes(t.id)) return false;
               const sug = pickSuggestions.find(s => s.tableId === t.id);
-              const unavail = sug
-                ? sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')
-                : false;
-              if (unavail) return false;
+              if (sug) {
+                const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
+                const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+                const hardBlock = isTableBlocked || isOccupiedNow ||
+                  (!pickWalkInMode && sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED'));
+                if (hardBlock) return false;
+              }
               return (
                 t.posX < fr.x + fr.w && t.posX + t.width  > fr.x &&
                 t.posY < fr.y + fr.h && t.posY + t.height > fr.y
@@ -631,6 +636,10 @@ export default function FloorBoard({
     if (!sug) return null;
     // Only genuine conflicts/locks are hard-unavailable; capacity mismatches (TOO_SMALL) are advisory.
     if (sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')) {
+      const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
+      const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+      // Walk-in: future-reserved tables are selectable (amber/tight). Occupied and table-blocked stay hard.
+      if (pickWalkInMode && !isTableBlocked && !isOccupiedNow) return 'tight';
       return 'unavailable';
     }
     // TOO_SMALL-only blocked → downgrade to 'tight' (selectable with warning)
