@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, Table } from '../types';
 import { api, ApiError } from '../api';
-import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeConflictModal';
+import { type ReorganizeConflict } from './ReorganizeConflictModal';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
@@ -175,13 +175,12 @@ export default function CreateDrawer({
 
   const [error,        setError]        = useState<string | null>(null);
   const [busy,         setBusy]         = useState(false);
-  const wiReorganizeKeyRef = useRef(0);
-  const [wiReorganize, setWiReorganize] = useState<{
-    conflicts: ReorganizeConflict[];
+  const [wiConflictWarning, setWiConflictWarning] = useState<{
     reservationId: string;
     tableId: string;
-    busy: boolean;
-    _key: number;
+    combinedTableIds: string[];
+    conflictTime: string;
+    tableName: string;
   } | null>(null);
   const [phoneWarning, setPhoneWarning] = useState(false);
   const [pendingSeat,  setPendingSeat]  = useState(false);
@@ -445,8 +444,14 @@ export default function CreateDrawer({
           if (seatErr instanceof ApiError && seatErr.code === 'CONFLICT') {
             const det = seatErr.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
             if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
-              // Walk-in created but not seated — show reorganize modal before proceeding
-              setWiReorganize({ conflicts: det.conflicts, reservationId: r.id, tableId: wiTable, busy: false, _key: ++wiReorganizeKeyRef.current });
+              // Walk-in created but not seated — show soft warning so host can override
+              setWiConflictWarning({
+                reservationId:   r.id,
+                tableId:         wiTable,
+                combinedTableIds: wiCombinedTableIds,
+                conflictTime:    det.conflicts[0].time,
+                tableName:       resolveTableName(wiTable),
+              });
               onCreated(r);
               return;
             }
@@ -1325,25 +1330,40 @@ export default function CreateDrawer({
         )}
       </aside>
 
-      {wiReorganize && (
-        <ReorganizeConflictModal
-          key={wiReorganize._key}
-          conflicts={wiReorganize.conflicts}
-          busy={wiReorganize.busy}
-          onCancel={() => setWiReorganize(null)}
-          onConfirm={async (selectedIds) => {
-            const { reservationId, tableId } = wiReorganize;
-            setWiReorganize(prev => prev ? { ...prev, busy: true } : null);
-            try {
-              const seated = await api.reservations.seat(reservationId, tableId, true, [], selectedIds);
-              setWiReorganize(null);
-              onCreated(seated);
-            } catch (err: unknown) {
-              setWiReorganize(null);
-              setError(err instanceof Error ? err.message : 'Failed to seat walk-in');
-            }
-          }}
-        />
+      {wiConflictWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
+            <p className="text-sm font-medium text-iron-text mb-1">Upcoming reservation</p>
+            <p className="text-sm text-iron-muted mb-5">
+              {wiConflictWarning.tableName} has a reservation at {wiConflictWarning.conflictTime}.
+              Seat this walk-in anyway?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 text-sm rounded-lg border border-iron-border text-iron-muted hover:bg-iron-surface transition-colors"
+                onClick={() => setWiConflictWarning(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 text-sm rounded-lg bg-iron-accent text-white hover:opacity-90 transition-opacity"
+                onClick={async () => {
+                  const { reservationId, tableId, combinedTableIds } = wiConflictWarning;
+                  try {
+                    const seated = await api.reservations.seat(reservationId, tableId, true, combinedTableIds);
+                    setWiConflictWarning(null);
+                    onCreated(seated);
+                  } catch (err: unknown) {
+                    setWiConflictWarning(null);
+                    setError(err instanceof Error ? err.message : 'Failed to seat walk-in');
+                  }
+                }}
+              >
+                Seat anyway
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

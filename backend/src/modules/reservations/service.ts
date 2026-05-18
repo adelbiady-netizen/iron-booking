@@ -450,8 +450,9 @@ export async function seatReservation(
   // within the effective validator window (defaultTurnMinutes + buffer) from
   // now — matches the board visibility threshold (reservationIsUpcoming forward cap)
   // so a table shown AVAILABLE always passes this check and vice versa.
-  // Skip this check when the caller has already selected IDs to reorganize.
-  if (reorganizeIds.length === 0) {
+  // Skip this check when the caller has already selected IDs to reorganize,
+  // or when the host has explicitly acknowledged the conflict (overrideConflicts=true).
+  if (reorganizeIds.length === 0 && !overrideConflicts) {
     const todayDateObj = parseDateArg(todayLocal);
     const windowEndMins = nowMins + settings.defaultTurnMinutes + settings.bufferBetweenTurnsMinutes;
 
