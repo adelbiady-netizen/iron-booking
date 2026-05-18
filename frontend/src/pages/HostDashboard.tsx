@@ -405,8 +405,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setQuickTable(null);
     setSelectedRes(updated);
-    setRefreshKey(k => k + 1);
-    setWaitlistRefreshKey(k => k + 1);
+    // No explicit refresh — backend emits floor_updated via SSE after every mutation,
+    // which triggers the single background refresh via setRefreshKey in the SSE handler.
   }, []);
 
   // Updates reservations in-place; the panel auto-refreshes via quickRes derivation.
