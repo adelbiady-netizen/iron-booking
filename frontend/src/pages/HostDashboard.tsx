@@ -1222,7 +1222,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setCreateMode(null);
     setPreselectedTableId(null);
     setPreselectedCombinedTableIds([]);
-    setReservations(prev => [...prev, created]);
+    // Upsert: if the SSE re-fetch already added a PENDING version (race in override flow), replace it.
+    setReservations(prev => {
+      const idx = prev.findIndex(r => r.id === created.id);
+      return idx === -1 ? [...prev, created] : prev.map(r => r.id === created.id ? created : r);
+    });
     setRefreshKey(k => k + 1);
     setSelectedRes(created);
     setHighlightId(created.id);
