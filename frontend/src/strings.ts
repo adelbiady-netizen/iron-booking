@@ -820,9 +820,10 @@ export const T = {
     labelWalkIns:        'Walk-ins',
     labelPhone:          'Phone bookings',
     labelOnline:         'Online / OT / Resy',
-    labelNoShowPct:      'No-show rate',
-    labelCancellationPct:'Cancellation rate',
-    guests:              (n: number) => `${n}`,
+    labelNoShowPct:       'No-show rate',
+    labelCancellationPct: 'Cancellation rate',
+    labelRemainingGuests: 'Still expected this shift',
+    guests:               (n: number) => `${n} guests`,
     pct:                 (n: number) => `${n}%`,
   },
 

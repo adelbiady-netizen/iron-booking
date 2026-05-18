@@ -202,6 +202,7 @@ function shiftMetrics(rows: ShiftRow[]) {
   const cancelled = rows.filter(r => r.status === 'CANCELLED');
   const pending   = rows.filter(r => r.status === 'PENDING');
   const confirmed = rows.filter(r => r.status === 'CONFIRMED');
+  const remaining = rows.filter(r => !['SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status));
 
   const total = rows.length;
   const pct = (n: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
@@ -224,6 +225,7 @@ function shiftMetrics(rows: ShiftRow[]) {
     onlineReservations:   rows.filter(r => ['ONLINE', 'OPENTABLE', 'RESY', 'INTERNAL'].includes(r.source)).length,
     noShowPct:            pct(noShows.length),
     cancellationPct:      pct(cancelled.length),
+    remainingGuests:      sum(remaining),
   };
 }
 

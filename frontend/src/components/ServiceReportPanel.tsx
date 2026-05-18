@@ -66,8 +66,9 @@ function ShiftPanel({ data, T }: { data: ShiftMetrics; T: ReturnType<typeof useT
       <MetricSection title={sr.labelNoShows}>
         <MetricRow label={sr.labelNoShows}        value={`${data.noShowReservations} (${data.noShowGuests}p)`} />
         <MetricRow label={sr.labelNoShowPct}      value={sr.pct(data.noShowPct)} />
-        <MetricRow label={sr.labelCancelled}       value={`${data.cancelledReservations} (${data.cancelledGuests}p)`} />
-        <MetricRow label={sr.labelCancellationPct} value={sr.pct(data.cancellationPct)} />
+        <MetricRow label={sr.labelCancelled}        value={`${data.cancelledReservations} (${data.cancelledGuests}p)`} />
+        <MetricRow label={sr.labelCancellationPct}  value={sr.pct(data.cancellationPct)} />
+        <MetricRow label={sr.labelRemainingGuests}  value={sr.guests(data.remainingGuests)} />
       </MetricSection>
 
       <MetricSection title={sr.labelWalkIns}>

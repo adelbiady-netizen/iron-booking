@@ -20,6 +20,7 @@ export interface ShiftMetrics {
   onlineReservations: number;
   noShowPct: number;
   cancellationPct: number;
+  remainingGuests: number;
 }
 
 // Carries structured error info from the backend.

@@ -794,9 +794,10 @@ export const THe = {
     labelWalkIns:        'כניסות ישירות',
     labelPhone:          'הזמנות טלפוניות',
     labelOnline:         'אונליין / OT / Resy',
-    labelNoShowPct:      'שיעור אי-הגעה',
-    labelCancellationPct:'שיעור ביטולים',
-    guests:              (n: number) => `${n}`,
+    labelNoShowPct:       'שיעור אי-הגעה',
+    labelCancellationPct: 'שיעור ביטולים',
+    labelRemainingGuests: 'נותרו להגעה במשמרת',
+    guests:               (n: number) => `${n} סועדים`,
     pct:                 (n: number) => `${n}%`,
   },
 
