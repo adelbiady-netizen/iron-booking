@@ -1636,14 +1636,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onNewReservation={(phone) => {
             setCallPrefillPhone(phone);
             setCreateMode('reservation');
-            setIncomingCall(null);
+            lastCallRef.current = null; setIncomingCall(null);
           }}
           onOpenReservation={(resId) => {
             const res = reservations.find(r => r.id === resId);
             if (res) setSelectedRes(res);
-            setIncomingCall(null);
+            lastCallRef.current = null; setIncomingCall(null);
           }}
-          onClose={() => setIncomingCall(null)}
+          onClose={() => { lastCallRef.current = null; setIncomingCall(null); }}
         />
       )}
 
