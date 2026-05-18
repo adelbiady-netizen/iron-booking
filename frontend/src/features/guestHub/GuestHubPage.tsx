@@ -427,9 +427,10 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
   const [stickyVisible, setStickyVisible] = useState(false);
   const [logoFailed,    setLogoFailed]    = useState(false);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
-  const heroRef     = useRef<HTMLDivElement>(null);
-  const menuRef     = useRef<HTMLDivElement>(null);
-  const categoryRef = useRef<HTMLDivElement>(null);
+  const heroRef        = useRef<HTMLDivElement>(null);
+  const menuRef        = useRef<HTMLDivElement>(null);
+  const categoryRef    = useRef<HTMLDivElement>(null);
+  const catScrollReady = useRef(false);
 
   const selectedCat = vm.allCategories.find(c => c.id === selectedCatId) ?? null;
 
@@ -452,8 +453,11 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
     return () => clearTimeout(t);
   }, [diningMode]);
 
-  // Scroll to category section when browsing into or back from a category.
+  // Scroll to category section when navigating back from a category drill-down.
+  // catScrollReady skips the initial mount fire (selectedCatId starts as null
+  // but the user hasn't navigated anywhere yet — scrolling would jump past hero).
   useEffect(() => {
+    if (!catScrollReady.current) { catScrollReady.current = true; return; }
     const t = setTimeout(() => {
       categoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 60);
@@ -550,6 +554,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
             src={vm.coverImageUrl}
             alt={`${vm.name} — cover`}
             loading="eager"
+            fetchPriority="high"
             decoding="async"
             className="gh-hero-img"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}

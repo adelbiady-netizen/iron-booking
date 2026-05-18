@@ -70,13 +70,35 @@ export default function GuestHubSkeleton() {
         {/* Divider */}
         <div style={{ height: 1, background: C.border, margin: '40px 0' }} />
 
-        {/* Featured dishes section header — no scroll button bones */}
+        {/* Promotions — matches actual page order (promotions before menu) */}
+        <Bone width={70} height={10} radius={4} style={{ marginBottom: 10 }} />
+        <Bone width={190} height={24} radius={6} style={{ marginBottom: 20 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{
+              padding: '18px 18px 20px',
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 14,
+            }}>
+              <Bone width={70} height={18} radius={5} style={{ marginBottom: 10 }} />
+              <Bone width="80%" height={14} radius={4} style={{ marginBottom: 9 }} />
+              <Bone width="100%" height={12} radius={4} style={{ marginBottom: 5 }} />
+              <Bone width="75%" height={12} radius={4} />
+            </div>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: C.border, margin: '40px 0' }} />
+
+        {/* Featured dishes section header */}
         <div style={{ marginBottom: 20 }}>
           <Bone width={100} height={10} radius={4} style={{ marginBottom: 10 }} />
           <Bone width={180} height={24} radius={6} />
         </div>
 
-        {/* Dish carousel — 3 card silhouettes at new 192×148 dimensions */}
+        {/* Dish carousel — 3 card silhouettes at 192×148 dimensions */}
         <div style={{ margin: '0 -24px', paddingLeft: 24, paddingRight: 24, display: 'flex', gap: 12, overflowX: 'hidden' }}>
           {[0, 1, 2].map(i => (
             <div key={i} style={{
@@ -114,28 +136,6 @@ export default function GuestHubSkeleton() {
             }}>
               <Bone width="65%" height={13} radius={4} style={{ marginBottom: 7 }} />
               <Bone width={50} height={11} radius={4} />
-            </div>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div style={{ height: 1, background: C.border, margin: '40px 0' }} />
-
-        {/* Promotions */}
-        <Bone width={70} height={10} radius={4} style={{ marginBottom: 10 }} />
-        <Bone width={190} height={24} radius={6} style={{ marginBottom: 20 }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{
-              padding: '18px 18px 20px',
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 14,
-            }}>
-              <Bone width={70} height={18} radius={5} style={{ marginBottom: 10 }} />
-              <Bone width="80%" height={14} radius={4} style={{ marginBottom: 9 }} />
-              <Bone width="100%" height={12} radius={4} style={{ marginBottom: 5 }} />
-              <Bone width="75%" height={12} radius={4} />
             </div>
           ))}
         </div>
