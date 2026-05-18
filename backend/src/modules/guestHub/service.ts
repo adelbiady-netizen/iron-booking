@@ -129,8 +129,10 @@ function shapeHub(
         // Published snapshot written before themePreset was added will have null.
         // Fall back to draft so existing hubs show the correct theme immediately.
         themePreset:   brandingSource.themePreset ?? hub.branding?.themePreset ?? null,
-        galleryImages:  'galleryImages'  in brandingSource ? brandingSource.galleryImages  : [],
-        galleryEnabled: 'galleryEnabled' in brandingSource ? brandingSource.galleryEnabled : false,
+        // Gallery is always read from draft — operators can update images without
+        // going through a full publish cycle. Published snapshot never stores these fields.
+        galleryImages:  hub.branding?.galleryImages  ?? [],
+        galleryEnabled: hub.branding?.galleryEnabled ?? false,
       }
     : null;
 
