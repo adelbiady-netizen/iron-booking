@@ -642,22 +642,22 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
         {/* Uniform image darkening — overlay lifts text contrast on any cover photo */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.26)',
+          background: 'rgba(0,0,0,0.18)',
           pointerEvents: 'none',
         }} />
         {/* Grain texture — atmospheric film grain at near-zero opacity */}
         <div className="gh-grain" />
-        {/* Bottom fade — strong, starts high for a clean identity block read */}
+        {/* Bottom fade — reveals more of the image while keeping text readable */}
         <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '84%',
-          background: `linear-gradient(to bottom, transparent 0%, ${C.bg}A0 32%, ${C.bg}DC 56%, ${C.bg} 100%)`,
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '78%',
+          background: `linear-gradient(to bottom, transparent 0%, ${C.bg}88 40%, ${C.bg}D0 62%, ${C.bg} 100%)`,
           pointerEvents: 'none',
         }} />
-        {/* Restaurant identity */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: diningMode ? '0 20px 18px' : '0 24px 40px' }}>
+        {/* Restaurant identity — centered column composition */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: diningMode ? '0 20px 18px' : '0 24px 44px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           {!diningMode && vm.logoUrl && !logoFailed && (
             <div style={{
-              width: 52, height: 52, borderRadius: 16, overflow: 'hidden', marginBottom: 20,
+              width: 52, height: 52, borderRadius: 16, overflow: 'hidden', marginBottom: 14,
               background: C.elevated,
               border: `1px solid rgba(255,255,255,0.18)`,
               boxShadow: '0 4px 28px rgba(0,0,0,0.80)',
@@ -674,10 +674,14 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
               />
             </div>
           )}
-          {/* Gold accent line — editorial typography anchor */}
-          <div style={{ width: 28, height: 2, background: C.gold, borderRadius: 1, marginBottom: diningMode ? 10 : 16 }} />
+          {/* 3-segment brand line — gold·light·gold, theme-aware */}
+          <div style={{ display: 'flex', gap: 3, marginBottom: diningMode ? 10 : 18 }}>
+            <div style={{ width: 14, height: 2, background: C.gold, borderRadius: 1 }} />
+            <div style={{ width: 8,  height: 2, background: C.text, borderRadius: 1, opacity: 0.30 }} />
+            <div style={{ width: 14, height: 2, background: C.gold, borderRadius: 1 }} />
+          </div>
           <h1 style={{
-            fontSize: diningMode ? 'clamp(22px, 5.5vw, 30px)' : 'clamp(36px, 9.5vw, 52px)',
+            fontSize: diningMode ? 'clamp(22px, 5.5vw, 30px)' : 'clamp(32px, 8.5vw, 46px)',
             fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, margin: 0,
             textShadow: '0 2px 20px rgba(0,0,0,0.75)',
           }}>
@@ -696,7 +700,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           )}
           {!diningMode && vm.tagline && (
             <p style={{
-              marginTop: 10, fontSize: 15,
+              marginTop: 12, fontSize: 15,
               color: 'rgba(240,235,227,0.82)',
               letterSpacing: '0.025em', lineHeight: 1.55, marginBottom: 0,
               fontWeight: 400, fontStyle: 'italic',
@@ -707,7 +711,7 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           )}
           {!diningMode && vm.estYear && (
             <p style={{
-              marginTop: 8, fontSize: 11,
+              marginTop: 10, fontSize: 11,
               color: 'rgba(240,235,227,0.42)',
               letterSpacing: '0.10em', lineHeight: 1.4, marginBottom: 0,
               fontWeight: 500, textTransform: 'uppercase',
