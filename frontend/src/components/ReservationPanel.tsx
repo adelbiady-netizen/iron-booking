@@ -133,7 +133,7 @@ export default function ReservationPanel({
     <aside className="w-full h-full flex flex-col border-s border-iron-border/80 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
 
       {/* Tab bar + action buttons */}
-      <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,215,130,0.07)' }}>
+      <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
         <div className="flex items-center gap-2 mb-2">
           <div className="flex gap-3 flex-1">
             <button
@@ -439,8 +439,11 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/[0.22] transition-colors duration-100 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.62]' : ''}`}
-                  style={selectedId === r.id ? { boxShadow: 'inset 0 0 0 1px rgba(111,138,60,0.12)' } : undefined}
+                  className={`w-full flex items-stretch border-b border-iron-border/[0.22] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.62]' : ''}`}
+                  style={{ boxShadow: selectedId === r.id
+                    ? 'inset 0 0 0 1px rgba(111,138,60,0.16), 0 2px 8px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.05)'
+                    : 'inset 0 1px 0 rgba(255,255,255,0.022)'
+                  }}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
@@ -471,17 +474,17 @@ export default function ReservationPanel({
                     {/* Row 2 — time hero · guests · table as subordinate metadata */}
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-iron-text text-[17px] font-bold tabular-nums shrink-0 leading-none">{normalizeTime(r.time)}</span>
-                      <span className="text-iron-muted/35 text-sm leading-none">·</span>
+                      <span className="text-iron-muted/45 text-sm leading-none">·</span>
                       <span className="text-iron-text/70 text-[13px] font-medium leading-none">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/35 text-sm leading-none">·</span>
+                          <span className="text-iron-muted/45 text-sm leading-none">·</span>
                           <span className="text-iron-text/70 text-[13px] font-medium leading-none truncate">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/35 text-sm leading-none">·</span>
+                          <span className="text-iron-muted/45 text-sm leading-none">·</span>
                           {(() => {
                             const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
                             return (

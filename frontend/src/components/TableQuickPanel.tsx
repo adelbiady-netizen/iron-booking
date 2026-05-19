@@ -200,7 +200,7 @@ export default function TableQuickPanel({
   }
 
   // ── Button styles ──────────────────────────────────────────────────────────
-  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-lg border transition-colors disabled:opacity-40 active:scale-[0.97]';
+  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-lg border transition-[background-color,border-color,color,transform] duration-100 disabled:opacity-40 active:scale-[0.97]';
   const basePrimary = 'text-sm font-semibold px-4 py-3.5 rounded-xl border transition-[background-color,border-color,transform,opacity] duration-150 disabled:opacity-40 min-h-[44px] flex items-center justify-center active:scale-[0.97]';
   const btnGreen   = `${basePrimary} bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30`;
   const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25`;
@@ -208,13 +208,15 @@ export default function TableQuickPanel({
   const btnRed     = `${base} bg-red-900/15 border-red-900/25 text-red-400 hover:bg-red-900/25`;
   const btnNeutral = `${base} bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30`;
 
-  function Btn({ label, cls, onClick, disabled }: { label: string; cls: string; onClick: () => void; disabled?: boolean }) {
+  function Btn({ label, cls, onClick, disabled, style }: { label: string; cls: string; onClick: () => void; disabled?: boolean; style?: React.CSSProperties }) {
     return (
-      <button onClick={onClick} disabled={disabled || busy} className={cls}>
+      <button onClick={onClick} disabled={disabled || busy} className={cls} style={style}>
         {label}
       </button>
     );
   }
+
+  const primaryShadow: React.CSSProperties = { boxShadow: '0 1px 4px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06)' };
 
   // ── Status pill ────────────────────────────────────────────────────────────
   const statusConfig = (() => {
@@ -254,7 +256,7 @@ export default function TableQuickPanel({
     <aside className="h-full w-full bg-iron-card flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="p-4 border-b border-iron-border/60 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.22), inset 0 -1px 0 rgba(255,215,130,0.07)' }}>
+        <div className="p-4 border-b border-iron-border/60 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.22)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -391,8 +393,13 @@ export default function TableQuickPanel({
                 const cr = floorTable.currentReservation!;
                 const mr = cr.minutesRemaining;
                 const freeAt = fmtHostTime(cr.expectedEndTime);
+                const cardCls = cr.isOverdue
+                  ? 'rounded-xl bg-red-900/10 border border-red-500/20 px-3 py-2 flex justify-between text-[13px]'
+                  : mr <= 20
+                  ? 'rounded-xl bg-amber-900/10 border border-amber-500/20 px-3 py-2 flex justify-between text-[13px]'
+                  : 'rounded-xl bg-iron-bg/50 border border-iron-border/30 px-3 py-2 flex justify-between text-[13px]';
                 return (
-                  <div className="flex justify-between text-[13px]">
+                  <div className={cardCls} style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.14)' }}>
                     {cr.isOverdue ? (
                       <>
                         <span className="text-red-400/75">Turn</span>
@@ -483,21 +490,21 @@ export default function TableQuickPanel({
                   {/* PRIMARY */}
                   <div className="flex flex-wrap gap-2">
                     {res.status === 'PENDING' && (<>
-                      <Btn label={T.guestDrawer.actionConfirm} cls={btnBlue}
+                      <Btn label={T.guestDrawer.actionConfirm} cls={btnBlue} style={primaryShadow}
                         onClick={() => quick(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed, true)} />
-                      <Btn label={T.guestDrawer.actionSeat} cls={btnGreen}
+                      <Btn label={T.guestDrawer.actionSeat} cls={btnGreen} style={primaryShadow}
                         onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
                     </>)}
 
                     {res.status === 'CONFIRMED' && (
-                      <Btn label={T.guestDrawer.actionSeat} cls={btnGreen}
+                      <Btn label={T.guestDrawer.actionSeat} cls={btnGreen} style={primaryShadow}
                         onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
                     )}
 
                     {res.status === 'SEATED' && (<>
-                      <Btn label={T.guestDrawer.actionComplete} cls={btnGreen}
+                      <Btn label={T.guestDrawer.actionComplete} cls={btnGreen} style={primaryShadow}
                         onClick={() => quick(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} />
                       <Btn label={T.guestDrawer.actionMoveTable} cls={btnNeutral}
                         onClick={() => { onMoveTable(res); }} />

@@ -2897,10 +2897,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           ? '0 0 0 1px rgba(134,239,172,0.26), 0 0 34px rgba(134,239,172,0.13)'
           : '0 0 0 1px rgba(22,163,74,0.38), 0 0 32px rgba(22,163,74,0.12)'
         : cls === 'vip'
-        // VIP real estate: warm gold ambient — premium presence without urgency
+        // VIP real estate: warm gold ambient — premium presence, clearly below occupied urgency
         ? isDark
-          ? '0 0 0 1px rgba(255,215,130,0.18), 0 0 36px rgba(255,215,130,0.09)'
-          : '0 0 0 1px rgba(180,150,50,0.22), 0 0 32px rgba(180,150,50,0.08)'
+          ? '0 0 0 1px rgba(255,215,130,0.14), 0 0 30px rgba(255,215,130,0.06)'
+          : '0 0 0 1px rgba(180,150,50,0.17), 0 0 28px rgba(180,150,50,0.07)'
         : isDark ? '0 0 22px rgba(255,255,255,0.09)' : undefined;
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
