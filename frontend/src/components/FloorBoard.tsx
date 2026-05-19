@@ -2886,6 +2886,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         ? isDark
           ? '0 0 0 1px rgba(134,239,172,0.26), 0 0 34px rgba(134,239,172,0.13)'
           : '0 0 0 1px rgba(22,163,74,0.38), 0 0 32px rgba(22,163,74,0.12)'
+        : cls === 'vip'
+        // VIP real estate: warm gold ambient — premium presence without urgency
+        ? isDark
+          ? '0 0 0 1px rgba(255,215,130,0.18), 0 0 36px rgba(255,215,130,0.09)'
+          : '0 0 0 1px rgba(180,150,50,0.22), 0 0 32px rgba(180,150,50,0.08)'
         : isDark ? '0 0 22px rgba(255,255,255,0.09)' : undefined;
     }
     if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
@@ -2952,6 +2957,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'
     : table.liveStatus === 'BLOCKED'
     ? undefined
+    // VIP tables cast a deeper shadow footprint even when empty — premium floor presence
+    : cls === 'vip'
+    ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.36)) drop-shadow(0 1px 4px rgba(0,0,0,0.18))'
     : 'drop-shadow(0 1px 7px rgba(0,0,0,0.28))';
 
   return (
@@ -3032,6 +3040,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           boxShadow: 'inset 0 0 20px rgba(239,68,68,0.32)',
           animation: `table-tense 5.5s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 5.5).toFixed(2)}s`,
+        }} />
+      )}
+      {/* VIP prestige — faint gold center bloom for empty VIP tables.
+          Not animated; present only at rest so the glow reads as material, not alert. */}
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue && (
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 70% 60% at 50% 40%, rgba(255,215,130,0.09) 0%, transparent 100%)',
         }} />
       )}
 

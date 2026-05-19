@@ -98,7 +98,7 @@ export default function TopBar({
     <header className="h-16 shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 4px 28px rgba(0,0,0,0.52)', borderBottom: '1px solid rgba(255,215,130,0.18)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 mr-3 shrink-0">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.26) 0%, rgba(75,95,42,0.15) 100%)', border: '1px solid rgba(111,138,60,0.30)', boxShadow: '0 0 14px rgba(111,138,60,0.14), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.26) 0%, rgba(75,95,42,0.15) 100%)', border: '1px solid rgba(120,120,60,0.32)', boxShadow: '0 0 14px rgba(111,138,60,0.14), 0 0 8px rgba(255,215,130,0.07), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
           <span className="text-iron-green-light font-bold text-sm">IB</span>
         </div>
         <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden md:block">

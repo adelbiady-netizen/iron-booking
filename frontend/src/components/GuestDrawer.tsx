@@ -13,12 +13,12 @@ import { fmtHostTime, normalizeTime } from '../utils/time';
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
 
 const STATUS_PILL: Record<ReservationStatus, string> = {
-  PENDING:   'bg-amber-500/15 text-amber-400',
-  CONFIRMED: 'bg-iron-border/20 text-iron-muted',
-  SEATED:    'bg-iron-green/25 text-iron-green-light',
-  COMPLETED: 'bg-iron-border/20 text-iron-muted',
-  CANCELLED: 'bg-red-900/15 text-red-400',
-  NO_SHOW:   'bg-orange-900/15 text-orange-400',
+  PENDING:   'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+  CONFIRMED: 'bg-blue-500/12 text-blue-300/90 border border-blue-500/25',
+  SEATED:    'bg-iron-green/22 text-iron-green-light border border-iron-green/35',
+  COMPLETED: 'bg-iron-border/18 text-iron-muted/75 border border-iron-border/25',
+  CANCELLED: 'bg-red-900/15 text-red-400 border border-red-900/25',
+  NO_SHOW:   'bg-orange-900/15 text-orange-400 border border-orange-900/25',
 };
 
 interface RowProps { label: string; value: string; accent?: boolean; warn?: boolean }
@@ -107,7 +107,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       disabled={disabled}
       title={title}
       className={`rounded-lg border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-3' : 'text-xs font-medium px-3 py-2'
+        primary ? 'text-sm font-semibold px-4 py-3.5' : 'text-xs font-medium px-3 py-2'
       } ${cls}`}
     >
       {label}
@@ -923,7 +923,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                       className="text-[15px] font-mono font-semibold text-iron-text hover:text-iron-green-light transition-colors"
                       onClick={e => e.stopPropagation()}
                     >
-                      {res.guestPhone}
+                      {(() => {
+                        const d = res.guestPhone!.replace(/\D/g, '');
+                        if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
+                        if (d.length === 10 && d.startsWith('0'))   return `${d.slice(0,3)} · ${d.slice(3,6)} · ${d.slice(6)}`;
+                        return res.guestPhone;
+                      })()}
                     </a>
                     <button
                       onClick={() => {
@@ -1054,20 +1059,20 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {(res.hostNotes || res.guestNotes || res.occasion) && (
             <section className="space-y-2">
               {res.hostNotes && (
-                <div className="px-3 py-2 rounded-lg bg-iron-card border border-iron-border/60" style={{ borderLeftWidth: 2, borderLeftColor: 'rgba(217,119,6,0.60)' }}>
-                  <p className="text-[11px] text-iron-muted font-medium uppercase tracking-wider mb-0.5">Host note</p>
-                  <p className="text-iron-text text-[13px] leading-relaxed">{res.hostNotes}</p>
+                <div className="px-3 py-2.5 rounded-lg bg-amber-900/8 border border-amber-500/20" style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.72)' }}>
+                  <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
+                  <p className="text-amber-100/85 text-[13px] leading-relaxed">{res.hostNotes}</p>
                 </div>
               )}
               {res.guestNotes && (
-                <div className="px-3 py-2 rounded-lg bg-iron-bg border border-iron-border">
-                  <p className="text-[11px] text-iron-muted font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
-                  <p className="text-iron-text text-[13px]">{res.guestNotes}</p>
+                <div className="px-3 py-2.5 rounded-lg bg-iron-card/70 border border-iron-border/70">
+                  <p className="text-[10px] text-iron-muted/70 font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
+                  <p className="text-iron-text/90 text-[13px]">{res.guestNotes}</p>
                 </div>
               )}
               {res.occasion && (
-                <div className="px-3 py-1.5 rounded-lg bg-iron-green/8 border border-iron-green/20">
-                  <p className="text-iron-green-light text-xs font-medium">{res.occasion}</p>
+                <div className="px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25">
+                  <p className="text-iron-green-light text-xs font-semibold">{res.occasion}</p>
                 </div>
               )}
             </section>
@@ -1106,7 +1111,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     <button
                       onClick={() => seatWithReorganizeCheck(smartSuggestion.suggestion.tableId!, [], T.guestDrawer.toastSeated(res.guestName, smartSuggestion.suggestion.tableName))}
                       disabled={busy}
-                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/25 border border-iron-green/50 text-iron-green-light hover:bg-iron-green/35 transition-colors disabled:opacity-40"
+                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/25 border border-iron-green/50 text-iron-green-light hover:bg-iron-green/35 transition-colors disabled:opacity-40 active:scale-[0.97]"
                     >
                       {T.guestDrawer.suggestSeatNow}
                     </button>
@@ -1141,7 +1146,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         T.guestDrawer.toastTableReassigned(smartSuggestion.suggestion.tableName),
                       )}
                       disabled={busy}
-                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40"
+                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40 active:scale-[0.97]"
                     >
                       {T.guestDrawer.suggestSwapTable}
                     </button>
@@ -1161,15 +1166,15 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Reservation details — visual timing grid */}
           <section className="space-y-2">
             <div className="grid grid-cols-3 gap-2">
-              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60">
-                <p className="text-iron-text font-bold text-xl tabular-nums leading-none">{normalizeTime(res.time)}</p>
+              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+                <p className="text-iron-green-light font-bold text-xl tabular-nums leading-none">{normalizeTime(res.time)}</p>
                 <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowTime}</p>
               </div>
-              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60">
+              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
                 <p className="text-iron-text font-bold text-sm tabular-nums leading-none">{res.date.slice(0, 10)}</p>
                 <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowDate}</p>
               </div>
-              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60">
+              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
                 <p className="text-iron-text font-bold text-xl tabular-nums leading-none">{res.duration}<span className="text-sm font-medium text-iron-muted">m</span></p>
                 <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowDuration}</p>
               </div>
@@ -1179,7 +1184,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               <Ts label={T.guestDrawer.rowSeatedAt} ts={res.seatedAt} />
             )}
 
-            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-iron-bg border border-iron-border/60">
+            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
               <span className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{T.guestDrawer.rowTable}</span>
               <span className="text-iron-text text-sm font-semibold">
                 {(() => {
@@ -1544,7 +1549,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   <button
                     onClick={saveEdit}
                     disabled={busy}
-                    className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors disabled:opacity-40"
+                    className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors disabled:opacity-40 active:scale-[0.97]"
+                    style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06)' }}
                   >
                     {T.guestDrawer.saveChanges}
                   </button>
