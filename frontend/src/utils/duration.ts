@@ -1,6 +1,6 @@
-// Returns the automatic default reservation duration for a given party size.
-// 1–2 guests → 90 min; 3+ guests → 120 min.
-// Used by CreateDrawer (auto-default) and the backend (fallback when omitted).
-export function getDefaultDuration(partySize: number): number {
-  return partySize >= 3 ? 120 : 90;
+// Returns the hardcoded fallback duration when restaurant settings are unavailable.
+// Always 90 min — party-size-based inflation was removed because it caused
+// 120-min reservations to block valid operational turns (e.g. 18:30+120 blocks 20:30).
+export function getDefaultDuration(_partySize?: number): number {
+  return 90;
 }

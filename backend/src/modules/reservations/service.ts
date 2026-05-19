@@ -18,12 +18,6 @@ import { findOrCreateGuest, splitName } from '../guests/service';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// Party-size-aware duration default: 1–2 guests → 90 min, 3+ → 120 min.
-// Used as the backend fallback when the client omits duration (walk-ins, etc.).
-function defaultDurationForPartySize(partySize: number): number {
-  return partySize >= 3 ? 120 : 90;
-}
-
 async function getRestaurantSettings(restaurantId: string) {
   const r = await prisma.restaurant.findUniqueOrThrow({
     where: { id: restaurantId },
@@ -170,7 +164,7 @@ export async function createReservation(
   actorName: string
 ) {
   const settings = await getRestaurantSettings(restaurantId);
-  const duration = input.duration ?? defaultDurationForPartySize(input.partySize);
+  const duration = input.duration ?? settings.defaultTurnMinutes;
   const date = parseDateArg(input.date);
 
   if (input.tableId) {

@@ -110,7 +110,7 @@ export default function CreateDrawer({
   const [resDate,      setResDate]      = useState(defaultDate);
   const [resTime,      setResTime]      = useState(snapToSlot(gapHint?.startTime ?? defaultTime));
   const [resDuration,  setResDuration]  = useState(
-    gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
+    gapHint ? String(gapHint.durationMins) : String(defaultTurnMinutes ?? 90)
   );
   // durationManual: host has explicitly chosen a duration → suppress auto-defaults.
   // Starts true when a gap hint pre-fills the slot duration; false otherwise so
@@ -308,11 +308,11 @@ export default function CreateDrawer({
   }, [wiParty, wiDuration, mode]);
 
   // Auto-default duration when party size changes, unless the host already made
-  // a manual choice. Runs on mount and every time resParty changes.
+  // a manual choice. Uses restaurant defaultTurnMinutes — no party-size inflation.
   useEffect(() => {
     if (durationManual) return;
-    setResDuration(String(getDefaultDuration(resParty)));
-  }, [resParty, durationManual]);
+    setResDuration(String(defaultTurnMinutes ?? 90));
+  }, [resParty, durationManual, defaultTurnMinutes]);
 
   // Same logic for walk-in duration.
   useEffect(() => {
