@@ -957,6 +957,7 @@ export const T = {
     loadMore:      'Load more',
     today:         'Today',
     yesterday:     'Yesterday',
+    all:           'All',
   },
 
   // ── Activity Log ────────────────────────────────────────────────────────────

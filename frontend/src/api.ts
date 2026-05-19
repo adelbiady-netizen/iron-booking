@@ -638,10 +638,11 @@ export const api = {
   },
 
   callLogs: {
-    list: (params?: { limit?: number; offset?: number }) => {
+    list: (params?: { limit?: number; offset?: number; date?: string }) => {
       const qs = new URLSearchParams();
       if (params?.limit  != null) qs.set('limit',  String(params.limit));
       if (params?.offset != null) qs.set('offset', String(params.offset));
+      if (params?.date   != null) qs.set('date',   params.date);
       const query = qs.toString();
       return request<{ data: import('./types').CallLogItem[]; meta: { total: number; limit: number; offset: number } }>(
         `/call-logs${query ? `?${query}` : ''}`
