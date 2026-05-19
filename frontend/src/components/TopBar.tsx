@@ -67,7 +67,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center w-9 self-stretch text-iron-text/45 hover:text-iron-text hover:bg-white/[0.05] active:bg-white/[0.08] transition-colors text-base leading-none select-none shrink-0 touch-manipulation"
+      className="flex items-center justify-center w-9 self-stretch text-iron-text/45 hover:text-iron-text hover:bg-white/[0.07] active:bg-white/[0.11] transition-colors text-base leading-none select-none shrink-0 touch-manipulation"
     >
       {children}
     </button>
@@ -95,9 +95,9 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header className="h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: '1px solid rgba(255,215,130,0.22)' }}>
+    <header dir="ltr" className="h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: '1px solid rgba(255,215,130,0.22)' }}>
       {/* Brand */}
-      <div className="flex items-center gap-2.5 mr-3 shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 16px rgba(111,138,60,0.16), 0 0 8px rgba(255,215,130,0.07), inset 0 1px 0 rgba(255,255,255,0.12)' }}>
           <span className="text-iron-green-light font-bold text-sm">IB</span>
         </div>
@@ -106,8 +106,11 @@ export default function TopBar({
         </span>
       </div>
 
+      {/* Zone separator: brand → command */}
+      <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
+
       {/* ── Date / Time Command Cluster ──────────────────────────────── */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
         <div className="flex items-stretch rounded-2xl border border-white/[0.08] bg-iron-bg overflow-hidden" style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)' }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
@@ -137,6 +140,7 @@ export default function TopBar({
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
           <div className="relative flex items-center justify-center px-4 py-2" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
+              dir="ltr"
               className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
               style={{ fontSize: '40px', letterSpacing: '-0.045em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
@@ -174,48 +178,52 @@ export default function TopBar({
         )}
       </div>
 
-      {/* Zoom control — quiet utility */}
-      <div
-        className="flex items-center bg-iron-bg/60 rounded-xl overflow-hidden divide-x divide-iron-border/25"
-        style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(255,255,255,0.03)' }}
-        title={T.topBar.zoomTitle}
-      >
-        <button
-          onClick={() => onZoomChange(zoom - zoomStep)}
-          disabled={atMin}
-          aria-label={T.topBar.zoomOut}
-          className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
-        >
-          −
-        </button>
-        <button
-          onClick={() => onZoomChange(100)}
-          title={T.topBar.resetZoom}
-          className={`px-2.5 py-1.5 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-12 text-center ${
-            atNorm ? 'text-iron-muted' : 'text-iron-green-light'
-          }`}
-        >
-          {zoom}%
-        </button>
-        <button
-          onClick={() => onZoomChange(zoom + zoomStep)}
-          disabled={atMax}
-          aria-label={T.topBar.zoomIn}
-          className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
-        >
-          +
-        </button>
-      </div>
+      {/* Zone separator: command → utility */}
+      <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
 
-      {/* Bulk confirmation — live operational action */}
-      {onBulkConfirm && (
-        <button
-          onClick={onBulkConfirm}
-          className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-iron-green/25 text-iron-green-light hover:bg-iron-green/10 transition-colors shrink-0"
+      {/* ── Utility group: zoom + bulk confirm ──────────────────────── */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <div
+          className="flex items-center bg-iron-bg/60 rounded-xl overflow-hidden divide-x divide-iron-border/25"
+          style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(255,255,255,0.03)' }}
+          title={T.topBar.zoomTitle}
         >
-          {T.topBar.bulkConfirmButton}
-        </button>
-      )}
+          <button
+            onClick={() => onZoomChange(zoom - zoomStep)}
+            disabled={atMin}
+            aria-label={T.topBar.zoomOut}
+            className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
+          >
+            −
+          </button>
+          <button
+            onClick={() => onZoomChange(100)}
+            title={T.topBar.resetZoom}
+            className={`px-2.5 py-1.5 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-12 text-center ${
+              atNorm ? 'text-iron-muted' : 'text-iron-green-light'
+            }`}
+          >
+            {zoom}%
+          </button>
+          <button
+            onClick={() => onZoomChange(zoom + zoomStep)}
+            disabled={atMax}
+            aria-label={T.topBar.zoomIn}
+            className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
+          >
+            +
+          </button>
+        </div>
+
+        {onBulkConfirm && (
+          <button
+            onClick={onBulkConfirm}
+            className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-iron-green/25 text-iron-green-light hover:bg-iron-green/10 transition-colors shrink-0"
+          >
+            {T.topBar.bulkConfirmButton}
+          </button>
+        )}
+      </div>
 
       {/* SSE connection status — only shown when degraded */}
       {sseStatus === 'reconnecting' && (
@@ -233,22 +241,26 @@ export default function TopBar({
 
       <div className="flex-1" />
 
-      {/* Visual divider — operational zone ← → utility zone */}
+      {/* Zone separator: operational ← → preference + session */}
       <div className="w-px h-5 bg-iron-border/35 shrink-0" />
 
-      <LanguageSwitcher />
+      {/* ── Preference group: language + theme ──────────────────────── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <LanguageSwitcher />
+        <button
+          onClick={onThemeChange}
+          title={theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}
+          className="text-iron-text/45 hover:text-iron-text/85 rounded-lg p-1.5 hover:bg-iron-bg/60 transition-colors"
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
+      </div>
 
-      {/* Theme toggle — borderless, icon only */}
-      <button
-        onClick={onThemeChange}
-        title={theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}
-        className="text-iron-text/45 hover:text-iron-text/85 rounded-lg p-1.5 hover:bg-iron-bg/60 transition-colors"
-      >
-        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-      </button>
+      {/* Zone separator: preferences → session */}
+      <div className="w-px h-[22px] bg-iron-border/[0.20] shrink-0" />
 
       {/* User / session */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {onGuestsPage && (
           <button
             onClick={onGuestsPage}
