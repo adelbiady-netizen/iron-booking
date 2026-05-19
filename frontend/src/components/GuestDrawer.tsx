@@ -206,7 +206,7 @@ interface Props {
 
 export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange }: Props) {
   const T = useT();
-  const { locale } = useLocale();
+  const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
     PENDING:   T.reservationStatus.PENDING,
     CONFIRMED: T.reservationStatus.CONFIRMED,
@@ -904,10 +904,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.11) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 8px 30px rgba(0,0,0,0.44)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
-              {/* Time anchor first, then name — time is the primary scan element */}
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-iron-green-light font-bold tabular-nums shrink-0 tracking-tight" style={{ fontSize: '28px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
-                <h2 className="text-iron-text font-bold text-[22px] tracking-tight leading-tight truncate">{res.guestName}</h2>
+
+              {/* Name — identity dominant */}
+              <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1.5">
+                <h2 className="text-iron-text font-bold text-[26px] tracking-tight leading-tight truncate min-w-0">{res.guestName}</h2>
                 {res.guest?.isVip && (
                   <span className="text-amber-400 text-xs font-semibold bg-amber-500/14 px-2 py-0.5 rounded-full border border-amber-500/28 shrink-0">
                     {T.common.vip}
@@ -915,21 +915,42 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 )}
               </div>
 
-              {/* Phone — prominent, clickable, copyable */}
-              <div dir="ltr" className="flex items-center gap-2 mt-1">
-                {res.guestPhone ? (
+              {/* Reservation facts — time · party · table */}
+              <div dir="ltr" className="flex items-center gap-2 mb-2.5 flex-wrap">
+                <span className="text-iron-green-light font-bold tabular-nums shrink-0" style={{ fontSize: '22px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
+                <span className="text-iron-border/55 leading-none">·</span>
+                <span className="text-iron-text/90 text-[15px] font-semibold shrink-0">{T.common.guests(res.partySize)}</span>
+                {res.table && (
                   <>
+                    <span className="text-iron-border/55 leading-none">·</span>
+                    <span className="text-iron-text/90 text-[15px] font-semibold">
+                      {res.combinedTableIds.length
+                        ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
+                        : res.table.name}
+                    </span>
+                  </>
+                )}
+                <span className="text-iron-muted/60 text-[12px] font-medium">{formatReservationSource(res.source, locale)}</span>
+              </div>
+
+              {/* Phone — primary contact block */}
+              <div dir="ltr" className="mb-2.5">
+                {res.guestPhone ? (
+                  <div className="flex items-center gap-2">
                     <a
                       href={`tel:${res.guestPhone}`}
-                      className="text-[15px] font-mono font-semibold text-iron-text hover:text-iron-green-light transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-iron-bg border border-iron-border/55 hover:border-iron-green/55 hover:bg-iron-green/[0.07] transition-colors group flex-1 min-w-0"
                       onClick={e => e.stopPropagation()}
                     >
-                      {(() => {
-                        const d = res.guestPhone!.replace(/\D/g, '');
-                        if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
-                        if (d.length === 10 && d.startsWith('0'))   return `${d.slice(0,3)} · ${d.slice(3,6)} · ${d.slice(6)}`;
-                        return res.guestPhone;
-                      })()}
+                      <span className="text-iron-muted/55 text-[13px] leading-none shrink-0">☎</span>
+                      <span className="text-[18px] font-mono font-semibold text-iron-text/95 group-hover:text-iron-green-light transition-colors tabular-nums leading-none truncate">
+                        {(() => {
+                          const d = res.guestPhone!.replace(/\D/g, '');
+                          if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
+                          if (d.length === 10 && d.startsWith('0'))   return `${d.slice(0,3)} · ${d.slice(3,6)} · ${d.slice(6)}`;
+                          return res.guestPhone;
+                        })()}
+                      </span>
                     </a>
                     <button
                       onClick={() => {
@@ -937,19 +958,19 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         setPhoneCopied(true);
                         setTimeout(() => setPhoneCopied(false), 1500);
                       }}
-                      className={`text-xs transition-colors px-2 py-1 rounded touch-manipulation ${phoneCopied ? 'text-iron-green-light' : 'text-iron-muted hover:text-iron-text'}`}
-                      title="Copy phone"
+                      className={`text-[11px] font-semibold px-2.5 py-2 rounded-lg border transition-colors touch-manipulation shrink-0 ${phoneCopied ? 'bg-iron-green/15 border-iron-green/40 text-iron-green-light' : 'bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text hover:border-iron-border/70'}`}
+                      title="Copy phone number"
                     >
-                      {phoneCopied ? 'Copied' : 'Copy'}
+                      {phoneCopied ? '✓' : 'Copy'}
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <span className="text-iron-muted/70 text-xs font-medium">No phone</span>
+                  <span className="text-iron-muted/55 text-sm font-medium italic">No phone on file</span>
                 )}
               </div>
 
               {/* Status + badges */}
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
@@ -975,22 +996,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 )}
               </div>
 
-              {/* Party + table — compact secondary line */}
-              <div dir="ltr" className="flex items-center gap-1.5 mt-1.5 text-iron-text/85 text-sm font-medium">
-                <span>{T.common.guests(res.partySize)}</span>
-                {res.table && (
-                  <>
-                    <span className="text-iron-muted/75">·</span>
-                    <span>
-                      {res.combinedTableIds.length
-                        ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
-                        : res.table.name}
-                    </span>
-                  </>
-                )}
-                <span className="text-iron-muted/75">·</span>
-                <span className="text-iron-muted/85">{formatReservationSource(res.source, locale)}</span>
-              </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {mode === 'view' && !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && (
