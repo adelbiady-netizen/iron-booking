@@ -159,7 +159,7 @@ export default function TopBar({
 
         {/* ── Service State — adjacent to time ─────────────────── */}
         {isLive ? (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-iron-green/14 border border-iron-green/35 shrink-0" style={{ boxShadow: '0 0 0 1px rgba(111,138,60,0.08) inset' }}>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-iron-green/14 border border-iron-green/35 shrink-0" style={{ boxShadow: '0 0 0 1px rgba(111,138,60,0.08) inset' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-iron-green-light animate-pulse" style={{ animationDuration: '2.4s' }} />
             <span className="text-iron-green-light text-xs font-bold tracking-widest">LIVE</span>
           </div>
@@ -176,7 +176,8 @@ export default function TopBar({
 
       {/* Zoom control — quiet utility */}
       <div
-        className="flex items-center bg-iron-bg/50 rounded-lg overflow-hidden divide-x divide-iron-border/20"
+        className="flex items-center bg-iron-bg/50 rounded-xl overflow-hidden divide-x divide-iron-border/20"
+        style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.20), 0 1px 0 rgba(255,255,255,0.04)' }}
         title={T.topBar.zoomTitle}
       >
         <button
@@ -251,7 +252,7 @@ export default function TopBar({
         {onGuestsPage && (
           <button
             onClick={onGuestsPage}
-            className="text-iron-muted/75 text-xs px-2.5 py-1 rounded-md hover:text-iron-text hover:bg-iron-bg/50 transition-colors font-medium"
+            className="text-iron-muted/60 text-xs px-2.5 py-1 rounded-md hover:text-iron-text/85 hover:bg-iron-bg/50 transition-colors duration-100 font-medium"
           >
             {T.topBar.guestsButton}
           </button>
@@ -259,7 +260,7 @@ export default function TopBar({
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}
-            className="text-iron-muted/75 text-xs px-2.5 py-1 rounded-md hover:text-iron-text hover:bg-iron-bg/50 transition-colors font-medium"
+            className="text-iron-muted/60 text-xs px-2.5 py-1 rounded-md hover:text-iron-text/85 hover:bg-iron-bg/50 transition-colors duration-100 font-medium"
           >
             {T.topBar.adminButton}
           </button>
@@ -296,7 +297,7 @@ export default function TopBar({
 
         <button
           onClick={onLogout}
-          className="text-iron-muted/55 hover:text-iron-muted text-xs px-2.5 py-1 rounded-md hover:bg-iron-bg/50 transition-colors"
+          className="text-iron-muted/45 hover:text-iron-muted/80 text-xs px-2.5 py-1 rounded-md hover:bg-iron-bg/50 transition-colors duration-100"
         >
           {T.topBar.signOut}
         </button>

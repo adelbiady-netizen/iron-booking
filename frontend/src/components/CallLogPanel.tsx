@@ -120,7 +120,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
         </div>
         <div className="flex items-center gap-2">
           {/* Scope toggle: Today / All */}
-          <div className="flex items-center bg-iron-bg/40 rounded-lg overflow-hidden divide-x divide-iron-border/20">
+          <div className="flex items-center bg-iron-bg/40 rounded-xl overflow-hidden divide-x divide-iron-border/20">
             {(['today', 'all'] as Scope[]).map(s => (
               <button
                 key={s}
@@ -204,7 +204,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
               <Fragment key={call.id}>
                 {showDateHeader && (
                   <div className="px-5 py-2 flex items-center gap-3 bg-iron-bg/25 border-b border-iron-border/15">
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-iron-muted/50 leading-none">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-iron-muted/60 leading-none">
                       {fmtDateLabel(call.createdAt)}
                     </span>
                     <div className="flex-1 h-px bg-iron-border/15" />

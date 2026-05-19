@@ -303,7 +303,7 @@ export default function TableQuickPanel({
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[res.status]}`} />
-                  <span className="text-iron-muted text-xs">{STATUS_LABEL[res.status]}</span>
+                  <span className="text-iron-muted/75 text-xs">{STATUS_LABEL[res.status]}</span>
                   {res.isConfirmedByGuest && (
                     <span className="text-emerald-400 text-[10px]">· {T.guestDrawer.guestConfirmed}</span>
                   )}
@@ -336,7 +336,7 @@ export default function TableQuickPanel({
               {/* ── CORE DETAILS ───────────────────────────────────────────── */}
               <div className="rounded-xl bg-iron-bg/50 border border-iron-border/30 px-3 py-2.5 space-y-1.5" style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)' }}>
                 <div className="flex justify-between text-[13px]">
-                  <span className="text-iron-muted">{T.tableQuickPanel.labelTime}</span>
+                  <span className="text-iron-muted/70">{T.tableQuickPanel.labelTime}</span>
                   <span className="text-iron-text font-semibold tabular-nums">{normalizeTime(res.time)}</span>
                 </div>
 
@@ -371,18 +371,18 @@ export default function TableQuickPanel({
                     className="flex justify-between text-[13px] w-full hover:bg-iron-border/10 rounded px-0.5 -mx-0.5 py-0.5 transition-colors group"
                     title="Click to edit covers"
                   >
-                    <span className="text-iron-muted">{T.tableQuickPanel.labelGuests}</span>
+                    <span className="text-iron-muted/70">{T.tableQuickPanel.labelGuests}</span>
                     <span className="text-iron-text font-medium group-hover:underline underline-offset-2">{res.partySize}</span>
                   </button>
                 )}
 
                 <div className="flex justify-between text-[13px]">
-                  <span className="text-iron-muted">{T.tableQuickPanel.labelDuration}</span>
+                  <span className="text-iron-muted/70">{T.tableQuickPanel.labelDuration}</span>
                   <span className="text-iron-text font-medium">{T.guestDrawer.durationValue(res.duration)}</span>
                 </div>
                 {res.source && (
                   <div className="flex justify-between text-[13px]">
-                    <span className="text-iron-muted">{T.tableQuickPanel.labelSource}</span>
+                    <span className="text-iron-muted/70">{T.tableQuickPanel.labelSource}</span>
                     <span className="text-iron-text font-medium">{formatReservationSource(res.source, locale)}</span>
                   </div>
                 )}

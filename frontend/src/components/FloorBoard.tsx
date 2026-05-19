@@ -416,7 +416,7 @@ function tableGradient(_shape: string, status: string, cls: string, isDark: bool
     ].join(', ');
     return [
       'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, transparent 52%)',
-      'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
+      'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.08) 100%)',
     ].join(', ');
   }
   if (status === 'OCCUPIED') return [
@@ -995,7 +995,7 @@ export default function FloorBoard({
 
         <span className="ml-auto text-[11px] text-iron-muted/55 font-medium">{T.floorBoard.tableCount(dedupedTables.length)}</span>
 
-        <div className="flex items-center bg-iron-bg/40 rounded-lg overflow-hidden divide-x divide-iron-border/20 shrink-0">
+        <div className="flex items-center bg-iron-bg/40 rounded-xl overflow-hidden divide-x divide-iron-border/20 shrink-0">
           {(['floor', 'timeline'] as View[]).map(v => (
             <button
               key={v}
@@ -1612,7 +1612,7 @@ function Stat({ label, value, color, live = false }: { label: string; value: num
       style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}
     >
       <span className={`text-[18px] font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      <span className="text-iron-muted/60 text-[8px] uppercase tracking-[0.12em] font-semibold leading-none mt-0.5">{label}</span>
+      <span className="text-iron-muted/65 text-[9px] uppercase tracking-[0.10em] font-semibold leading-none mt-0.5">{label}</span>
     </div>
   );
 }
@@ -2916,8 +2916,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : displayStatus   === 'RESERVED'      ? 'rgba(147,197,253,0.18)'
       :                                        'rgba(255,255,255,0.28)';
     const depthShadow = isDark
-      ? `inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 ${leftEdgeColor}, inset -1px 0 0 rgba(0,0,0,0.10), inset 0 -2px 8px rgba(0,0,0,0.16)`
-      : 'inset 0 1px 0 rgba(0,0,0,0.07), inset 0 -2px 6px rgba(0,0,0,0.09)';
+      ? `inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 ${leftEdgeColor}, inset -1px 0 0 rgba(0,0,0,0.13), inset 0 -2px 10px rgba(0,0,0,0.19)`
+      : 'inset 0 1px 0 rgba(0,0,0,0.07), inset 0 -2px 8px rgba(0,0,0,0.11)';
     boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
   }
 
