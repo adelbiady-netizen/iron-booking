@@ -10,15 +10,15 @@
 [data-theme="dark"] {
   --iron-bg:           22 26 22;       /* lifted from 17 20 17 — reduces daylight absorption */
   --iron-card:         35 41 35;       /* lifted from 28 32 28 — cleaner surface definition */
-  --iron-elevated:     48 55 48;       /* lifted from 40 46 40 — stronger panel separation */
-  --iron-border:       70 78 70;       /* lifted from 56 63 56 — crisper edges in daylight */
+  --iron-elevated:     58 66 58;       /* lifted from 48 55 48 — clearer panel separation */
+  --iron-border:       90 100 90;      /* lifted from 70 78 70 — crisper edges in daylight */
   --iron-text:         255 255 255;    /* #FFFFFF */
   --iron-muted:        200 208 200;    /* lifted from 178 186 178 — much stronger secondary text */
   --iron-green:        75 95 42;       /* #4B5F2A */
   --iron-green-light:  111 138 60;     /* #6F8A3C */
 
   /* Canvas map (hex — used in inline style backgroundColor) */
-  --canvas-bg:              #101211;   /* lifted graphite — reduces "black void" in daylight */
+  --canvas-bg:              #141715;   /* lifted graphite — reduces "black void" in daylight */
   --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light       */
   --canvas-grid:            rgba(255,195,110,0.025); /* warm amber seams — matches floor material  */
   --canvas-ambient:         rgba(255,215,130,0.034); /* warm chandelier bloom — daylight visibility without blue haze */

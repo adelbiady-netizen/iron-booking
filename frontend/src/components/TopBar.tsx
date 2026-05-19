@@ -67,7 +67,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center min-w-[28px] min-h-[28px] px-1.5 py-1 rounded border border-iron-border/50 text-iron-muted hover:text-iron-text hover:border-iron-text/40 transition-colors text-xs leading-none select-none shrink-0 touch-manipulation"
+      className="flex items-center justify-center w-8 self-stretch text-iron-text/50 hover:text-iron-text hover:bg-iron-elevated transition-colors text-base leading-none select-none shrink-0 touch-manipulation"
     >
       {children}
     </button>
@@ -95,82 +95,102 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header className="h-12 shrink-0 bg-iron-elevated flex items-center px-3 gap-2.5" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 28px rgba(0,0,0,0.52)', borderBottom: '1px solid rgba(255,215,130,0.10)' }}>
+    <header className="h-16 shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 4px 28px rgba(0,0,0,0.52)', borderBottom: '1px solid rgba(255,215,130,0.18)' }}>
       {/* Brand */}
-      <div className="flex items-center gap-2 mr-1 shrink-0">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.22) 0%, rgba(75,95,42,0.12) 100%)', border: '1px solid rgba(111,138,60,0.25)', boxShadow: '0 0 10px rgba(111,138,60,0.10), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
-          <span className="text-iron-green-light font-bold text-[11px]">IB</span>
+      <div className="flex items-center gap-2.5 mr-3 shrink-0">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.26) 0%, rgba(75,95,42,0.15) 100%)', border: '1px solid rgba(111,138,60,0.30)', boxShadow: '0 0 14px rgba(111,138,60,0.14), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+          <span className="text-iron-green-light font-bold text-sm">IB</span>
         </div>
-        <span className="text-iron-text font-semibold text-sm tracking-tight hidden md:block">
+        <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden md:block">
           {T.topBar.brand}
         </span>
       </div>
 
-      {/* Date navigation */}
-      <div className="flex items-center gap-1">
-        <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
-        <LocalizedDateInput
-          value={date}
-          onValueChange={onDateChange}
-          className="bg-iron-bg border border-iron-border/50 rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green/50 transition-colors cursor-pointer"
-        />
-        <NavBtn onClick={onNextDay} title={T.topBar.nextDay}>›</NavBtn>
-        {!isToday && (
+      {/* ── Date / Time Command Cluster ──────────────────────────────── */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-stretch rounded-2xl border border-iron-border/40 bg-iron-bg/80 overflow-hidden" style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.30), 0 1px 0 rgba(255,255,255,0.05)' }}>
+          {/* Date nav — quiet, compact secondary */}
+          <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
+          <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/30">
+            <LocalizedDateInput
+              value={date}
+              onValueChange={onDateChange}
+              className="text-iron-text/75 text-[11px] font-semibold cursor-pointer whitespace-nowrap"
+            />
+            {!isToday && (
+              <button
+                onClick={onNow}
+                title={T.topBar.backToToday}
+                className="w-3.5 h-3.5 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500/35 transition-colors flex items-center justify-center text-[8px] font-bold leading-none shrink-0"
+                aria-label={T.topBar.backToToday}
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <NavBtn onClick={onNextDay} title={T.topBar.nextDay}>›</NavBtn>
+
+          {/* Divider */}
+          <div className="w-px bg-iron-border/35 my-3 shrink-0" />
+
+          {/* Time — operationally dominant, large display */}
+          <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
+          <div className="relative flex items-center justify-center px-3 py-2.5">
+            <span
+              className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
+              style={{ fontSize: '34px', letterSpacing: '-0.025em' }}
+            >
+              {time}
+            </span>
+            <select
+              value={time}
+              onChange={e => onTimeChange(e.target.value)}
+              aria-label="Set service time"
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              style={{ colorScheme: 'dark' } as React.CSSProperties}
+            >
+              {TIME_SLOTS_24H.map(slot => (
+                <option key={slot} value={slot}>{slot}</option>
+              ))}
+            </select>
+          </div>
+          <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
+        </div>
+
+        {/* ── Service State — adjacent to time ─────────────────── */}
+        {isLive ? (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-iron-green/14 border border-iron-green/35 shrink-0" style={{ boxShadow: '0 0 0 1px rgba(111,138,60,0.08) inset' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-iron-green-light animate-pulse" style={{ animationDuration: '2.4s' }} />
+            <span className="text-iron-green-light text-xs font-bold tracking-widest">LIVE</span>
+          </div>
+        ) : (
           <button
             onClick={onNow}
-            title={T.topBar.backToToday}
-            className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500/35 hover:border-blue-400/60 transition-colors shrink-0 leading-none"
-            aria-label={T.topBar.backToToday}
+            title="Return to live service view"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-iron-green/10 border border-iron-green/30 text-iron-green-light text-xs font-semibold hover:bg-iron-green/18 transition-colors shrink-0"
           >
-            <span className="text-[11px] font-bold leading-none select-none">×</span>
+            ↩ {T.topBar.nowBtn}
           </button>
         )}
       </div>
 
-      {/* Time navigation */}
-      <div className="flex items-center gap-1">
-        <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-        <select
-          value={time}
-          onChange={e => onTimeChange(e.target.value)}
-          className="bg-iron-bg border border-iron-border/50 rounded-md px-2 py-1.5 text-iron-text text-sm focus:outline-none focus:border-iron-green/50 transition-colors cursor-pointer min-w-[7.5rem]"
-          style={{ colorScheme: 'dark' } as React.CSSProperties}
-        >
-          {TIME_SLOTS_24H.map(slot => (
-            <option key={slot} value={slot}>{slot}</option>
-          ))}
-        </select>
-        <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
-      </div>
-
-      {/* Now button — only shown when not live; hiding it IS the "live" signal */}
-      {!isLive && (
-        <button
-          onClick={onNow}
-          title="Jump to today's current time"
-          className="text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors shrink-0 border-iron-green/30 text-iron-green-light hover:bg-iron-green/10"
-        >
-          {T.topBar.nowBtn}
-        </button>
-      )}
-
-      {/* Zoom control */}
+      {/* Zoom control — quiet utility */}
       <div
-        className="flex items-center divide-x divide-iron-border/40 border border-iron-border/40 rounded-md overflow-hidden"
+        className="flex items-center bg-iron-bg/50 rounded-lg overflow-hidden divide-x divide-iron-border/20"
         title={T.topBar.zoomTitle}
       >
         <button
           onClick={() => onZoomChange(zoom - zoomStep)}
           disabled={atMin}
           aria-label={T.topBar.zoomOut}
-          className="px-1.5 py-1 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
+          className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
         >
           −
         </button>
         <button
           onClick={() => onZoomChange(100)}
           title={T.topBar.resetZoom}
-          className={`px-2 py-1 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-11 text-center ${
+          className={`px-2.5 py-1.5 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-12 text-center ${
             atNorm ? 'text-iron-muted' : 'text-iron-green-light'
           }`}
         >
@@ -180,7 +200,7 @@ export default function TopBar({
           onClick={() => onZoomChange(zoom + zoomStep)}
           disabled={atMax}
           aria-label={T.topBar.zoomIn}
-          className="px-1.5 py-1 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
+          className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
         >
           +
         </button>
@@ -212,13 +232,16 @@ export default function TopBar({
 
       <div className="flex-1" />
 
+      {/* Visual divider — operational zone ← → utility zone */}
+      <div className="w-px h-5 bg-iron-border/35 shrink-0" />
+
       <LanguageSwitcher />
 
-      {/* Theme toggle */}
+      {/* Theme toggle — borderless, icon only */}
       <button
         onClick={onThemeChange}
         title={theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}
-        className="text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-md px-1.5 py-1 transition-colors"
+        className="text-iron-text/45 hover:text-iron-text/85 rounded-lg p-1.5 hover:bg-iron-bg/60 transition-colors"
       >
         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       </button>
@@ -228,7 +251,7 @@ export default function TopBar({
         {onGuestsPage && (
           <button
             onClick={onGuestsPage}
-            className="text-iron-muted text-xs border border-iron-border/35 px-2.5 py-1 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+            className="text-iron-muted/75 text-xs px-2.5 py-1 rounded-md hover:text-iron-text hover:bg-iron-bg/50 transition-colors font-medium"
           >
             {T.topBar.guestsButton}
           </button>
@@ -236,7 +259,7 @@ export default function TopBar({
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}
-            className="text-iron-muted text-xs border border-iron-border/35 px-2.5 py-1 rounded-md hover:text-iron-text hover:border-iron-text/40 transition-colors font-medium"
+            className="text-iron-muted/75 text-xs px-2.5 py-1 rounded-md hover:text-iron-text hover:bg-iron-bg/50 transition-colors font-medium"
           >
             {T.topBar.adminButton}
           </button>
@@ -244,8 +267,8 @@ export default function TopBar({
 
         {/* Active host badge (host-selection-aware sessions) */}
         {onSwitchHost ? (
-          <div className="hidden lg:flex items-center gap-1.5 bg-iron-bg border border-iron-border/35 rounded-md px-2 py-0.5">
-            <span className="text-iron-muted text-xs leading-tight">{T.topBar.activeHost(userName)}</span>
+          <div className="hidden lg:flex items-center gap-1.5 rounded-md px-2 py-0.5">
+            <span className="text-iron-muted/75 text-xs leading-tight">{T.topBar.activeHost(userName)}</span>
             <span className="text-iron-border/60 text-xs">·</span>
             <button
               onClick={onSwitchHost}
@@ -256,8 +279,8 @@ export default function TopBar({
           </div>
         ) : (
           <div className="text-right hidden lg:block">
-            <p className="text-iron-text text-xs font-medium leading-tight">{userName}</p>
-            <p className="text-iron-muted text-xs leading-tight">{restaurantName}</p>
+            <p className="text-iron-text/85 text-xs font-medium leading-tight">{userName}</p>
+            <p className="text-iron-muted/65 text-xs leading-tight">{restaurantName}</p>
           </div>
         )}
 
@@ -265,7 +288,7 @@ export default function TopBar({
         {onSwitchHost && (
           <button
             onClick={onSwitchHost}
-            className="lg:hidden text-iron-green-light hover:text-iron-green text-xs border border-iron-green/30 px-2 py-1 rounded-md transition-colors font-medium"
+            className="lg:hidden text-iron-green-light hover:text-iron-green text-xs px-2 py-1 rounded-md hover:bg-iron-bg/50 transition-colors font-medium"
           >
             {T.topBar.switchHost}
           </button>
@@ -273,7 +296,7 @@ export default function TopBar({
 
         <button
           onClick={onLogout}
-          className="text-iron-muted hover:text-iron-text text-xs border border-iron-border/35 px-2.5 py-1 rounded-md transition-colors"
+          className="text-iron-muted/55 hover:text-iron-muted text-xs px-2.5 py-1 rounded-md hover:bg-iron-bg/50 transition-colors"
         >
           {T.topBar.signOut}
         </button>

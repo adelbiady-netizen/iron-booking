@@ -200,9 +200,10 @@ export default function TableQuickPanel({
   }
 
   // ── Button styles ──────────────────────────────────────────────────────────
-  const base = 'text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40';
-  const btnGreen   = `${base} bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30`;
-  const btnBlue    = `${base} bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25`;
+  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-lg border transition-colors disabled:opacity-40';
+  const basePrimary = 'text-sm font-semibold px-4 py-3.5 rounded-xl border transition-colors disabled:opacity-40 min-h-[44px] flex items-center justify-center';
+  const btnGreen   = `${basePrimary} bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30`;
+  const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25`;
   const btnAmber   = `${base} bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25`;
   const btnRed     = `${base} bg-red-900/15 border-red-900/25 text-red-400 hover:bg-red-900/25`;
   const btnNeutral = `${base} bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30`;
@@ -252,14 +253,14 @@ export default function TableQuickPanel({
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <aside className="fixed left-0 top-0 h-full w-72 bg-iron-card border-r border-iron-border z-50 flex flex-col shadow-2xl animate-slide-in-left">
+      <aside className="fixed left-0 top-0 h-full w-80 bg-iron-card border-r border-iron-border z-50 flex flex-col shadow-2xl animate-slide-in-left">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="p-4 border-b border-iron-border shrink-0">
+        <div className="p-4 border-b border-iron-border/70 shrink-0">
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-iron-text font-bold text-lg">{floorTable.name}</span>
+                <span className="text-iron-text font-bold text-xl">{floorTable.name}</span>
                 {floorTable.locked && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-semibold">
                     {T.tableQuickPanel.locked}
@@ -293,7 +294,7 @@ export default function TableQuickPanel({
               {/* ── GUEST IDENTITY ─────────────────────────────────────────── */}
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-iron-text font-semibold text-base leading-tight">{res.guestName}</span>
+                  <span className="text-iron-text font-bold text-[20px] leading-tight tracking-tight">{res.guestName}</span>
                   {res.guest?.isVip && (
                     <span className="text-amber-400 text-[10px] font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
                       {T.common.vip}
@@ -319,7 +320,7 @@ export default function TableQuickPanel({
               {res.guestPhone && (
                 <a
                   href={`tel:${res.guestPhone}`}
-                  className="flex items-center gap-2 text-sm font-mono font-medium text-iron-text hover:text-iron-green-light transition-colors"
+                  className="flex items-center gap-2 text-[15px] font-mono font-semibold text-iron-text hover:text-iron-green-light transition-colors"
                   onClick={e => e.stopPropagation()}
                 >
                   <span className="text-iron-muted text-[11px]">📞</span>
@@ -329,16 +330,16 @@ export default function TableQuickPanel({
 
               {/* ── CORE DETAILS ───────────────────────────────────────────── */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
+                <div className="flex justify-between text-[13px]">
                   <span className="text-iron-muted">{T.tableQuickPanel.labelTime}</span>
-                  <span className="text-iron-text font-medium tabular-nums">{normalizeTime(res.time)}</span>
+                  <span className="text-iron-text font-semibold tabular-nums">{normalizeTime(res.time)}</span>
                 </div>
 
                 {/* Covers — inline number editor */}
                 {editingCovers ? (
                   <div className="space-y-1.5 py-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-iron-muted text-xs flex-1">{T.tableQuickPanel.editCovers}</span>
+                      <span className="text-iron-muted text-[13px] flex-1">{T.tableQuickPanel.editCovers}</span>
                       <input
                         ref={coversInputRef}
                         type="number"
@@ -362,22 +363,22 @@ export default function TableQuickPanel({
                 ) : (
                   <button
                     onClick={() => { setEditingCovers(true); setCoversDraft(res.partySize); }}
-                    className="flex justify-between text-xs w-full hover:bg-iron-border/10 rounded px-0.5 -mx-0.5 py-0.5 transition-colors group"
+                    className="flex justify-between text-[13px] w-full hover:bg-iron-border/10 rounded px-0.5 -mx-0.5 py-0.5 transition-colors group"
                     title="Click to edit covers"
                   >
                     <span className="text-iron-muted">{T.tableQuickPanel.labelGuests}</span>
-                    <span className="text-iron-text group-hover:underline underline-offset-2">{res.partySize}</span>
+                    <span className="text-iron-text font-medium group-hover:underline underline-offset-2">{res.partySize}</span>
                   </button>
                 )}
 
-                <div className="flex justify-between text-xs">
+                <div className="flex justify-between text-[13px]">
                   <span className="text-iron-muted">{T.tableQuickPanel.labelDuration}</span>
-                  <span className="text-iron-text">{T.guestDrawer.durationValue(res.duration)}</span>
+                  <span className="text-iron-text font-medium">{T.guestDrawer.durationValue(res.duration)}</span>
                 </div>
                 {res.source && (
-                  <div className="flex justify-between text-xs">
+                  <div className="flex justify-between text-[13px]">
                     <span className="text-iron-muted">{T.tableQuickPanel.labelSource}</span>
-                    <span className="text-iron-text">{formatReservationSource(res.source, locale)}</span>
+                    <span className="text-iron-text font-medium">{formatReservationSource(res.source, locale)}</span>
                   </div>
                 )}
               </div>
@@ -388,21 +389,21 @@ export default function TableQuickPanel({
                 const mr = cr.minutesRemaining;
                 const freeAt = fmtHostTime(cr.expectedEndTime);
                 return (
-                  <div className="flex justify-between text-xs">
+                  <div className="flex justify-between text-[13px]">
                     {cr.isOverdue ? (
                       <>
-                        <span className="text-red-400/70">Turn</span>
-                        <span className="text-red-400/80 tabular-nums">~{Math.abs(mr)} min over · was {freeAt}</span>
+                        <span className="text-red-400/75">Turn</span>
+                        <span className="text-red-400/85 tabular-nums font-medium">~{Math.abs(mr)} min over · was {freeAt}</span>
                       </>
                     ) : mr <= 20 ? (
                       <>
-                        <span className="text-amber-400/70">Turn</span>
-                        <span className="text-amber-300/80 tabular-nums">Free in ~{mr} min · {freeAt}</span>
+                        <span className="text-amber-400/75">Turn</span>
+                        <span className="text-amber-300/85 tabular-nums font-medium">Free in ~{mr} min · {freeAt}</span>
                       </>
                     ) : (
                       <>
                         <span className="text-iron-muted">Turn</span>
-                        <span className="text-iron-text/60 tabular-nums">Free around {freeAt}</span>
+                        <span className="text-iron-text/65 tabular-nums">Free around {freeAt}</span>
                       </>
                     )}
                   </div>
@@ -614,10 +615,10 @@ export default function TableQuickPanel({
 
         {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
         {res && (
-          <div className="p-4 border-t border-iron-border shrink-0">
+          <div className="p-4 border-t border-iron-border/60 shrink-0">
             <button
               onClick={() => { onViewFull(res); onClose(); }}
-              className="w-full text-xs font-medium text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded-lg px-3 py-2 transition-colors"
+              className="w-full text-sm font-semibold text-iron-green-light hover:text-iron-text bg-iron-green/10 hover:bg-iron-green/18 border border-iron-green/30 hover:border-iron-green/50 rounded-lg px-3 py-2.5 transition-colors"
             >
               {T.tableQuickPanel.viewFullDetails} →
             </button>

@@ -25,8 +25,8 @@ function matchesSearch(name: string, phone: string | null | undefined, q: string
 }
 
 const STATUS_BADGE: Record<ReservationStatus, string> = {
-  PENDING:   'bg-amber-500/15 text-amber-400 border-amber-500/25',
-  CONFIRMED: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+  PENDING:   'bg-amber-500/15 text-amber-400 border-amber-500/40',
+  CONFIRMED: 'bg-blue-500/15 text-blue-400 border-blue-500/40',
   SEATED:    'bg-iron-green/20 text-iron-green-light border-iron-green/40',
   COMPLETED: 'bg-iron-border/20 text-iron-muted border-iron-border/20',
   CANCELLED: 'bg-red-900/15 text-red-400 border-red-900/20',
@@ -130,7 +130,7 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
+    <aside className="w-full h-full flex flex-col border-s border-iron-border/80 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
 
       {/* Tab bar + action buttons */}
       <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
@@ -407,38 +407,38 @@ export default function ReservationPanel({
                 : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
 
               const rowBg = selectedId === r.id
-                ? 'bg-iron-green/10'
+                ? 'bg-iron-green/13'
                 : highlightId === r.id
                 ? 'animate-flash'
                 : isStale
                 ? 'opacity-50 hover:opacity-70'
                 : aState === 'NO_SHOW_RISK'
-                ? 'bg-red-900/5 hover:bg-red-900/10'
+                ? 'bg-red-900/8 hover:bg-red-900/14'
                 : aState === 'LATE'
-                ? 'bg-orange-900/5 hover:bg-orange-900/10'
+                ? 'bg-orange-900/8 hover:bg-orange-900/14'
                 : aState === 'DUE_NOW'
-                ? 'bg-amber-500/10 hover:bg-amber-500/15'
+                ? 'bg-amber-500/13 hover:bg-amber-500/20'
                 : aState === 'ARRIVING_SOON'
-                ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                ? 'bg-amber-500/8 hover:bg-amber-500/13'
                 : r.isArrived
-                ? 'bg-iron-green/5 hover:bg-iron-green/10'
+                ? 'bg-iron-green/8 hover:bg-iron-green/12'
                 : needsReminder
-                ? 'bg-amber-500/5 hover:bg-amber-500/10'
-                : 'hover:bg-white/[0.04]';
+                ? 'bg-amber-500/8 hover:bg-amber-500/13'
+                : 'hover:bg-iron-elevated/55';
 
               // Priority stripe — left edge signals urgency without adding noise
               const priorityBorder =
-                aState === 'NO_SHOW_RISK' || aState === 'LATE' ? 'border-s-2 border-s-orange-500/65'
-                : aState === 'DUE_NOW'                          ? 'border-s-2 border-s-amber-400/80'
-                : aState === 'ARRIVING_SOON'                    ? 'border-s-2 border-s-amber-500/45'
-                : r.isArrived                                   ? 'border-s-2 border-s-iron-green/55'
-                : selectedId === r.id                           ? 'border-s-2 border-s-iron-green/40'
+                aState === 'NO_SHOW_RISK' || aState === 'LATE' ? 'border-s-2 border-s-orange-500/90'
+                : aState === 'DUE_NOW'                          ? 'border-s-2 border-s-amber-400'
+                : aState === 'ARRIVING_SOON'                    ? 'border-s-2 border-s-amber-500/60'
+                : r.isArrived                                   ? 'border-s-2 border-s-iron-green/80'
+                : selectedId === r.id                           ? 'border-s-2 border-s-iron-green-light/55'
                 :                                                 'border-s-2 border-s-transparent';
 
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-white/[0.18] transition-colors ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.78]' : ''}`}
+                  className={`w-full flex items-stretch border-b border-iron-border/15 transition-colors duration-100 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.78]' : ''}`}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
@@ -446,13 +446,13 @@ export default function ReservationPanel({
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-3.5 py-3 min-w-0 touch-manipulation active:bg-white/[0.05] transition-colors"
+                    className="flex-1 text-left px-3.5 py-3.5 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
                     {/* Row 1 — name + badge */}
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="flex-1 min-w-0 flex items-center gap-1">
-                        <span className="text-iron-text text-[16px] font-semibold tracking-tight truncate leading-snug min-w-0">
+                        <span className="text-iron-text text-[17px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
                         {r.guest?.isVip && (
@@ -472,24 +472,24 @@ export default function ReservationPanel({
                       </span>
                     </div>
 
-                    {/* Row 2 — time · guests · table */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-iron-text text-base font-bold tabular-nums min-w-[52px] shrink-0">{normalizeTime(r.time)}</span>
-                      <span className="text-iron-muted/50">·</span>
-                      <span className="text-iron-text/80 text-[13px] font-medium">{T.common.guests(r.partySize)}</span>
+                    {/* Row 2 — time hero · guests · table as subordinate metadata */}
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-iron-text text-base font-bold tabular-nums shrink-0 leading-none">{normalizeTime(r.time)}</span>
+                      <span className="text-iron-muted/40 text-sm leading-none">·</span>
+                      <span className="text-iron-text/70 text-[13px] font-medium leading-none">{T.common.guests(r.partySize)}</span>
                       {r.table && (
                         <>
-                          <span className="text-iron-muted/50">·</span>
-                          <span className="text-iron-text/80 text-[13px] font-medium">{r.table.name}</span>
+                          <span className="text-iron-muted/40 text-sm leading-none">·</span>
+                          <span className="text-iron-text/70 text-[13px] font-medium leading-none truncate">{r.table.name}</span>
                         </>
                       )}
                       {!r.table && (
                         <>
-                          <span className="text-iron-muted/50">·</span>
+                          <span className="text-iron-muted/40 text-sm leading-none">·</span>
                           {(() => {
                             const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
                             return (
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${
+                              <span className={`text-[11px] px-1.5 py-0.5 rounded-full border font-medium leading-none ${
                                 urgent
                                   ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
                                   : 'bg-iron-border/15 border-iron-border/30 text-iron-muted'
@@ -504,7 +504,7 @@ export default function ReservationPanel({
 
                     {/* Row 3 — optional signal chips */}
                     {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
-                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {r.occasion && (
                           <span className="text-xs text-iron-green-light/75 font-medium">{r.occasion}</span>
                         )}

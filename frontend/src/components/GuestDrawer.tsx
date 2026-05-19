@@ -25,8 +25,8 @@ interface RowProps { label: string; value: string; accent?: boolean; warn?: bool
 function Row({ label, value, accent, warn }: RowProps) {
   return (
     <div className="flex justify-between items-baseline gap-3">
-      <span className="text-iron-muted text-xs font-medium shrink-0">{label}</span>
-      <span className={`text-xs text-right font-semibold ${warn ? 'text-orange-400' : accent ? 'text-iron-green-light' : 'text-iron-text'}`}>
+      <span className="text-iron-muted text-[13px] font-medium shrink-0">{label}</span>
+      <span className={`text-[13px] text-right font-semibold ${warn ? 'text-orange-400' : accent ? 'text-iron-green-light' : 'text-iron-text'}`}>
         {value}
       </span>
     </div>
@@ -107,7 +107,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       disabled={disabled}
       title={title}
       className={`rounded-lg border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-2.5' : 'text-xs font-medium px-3 py-2'
+        primary ? 'text-sm font-semibold px-4 py-3' : 'text-xs font-medium px-3 py-2'
       } ${cls}`}
     >
       {label}
@@ -306,7 +306,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   function enterEdit() {
     setEditName(res.guestName);
     setEditPhone(res.guestPhone ?? '');
-    setEditDate(res.date);
+    setEditDate(res.date.slice(0, 10)); // normalize ISO "2026-05-19T00:00:00.000Z" → "2026-05-19"
     setEditTime(res.time);
     setEditParty(String(res.partySize));
     setEditDuration(res.duration);
@@ -433,7 +433,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         guestPhone: editPhone.trim() || undefined,
         partySize,
         ...(isSeated ? {} : {
-          date:     editDate !== res.date ? editDate : undefined,
+          date:     editDate !== res.date.slice(0, 10) ? editDate : undefined,
           time:     editTime !== res.time ? editTime : undefined,
           ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
         }),
@@ -550,7 +550,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     return (
       <section className="border-t border-iron-border pt-4 space-y-2.5">
-        <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider">
+        <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
           {T.guestDrawer.confirmationSection}
         </p>
 
@@ -903,9 +903,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <div className="px-4 pt-4 pb-3 border-b border-iron-border shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.07) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.32)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
-              {/* Name + VIP */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-iron-text font-semibold text-xl tracking-tight truncate">{res.guestName}</h2>
+              {/* Name + VIP + reservation time */}
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <h2 className="text-iron-text font-bold text-2xl tracking-tight leading-tight truncate">{res.guestName}</h2>
+                <span className="text-iron-green-light text-xl font-bold tabular-nums shrink-0">{normalizeTime(res.time)}</span>
                 {res.guest?.isVip && (
                   <span className="text-amber-400 text-xs font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0">
                     {T.common.vip}
@@ -919,7 +920,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   <>
                     <a
                       href={`tel:${res.guestPhone}`}
-                      className="text-sm font-mono font-medium text-iron-text hover:text-iron-green-light transition-colors"
+                      className="text-[15px] font-mono font-semibold text-iron-text hover:text-iron-green-light transition-colors"
                       onClick={e => e.stopPropagation()}
                     >
                       {res.guestPhone}
@@ -969,11 +970,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Party + table — compact secondary line */}
-              <div className="flex items-center gap-1.5 mt-1.5 text-iron-text/75 text-xs font-medium">
+              <div className="flex items-center gap-1.5 mt-1.5 text-iron-text/85 text-sm font-medium">
                 <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
-                    <span className="text-iron-muted/50">·</span>
+                    <span className="text-iron-muted/75">·</span>
                     <span>
                       {res.combinedTableIds.length
                         ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
@@ -981,8 +982,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     </span>
                   </>
                 )}
-                <span className="text-iron-muted/50">·</span>
-                <span className="text-iron-muted/75">{formatReservationSource(res.source, locale)}</span>
+                <span className="text-iron-muted/75">·</span>
+                <span className="text-iron-muted/85">{formatReservationSource(res.source, locale)}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -1055,13 +1056,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               {res.hostNotes && (
                 <div className="px-3 py-2 rounded-lg bg-iron-card border border-iron-border/60" style={{ borderLeftWidth: 2, borderLeftColor: 'rgba(217,119,6,0.60)' }}>
                   <p className="text-[11px] text-iron-muted font-medium uppercase tracking-wider mb-0.5">Host note</p>
-                  <p className="text-iron-text text-xs leading-relaxed">{res.hostNotes}</p>
+                  <p className="text-iron-text text-[13px] leading-relaxed">{res.hostNotes}</p>
                 </div>
               )}
               {res.guestNotes && (
                 <div className="px-3 py-2 rounded-lg bg-iron-bg border border-iron-border">
                   <p className="text-[11px] text-iron-muted font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
-                  <p className="text-iron-text text-xs">{res.guestNotes}</p>
+                  <p className="text-iron-text text-[13px]">{res.guestNotes}</p>
                 </div>
               )}
               {res.occasion && (
@@ -1079,7 +1080,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 ? 'border-amber-500/30 bg-amber-500/5'
                 : 'border-iron-green/30 bg-iron-green/5'
             }`}>
-              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider">
+              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
                 {smartSuggestion?.mode === 'upgrade'
                   ? T.guestDrawer.sectionSmartUpgrade
                   : T.guestDrawer.sectionSmartSuggest}
@@ -1157,20 +1158,38 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
-          {/* Reservation details */}
+          {/* Reservation details — visual timing grid */}
           <section className="space-y-2">
-            <Row label={T.guestDrawer.rowDate}       value={res.date} />
-            <Row label={T.guestDrawer.rowTime}       value={normalizeTime(res.time)} />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60">
+                <p className="text-iron-text font-bold text-xl tabular-nums leading-none">{normalizeTime(res.time)}</p>
+                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowTime}</p>
+              </div>
+              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60">
+                <p className="text-iron-text font-bold text-sm tabular-nums leading-none">{res.date.slice(0, 10)}</p>
+                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowDate}</p>
+              </div>
+              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60">
+                <p className="text-iron-text font-bold text-xl tabular-nums leading-none">{res.duration}<span className="text-sm font-medium text-iron-muted">m</span></p>
+                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowDuration}</p>
+              </div>
+            </div>
+
             {res.status === 'SEATED' && res.seatedAt && (
-              <Ts label={T.guestDrawer.rowSeatedAt}  ts={res.seatedAt} />
+              <Ts label={T.guestDrawer.rowSeatedAt} ts={res.seatedAt} />
             )}
-            <Row label={T.guestDrawer.rowDuration}   value={T.guestDrawer.durationValue(res.duration)} />
-            <Row label={T.guestDrawer.rowTable}      value={(() => {
-              if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
-              if (!res.combinedTableIds.length) return res.table.name;
-              const secondaryNames = res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id);
-              return [res.table.name, ...secondaryNames].join(' + ');
-            })()} />
+
+            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-iron-bg border border-iron-border/60">
+              <span className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{T.guestDrawer.rowTable}</span>
+              <span className="text-iron-text text-sm font-semibold">
+                {(() => {
+                  if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
+                  if (!res.combinedTableIds.length) return res.table.name;
+                  const secondaryNames = res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id);
+                  return [res.table.name, ...secondaryNames].join(' + ');
+                })()}
+              </span>
+            </div>
           </section>
 
           {/* Other reservations at the same table */}
@@ -1186,7 +1205,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (others.length === 0) return null;
             return (
               <section className="border-t border-iron-border pt-4 space-y-1.5">
-                <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-2">
+                <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">
                   {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
                 </p>
                 {others.map(r => (
@@ -1213,7 +1232,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Guest CRM */}
           {res.guest && (
             <section className="border-t border-iron-border pt-4 space-y-2">
-              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-2">
+              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
               <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`} />
@@ -1243,7 +1262,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Actions */}
           <section ref={actionsRef} className="border-t border-iron-border pt-4">
-            <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-3">
+            <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-3">
               {T.guestDrawer.sectionActions}
             </p>
 
@@ -1432,7 +1451,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                       </div>
                     </Field>
 
-                    {editTableId && editTableId === res.tableId && (editDate !== res.date || editTime !== res.time || editParty !== String(res.partySize)) && (
+                    {editTableId && editTableId === res.tableId && (editDate !== res.date.slice(0, 10) || editTime !== res.time || editParty !== String(res.partySize)) && (
                       <p className="text-xs text-iron-muted bg-iron-bg border border-iron-border rounded-lg px-3 py-2">
                         {T.guestDrawer.tableConflictNote}
                       </p>
@@ -1618,7 +1637,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Table lock */}
           {assignedTable && mode !== 'lock' && (
             <section className="border-t border-iron-border pt-4">
-              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-3">{T.guestDrawer.sectionTableLock}</p>
+              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-3">{T.guestDrawer.sectionTableLock}</p>
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
                   <div>
@@ -1636,7 +1655,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {mode === 'lock' && assignedTable && (
             <section className="border-t border-iron-border pt-4 space-y-3">
-              <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider">{T.lockModal.title(assignedTable.name)}</p>
+              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{T.lockModal.title(assignedTable.name)}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCK_QUICK_REASONS.map(r => (
                   <button
@@ -1674,7 +1693,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Lifecycle timestamps */}
           <section className="border-t border-iron-border pt-4 space-y-2">
-            <p className="text-iron-muted text-[11px] font-semibold uppercase tracking-wider mb-2">
+            <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">
               {T.guestDrawer.sectionTimeline}
             </p>
             {!res.confirmedAt && !res.seatedAt && !res.completedAt && !res.cancelledAt && !res.noShowAt && (

@@ -49,16 +49,20 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
     ? table.liveStatus
     : 'RESERVED';
   const STATUS_STYLE: Record<string, StatusStyle> = {
-    AVAILABLE:     { border: 'border-iron-border hover:border-iron-green',   bg: '',                  dot: 'bg-iron-muted',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted' },
-    OCCUPIED:      { border: 'border-iron-green',                            bg: 'bg-iron-green/10',  dot: 'bg-iron-green',  label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
-    RESERVED_SOON: { border: 'border-amber-500',                             bg: 'bg-amber-500/10',   dot: 'bg-amber-500',   label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
-    RESERVED:      { border: 'border-blue-500/50',                           bg: 'bg-blue-900/15',    dot: 'bg-blue-500',    label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400' },
+    AVAILABLE:     { border: 'border-iron-border/60 hover:border-iron-green-light/65', bg: '',                  dot: 'bg-iron-border',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted/75' },
+    OCCUPIED:      { border: 'border-iron-green-light',                       bg: 'bg-iron-green/16',  dot: 'bg-iron-green-light', label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
+    RESERVED_SOON: { border: 'border-amber-500',                             bg: 'bg-amber-500/15',   dot: 'bg-amber-500',        label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
+    RESERVED:      { border: 'border-blue-400/60',                           bg: 'bg-blue-900/20',    dot: 'bg-blue-500',         label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400' },
     BLOCKED:       { border: 'border-iron-border/50',                        bg: 'bg-iron-border/20', dot: 'bg-iron-muted',  label: T.tableStatus.BLOCKED,       labelColor: 'text-iron-muted' },
   };
   const currentRes = table.currentReservation;
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
+  const isOverdue = isToday
+    && table.liveStatus === 'OCCUPIED'
+    && currentRes != null
+    && minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now()) < -5;
 
   const style = STATUS_STYLE[displayStatus] ?? STATUS_STYLE['AVAILABLE'];
 
@@ -69,20 +73,20 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       title={turnTooltip ?? (isAvailable ? T.tableCard.clickToSeat : undefined)}
       className={`
         group w-full text-left p-3 rounded-lg border transition-[background-color,border-color,box-shadow,opacity,transform] duration-150 active:scale-[0.97] touch-manipulation
-        ${table.locked ? 'bg-amber-500/5' : (style.bg || 'bg-iron-card')}
+        ${table.locked ? 'bg-amber-500/5' : isOverdue ? 'bg-orange-900/12' : (style.bg || (isAvailable ? 'bg-iron-card hover:bg-iron-elevated/30' : 'bg-iron-card'))}
         ${selected
-          ? 'border-iron-green ring-2 ring-iron-green/40 ring-offset-1 ring-offset-iron-bg'
+          ? 'border-iron-green ring-2 ring-iron-green-light/55 ring-offset-1 ring-offset-iron-bg'
           : softHold && table.liveStatus === 'AVAILABLE' && !table.locked
           ? 'border-indigo-500/60 ring-2 ring-indigo-500/20 ring-offset-1 ring-offset-iron-bg'
           : isBestSuggestion && !table.locked
           ? `${style.border} ring-2 ring-iron-green/20 ring-offset-1 ring-offset-iron-bg`
-          : table.locked ? LOCKED_STYLE : style.border}
+          : table.locked ? LOCKED_STYLE : isOverdue ? 'border-orange-500/80' : style.border}
       `}
     >
       {/* Name + priority dot + turn badge + status label */}
       <div className="flex items-start justify-between gap-1 mb-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-iron-text font-semibold text-sm leading-tight truncate">{table.name}</span>
+          <span className="text-iron-text font-semibold text-[15px] leading-tight truncate">{table.name}</span>
           {insight?.priority === 'HIGH'   && <span className="w-2 h-2 rounded-full shrink-0 bg-red-500"   title={insight.message} />}
           {insight?.priority === 'MEDIUM' && <span className="w-2 h-2 rounded-full shrink-0 bg-amber-400" title={insight.message} />}
           {extraTurns > 0 && !isAvailable && (
@@ -91,7 +95,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             </span>
           )}
         </div>
-        <span className={`flex items-center gap-1 text-[11px] font-medium shrink-0 ${style.labelColor}`}>
+        <span className={`flex items-center gap-1 text-xs font-medium shrink-0 ${style.labelColor}`}>
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
           {style.label}
         </span>
@@ -107,7 +111,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       )}
 
       {/* Capacity + section */}
-      <p className="text-iron-muted text-[11px] font-medium mb-1.5 leading-tight">
+      <p className="text-iron-muted text-xs font-medium mb-1.5 leading-tight">
         {table.minCovers}–{table.maxCovers} {T.tableCard.covers}
         {table.section && (
           <span> · {formatSectionName(table.section.name, locale)}</span>
@@ -126,17 +130,17 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         return (
           <div>
             <div className="flex items-center gap-1 min-w-0">
-              <p className="text-iron-text text-xs font-semibold truncate flex-1">{currentRes.guestName}</p>
+              <p className="text-iron-text text-[13px] font-semibold truncate flex-1">{currentRes.guestName}</p>
               {isCombined && (
                 <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
               )}
             </div>
             {!isSecondary && (
-              <p className="text-iron-muted text-[11px] font-medium">
+              <p className="text-iron-muted text-xs font-medium">
                 {T.common.guests(currentRes.partySize)}
                 {isToday && mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
                 {isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
-                {isToday && mr < -5 && <span className="text-orange-400"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+                {isToday && mr < -5 && <span className="text-orange-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
               </p>
             )}
           </div>
@@ -149,7 +153,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         return (
           <div>
             <div className="flex items-center gap-1.5 min-w-0">
-              <p className="text-iron-text text-xs font-semibold truncate flex-1">{displayRes.guestName}</p>
+              <p className="text-iron-text text-[13px] font-semibold truncate flex-1">{displayRes.guestName}</p>
               {isCombined && (
                 <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
               )}
@@ -206,7 +210,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       )}
 
       {isAvailable && !insight && !softHold && !waitlistMatch && (
-        <p className="text-iron-muted text-[11px] font-medium group-hover:text-iron-green-light transition-colors">
+        <p className="text-iron-muted text-xs font-medium group-hover:text-iron-green-light transition-colors">
           {T.tableCard.openTapToSeat}
         </p>
       )}

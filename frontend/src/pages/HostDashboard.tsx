@@ -983,6 +983,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Keeps the floor board and the open drawer on the same calendar day so
   // availability shown in the form always matches what the board is rendering.
   const handleDrawerDateTimeChange = useCallback((d: string, t: string) => {
+    // Reject any date that isn't plain YYYY-MM-DD (Prisma returns ISO strings
+    // like "2026-05-19T00:00:00.000Z" which would corrupt the API query params).
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
     setDate(d);
     setTime(t);
     setLiveMode(false);
