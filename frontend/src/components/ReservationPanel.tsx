@@ -5,6 +5,7 @@ import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
+import { useLocale } from '../i18n/useLocale';
 import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased } from '../utils/arrival';
 import { normalizeTime } from '../utils/time';
 
@@ -77,6 +78,7 @@ export default function ReservationPanel({
   onChooseTable, isLiveView, onHoverRow,
 }: Props) {
   const T = useT();
+  const { dir } = useLocale();
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ACTIVE');
   const [search, setSearch] = useState('');
@@ -452,22 +454,23 @@ export default function ReservationPanel({
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
                   {/* Time anchor column — left rail for instant time scanning */}
-                  <div className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3.5 gap-1">
+                  <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3.5 gap-1">
                     <span className="text-iron-text text-[16px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
-                    <span className="text-iron-muted/50 text-[10px] tabular-nums leading-none font-medium">{r.partySize}p</span>
+                    <span className="text-iron-muted/60 text-[11px] tabular-nums leading-none font-medium">{r.partySize}p</span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-3 py-3.5 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
+                    dir={dir}
+                    className="flex-1 text-start px-3 py-3.5 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
                     {/* Row 1 — name + VIP + status badge */}
                     <div className="flex items-center gap-2 mb-1">
                       <span className="flex-1 min-w-0 flex items-center gap-1.5">
-                        <span className="text-iron-text text-[15px] font-bold tracking-tight truncate leading-snug min-w-0">
+                        <span className="text-iron-text text-[16px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
                         {r.guest?.isVip && (
@@ -476,7 +479,7 @@ export default function ReservationPanel({
                           </span>
                         )}
                       </span>
-                      <span className={`text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${statusBadge.cls}`}>
+                      <span dir="ltr" className={`text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>
                     </div>
@@ -484,7 +487,7 @@ export default function ReservationPanel({
                     {/* Row 2 — table assignment */}
                     <div className="flex items-center gap-1.5 mt-0.5">
                       {r.table ? (
-                        <span className="text-iron-text/60 text-[12px] font-medium leading-none">{r.table.name}</span>
+                        <span className="text-iron-text/75 text-[12px] font-medium leading-none">{r.table.name}</span>
                       ) : (
                         (() => {
                           const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
@@ -504,7 +507,7 @@ export default function ReservationPanel({
                     {/* Row 3 — phone identity layer */}
                     <div className="flex items-center gap-1.5 mt-1">
                       {r.guestPhone ? (
-                        <span className="text-iron-muted/50 text-[11px] font-mono tabular-nums tracking-wider leading-none">
+                        <span dir="ltr" className="text-iron-muted/70 text-[11px] font-mono tabular-nums tracking-wider leading-none">
                           {(() => {
                             const d = r.guestPhone.replace(/\D/g, '');
                             if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
@@ -513,7 +516,7 @@ export default function ReservationPanel({
                           })()}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-iron-muted/35 font-medium">
+                        <span className="text-[10px] text-iron-muted/40 font-medium">
                           {T.reservationPanel.noPhone}
                         </span>
                       )}
