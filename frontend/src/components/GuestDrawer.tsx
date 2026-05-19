@@ -107,8 +107,9 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       disabled={disabled}
       title={title}
       className={`rounded-xl border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-3.5' : 'text-xs font-medium px-3 py-2'
+        primary ? 'text-sm font-semibold px-4 py-4 min-h-[52px] flex-1' : 'text-xs font-semibold px-3 py-2.5'
       } ${cls}`}
+      style={primary ? { boxShadow: '0 2px 8px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.07)' } : undefined}
     >
       {label}
     </button>
@@ -900,13 +901,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/50 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
 
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-iron-border shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.07) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.32)' }}>
+        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.08) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 6px 22px rgba(0,0,0,0.36)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
-              {/* Name + VIP + reservation time */}
+              {/* Time anchor first, then name — time is the primary scan element */}
               <div className="flex items-baseline gap-3 flex-wrap">
-                <h2 className="text-iron-text font-bold text-2xl tracking-tight leading-tight truncate">{res.guestName}</h2>
-                <span className="text-iron-green-light text-xl font-bold tabular-nums shrink-0">{normalizeTime(res.time)}</span>
+                <span className="text-iron-green-light font-bold tabular-nums shrink-0 tracking-tight" style={{ fontSize: '28px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
+                <h2 className="text-iron-text font-bold text-[22px] tracking-tight leading-tight truncate">{res.guestName}</h2>
                 {res.guest?.isVip && (
                   <span className="text-amber-400 text-xs font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0">
                     {T.common.vip}

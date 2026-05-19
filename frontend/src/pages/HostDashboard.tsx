@@ -1550,11 +1550,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
         {/* Left structural rail — table context panel. Width animates; map reflows around it. */}
         <div
-          className="shrink-0 overflow-hidden border-r border-iron-border/50"
+          className="shrink-0 overflow-hidden border-e border-iron-border/40"
           style={{
             width: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 320 : 0,
             transition: 'width 200ms ease-out',
-            boxShadow: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '3px 0 16px rgba(0,0,0,0.40)' : 'none',
+            boxShadow: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '1px 0 0 rgba(255,255,255,0.05), 6px 0 28px rgba(0,0,0,0.55), 20px 0 60px rgba(0,0,0,0.35)' : 'none',
           }}
         >
           {quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (

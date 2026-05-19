@@ -133,7 +133,7 @@ export default function ReservationPanel({
     <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62)' }}>
 
       {/* Tab bar + action buttons */}
-      <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 4px 14px rgba(0,0,0,0.22)' }}>
+      <div className="px-3.5 pt-3.5 pb-0 border-b border-iron-border/40" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 18px rgba(0,0,0,0.26)' }}>
         <div className="flex items-center gap-2 mb-2">
           <div className="flex gap-3 flex-1">
             <button
@@ -169,14 +169,15 @@ export default function ReservationPanel({
             <>
               <button
                 onClick={onWalkIn}
-                className="text-xs font-medium px-3 py-1.5 rounded-xl border border-iron-border/50 text-iron-muted hover:border-iron-green/50 hover:text-iron-text transition-colors duration-100 active:scale-[0.97]"
+                className="text-xs font-semibold px-3 py-2 rounded-xl border border-iron-border/50 text-iron-muted hover:border-iron-green/50 hover:text-iron-text transition-[color,border-color,transform] duration-100 active:scale-[0.97]"
+                style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.14)' }}
               >
                 {T.reservationPanel.walkIn}
               </button>
               <button
                 onClick={onNewReservation}
-                className="text-xs font-medium px-3 py-1.5 rounded-xl bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97]"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.10)' }}
+                className="text-xs font-semibold px-3 py-2 rounded-xl bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97]"
+                style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
               >
                 {T.reservationPanel.newReservation}
               </button>
@@ -441,23 +442,29 @@ export default function ReservationPanel({
                   key={r.id}
                   className={`w-full flex items-stretch border-b border-iron-border/[0.22] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.62]' : ''}`}
                   style={{ boxShadow: selectedId === r.id
-                    ? 'inset 0 0 0 1px rgba(111,138,60,0.16), 0 2px 8px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.05)'
+                    ? 'inset 0 0 0 1px rgba(111,138,60,0.18), 0 2px 10px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06)'
                     : 'inset 0 1px 0 rgba(255,255,255,0.022)'
                   }}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
+                  {/* Time anchor column — left rail for instant time scanning */}
+                  <div className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3.5 gap-1">
+                    <span className="text-iron-text text-[16px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
+                    <span className="text-iron-muted/50 text-[10px] tabular-nums leading-none font-medium">{r.partySize}p</span>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-3.5 py-4 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
+                    className="flex-1 text-left px-3 py-3.5 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
                     {/* Row 1 — name + VIP + status badge */}
-                    <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 mb-1">
                       <span className="flex-1 min-w-0 flex items-center gap-1.5">
-                        <span className="text-iron-text text-[17px] font-bold tracking-tight truncate leading-snug min-w-0">
+                        <span className="text-iron-text text-[15px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
                         {r.guest?.isVip && (
@@ -471,40 +478,30 @@ export default function ReservationPanel({
                       </span>
                     </div>
 
-                    {/* Row 2 — time hero · guests · table as subordinate metadata */}
-                    <div className="flex items-baseline gap-2 mt-1">
-                      <span className="text-iron-text text-[17px] font-bold tabular-nums shrink-0 leading-none">{normalizeTime(r.time)}</span>
-                      <span className="text-iron-muted/45 text-sm leading-none">·</span>
-                      <span className="text-iron-text/70 text-[13px] font-medium leading-none">{T.common.guests(r.partySize)}</span>
-                      {r.table && (
-                        <>
-                          <span className="text-iron-muted/45 text-sm leading-none">·</span>
-                          <span className="text-iron-text/70 text-[13px] font-medium leading-none truncate">{r.table.name}</span>
-                        </>
-                      )}
-                      {!r.table && (
-                        <>
-                          <span className="text-iron-muted/45 text-sm leading-none">·</span>
-                          {(() => {
-                            const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
-                            return (
-                              <span className={`text-[11px] px-1.5 py-0.5 rounded-full border font-medium leading-none ${
-                                urgent
-                                  ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
-                                  : 'bg-iron-border/15 border-iron-border/30 text-iron-muted'
-                              }`}>
-                                {T.reservationPanel.noTableBadge}{urgent && minsUntil !== null && !arrivalBadge ? ` · ${minsUntil}m` : ''}
-                              </span>
-                            );
-                          })()}
-                        </>
+                    {/* Row 2 — table assignment */}
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {r.table ? (
+                        <span className="text-iron-text/60 text-[12px] font-medium leading-none">{r.table.name}</span>
+                      ) : (
+                        (() => {
+                          const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
+                          return (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium leading-none ${
+                              urgent
+                                ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
+                                : 'bg-iron-border/15 border-iron-border/30 text-iron-muted/75'
+                            }`}>
+                              {T.reservationPanel.noTableBadge}{urgent && minsUntil !== null && !arrivalBadge ? ` · ${minsUntil}m` : ''}
+                            </span>
+                          );
+                        })()
                       )}
                     </div>
 
-                    {/* Row 3 — phone identity layer: secondary, operational, scannable */}
-                    <div className="flex items-center gap-1.5 mt-1.5">
+                    {/* Row 3 — phone identity layer */}
+                    <div className="flex items-center gap-1.5 mt-1">
                       {r.guestPhone ? (
-                        <span className="text-iron-muted/55 text-[11px] font-mono tabular-nums tracking-wider leading-none">
+                        <span className="text-iron-muted/50 text-[11px] font-mono tabular-nums tracking-wider leading-none">
                           {(() => {
                             const d = r.guestPhone.replace(/\D/g, '');
                             if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
@@ -513,7 +510,7 @@ export default function ReservationPanel({
                           })()}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-iron-muted/38 font-medium">
+                        <span className="text-[10px] text-iron-muted/35 font-medium">
                           {T.reservationPanel.noPhone}
                         </span>
                       )}
@@ -547,11 +544,11 @@ export default function ReservationPanel({
                     )}
                   </button>
                   {!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable && (
-                    <div className="flex items-center pr-3.5 shrink-0">
+                    <div className="flex items-center pe-3.5 shrink-0">
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                        className="text-xs font-medium px-3 py-2 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                        className="text-xs font-medium px-2.5 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
                       >
                         {T.reservationPanel.chooseTable}
                       </button>

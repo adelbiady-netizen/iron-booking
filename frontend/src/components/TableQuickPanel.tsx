@@ -200,10 +200,10 @@ export default function TableQuickPanel({
   }
 
   // ── Button styles ──────────────────────────────────────────────────────────
-  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-xl border transition-[background-color,border-color,color,transform] duration-100 disabled:opacity-40 active:scale-[0.97]';
-  const basePrimary = 'text-sm font-semibold px-4 py-3.5 rounded-xl border transition-[background-color,border-color,transform,opacity] duration-150 disabled:opacity-40 min-h-[44px] flex items-center justify-center active:scale-[0.97]';
-  const btnGreen   = `${basePrimary} bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30`;
-  const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25`;
+  const base        = 'text-xs font-semibold px-3.5 py-3 rounded-xl border transition-[background-color,border-color,color,transform] duration-100 disabled:opacity-40 active:scale-[0.97]';
+  const basePrimary = 'text-sm font-semibold px-4 py-4 rounded-xl border transition-[background-color,border-color,transform,opacity] duration-150 disabled:opacity-40 min-h-[52px] flex items-center justify-center w-full active:scale-[0.97]';
+  const btnGreen   = `${basePrimary} bg-iron-green/22 border-iron-green/45 text-iron-green-light hover:bg-iron-green/32`;
+  const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/32 text-blue-400 hover:bg-blue-500/26`;
   const btnAmber   = `${base} bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25`;
   const btnRed     = `${base} bg-red-900/15 border-red-900/25 text-red-400 hover:bg-red-900/25`;
   const btnNeutral = `${base} bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30`;
@@ -253,30 +253,34 @@ export default function TableQuickPanel({
   const isClosed  = res && ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status);
 
   return (
-    <aside className="h-full w-full bg-iron-card flex flex-col">
+    <aside className="h-full w-full bg-iron-bg flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="p-4 border-b border-iron-border/50 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 5px 20px rgba(0,0,0,0.28)' }}>
+        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/50 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.022) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 22px rgba(0,0,0,0.32)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-iron-text font-bold text-xl">{floorTable.name}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-iron-text font-bold text-2xl tracking-tight">{floorTable.name}</span>
                 {floorTable.locked && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-semibold">
                     {T.tableQuickPanel.locked}
                   </span>
                 )}
               </div>
-              <p className="text-iron-muted text-xs mt-0.5">
+              <p className="text-iron-muted/70 text-xs mt-0.5 font-medium">
                 {floorTable.minCovers}–{floorTable.maxCovers}
                 {floorTable.section?.name ? ` · ${floorTable.section.name}` : ''}
               </p>
             </div>
-            <button onClick={onClose} className="text-iron-muted hover:text-iron-text text-2xl leading-none -mt-0.5" aria-label="Close">×</button>
+            <button
+              onClick={onClose}
+              className="text-iron-muted/50 hover:text-iron-text text-2xl leading-none -mt-0.5 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-iron-border/20 transition-colors"
+              aria-label="Close"
+            >×</button>
           </div>
 
           {/* Status pill */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${statusConfig.cls}`}>
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border ${statusConfig.cls}`} style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.14)' }}>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusConfig.dot}`} />
             <span>
               {statusConfig.label}
@@ -485,16 +489,16 @@ export default function TableQuickPanel({
 
               {/* ── ACTIONS ────────────────────────────────────────────────── */}
               {!isClosed && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
 
                   {/* PRIMARY */}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2">
                     {res.status === 'PENDING' && (<>
-                      <Btn label={T.guestDrawer.actionConfirm} cls={btnBlue} style={primaryShadow}
-                        onClick={() => quick(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed, true)} />
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen} style={primaryShadow}
                         onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
+                      <Btn label={T.guestDrawer.actionConfirm} cls={btnBlue} style={primaryShadow}
+                        onClick={() => quick(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed, true)} />
                     </>)}
 
                     {res.status === 'CONFIRMED' && (
@@ -582,8 +586,8 @@ export default function TableQuickPanel({
           {/* ── AVAILABLE TABLE ─────────────────────────────────────────────── */}
           {!res && !floorTable.locked && (
             <div className="space-y-2">
-              <p className="text-iron-muted text-xs">{T.tableQuickPanel.available}</p>
-              <div className="flex flex-wrap gap-2">
+              <p className="text-iron-muted/70 text-xs font-medium">{T.tableQuickPanel.available}</p>
+              <div className="flex flex-col gap-2">
                 <Btn label={T.tableQuickPanel.newReservation} cls={btnGreen}
                   onClick={() => { onOpenCreate(floorTable.id); onClose(); }} />
                 <Btn label={T.tableQuickPanel.walkIn} cls={btnNeutral}
@@ -626,11 +630,11 @@ export default function TableQuickPanel({
 
         {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
         {res && (
-          <div className="p-4 border-t border-iron-border/60 shrink-0">
+          <div className="p-4 border-t border-iron-border/40 shrink-0" style={{ backgroundImage: 'linear-gradient(0deg, rgba(0,0,0,0.10) 0%, transparent 100%)' }}>
             <button
               onClick={() => { onViewFull(res); onClose(); }}
-              className="w-full text-sm font-semibold text-iron-green-light hover:text-white bg-iron-green/12 hover:bg-iron-green/26 border border-iron-green/35 hover:border-iron-green/60 rounded-xl px-3 py-3 transition-colors"
-              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+              className="w-full text-sm font-semibold text-iron-green-light hover:text-white bg-iron-green/14 hover:bg-iron-green/28 border border-iron-green/40 hover:border-iron-green/65 rounded-xl px-3 py-3.5 transition-[background-color,border-color,color] duration-150 active:scale-[0.98]"
+              style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07)' }}
             >
               {T.tableQuickPanel.viewFullDetails} →
             </button>

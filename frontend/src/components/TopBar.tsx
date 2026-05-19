@@ -67,7 +67,7 @@ function NavBtn({ onClick, title, children }: { onClick: () => void; title: stri
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center w-8 self-stretch text-iron-text/50 hover:text-iron-text hover:bg-iron-elevated transition-colors text-base leading-none select-none shrink-0 touch-manipulation"
+      className="flex items-center justify-center w-9 self-stretch text-iron-text/45 hover:text-iron-text hover:bg-white/[0.05] active:bg-white/[0.08] transition-colors text-base leading-none select-none shrink-0 touch-manipulation"
     >
       {children}
     </button>
@@ -95,10 +95,10 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header className="h-16 shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(0,0,0,0.055) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09), 0 2px 0 rgba(0,0,0,0.22), 0 12px 52px rgba(0,0,0,0.64)', borderBottom: '1px solid rgba(255,215,130,0.20)' }}>
+    <header className="h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: '1px solid rgba(255,215,130,0.22)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 mr-3 shrink-0">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.26) 0%, rgba(75,95,42,0.15) 100%)', border: '1px solid rgba(120,120,60,0.32)', boxShadow: '0 0 14px rgba(111,138,60,0.14), 0 0 8px rgba(255,215,130,0.07), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 16px rgba(111,138,60,0.16), 0 0 8px rgba(255,215,130,0.07), inset 0 1px 0 rgba(255,255,255,0.12)' }}>
           <span className="text-iron-green-light font-bold text-sm">IB</span>
         </div>
         <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden md:block">
@@ -108,7 +108,7 @@ export default function TopBar({
 
       {/* ── Date / Time Command Cluster ──────────────────────────────── */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="flex items-stretch rounded-2xl border border-iron-border/50 bg-iron-bg/92 overflow-hidden" style={{ boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.42), 0 1px 0 rgba(255,255,255,0.08), 0 0 0 1px rgba(255,255,255,0.04)' }}>
+        <div className="flex items-stretch rounded-2xl border border-white/[0.08] bg-iron-bg overflow-hidden" style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)' }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
           <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/30">
@@ -138,7 +138,7 @@ export default function TopBar({
           <div className="relative flex items-center justify-center px-3 py-2.5">
             <span
               className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
-              style={{ fontSize: '34px', letterSpacing: '-0.03em' }}
+              style={{ fontSize: '40px', letterSpacing: '-0.045em' }}
             >
               {time}
             </span>
@@ -159,9 +159,9 @@ export default function TopBar({
 
         {/* ── Service State — adjacent to time ─────────────────── */}
         {isLive ? (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-iron-green/14 border border-iron-green/35 shrink-0" style={{ boxShadow: '0 0 0 1px rgba(111,138,60,0.08) inset' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-iron-green-light animate-pulse" style={{ animationDuration: '2.4s' }} />
-            <span className="text-iron-green-light text-xs font-bold tracking-widest">LIVE</span>
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-iron-green/14 border border-iron-green/30 shrink-0" style={{ boxShadow: '0 0 0 3px rgba(111,138,60,0.07), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+            <span className="w-2 h-2 rounded-full bg-iron-green-light animate-pulse shrink-0" style={{ animationDuration: '2.4s', boxShadow: '0 0 6px rgba(111,138,60,0.5)' }} />
+            <span className="text-iron-green-light text-[11px] font-bold tracking-[0.18em]">LIVE</span>
           </div>
         ) : (
           <button
@@ -176,8 +176,8 @@ export default function TopBar({
 
       {/* Zoom control — quiet utility */}
       <div
-        className="flex items-center bg-iron-bg/50 rounded-xl overflow-hidden divide-x divide-iron-border/20"
-        style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.20), 0 1px 0 rgba(255,255,255,0.04)' }}
+        className="flex items-center bg-iron-bg/60 rounded-xl overflow-hidden divide-x divide-iron-border/25"
+        style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(255,255,255,0.03)' }}
         title={T.topBar.zoomTitle}
       >
         <button
