@@ -54,6 +54,7 @@ export const T = {
     prev30:         '−30m',
     next30:         '+30m',
     nowBtn:         'Now',
+    realClock:      'Now',
     backToToday:    'Back to today',
     guestsButton:   'Guests',
     adminButton:    'Admin',

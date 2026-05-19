@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type React from 'react';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
@@ -87,6 +88,17 @@ export default function TopBar({
   sseStatus,
 }: Props) {
   const T = useT();
+
+  function readClock(): string {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+  const [realClock, setRealClock] = useState(readClock);
+  useEffect(() => {
+    const id = setInterval(() => setRealClock(readClock()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+
   const atMin  = zoom <= 75;
   const atMax  = zoom >= 150;
   const atNorm = zoom === 100;
@@ -138,13 +150,19 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className="relative flex items-center justify-center px-4 py-2" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className="relative flex flex-col items-center justify-center px-4 py-1" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
               dir="ltr"
               className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
               style={{ fontSize: '40px', letterSpacing: '-0.045em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
+            </span>
+            <span
+              dir="ltr"
+              className="text-iron-muted/45 text-[10px] font-medium tabular-nums leading-none pointer-events-none select-none mt-0.5"
+            >
+              {T.topBar.realClock} {realClock}
             </span>
             <select
               value={time}

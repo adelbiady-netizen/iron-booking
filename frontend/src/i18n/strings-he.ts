@@ -54,6 +54,7 @@ export const THe = {
     prev30:         '−30 דק׳',
     next30:         '+30 דק׳',
     nowBtn:         'עכשיו',
+    realClock:      'שעה עכשיו',
     backToToday:    'חזרה להיום',
     guestsButton:   'אורחים',
     adminButton:    'ניהול',

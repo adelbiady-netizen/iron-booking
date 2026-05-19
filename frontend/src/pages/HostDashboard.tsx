@@ -73,7 +73,10 @@ function snapTo30(totalMinutes: number): string {
 
 function nowTime(): string {
   const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const floored = Math.floor((d.getHours() * 60 + d.getMinutes()) / 30) * 30;
+  const h = Math.floor(floored / 60) % 24;
+  const m = floored % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function snapTimeStr(timeStr: string): string {
