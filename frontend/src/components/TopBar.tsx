@@ -95,7 +95,7 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header className="h-16 shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 4px 28px rgba(0,0,0,0.52)', borderBottom: '1px solid rgba(255,215,130,0.18)' }}>
+    <header className="h-16 shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(0,0,0,0.055) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09), 0 2px 0 rgba(0,0,0,0.22), 0 12px 52px rgba(0,0,0,0.64)', borderBottom: '1px solid rgba(255,215,130,0.20)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 mr-3 shrink-0">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.26) 0%, rgba(75,95,42,0.15) 100%)', border: '1px solid rgba(120,120,60,0.32)', boxShadow: '0 0 14px rgba(111,138,60,0.14), 0 0 8px rgba(255,215,130,0.07), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
@@ -108,7 +108,7 @@ export default function TopBar({
 
       {/* ── Date / Time Command Cluster ──────────────────────────────── */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="flex items-stretch rounded-2xl border border-iron-border/40 bg-iron-bg/80 overflow-hidden" style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.30), 0 1px 0 rgba(255,255,255,0.05)' }}>
+        <div className="flex items-stretch rounded-2xl border border-iron-border/50 bg-iron-bg/92 overflow-hidden" style={{ boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.42), 0 1px 0 rgba(255,255,255,0.08), 0 0 0 1px rgba(255,255,255,0.04)' }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
           <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/30">
@@ -138,7 +138,7 @@ export default function TopBar({
           <div className="relative flex items-center justify-center px-3 py-2.5">
             <span
               className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
-              style={{ fontSize: '34px', letterSpacing: '-0.025em' }}
+              style={{ fontSize: '34px', letterSpacing: '-0.03em' }}
             >
               {time}
             </span>

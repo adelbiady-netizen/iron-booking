@@ -25,7 +25,7 @@ interface RowProps { label: string; value: string; accent?: boolean; warn?: bool
 function Row({ label, value, accent, warn }: RowProps) {
   return (
     <div className="flex justify-between items-baseline gap-3">
-      <span className="text-iron-muted text-[13px] font-medium shrink-0">{label}</span>
+      <span className="text-iron-muted/70 text-[13px] font-medium shrink-0">{label}</span>
       <span className={`text-[13px] text-right font-semibold ${warn ? 'text-orange-400' : accent ? 'text-iron-green-light' : 'text-iron-text'}`}>
         {value}
       </span>
@@ -37,7 +37,7 @@ function Ts({ label, ts }: { label: string; ts: string }) {
   const t = fmtHostTime(ts);
   return (
     <div className="flex justify-between">
-      <span className="text-iron-muted text-xs font-medium">{label}</span>
+      <span className="text-iron-muted/70 text-xs font-medium">{label}</span>
       <span className="text-iron-text text-xs font-semibold tabular-nums">{t}</span>
     </div>
   );
@@ -106,7 +106,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`rounded-lg border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
+      className={`rounded-xl border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
         primary ? 'text-sm font-semibold px-4 py-3.5' : 'text-xs font-medium px-3 py-2'
       } ${cls}`}
     >
@@ -897,7 +897,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/60 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-4px 0 44px rgba(0,0,0,0.68), -1px 0 0 rgba(255,255,255,0.06)' }}>
+      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/50 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
 
         {/* Header */}
         <div className="px-4 pt-4 pb-3 border-b border-iron-border shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.07) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.32)' }}>

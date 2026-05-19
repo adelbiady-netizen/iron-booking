@@ -130,10 +130,10 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-full h-full flex flex-col border-s border-iron-border/80 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
+    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62)' }}>
 
       {/* Tab bar + action buttons */}
-      <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
+      <div className="px-3.5 pt-3 pb-0 border-b border-iron-border/40" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 4px 14px rgba(0,0,0,0.22)' }}>
         <div className="flex items-center gap-2 mb-2">
           <div className="flex gap-3 flex-1">
             <button
@@ -169,13 +169,13 @@ export default function ReservationPanel({
             <>
               <button
                 onClick={onWalkIn}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-iron-border/50 text-iron-muted hover:border-iron-green/50 hover:text-iron-text transition-colors active:scale-[0.97]"
+                className="text-xs font-medium px-3 py-1.5 rounded-xl border border-iron-border/50 text-iron-muted hover:border-iron-green/50 hover:text-iron-text transition-colors duration-100 active:scale-[0.97]"
               >
                 {T.reservationPanel.walkIn}
               </button>
               <button
                 onClick={onNewReservation}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] active:scale-[0.97]"
+                className="text-xs font-medium px-3 py-1.5 rounded-xl bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97]"
                 style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.10)' }}
               >
                 {T.reservationPanel.newReservation}

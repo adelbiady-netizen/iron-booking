@@ -97,11 +97,11 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
   const hasMore = calls.length < total;
 
   return (
-    <div className="h-full flex flex-col bg-iron-elevated border-s border-iron-border/80" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
+    <div className="h-full flex flex-col bg-iron-elevated border-s border-iron-border/60" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62)' }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-iron-border/40"
-        style={{ boxShadow: missedCount > 0 ? '0 1px 0 rgba(255,255,255,0.04), inset 0 -2px 0 rgba(239,68,68,0.16)' : '0 1px 0 rgba(255,255,255,0.04)' }}
+        style={{ boxShadow: missedCount > 0 ? '0 1px 0 rgba(255,255,255,0.06), 0 4px 14px rgba(0,0,0,0.22), inset 0 -2px 0 rgba(239,68,68,0.16)' : '0 1px 0 rgba(255,255,255,0.06), 0 4px 14px rgba(0,0,0,0.22)' }}
       >
         <div>
           <div className="flex items-center gap-2">

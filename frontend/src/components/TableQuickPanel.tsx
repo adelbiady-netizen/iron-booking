@@ -200,7 +200,7 @@ export default function TableQuickPanel({
   }
 
   // ── Button styles ──────────────────────────────────────────────────────────
-  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-lg border transition-[background-color,border-color,color,transform] duration-100 disabled:opacity-40 active:scale-[0.97]';
+  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-xl border transition-[background-color,border-color,color,transform] duration-100 disabled:opacity-40 active:scale-[0.97]';
   const basePrimary = 'text-sm font-semibold px-4 py-3.5 rounded-xl border transition-[background-color,border-color,transform,opacity] duration-150 disabled:opacity-40 min-h-[44px] flex items-center justify-center active:scale-[0.97]';
   const btnGreen   = `${basePrimary} bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30`;
   const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25`;
@@ -256,7 +256,7 @@ export default function TableQuickPanel({
     <aside className="h-full w-full bg-iron-card flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="p-4 border-b border-iron-border/60 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.22)' }}>
+        <div className="p-4 border-b border-iron-border/50 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 5px 20px rgba(0,0,0,0.28)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="flex items-center gap-2">
