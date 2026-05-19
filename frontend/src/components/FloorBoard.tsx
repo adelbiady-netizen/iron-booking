@@ -399,16 +399,26 @@ function tableRadius(shape: string): string {
 
 // Surface gradient — state-tinted top highlight. Active states get a warm/cool wash that reinforces
 // status color without requiring text. Hosts read the table surface before reading the label.
-function tableGradient(_shape: string, status: string, _cls: string, isDark: boolean): string | undefined {
+function tableGradient(_shape: string, status: string, cls: string, isDark: boolean): string | undefined {
   if (status === 'BLOCKED') return undefined;
   if (!isDark) {
-    if (status === 'AVAILABLE') return 'linear-gradient(180deg, rgba(0,0,0,0.025) 0%, transparent 55%)';
+    if (status === 'AVAILABLE') {
+      if (cls === 'vip') return 'linear-gradient(180deg, rgba(180,150,50,0.055) 0%, transparent 55%)';
+      return 'linear-gradient(180deg, rgba(0,0,0,0.025) 0%, transparent 55%)';
+    }
     return 'linear-gradient(180deg, rgba(0,0,0,0.045) 0%, transparent 52%)';
   }
-  if (status === 'AVAILABLE') return [
-    'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, transparent 52%)',
-    'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
-  ].join(', ');
+  if (status === 'AVAILABLE') {
+    // VIP surfaces: warm cream highlight — chandelier reads as amber-tinted linen, not white cotton
+    if (cls === 'vip') return [
+      'linear-gradient(180deg, rgba(255,240,180,0.28) 0%, transparent 52%)',
+      'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
+    ].join(', ');
+    return [
+      'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, transparent 52%)',
+      'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
+    ].join(', ');
+  }
   if (status === 'OCCUPIED') return [
     'linear-gradient(180deg, rgba(134,239,172,0.26) 0%, transparent 50%)',
     'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',

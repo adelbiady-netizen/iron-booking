@@ -254,7 +254,7 @@ export default function TableQuickPanel({
     <aside className="h-full w-full bg-iron-card flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="p-4 border-b border-iron-border/60 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.22)' }}>
+        <div className="p-4 border-b border-iron-border/60 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.22), inset 0 -1px 0 rgba(255,215,130,0.07)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function TableQuickPanel({
           </div>
 
           {/* Status pill */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${statusConfig.cls}`}>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${statusConfig.cls}`}>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusConfig.dot}`} />
             <span>
               {statusConfig.label}
@@ -322,12 +322,17 @@ export default function TableQuickPanel({
                   onClick={e => e.stopPropagation()}
                 >
                   <span className="text-iron-muted text-[11px]">📞</span>
-                  {res.guestPhone}
+                  {(() => {
+                    const d = res.guestPhone!.replace(/\D/g, '');
+                    if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
+                    if (d.length === 10 && d.startsWith('0'))   return `${d.slice(0,3)} · ${d.slice(3,6)} · ${d.slice(6)}`;
+                    return res.guestPhone;
+                  })()}
                 </a>
               )}
 
               {/* ── CORE DETAILS ───────────────────────────────────────────── */}
-              <div className="space-y-1.5">
+              <div className="rounded-xl bg-iron-bg/50 border border-iron-border/30 px-3 py-2.5 space-y-1.5" style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)' }}>
                 <div className="flex justify-between text-[13px]">
                   <span className="text-iron-muted">{T.tableQuickPanel.labelTime}</span>
                   <span className="text-iron-text font-semibold tabular-nums">{normalizeTime(res.time)}</span>
@@ -414,10 +419,11 @@ export default function TableQuickPanel({
                 {res.hostNotes && !editingNote && (
                   <button
                     onClick={() => { setEditingNote(true); setNoteDraft(res.hostNotes ?? ''); }}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-amber-500/25 hover:border-amber-500/40 transition-colors"
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-amber-900/8 border border-amber-500/20 hover:border-amber-500/40 transition-colors"
+                    style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.72)' }}
                   >
                     <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.hostNote}</p>
-                    <p className="text-amber-300 text-xs">{res.hostNotes}</p>
+                    <p className="text-amber-100/85 text-xs">{res.hostNotes}</p>
                   </button>
                 )}
 
@@ -456,16 +462,16 @@ export default function TableQuickPanel({
 
                 {/* Guest note (read-only) */}
                 {res.guestNotes && (
-                  <div className="px-2.5 py-1.5 rounded-lg bg-iron-bg border border-iron-border">
-                    <p className="text-[10px] text-iron-muted font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.guestNote}</p>
-                    <p className="text-iron-text text-xs">{res.guestNotes}</p>
+                  <div className="px-2.5 py-2 rounded-lg bg-iron-card/70 border border-iron-border/70">
+                    <p className="text-[10px] text-iron-muted/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.guestNote}</p>
+                    <p className="text-iron-text/90 text-xs">{res.guestNotes}</p>
                   </div>
                 )}
 
                 {/* Occasion */}
                 {res.occasion && (
-                  <div className="px-2.5 py-1.5 rounded-lg bg-iron-green/8 border border-iron-green/20">
-                    <p className="text-iron-green-light text-xs font-medium">{res.occasion}</p>
+                  <div className="px-2.5 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25">
+                    <p className="text-iron-green-light text-xs font-semibold">{res.occasion}</p>
                   </div>
                 )}
               </div>
