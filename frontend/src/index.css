@@ -177,6 +177,15 @@ input[type="time"] {
   animation: slide-in-left 0.18s ease-out forwards;
 }
 
+/* New call row entrance — slides in from above, fast-settle */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-row-in {
+  animation: row-in 0.22s var(--ease-hospitality) forwards;
+}
+
 /* ── Live table presence ──────────────────────────────────────────────────── */
 /* Each keyframe targets a different operational state. Position-seeded       */
 /* animationDelay makes every table breathe at its own organic offset.        */

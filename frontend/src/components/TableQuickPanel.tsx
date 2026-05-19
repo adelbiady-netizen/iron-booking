@@ -200,8 +200,8 @@ export default function TableQuickPanel({
   }
 
   // ── Button styles ──────────────────────────────────────────────────────────
-  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-lg border transition-colors disabled:opacity-40';
-  const basePrimary = 'text-sm font-semibold px-4 py-3.5 rounded-xl border transition-colors disabled:opacity-40 min-h-[44px] flex items-center justify-center';
+  const base        = 'text-xs font-medium px-3.5 py-2.5 rounded-lg border transition-colors disabled:opacity-40 active:scale-[0.97]';
+  const basePrimary = 'text-sm font-semibold px-4 py-3.5 rounded-xl border transition-[background-color,border-color,transform,opacity] duration-150 disabled:opacity-40 min-h-[44px] flex items-center justify-center active:scale-[0.97]';
   const btnGreen   = `${basePrimary} bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30`;
   const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25`;
   const btnAmber   = `${base} bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25`;
@@ -254,7 +254,7 @@ export default function TableQuickPanel({
     <aside className="h-full w-full bg-iron-card flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="p-4 border-b border-iron-border/70 shrink-0">
+        <div className="p-4 border-b border-iron-border/60 shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.22)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export default function TableQuickPanel({
               {/* ── GUEST IDENTITY ─────────────────────────────────────────── */}
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-iron-text font-bold text-[20px] leading-tight tracking-tight">{res.guestName}</span>
+                  <span className="text-iron-text font-bold text-[22px] leading-tight tracking-tight">{res.guestName}</span>
                   {res.guest?.isVip && (
                     <span className="text-amber-400 text-[10px] font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
                       {T.common.vip}
@@ -616,7 +616,8 @@ export default function TableQuickPanel({
           <div className="p-4 border-t border-iron-border/60 shrink-0">
             <button
               onClick={() => { onViewFull(res); onClose(); }}
-              className="w-full text-sm font-semibold text-iron-green-light hover:text-iron-text bg-iron-green/10 hover:bg-iron-green/18 border border-iron-green/30 hover:border-iron-green/50 rounded-lg px-3 py-2.5 transition-colors"
+              className="w-full text-sm font-semibold text-iron-green-light hover:text-white bg-iron-green/12 hover:bg-iron-green/26 border border-iron-green/35 hover:border-iron-green/60 rounded-xl px-3 py-3 transition-colors"
+              style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)' }}
             >
               {T.tableQuickPanel.viewFullDetails} →
             </button>

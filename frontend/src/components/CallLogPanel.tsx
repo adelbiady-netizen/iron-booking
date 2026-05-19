@@ -101,16 +101,20 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-iron-border/40"
-        style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}
+        style={{ boxShadow: missedCount > 0 ? '0 1px 0 rgba(255,255,255,0.04), inset 0 -2px 0 rgba(239,68,68,0.16)' : '0 1px 0 rgba(255,255,255,0.04)' }}
       >
         <div>
-          <p className="text-iron-text font-semibold text-sm leading-tight">{T.callLog.title}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-iron-text font-semibold text-sm leading-tight">{T.callLog.title}</p>
+            {missedCount > 0 && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 tabular-nums leading-none">
+                {missedCount} {T.callLog.missed.toLowerCase()}
+              </span>
+            )}
+          </div>
           {total > 0 && (
-            <p className="text-iron-muted/60 text-[11px] font-medium leading-tight mt-0.5 tabular-nums">
+            <p className="text-iron-muted/55 text-[11px] font-medium leading-tight mt-0.5 tabular-nums">
               {total} {T.callLog.title.toLowerCase()}
-              {missedCount > 0 && (
-                <span className="text-red-400/80"> · {missedCount} {T.callLog.missed.toLowerCase()}</span>
-              )}
             </p>
           )}
         </div>
@@ -207,9 +211,11 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
                   </div>
                 )}
                 <div
-                  className={`relative px-5 py-4 hover:bg-iron-bg/35 transition-colors duration-100 border-b border-iron-border/15 ${
-                    !isAnswered ? 'border-s-2 border-s-red-500/55' : 'border-s-2 border-s-transparent'
-                  }`}
+                  className={`relative px-5 py-4 transition-colors duration-100 border-b border-iron-border/15 ${
+                    !isAnswered
+                      ? 'border-s-2 border-s-red-500/60 hover:bg-red-950/18'
+                      : 'border-s-2 border-s-transparent hover:bg-iron-bg/35'
+                  }${call.id === latestCall?.id ? ' animate-row-in' : ''}`}
                 >
                   {/* Row 1: status + time */}
                   <div className="flex items-center justify-between gap-3 mb-2.5">
@@ -229,7 +235,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
                   {/* Row 2: caller identity — formatted phone as dominant anchor */}
                   <p className={`font-bold tabular-nums tracking-tight leading-none mb-3 ${
                     hasPhone
-                      ? 'text-iron-text text-[19px]'
+                      ? 'text-iron-text text-[20px]'
                       : 'text-iron-muted/60 text-[15px] italic font-normal'
                   }`}>
                     {displayPhone}

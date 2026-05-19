@@ -1597,7 +1597,10 @@ export default function FloorBoard({
 
 function Stat({ label, value, color, live = false }: { label: string; value: number; color: string; live?: boolean }) {
   return (
-    <div className={`flex flex-col items-center px-2.5 py-1.5 rounded-xl bg-iron-bg/[0.28] shrink-0${live && value > 0 ? ' animate-ambient-breathe' : ''}`}>
+    <div
+      className={`flex flex-col items-center px-2.5 py-1.5 rounded-xl bg-iron-bg/[0.28] shrink-0${live && value > 0 ? ' animate-ambient-breathe' : ''}`}
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}
+    >
       <span className={`text-[18px] font-bold tabular-nums leading-none ${color}`}>{value}</span>
       <span className="text-iron-muted/60 text-[8px] uppercase tracking-[0.12em] font-semibold leading-none mt-0.5">{label}</span>
     </div>
@@ -2706,6 +2709,22 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : isFarFutureReserved ? 0.86     // far-future reservations calm down visually
     : 1;
   let cursor = 'pointer';
+
+  // Ambient status glow — each occupied/arriving state casts its own light.
+  // Only applied when no priority shadow is already set (selected/overdue/locked take precedence).
+  if (!boxShadow && !table.locked) {
+    if (table.liveStatus === 'OCCUPIED' && !isOverdue) {
+      boxShadow = isEndingSoon
+        ? '0 2px 14px rgba(251,191,36,0.14)'     // freeing soon — warm amber readiness
+        : isLongStable
+        ? '0 2px 8px rgba(34,197,94,0.08)'        // long stable — very subtle, recedes
+        : '0 2px 12px rgba(34,197,94,0.13)';      // active occupancy — warm green presence
+    } else if (displayStatus === 'RESERVED_SOON') {
+      boxShadow = '0 2px 14px rgba(217,119,6,0.13)';   // amber urgency bloom
+    } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
+      boxShadow = '0 2px 10px rgba(59,130,246,0.09)';  // approaching reserved — soft blue
+    }
+  }
 
   // Status-driven border refinements
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {

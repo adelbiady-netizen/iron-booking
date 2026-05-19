@@ -169,13 +169,13 @@ export default function ReservationPanel({
             <>
               <button
                 onClick={onWalkIn}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-iron-border/50 text-iron-muted hover:border-iron-green/50 hover:text-iron-text transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-iron-border/50 text-iron-muted hover:border-iron-green/50 hover:text-iron-text transition-colors active:scale-[0.97]"
               >
                 {T.reservationPanel.walkIn}
               </button>
               <button
                 onClick={onNewReservation}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] active:scale-[0.97]"
               >
                 {T.reservationPanel.newReservation}
               </button>
@@ -199,10 +199,10 @@ export default function ReservationPanel({
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors border ${
                     filter === f.value
-                      ? 'text-iron-text font-semibold bg-iron-bg/60'
-                      : 'text-iron-muted/80 font-medium hover:text-iron-text'
+                      ? 'text-iron-text font-semibold bg-iron-bg/70 border-iron-border/30'
+                      : 'text-iron-muted/80 font-medium hover:text-iron-text border-transparent hover:bg-iron-bg/40'
                   }`}
                 >
                   {f.label}
@@ -446,7 +446,7 @@ export default function ReservationPanel({
                     type="button"
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
-                    className="flex-1 text-left px-3.5 py-3.5 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
+                    className="flex-1 text-left px-3.5 py-4 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
                     {/* Row 1 — name + VIP + status badge */}
@@ -546,7 +546,7 @@ export default function ReservationPanel({
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                        className="text-xs font-medium px-3 py-2 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors whitespace-nowrap"
+                        className="text-xs font-medium px-3 py-2 rounded-md border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
                       >
                         {T.reservationPanel.chooseTable}
                       </button>

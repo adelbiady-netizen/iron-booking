@@ -49,11 +49,11 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
     ? table.liveStatus
     : 'RESERVED';
   const STATUS_STYLE: Record<string, StatusStyle> = {
-    AVAILABLE:     { border: 'border-iron-border/60 hover:border-iron-green-light/65', bg: '',                  dot: 'bg-iron-border',  label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted/75' },
-    OCCUPIED:      { border: 'border-iron-green-light',                       bg: 'bg-iron-green/16',  dot: 'bg-iron-green-light', label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
-    RESERVED_SOON: { border: 'border-amber-500',                             bg: 'bg-amber-500/15',   dot: 'bg-amber-500',        label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
-    RESERVED:      { border: 'border-blue-400/60',                           bg: 'bg-blue-900/20',    dot: 'bg-blue-500',         label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400' },
-    BLOCKED:       { border: 'border-iron-border/50',                        bg: 'bg-iron-border/20', dot: 'bg-iron-muted',  label: T.tableStatus.BLOCKED,       labelColor: 'text-iron-muted' },
+    AVAILABLE:     { border: 'border-iron-border/55 hover:border-iron-green/55',   bg: '',                  dot: 'bg-iron-border/75',   label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted/70' },
+    OCCUPIED:      { border: 'border-iron-green/80',                               bg: 'bg-iron-green/14',  dot: 'bg-iron-green-light', label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
+    RESERVED_SOON: { border: 'border-amber-400/90',                                bg: 'bg-amber-500/12',   dot: 'bg-amber-400',        label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
+    RESERVED:      { border: 'border-blue-500/55',                                 bg: 'bg-blue-950/28',    dot: 'bg-blue-400',         label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400/90' },
+    BLOCKED:       { border: 'border-iron-border/40',                              bg: 'bg-iron-bg/55',     dot: 'bg-iron-muted/55',    label: T.tableStatus.BLOCKED,       labelColor: 'text-iron-muted/65' },
   };
   const currentRes = table.currentReservation;
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
@@ -66,11 +66,24 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
 
   const style = STATUS_STYLE[displayStatus] ?? STATUS_STYLE['AVAILABLE'];
 
+  const shadowStyle: React.CSSProperties = (() => {
+    if (selected)             return { boxShadow: 'inset 0 0 0 1px rgba(111,138,60,0.18), 0 2px 14px rgba(0,0,0,0.42)' };
+    if (table.locked)         return { boxShadow: '0 1px 8px rgba(0,0,0,0.28)' };
+    if (isOverdue)            return { boxShadow: 'inset 0 0 0 1px rgba(249,115,22,0.16), 0 2px 16px rgba(0,0,0,0.44)' };
+    switch (displayStatus) {
+      case 'OCCUPIED':      return { boxShadow: 'inset 0 0 0 1px rgba(111,138,60,0.12), 0 2px 12px rgba(0,0,0,0.38)' };
+      case 'RESERVED_SOON': return { boxShadow: 'inset 0 0 0 1px rgba(245,158,11,0.10), 0 2px 12px rgba(0,0,0,0.34)' };
+      case 'RESERVED':      return { boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.07), 0 2px 10px rgba(0,0,0,0.30)' };
+      default:              return { boxShadow: '0 1px 4px rgba(0,0,0,0.20)' };
+    }
+  })();
+
   return (
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={turnTooltip ?? (isAvailable ? T.tableCard.clickToSeat : undefined)}
+      style={shadowStyle}
       className={`
         group w-full text-left p-3 rounded-lg border transition-[background-color,border-color,box-shadow,opacity,transform] duration-150 active:scale-[0.97] touch-manipulation
         ${table.locked ? 'bg-amber-500/5' : isOverdue ? 'bg-orange-900/12' : (style.bg || (isAvailable ? 'bg-iron-card hover:bg-iron-elevated/30' : 'bg-iron-card'))}
