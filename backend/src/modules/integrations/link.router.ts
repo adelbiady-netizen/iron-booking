@@ -22,14 +22,15 @@ const router = Router();
 //   - Callback workflow:   missed + no outcome = appears in a "call back" queue panel
 
 interface GroupRoute {
-  restaurantName: string;
+  restaurantSlug: string;   // immutable slug — used for DB lookup (never changes)
+  restaurantName: string;   // display label — denormalised into CallLog.restaurantName
   category: string;
   channel: string;
 }
 
 const LINK_GROUP_ROUTES: Record<string, GroupRoute> = {
-  '201': { restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'phone' },
-  '203': { restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'sms'   },
+  '201': { restaurantSlug: 'italiano-dalla-costa', restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'phone' },
+  '203': { restaurantSlug: 'italiano-dalla-costa', restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'sms'   },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -97,13 +98,16 @@ router.get('/call', (req, res) => {
   // ── Routing resolution ──────────────────────────────────────────────────────
   const groupRoute: GroupRoute | undefined = groupStr ? LINK_GROUP_ROUTES[groupStr] : undefined;
 
+  // Slug lookup is the primary path for known groups — slug is immutable and unique,
+  // so it is immune to restaurant renames. DNIS (linkPhone) is the fallback for both
+  // unknown groups and slug-miss edge cases (e.g. restaurant not yet in DB).
   const restaurantLookup: Promise<{ id: string } | null> = groupRoute
     ? prisma.restaurant
-        .findFirst({ where: { name: groupRoute.restaurantName }, select: { id: true } })
+        .findUnique({ where: { slug: groupRoute.restaurantSlug }, select: { id: true } })
         .then(r => {
           if (r) return r;
           if (calledStr) {
-            console.warn('[link/call] Group', groupStr, '→ name lookup missed; trying DNIS fallback on', calledStr);
+            console.warn('[link/call] Group', groupStr, '→ slug lookup missed for', groupRoute.restaurantSlug, '; trying DNIS fallback on', calledStr);
             return prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } });
           }
           return null;
@@ -119,7 +123,7 @@ router.get('/call', (req, res) => {
         if (restaurant) {
           console.log(
             '[link/call] Resolution: group', groupStr,
-            '→', groupRoute.restaurantName,
+            '→ slug:', groupRoute.restaurantSlug,
             '| restaurantId:', restaurant.id,
             '| category:', groupRoute.category,
             '| channel:', groupRoute.channel,
@@ -127,7 +131,7 @@ router.get('/call', (req, res) => {
         } else {
           console.warn(
             '[link/call] Resolution failed: group', groupStr,
-            '→ target "' + groupRoute.restaurantName + '" not found in DB.',
+            '→ slug "' + groupRoute.restaurantSlug + '" not found in DB.',
             'Persisting without restaurantId.',
           );
         }
