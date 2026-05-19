@@ -302,7 +302,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           console.error('[HostDashboard] API returned duplicate table IDs:', dupeIds, 'total:', ids.length, 'unique:', new Set(ids).size);
         }
         setFloorTables(ft);
-        setLoadError(false);
       }
       if (resOk) {
         const freshData = resResult.value.data as Reservation[];
@@ -314,8 +313,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         loadedDateRef.current = date;
       }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
-      // Both critical calls failed — backend is likely unreachable
-      if (!floorOk && !resOk) setLoadError(true);
+      // Clear the error overlay if either critical API responded — partial recovery
+      // is enough. Only lock out the UI when both are unreachable simultaneously.
+      if (floorOk || resOk) setLoadError(false);
+      else setLoadError(true);
       setResLoading(false);
     }
 

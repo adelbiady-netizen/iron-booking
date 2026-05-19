@@ -321,7 +321,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     setTableSuggestions([]);
     setError(null);
     setMode('edit');
-    onDateTimeChange?.(res.date, res.time);
   }
 
   function adjustDuration(delta: number) {
