@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { AuthState, BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
+import type { AuthState, BackendTableSuggestion, CallLogItem, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import { api, ApiError } from '../api';
@@ -25,6 +25,7 @@ import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoun
 import ServiceReportPanel from '../components/ServiceReportPanel';
 import BulkConfirmModal from '../components/BulkConfirmModal';
 import TableQuickPanel from '../components/TableQuickPanel';
+import CallLogPanel from '../components/CallLogPanel';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -181,6 +182,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const [showServiceReport,   setShowServiceReport]   = useState(false);
   const [showBulkConfirm,    setShowBulkConfirm]    = useState(false);
+  const [showCallLog,        setShowCallLog]        = useState(false);
+  const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
+  const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
   const [panelCollapsed,     setPanelCollapsed]     = useState(false);
 
   // Compact table action panel — shown on floor map click before opening full GuestDrawer.
@@ -206,9 +210,28 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const sseStatus = useServerEvents({
     incoming_call: (data) => {
-      const d = data as { phone: string; createdAt: string };
+      const d = data as {
+        id?: string; phone: string; createdAt: string; status?: string;
+        duration?: number | null; recordUrl?: string | null; group?: string | null;
+        restaurantName?: string | null; routingStatus?: string | null;
+      };
+
+      // Always update the call log panel with the freshest record from SSE.
+      // The panel guards against duplicates by id.
+      setLatestCall({
+        id:            d.id ?? `sse-${d.createdAt}`,
+        phone:         d.phone,
+        createdAt:     d.createdAt,
+        status:        d.status ?? 'answered',
+        duration:      d.duration ?? null,
+        recordUrl:     d.recordUrl ?? null,
+        group:         d.group ?? null,
+        restaurantName: d.restaurantName ?? null,
+        routingStatus: d.routingStatus ?? null,
+      });
+
       const now = Date.now();
-      // 1. Deduplication — same phone within 10 s
+      // 1. Deduplication — same phone within 10 s (drawer only)
       if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) {
         return;
       }
@@ -1361,7 +1384,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   if (activePage === 'guests') {
     return (
       <>
-        <GuestsPage onBack={() => setActivePage('dashboard')} />
+        <GuestsPage
+          onBack={() => { setActivePage('dashboard'); setGuestSearchPhone(''); }}
+          initialSearch={guestSearchPhone}
+        />
         <ToastContainer toasts={toasts} onRemove={removeToast} />
       </>
     );
@@ -1485,6 +1511,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
           >
             {T.hostDashboard.activityLogBtn}
+          </button>
+          <button
+            onClick={() => setShowCallLog(v => !v)}
+            className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+              showCallLog
+                ? 'text-iron-accent border-iron-accent/40'
+                : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+            }`}
+          >
+            {T.callLog.btn}
           </button>
           {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
             <button
@@ -1795,6 +1831,23 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         <ServiceReportPanel
           initialDate={date}
           onClose={() => setShowServiceReport(false)}
+        />
+      )}
+
+      {showCallLog && (
+        <CallLogPanel
+          latestCall={latestCall}
+          onClose={() => setShowCallLog(false)}
+          onNewReservation={(phone) => {
+            setCallPrefillPhone(phone);
+            setCreateMode('reservation');
+            setShowCallLog(false);
+          }}
+          onFindGuest={(phone) => {
+            setGuestSearchPhone(phone);
+            setActivePage('guests');
+            setShowCallLog(false);
+          }}
         />
       )}
 

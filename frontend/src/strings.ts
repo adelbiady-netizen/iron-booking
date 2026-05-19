@@ -939,6 +939,26 @@ export const T = {
     activityLogBtn:      'Activity Log',
   },
 
+  // ── Call Log ────────────────────────────────────────────────────────────────
+  callLog: {
+    title:         'Call Log',
+    btn:           'Call Log',
+    empty:         'No calls recorded yet.',
+    loading:       'Loading calls…',
+    unknownCaller: 'Unknown caller',
+    answered:      'Answered',
+    missed:        'Missed',
+    duration:      (s: number) => { const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, '0')}`; },
+    newReservation:'New reservation',
+    findGuest:     'Find guest',
+    recording:     'Recording ↗',
+    loadError:     'Failed to load call log',
+    retry:         'Retry',
+    loadMore:      'Load more',
+    today:         'Today',
+    yesterday:     'Yesterday',
+  },
+
   // ── Activity Log ────────────────────────────────────────────────────────────
   activityLog: {
     title:        'Activity Log',

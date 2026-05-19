@@ -14,8 +14,16 @@ const router = Router();
  * send custom headers.
  *
  * Emitted events:
- *   incoming_call  { phone: string, createdAt: string }
+ *   incoming_call  { id, phone, restaurantId, createdAt, status, duration,
+ *                    recordUrl, group, restaurantName, routingStatus }
  *   floor_updated  { ts: number } — any reservation or waitlist-seat mutation
+ *
+ * Tenant isolation: each relay function guards by restaurantId.
+ * Unrouted calls (no restaurantId) are dropped silently at the source.
+ *
+ * Scalability note: eventBus.setMaxListeners(200) supports up to 200 concurrent
+ * host sessions per process. For larger multi-restaurant deployments, replace
+ * the in-process EventEmitter with a Redis pub/sub channel.
  */
 router.get('/', (req, res) => {
   const raw = req.query.token;
@@ -39,22 +47,27 @@ router.get('/', (req, res) => {
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection',    'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // disable nginx response buffering
+  res.setHeader('X-Accel-Buffering', 'no'); // disable nginx / Render response buffering
   res.flushHeaders();
+
+  const sessionTag = `[SSE:${payload.restaurantId}]`;
+  const activeSessions = eventBus.listenerCount('incoming_call') + 1; // +1 for this new connection
+  console.log(sessionTag, 'Connection opened — total active sessions:', activeSessions);
 
   // Ping every 25 s — most proxies drop idle connections at 30 s
   const ping = setInterval(() => res.write(':ping\n\n'), 25_000);
 
   function relay(data: Record<string, unknown>) {
-    if (data.restaurantId !== undefined && data.restaurantId !== payload.restaurantId) return;
+    // Only relay to the session whose restaurant matches exactly.
+    // Unrouted calls (dropped at emit source) never reach this point,
+    // but the guard is kept as a safety net.
+    if (data.restaurantId !== payload.restaurantId) return;
     res.write(`event: incoming_call\ndata: ${JSON.stringify(data)}\n\n`);
   }
 
-  // Relay floor_updated only to connections belonging to the same restaurant.
-  // The payload carries restaurantId for tenant isolation; only the timestamp
-  // is forwarded to the client so no reservation data leaks across tenants.
   function relayFloorUpdate(data: { restaurantId: string }) {
     if (data.restaurantId !== payload.restaurantId) return;
+    // Forward only the timestamp — no reservation data crosses tenant boundary.
     res.write(`event: floor_updated\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`);
   }
 
@@ -65,6 +78,8 @@ router.get('/', (req, res) => {
     clearInterval(ping);
     eventBus.off('incoming_call', relay);
     eventBus.off('floor_updated', relayFloorUpdate);
+    const remaining = eventBus.listenerCount('incoming_call');
+    console.log(sessionTag, 'Connection closed — remaining sessions:', remaining);
   });
 });
 

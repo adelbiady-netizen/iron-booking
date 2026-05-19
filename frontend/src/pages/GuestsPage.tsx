@@ -4,6 +4,7 @@ import { api } from '../api';
 
 interface Props {
   onBack: () => void;
+  initialSearch?: string;
 }
 
 function fmtDate(iso: string | null) {
@@ -21,10 +22,10 @@ const STATUS_COLOR: Record<string, string> = {
   COMPLETED: 'text-iron-muted', CANCELLED: 'text-red-400', NO_SHOW: 'text-red-400',
 };
 
-export default function GuestsPage({ onBack }: Props) {
+export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
   const [guests, setGuests]               = useState<GuestListItem[]>([]);
   const [total, setTotal]                 = useState(0);
-  const [search, setSearch]               = useState('');
+  const [search, setSearch]               = useState(initialSearch);
   const [loading, setLoading]             = useState(false);
   const [selectedId, setSelectedId]       = useState<string | null>(null);
   const [profile, setProfile]             = useState<GuestDetail | null>(null);

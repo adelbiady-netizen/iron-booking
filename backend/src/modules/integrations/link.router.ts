@@ -4,9 +4,22 @@ import { eventBus } from '../../lib/eventBus';
 
 const router = Router();
 
-// ─── Phase-128 group routing map (Eataliano Dalla Costa only) ─────────────────
+// ─── Phase-128 group routing map ─────────────────────────────────────────────
 // Maps Link ring-group IDs to their restaurant target and call metadata.
-// Unknown groups fall through to DNIS-based routing with routingStatus=unresolved.
+// Unknown groups fall through to DNIS-based routing (routingStatus=unresolved).
+//
+// Extension points for future phases:
+//   - Add new groups here as restaurants onboard to Link telephony
+//   - Move this map to the DB (Restaurant.linkGroups) when the set grows beyond ~10
+//   - category='reservation' today; future values: 'support', 'delivery', 'enquiry'
+//   - channel='phone'|'sms' today; future values: 'whatsapp', 'ivr'
+//
+// Future CRM hooks (do not build yet, preserve structure):
+//   - Linked reservations: CallLog.reservationId FK when a call converts to a booking
+//   - Outcome tagging:     CallLog.outcome = 'booked'|'callback'|'no_action'
+//   - Missed-call queue:   filter CallLog where status='missed' and outcome IS NULL
+//   - VIP detection:       cross-reference caller phone with Guest.isVip at emit time
+//   - Callback workflow:   missed + no outcome = appears in a "call back" queue panel
 
 interface GroupRoute {
   restaurantName: string;
@@ -19,11 +32,30 @@ const LINK_GROUP_ROUTES: Record<string, GroupRoute> = {
   '203': { restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'sms'   },
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Guards against array-valued query params (e.g. ?caller=a&caller=b → ['a','b']).
+// Takes the first value only; falls back to empty string.
+function firstStr(val: unknown, fallback = ''): string {
+  if (Array.isArray(val)) return val.length > 0 ? String(val[0]) : fallback;
+  if (typeof val === 'string') return val;
+  return fallback;
+}
+
+function firstStrOrNull(val: unknown): string | null {
+  if (Array.isArray(val)) return val.length > 0 ? String(val[0]) : null;
+  if (typeof val === 'string') return val;
+  return null;
+}
+
 /**
  * GET /api/integrations/link/call
  *
  * Webhook called by Link telephony on every call event.
  * Responds 200 immediately; restaurant lookup + DB write are fire-and-forget.
+ *
+ * Idempotency: if the same (phone, called, group, status) arrives again within
+ * 60 seconds we treat it as a webhook retry and skip the DB write.
  *
  * Query params:
  *   caller    – caller phone number (ANI)
@@ -35,39 +67,43 @@ const LINK_GROUP_ROUTES: Record<string, GroupRoute> = {
  *   record    – recording URL (optional)
  */
 router.get('/call', (req, res) => {
-  console.log('[link/call] Webhook received:', req.query);
   res.sendStatus(200);
 
-  const { caller, called, group, extension, status, duration, record } = req.query;
+  const callerStr    = firstStr(req.query.caller);
+  const calledStr    = firstStrOrNull(req.query.called);
+  const groupStr     = firstStrOrNull(req.query.group);
+  const extensionStr = firstStrOrNull(req.query.extension);
+  const statusStr    = firstStr(req.query.status);
+  const recordStr    = firstStrOrNull(req.query.record);
+  const rawDuration  = firstStrOrNull(req.query.duration);
+  const durationSecs = rawDuration !== null ? parseInt(rawDuration, 10) : null;
 
-  const callerStr    = String(caller    ?? '');
-  const calledStr    = called    ? String(called)    : null;
-  const groupStr     = group     ? String(group)     : null;
-  const extensionStr = extension ? String(extension) : null;
-  const statusStr    = String(status ?? '');
-  const recordStr    = record    ? String(record)    : null;
-  const durationSecs = duration !== undefined
-    ? parseInt(String(duration), 10)
-    : null;
+  console.log(
+    '[link/call] Webhook received —',
+    'caller:', callerStr || '(empty)',
+    '| called:', calledStr ?? '—',
+    '| group:', groupStr ?? '—',
+    '| status:', statusStr || '(empty)',
+    '| duration:', durationSecs ?? '—',
+    '| hasRecord:', recordStr !== null,
+  );
 
-  // ── Routing resolution ──────────────────────────────────────────────────
-  // Phase 128: known groups resolve via the static map (Eataliano Dalla Costa).
-  // Unknown groups fall back to the original DNIS-based lookup and are marked
-  // unresolved so the HQ team can extend the map as new restaurants go live.
+  // Minimal payload validation — caller and status are required for a meaningful record.
+  if (!callerStr || !statusStr) {
+    console.warn('[link/call] Malformed payload — missing caller or status. Dropping.');
+    return;
+  }
 
-  const groupRoute: GroupRoute | undefined = groupStr
-    ? LINK_GROUP_ROUTES[groupStr]
-    : undefined;
+  // ── Routing resolution ──────────────────────────────────────────────────────
+  const groupRoute: GroupRoute | undefined = groupStr ? LINK_GROUP_ROUTES[groupStr] : undefined;
 
-  // Fix B2: for known groups, chain a DNIS fallback if the name lookup misses.
-  // Protects against minor DB name drift without adding a new routing abstraction.
   const restaurantLookup: Promise<{ id: string } | null> = groupRoute
     ? prisma.restaurant
         .findFirst({ where: { name: groupRoute.restaurantName }, select: { id: true } })
         .then(r => {
           if (r) return r;
           if (calledStr) {
-            console.warn('[link/call] group', groupStr, '→ name lookup missed, trying DNIS fallback on', calledStr);
+            console.warn('[link/call] Group', groupStr, '→ name lookup missed; trying DNIS fallback on', calledStr);
             return prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } });
           }
           return null;
@@ -76,62 +112,118 @@ router.get('/call', (req, res) => {
       ? prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } })
       : Promise.resolve(null);
 
-  restaurantLookup.then(restaurant => {
-    if (groupRoute) {
-      if (!restaurant) {
-        console.warn(
-          '[link/call] group', groupStr, '→ target "' + groupRoute.restaurantName + '" not found in DB (routing resolved without restaurantId)'
-        );
+  restaurantLookup
+    .then(async restaurant => {
+      // ── Resolution logging ──────────────────────────────────────────────────
+      if (groupRoute) {
+        if (restaurant) {
+          console.log(
+            '[link/call] Resolution: group', groupStr,
+            '→', groupRoute.restaurantName,
+            '| restaurantId:', restaurant.id,
+            '| category:', groupRoute.category,
+            '| channel:', groupRoute.channel,
+          );
+        } else {
+          console.warn(
+            '[link/call] Resolution failed: group', groupStr,
+            '→ target "' + groupRoute.restaurantName + '" not found in DB.',
+            'Persisting without restaurantId.',
+          );
+        }
+      } else if (calledStr) {
+        if (restaurant) {
+          console.log('[link/call] Resolution: DNIS', calledStr, '→ restaurantId:', restaurant.id);
+        } else {
+          console.warn('[link/call] Resolution failed: DNIS', calledStr, '| group:', groupStr ?? '(none)', '— no restaurant match.');
+        }
       } else {
-        console.log(
-          '[link/call] group', groupStr, '→', groupRoute.restaurantName,
-          '|', groupRoute.category, '|', groupRoute.channel,
-          '| restaurantId:', restaurant.id
-        );
+        console.warn('[link/call] No routing signal (no group, no DNIS) — persisting as unrouted.');
       }
-    } else {
-      // Unknown group — original DNIS path
-      if (calledStr && !restaurant) {
-        console.warn('[link/call] No restaurant found for called number:', calledStr, '| group:', groupStr ?? '(none)');
-      } else if (restaurant) {
-        console.log('[link/call] Routed via DNIS to restaurant:', restaurant.id);
-      }
-    }
 
-    return prisma.callLog.create({
-      data: {
-        restaurantId:  restaurant?.id ?? null,
-        phone:         callerStr,
-        called:        calledStr,
-        group:         groupStr,
-        extension:     extensionStr,
-        status:        statusStr,
-        duration:      durationSecs !== null && !isNaN(durationSecs) ? durationSecs : null,
-        recordUrl:     recordStr,
-        // Phase-128 routing metadata
-        routingStatus:  groupRoute ? 'resolved'               : 'unresolved',
-        category:       groupRoute ? groupRoute.category      : null,
-        channel:        groupRoute ? groupRoute.channel       : null,
-        restaurantName: groupRoute ? groupRoute.restaurantName: null,
-      },
+      // ── Idempotency: deduplicate webhook retries within a 60-second window ──
+      // A retry delivers the same (caller, called, group, status) within seconds.
+      // Without a provider-issued call ID we use a time-window guard.
+      // TODO: replace with upsert on CallLog.linkCallId once the provider sends one.
+      const cutoff = new Date(Date.now() - 60_000);
+      const duplicate = await prisma.callLog.findFirst({
+        where: {
+          phone:  callerStr,
+          called: calledStr,
+          group:  groupStr,
+          status: statusStr,
+          createdAt: { gte: cutoff },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        console.log('[link/call] Duplicate webhook — skipping create. Existing id:', duplicate.id);
+        return null;
+      }
+
+      return prisma.callLog.create({
+        data: {
+          restaurantId:  restaurant?.id ?? null,
+          phone:         callerStr,
+          called:        calledStr,
+          group:         groupStr,
+          extension:     extensionStr,
+          status:        statusStr,
+          duration:      durationSecs !== null && !isNaN(durationSecs) ? durationSecs : null,
+          recordUrl:     recordStr,
+          routingStatus:  groupRoute ? 'resolved'                : 'unresolved',
+          category:       groupRoute ? groupRoute.category       : null,
+          channel:        groupRoute ? groupRoute.channel        : null,
+          restaurantName: groupRoute ? groupRoute.restaurantName : null,
+        },
+      });
+    })
+    .then(log => {
+      if (!log) return; // duplicate — already logged above
+
+      console.log(
+        '[link/call] Persisted — id:', log.id,
+        '| phone:', log.phone,
+        '| restaurantId:', log.restaurantId ?? '(unrouted)',
+        '| routingStatus:', log.routingStatus ?? 'pre-128',
+        '| channel:', log.channel ?? '—',
+      );
+
+      if (!log.restaurantId) {
+        // Unrouted calls are persisted for audit but not broadcast.
+        // The SSE relay would drop them anyway; we log explicitly for observability.
+        console.warn(
+          '[link/call] SSE broadcast suppressed — call has no restaurantId (unrouted).',
+          'id:', log.id,
+        );
+        return;
+      }
+
+      const payload = {
+        id:            log.id,
+        phone:         log.phone,
+        restaurantId:  log.restaurantId,
+        createdAt:     log.createdAt.toISOString(),
+        status:        log.status,
+        duration:      log.duration,
+        recordUrl:     log.recordUrl,
+        group:         log.group,
+        restaurantName: log.restaurantName,
+        routingStatus: log.routingStatus,
+      };
+
+      eventBus.emit('incoming_call', payload);
+
+      const activeSessions = eventBus.listenerCount('incoming_call');
+      console.log(
+        '[link/call] SSE broadcast — restaurantId:', log.restaurantId,
+        '| active sessions:', activeSessions,
+      );
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[link/call] Pipeline error:', message);
     });
-  }).then(log => {
-    console.log(
-      '[link/call] CallLog saved — id:', log.id,
-      '| phone:', log.phone,
-      '| restaurantId:', log.restaurantId ?? '(unrouted)',
-      '| routingStatus:', log.routingStatus ?? 'pre-128',
-      '| channel:', log.channel ?? '—',
-    );
-    console.log('[link/call] Emitting incoming_call event:', log.phone);
-    eventBus.emit('incoming_call', {
-      phone:        log.phone,
-      restaurantId: log.restaurantId ?? undefined, // Fix B1: undefined broadcasts; null was silently dropped by SSE relay
-      createdAt:    log.createdAt.toISOString(),
-    });
-  }).catch((err: unknown) => {
-    console.error('[link/call] Failed to persist call log:', err);
-  });
 });
 
 export default router;

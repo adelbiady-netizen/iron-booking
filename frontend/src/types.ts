@@ -587,3 +587,15 @@ export type BestTableResult = {
   score: number;
   reason: string;
 };
+
+export interface CallLogItem {
+  id: string;
+  phone: string;
+  status: string;
+  duration: number | null;
+  recordUrl: string | null;
+  group: string | null;
+  restaurantName: string | null;
+  routingStatus: string | null;
+  createdAt: string;
+}

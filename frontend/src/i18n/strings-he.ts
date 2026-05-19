@@ -909,6 +909,26 @@ export const THe = {
     activityLogBtn:      'יומן פעילות',
   },
 
+  // ── Call Log ────────────────────────────────────────────────────────────────
+  callLog: {
+    title:         'יומן שיחות',
+    btn:           'יומן שיחות',
+    empty:         'לא נרשמו שיחות עדיין.',
+    loading:       'טוען שיחות…',
+    unknownCaller: 'מתקשר לא ידוע',
+    answered:      'נענה',
+    missed:        'לא נענה',
+    duration:      (s: number) => { const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, '0')}`; },
+    newReservation:'הזמנה חדשה',
+    findGuest:     'חפש אורח',
+    recording:     'הקלטה ↗',
+    loadError:     'טעינת יומן השיחות נכשלה',
+    retry:         'נסה שוב',
+    loadMore:      'טען עוד',
+    today:         'היום',
+    yesterday:     'אתמול',
+  },
+
   // ── Activity Log ────────────────────────────────────────────────────────────
   activityLog: {
     title:        'יומן פעילות',
