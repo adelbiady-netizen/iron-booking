@@ -1342,19 +1342,22 @@ export default function CreateDrawer({
       {wiConflictWarning && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
           <div
+            dir={locale === 'he' ? 'rtl' : 'ltr'}
             className="bg-iron-elevated border border-iron-border/50 rounded-xl p-5 mx-4 w-72 space-y-3"
             style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.40)' }}
           >
             <div>
-              <p className="text-iron-text text-sm font-semibold">{wiConflictWarning.tableName} is reserved</p>
-              <p className="text-iron-muted text-xs mt-0.5">
-                Upcoming reservation at {wiConflictWarning.conflictTime}. Seating this walk-in may displace it.
+              <p className="text-iron-text text-sm font-semibold">
+                {T.createDrawer.conflictTitle(wiConflictWarning.tableName)}
+              </p>
+              <p className="text-iron-muted text-xs mt-0.5 leading-relaxed">
+                {T.createDrawer.conflictBody(wiConflictWarning.tableName, wiConflictWarning.conflictTime)}
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
               <button
                 disabled={seatAnywayBusy}
-                className="w-full text-left text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                className="w-full text-start text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 onClick={async () => {
                   if (seatAnywayBusy) return;
                   setSeatAnywayBusy(true);
@@ -1374,7 +1377,7 @@ export default function CreateDrawer({
                 {seatAnywayBusy && (
                   <span className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
                 )}
-                {seatAnywayBusy ? 'Seating…' : 'Seat anyway'}
+                {seatAnywayBusy ? T.createDrawer.conflictSeatAnywayBusy : T.createDrawer.conflictSeatAnyway}
               </button>
               <button
                 disabled={seatAnywayBusy}
@@ -1385,7 +1388,7 @@ export default function CreateDrawer({
                   onCreated(unseatedReservation);
                 }}
               >
-                Cancel
+                {T.createDrawer.conflictCancel}
               </button>
             </div>
           </div>

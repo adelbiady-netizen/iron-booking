@@ -3063,14 +3063,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           : isDark ? '#15803d' : '#166534';
         const nameWeight = isOverdue ? 800 : 700;
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative', paddingBottom: 4 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative', paddingBottom: 8 }}>
             {/* Name zone — always centered */}
             <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {currentRes.guestName}
             </p>
             {/* Metadata zone — partySize · timer; centered */}
             {!isSecondary && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3, flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0, direction: 'ltr' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.2, flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0, direction: 'ltr' }}>
                 <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.92, flexShrink: 0 }}>
                   {currentRes.partySize}p
                 </span>

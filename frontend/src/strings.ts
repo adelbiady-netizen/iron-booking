@@ -312,6 +312,12 @@ export const T = {
     phoneWarnBody:        'Without a phone number you won\'t be able to send confirmations, reminders, or contact this guest if they\'re late.',
     phoneWarnAddPhone:    'Go Back and Add Phone',
     phoneWarnContinue:    'Continue Without Phone',
+    // Walk-in seating conflict warning
+    conflictTitle:        (tableName: string) => `${tableName} is reserved`,
+    conflictBody:         (_tableName: string, time: string) => `Upcoming reservation at ${time}. Seating this walk-in may displace it.`,
+    conflictSeatAnyway:   'Seat anyway',
+    conflictSeatAnywayBusy: 'Seating…',
+    conflictCancel:       'Cancel',
   },
 
   // ── Table picker ───────────────────────────────────────────────────────────

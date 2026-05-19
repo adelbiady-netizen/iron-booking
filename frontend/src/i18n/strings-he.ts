@@ -310,6 +310,11 @@ export const THe = {
     phoneWarnBody:        'ללא מספר טלפון לא ניתן לשלוח אישורים, תזכורות, או ליצור קשר עם האורח אם יאחר.',
     phoneWarnAddPhone:    'חזור והוסף טלפון',
     phoneWarnContinue:    'המשך ללא טלפון',
+    conflictTitle:        (_tableName: string) => 'השולחן שמור',
+    conflictBody:         (tableName: string, time: string) => `לשולחן ${tableName} קיימת הזמנה בשעה ${time}. הושבת האורח כעת עלולה להזיז את ההזמנה העתידית.`,
+    conflictSeatAnyway:   'הושב בכל זאת',
+    conflictSeatAnywayBusy: 'מושיב…',
+    conflictCancel:       'ביטול',
   },
 
   // ── Table picker ───────────────────────────────────────────────────────────
