@@ -1459,8 +1459,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       />
 
       {/* Secondary toolbar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-iron-border bg-iron-card/60 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-iron-border/30 bg-iron-bg shrink-0" style={{ boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.10)' }}>
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => {
               if (combineMode) {
@@ -1472,10 +1472,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 setCombineMode(true);
               }
             }}
-            className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+            className={`text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
               combineMode
-                ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 hover:bg-blue-600/30'
-                : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+                ? 'bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/28'
+                : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
             }`}
           >
             {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
@@ -1494,34 +1494,34 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 rebuildSessionIdRef.current = crypto.randomUUID();
               }
             }}
-            className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+            className={`text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
               reorganizeMode
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30'
-                : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/28'
+                : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
             }`}
           >
             {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor}
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowServiceReport(true)}
-            className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+            className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
           >
             {T.hostDashboard.serviceReportBtn}
           </button>
           <button
             onClick={() => setActivePage('activity')}
-            className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+            className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
           >
             {T.hostDashboard.activityLogBtn}
           </button>
           <button
             onClick={() => setShowCallLog(v => !v)}
-            className={`text-xs border rounded px-2.5 py-1 transition-colors ${
+            className={`text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
               showCallLog
-                ? 'text-iron-accent border-iron-accent/40'
-                : 'text-iron-muted hover:text-iron-text border-iron-border hover:border-iron-text/30'
+                ? 'bg-iron-green/15 border-iron-green/35 text-iron-green-light'
+                : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
             }`}
           >
             {T.callLog.btn}
@@ -1529,14 +1529,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
             <button
               onClick={() => setActivePage('hosts')}
-              className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+              className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
             >
               {T.hostDashboard.hostsBtn}
             </button>
           )}
           <button
             onClick={() => setLayoutMode(true)}
-            className="text-xs text-iron-muted hover:text-iron-text border border-iron-border hover:border-iron-text/30 rounded px-2.5 py-1 transition-colors"
+            className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
           >
             {T.hostDashboard.editLayout}
           </button>

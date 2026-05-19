@@ -134,29 +134,32 @@ export default function ReservationPanel({
 
       {/* Tab bar + action buttons */}
       <div className="px-3.5 pt-3.5 pb-0 border-b border-iron-border/40" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 18px rgba(0,0,0,0.26)' }}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex gap-3 flex-1">
+        <div className="flex items-center gap-2 mb-2.5">
+          {/* Segmented tab control — premium pill style */}
+          <div className="flex gap-0.5 flex-1 rounded-xl p-[3px] bg-iron-bg border border-iron-border/35" style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.26)' }}>
             <button
               onClick={() => setTab('reservations')}
-              className={`text-[13px] pb-2.5 pt-1 transition-colors border-b-2 ${
+              className={`flex-1 text-[12px] py-1.5 rounded-[9px] font-medium transition-[background-color,color,box-shadow] duration-100 ${
                 tab === 'reservations'
-                  ? 'text-iron-text font-semibold border-iron-green-light/70'
-                  : 'text-iron-muted/75 font-medium hover:text-iron-text border-transparent'
+                  ? 'bg-iron-elevated text-iron-text font-semibold'
+                  : 'text-iron-muted/65 hover:text-iron-text'
               }`}
+              style={tab === 'reservations' ? { boxShadow: '0 1px 3px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.07)' } : undefined}
             >
               {T.reservationPanel.tabReservations}
             </button>
             <button
               onClick={() => setTab('waitlist')}
-              className={`text-[13px] pb-2.5 pt-1 transition-colors border-b-2 flex items-center gap-1.5 ${
+              className={`flex-1 text-[12px] py-1.5 rounded-[9px] font-medium flex items-center justify-center gap-1.5 transition-[background-color,color,box-shadow] duration-100 ${
                 tab === 'waitlist'
-                  ? 'text-iron-text font-semibold border-iron-green-light/70'
-                  : 'text-iron-muted/75 font-medium hover:text-iron-text border-transparent'
+                  ? 'bg-iron-elevated text-iron-text font-semibold'
+                  : 'text-iron-muted/65 hover:text-iron-text'
               }`}
+              style={tab === 'waitlist' ? { boxShadow: '0 1px 3px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.07)' } : undefined}
             >
               {T.reservationPanel.tabWaitlist}
               {waitingCount > 0 && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
                   tab === 'waitlist' ? 'bg-iron-green/20 text-iron-green-light' : 'bg-amber-500/20 text-amber-400'
                 }`}>
                   {waitingCount}
@@ -192,8 +195,8 @@ export default function ReservationPanel({
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={T.reservationPanel.searchPlaceholder}
-            className="w-full bg-iron-bg border border-iron-border/60 rounded-lg px-3 py-1.5 text-iron-text text-sm placeholder-iron-muted/70 focus:outline-none focus:border-iron-green/60 transition-colors"
-            style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.20)' }}
+            className="w-full bg-iron-bg/80 border border-iron-border/50 rounded-xl px-3 py-2 text-iron-text text-[13px] placeholder-iron-muted/55 focus:outline-none focus:border-iron-green/55 transition-colors"
+            style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}
           />
           {tab === 'reservations' && (
             <div className="flex gap-0.5 flex-wrap">
@@ -201,10 +204,10 @@ export default function ReservationPanel({
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors border ${
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
                     filter === f.value
-                      ? 'text-iron-text font-semibold bg-iron-bg/70 border-iron-border/30'
-                      : 'text-iron-muted/80 font-medium hover:text-iron-text border-transparent hover:bg-iron-bg/40'
+                      ? 'text-iron-text font-semibold bg-iron-elevated border border-iron-border/40'
+                      : 'text-iron-muted/70 font-medium hover:text-iron-text hover:bg-iron-bg/50'
                   }`}
                 >
                   {f.label}

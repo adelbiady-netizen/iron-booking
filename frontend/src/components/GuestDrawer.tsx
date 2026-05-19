@@ -550,8 +550,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     const fmtTime = fmtHostTime;
 
     return (
-      <section className="border-t border-iron-border pt-4 space-y-2.5">
-        <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
+      <section className="border-t border-iron-border/25 pt-4 space-y-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">
           {T.guestDrawer.confirmationSection}
         </p>
 
@@ -992,18 +992,18 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 <span className="text-iron-muted/85">{formatReservationSource(res.source, locale)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               {mode === 'view' && !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && (
                 <button
                   onClick={enterEdit}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors touch-manipulation"
+                  className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-iron-border/55 text-iron-muted/70 hover:border-iron-green/55 hover:text-iron-text transition-colors touch-manipulation"
                 >
                   {T.guestDrawer.editButton}
                 </button>
               )}
               <button
                 onClick={onClose}
-                className="text-iron-muted hover:text-iron-text text-xl leading-none p-2 -m-2 rounded touch-manipulation"
+                className="text-iron-muted/50 hover:text-iron-text w-8 h-8 flex items-center justify-center rounded-xl hover:bg-iron-border/20 transition-colors text-lg leading-none touch-manipulation"
                 aria-label="Close"
               >
                 ×
@@ -1013,7 +1013,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto p-3.5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
           {/* Arrival state banner — contextual quick action surfaces the most urgent next step */}
           {(() => {
@@ -1086,7 +1086,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 ? 'border-amber-500/30 bg-amber-500/5'
                 : 'border-iron-green/30 bg-iron-green/5'
             }`}>
-              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">
                 {smartSuggestion?.mode === 'upgrade'
                   ? T.guestDrawer.sectionSmartUpgrade
                   : T.guestDrawer.sectionSmartSuggest}
@@ -1186,7 +1186,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             )}
 
             <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-              <span className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{T.guestDrawer.rowTable}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">{T.guestDrawer.rowTable}</span>
               <span className="text-iron-text text-sm font-semibold">
                 {(() => {
                   if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
@@ -1210,8 +1210,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               .sort((a, b) => a.time.localeCompare(b.time));
             if (others.length === 0) return null;
             return (
-              <section className="border-t border-iron-border pt-4 space-y-1.5">
-                <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">
+              <section className="border-t border-iron-border/25 pt-4 space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
                   {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
                 </p>
                 {others.map(r => (
@@ -1237,8 +1237,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Guest CRM */}
           {res.guest && (
-            <section className="border-t border-iron-border pt-4 space-y-2">
-              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">
+            <section className="border-t border-iron-border/25 pt-4 space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
               <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`} />
@@ -1253,7 +1253,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   {res.guest.tags.map(tag => (
                     <span
                       key={tag}
-                      className="text-[11px] px-1.5 py-0.5 bg-iron-bg border border-iron-border rounded-md text-iron-muted"
+                      className="text-[11px] px-1.5 py-0.5 bg-iron-bg border border-iron-border/40 rounded-lg text-iron-muted/70"
                     >
                       {tag}
                     </span>
@@ -1267,8 +1267,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {!['SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && <ConfirmationSection />}
 
           {/* Actions */}
-          <section ref={actionsRef} className="border-t border-iron-border pt-4">
-            <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-3">
+          <section ref={actionsRef} className="border-t border-iron-border/25 pt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-3">
               {T.guestDrawer.sectionActions}
             </p>
 
@@ -1643,8 +1643,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Table lock */}
           {assignedTable && mode !== 'lock' && (
-            <section className="border-t border-iron-border pt-4">
-              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-3">{T.guestDrawer.sectionTableLock}</p>
+            <section className="border-t border-iron-border/25 pt-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-3">{T.guestDrawer.sectionTableLock}</p>
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
                   <div>
@@ -1661,8 +1661,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
 
           {mode === 'lock' && assignedTable && (
-            <section className="border-t border-iron-border pt-4 space-y-3">
-              <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{T.lockModal.title(assignedTable.name)}</p>
+            <section className="border-t border-iron-border/25 pt-4 space-y-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">{T.lockModal.title(assignedTable.name)}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCK_QUICK_REASONS.map(r => (
                   <button
@@ -1699,8 +1699,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
 
           {/* Lifecycle timestamps */}
-          <section className="border-t border-iron-border pt-4 space-y-2">
-            <p className="text-iron-muted text-xs font-semibold uppercase tracking-wider mb-2">
+          <section className="border-t border-iron-border/25 pt-4 space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
               {T.guestDrawer.sectionTimeline}
             </p>
             {!res.confirmedAt && !res.seatedAt && !res.completedAt && !res.cancelledAt && !res.noShowAt && (

@@ -111,11 +111,11 @@ export default function TopBar({
         <div className="flex items-stretch rounded-2xl border border-white/[0.08] bg-iron-bg overflow-hidden" style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)' }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
-          <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/30">
+          <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/35">
             <LocalizedDateInput
               value={date}
               onValueChange={onDateChange}
-              className="text-iron-text/75 text-[11px] font-semibold cursor-pointer whitespace-nowrap"
+              className="text-iron-text/85 text-[12px] font-semibold cursor-pointer whitespace-nowrap tracking-tight"
             />
             {!isToday && (
               <button
@@ -131,14 +131,14 @@ export default function TopBar({
           <NavBtn onClick={onNextDay} title={T.topBar.nextDay}>›</NavBtn>
 
           {/* Divider */}
-          <div className="w-px bg-iron-border/35 my-3 shrink-0" />
+          <div className="w-[2px] bg-iron-border/45 my-2.5 shrink-0" />
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className="relative flex items-center justify-center px-3 py-2.5">
+          <div className="relative flex items-center justify-center px-4 py-2" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
               className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
-              style={{ fontSize: '40px', letterSpacing: '-0.045em' }}
+              style={{ fontSize: '40px', letterSpacing: '-0.045em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
             </span>
@@ -252,7 +252,7 @@ export default function TopBar({
         {onGuestsPage && (
           <button
             onClick={onGuestsPage}
-            className="text-iron-muted/60 text-xs px-2.5 py-1 rounded-md hover:text-iron-text/85 hover:bg-iron-bg/50 transition-colors duration-100 font-medium"
+            className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
           >
             {T.topBar.guestsButton}
           </button>
@@ -260,7 +260,7 @@ export default function TopBar({
         {onAdminPortal && (
           <button
             onClick={onAdminPortal}
-            className="text-iron-muted/60 text-xs px-2.5 py-1 rounded-md hover:text-iron-text/85 hover:bg-iron-bg/50 transition-colors duration-100 font-medium"
+            className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
           >
             {T.topBar.adminButton}
           </button>
@@ -297,7 +297,7 @@ export default function TopBar({
 
         <button
           onClick={onLogout}
-          className="text-iron-muted/45 hover:text-iron-muted/80 text-xs px-2.5 py-1 rounded-md hover:bg-iron-bg/50 transition-colors duration-100"
+          className="text-iron-muted/45 hover:text-iron-muted/80 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/30 transition-colors duration-100"
         >
           {T.topBar.signOut}
         </button>
