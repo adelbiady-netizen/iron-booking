@@ -71,9 +71,9 @@ function snapTo30(totalMinutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function nowTime() {
+function nowTime(): string {
   const d = new Date();
-  return snapTo30(d.getHours() * 60 + d.getMinutes());
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function snapTimeStr(timeStr: string): string {
@@ -406,7 +406,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   useEffect(() => {
     const floorId = setInterval(() => {
       if (!liveModeRef.current) return;
-      setTime(nowTime()); // nowTime() already snaps to nearest 30-min boundary
+      setTime(nowTime());
       setRefreshKey(k => k + 1);
     }, 60_000);
     const waitlistId = setInterval(() => {
