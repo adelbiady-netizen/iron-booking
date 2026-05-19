@@ -66,14 +66,28 @@
       "specialRequestsPlaceholder": "אלרגיות, צרכי נגישות, העדפות ישיבה…",
       "phoneHint": "אישור ההזמנה יישלח לכאן",
       "completeReservation": "השלם הזמנה",
-      "requiredHint": "נא להזין שם ומספר טלפון להמשך."
+      "requiredHint": "נא להזין שם ומספר טלפון להמשך.",
+      "preferencesHint": "יש העדפות?",
+      "additionalRequests": "עוד משהו?",
+      "additionalRequestsPlaceholder": "הערות נוספות…"
     },
     "occasions": {
       "birthday": "יום הולדת",
       "anniversary": "יום נישואין",
       "business": "עסקי",
       "dateNight": "ערב זוגי",
+      "familyDinner": "ארוחה משפחתית",
       "other": "אחר"
+    },
+    "preferences": {
+      "quietTable": "שולחן שקט",
+      "outdoor": "ישיבה בחוץ",
+      "accessibility": "צרכי נגישות",
+      "highChair": "כיסא גבוה",
+      "celebration": "חגיגה"
+    },
+    "trust": {
+      "strip": "אישור מיידי · ללא חשבון · ביטול חינם"
     },
     "waitlistForm": {
       "title": "הצטרף לרשימת המתנה",
@@ -102,7 +116,9 @@
       "confirmedSub": "השולחן שלך מאושר.",
       "pendingSub": "נאשר את ההזמנה שלך בקרוב.",
       "pendingBadge": "ממתין לאישור",
-      "phoneSent": "אישור נשלח לטלפון שלך."
+      "phoneSent": "אישור נשלח לטלפון שלך.",
+      "whatsapp": "שלחו לנו הודעה בוואטסאפ",
+      "parking": "חניה"
     }
   },
   "kiosk": {

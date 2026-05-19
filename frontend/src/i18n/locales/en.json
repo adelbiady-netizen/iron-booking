@@ -64,14 +64,28 @@
       "specialRequestsPlaceholder": "Allergies, accessibility needs, seating preferences…",
       "phoneHint": "Your confirmation will be sent here",
       "completeReservation": "Complete reservation",
-      "requiredHint": "Enter your name and phone number to continue."
+      "requiredHint": "Enter your name and phone number to continue.",
+      "preferencesHint": "Any preferences?",
+      "additionalRequests": "Anything else?",
+      "additionalRequestsPlaceholder": "Additional notes…"
     },
     "occasions": {
       "birthday": "Birthday",
       "anniversary": "Anniversary",
       "business": "Business",
       "dateNight": "Date Night",
+      "familyDinner": "Family dinner",
       "other": "Other"
+    },
+    "preferences": {
+      "quietTable": "Quiet table",
+      "outdoor": "Outdoor seating",
+      "accessibility": "Accessibility needs",
+      "highChair": "High chair",
+      "celebration": "Celebrating"
+    },
+    "trust": {
+      "strip": "Instant confirmation · No account needed · Free to cancel"
     },
     "waitlistForm": {
       "title": "Join the waitlist",
@@ -100,7 +114,9 @@
       "confirmedSub": "Your table is confirmed.",
       "pendingSub": "We'll confirm your reservation shortly.",
       "pendingBadge": "Pending confirmation",
-      "phoneSent": "A confirmation has been sent to your phone."
+      "phoneSent": "A confirmation has been sent to your phone.",
+      "whatsapp": "Message us on WhatsApp",
+      "parking": "Parking"
     }
   },
   "kiosk": {

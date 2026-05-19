@@ -775,15 +775,16 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
           </div>
         )}
 
-        {/* ── About / identity paragraph — replaces generic microcopy when set ── */}
-        {!diningMode && (
+        {/* ── Identity story — editorial treatment when about text is set ─────── */}
+        {!diningMode && vm.about && (
           <p style={{
-            margin: `${todayHours ? 14 : 22}px 0 0`,
-            fontSize: 13, color: C.muted,
-            letterSpacing: '0.015em', lineHeight: 1.65,
-            textAlign: 'center', opacity: 0.90,
+            margin: `${todayHours ? 16 : 24}px 0 0`,
+            fontSize: 15, color: C.text,
+            letterSpacing: '0.01em', lineHeight: 1.75,
+            textAlign: 'center', opacity: 0.60,
+            fontStyle: 'italic', fontWeight: 300,
           }}>
-            {vm.about ?? 'Browse the menu, discover highlights, and reserve with confidence.'}
+            {vm.about}
           </p>
         )}
 
@@ -821,10 +822,12 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
                 <IconCalendar />
                 Reserve a table
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>No account required</span>
-                <span style={{ fontSize: 11, color: C.sub }}>·</span>
-                <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>Takes 60 seconds</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: C.sub, fontWeight: 400 }}>Instant confirmation</span>
+                <span style={{ fontSize: 10, color: C.sub, opacity: 0.45 }}>·</span>
+                <span style={{ fontSize: 11, color: C.sub, fontWeight: 400 }}>No account needed</span>
+                <span style={{ fontSize: 10, color: C.sub, opacity: 0.45 }}>·</span>
+                <span style={{ fontSize: 11, color: C.sub, fontWeight: 400 }}>Free to cancel</span>
               </div>
             </div>
           )}
@@ -899,16 +902,16 @@ function HubContent({ vm, onDemoAction, diningMode = false }: {
             </div>
           )}
 
-          {/* ── Feature trust signals — muted pills, hidden in diningMode ──────── */}
+          {/* ── Atmosphere features — restrained, sentence-case, no badge energy ── */}
           {!diningMode && vm.features.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4, justifyContent: 'center' }}>
               {vm.features.map(f => (
                 <span
                   key={f}
                   style={{
-                    fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-                    textTransform: 'uppercase', padding: '4px 10px', borderRadius: 20,
-                    background: C.elevated, border: `1px solid ${C.border}`, color: C.muted,
+                    fontSize: 11, fontWeight: 400,
+                    padding: '5px 12px', borderRadius: 20,
+                    background: 'transparent', border: `1px solid ${C.borderSub}`, color: C.sub,
                   }}
                 >
                   {FEATURE_LABELS[f] ?? f}

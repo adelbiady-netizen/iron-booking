@@ -19,7 +19,7 @@ type BookingPhase =
   | { phase: 'slots';         date: string; partySize: number; data: AvailabilityResponse }
   | { phase: 'details';       date: string; partySize: number; slot: string }
   | { phase: 'submitting' }
-  | { phase: 'confirmed';  result: BookingResult }
+  | { phase: 'confirmed';  result: BookingResult; occasion: string }
   | { phase: 'slot-taken';     alternatives: BookingAlternative[] }
   | { phase: 'online-blocked'; message: string }
   | { phase: 'error';          message: string }
@@ -35,20 +35,30 @@ interface WaitlistFormState {
 }
 
 interface FormState {
-  guestName:  string;
-  guestPhone: string;
-  guestEmail: string;
-  occasion:   string;
-  guestNotes: string;
+  guestName:   string;
+  guestPhone:  string;
+  guestEmail:  string;
+  occasion:    string;
+  preferences: string[];
+  guestNotes:  string;
 }
 
 // API value stays English (sent to backend); tKey is the i18n translation key
 const OCCASIONS = [
-  { value: 'Birthday',    tKey: 'booking.occasions.birthday'    },
-  { value: 'Anniversary', tKey: 'booking.occasions.anniversary' },
-  { value: 'Business',    tKey: 'booking.occasions.business'    },
-  { value: 'Date Night',  tKey: 'booking.occasions.dateNight'   },
-  { value: 'Other',       tKey: 'booking.occasions.other'       },
+  { value: 'Birthday',      tKey: 'booking.occasions.birthday'     },
+  { value: 'Anniversary',   tKey: 'booking.occasions.anniversary'  },
+  { value: 'Business',      tKey: 'booking.occasions.business'     },
+  { value: 'Date Night',    tKey: 'booking.occasions.dateNight'    },
+  { value: 'Family Dinner', tKey: 'booking.occasions.familyDinner' },
+  { value: 'Other',         tKey: 'booking.occasions.other'        },
+];
+
+const PREFERENCES = [
+  { value: 'Quiet table',         tKey: 'booking.preferences.quietTable'   },
+  { value: 'Outdoor seating',     tKey: 'booking.preferences.outdoor'      },
+  { value: 'Accessibility needs', tKey: 'booking.preferences.accessibility' },
+  { value: 'High chair',          tKey: 'booking.preferences.highChair'    },
+  { value: 'Celebrating',         tKey: 'booking.preferences.celebration'  },
 ];
 
 // ─── Formatting helpers ────────────────────────────────────────────────────────
@@ -97,7 +107,7 @@ export default function BookingPage({ slug }: Props) {
   const [partySize, setPartySize]     = useState(2);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [form,     setForm]           = useState<FormState>({
-    guestName: '', guestPhone: '', guestEmail: '', occasion: '', guestNotes: '',
+    guestName: '', guestPhone: '', guestEmail: '', occasion: '', preferences: [], guestNotes: '',
   });
 
   useEffect(() => {
@@ -175,10 +185,10 @@ export default function BookingPage({ slug }: Props) {
         guestPhone: form.guestPhone.trim(),
         guestEmail: form.guestEmail.trim() || undefined,
         occasion:   form.occasion || undefined,
-        guestNotes: form.guestNotes.trim() || undefined,
+        guestNotes: [form.preferences.join(', '), form.guestNotes.trim()].filter(Boolean).join('. ') || undefined,
         lang:       locale,
       });
-      setState({ phase: 'confirmed', result });
+      setState({ phase: 'confirmed', result, occasion: form.occasion });
     } catch (err) {
       if (err instanceof ApiError && err.code === 'SLOT_TAKEN') {
         const details = err.details as { alternatives?: BookingAlternative[] } | undefined;
@@ -500,7 +510,7 @@ export default function BookingPage({ slug }: Props) {
         )}
 
         {state.phase === 'confirmed' && (
-          <ConfirmedCard result={state.result} profile={profile} />
+          <ConfirmedCard result={state.result} profile={profile} occasion={state.occasion} />
         )}
 
         {state.phase === 'slot-taken' && (
@@ -995,9 +1005,18 @@ function GuestForm({ form, onChange, onSubmit }: {
   const { t } = useTranslation();
   const [formTouched, setFormTouched] = useState(false);
 
-  function field(key: keyof FormState, value: string) {
+  function field(key: Exclude<keyof FormState, 'preferences'>, value: string) {
     setFormTouched(true);
     onChange({ ...form, [key]: value });
+  }
+
+  function togglePref(value: string) {
+    onChange({
+      ...form,
+      preferences: form.preferences.includes(value)
+        ? form.preferences.filter(p => p !== value)
+        : [...form.preferences, value],
+    });
   }
 
   const isValid = form.guestName.trim().length > 0 && form.guestPhone.trim().length >= 3;
@@ -1040,6 +1059,7 @@ function GuestForm({ form, onChange, onSubmit }: {
         />
       </div>
 
+      {/* Occasion — single select, optional */}
       <div>
         <FieldLabel>{t('booking.form.occasion')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <div className="flex gap-2 flex-wrap">
@@ -1047,6 +1067,7 @@ function GuestForm({ form, onChange, onSubmit }: {
             <button
               key={value}
               type="button"
+              aria-pressed={form.occasion === value}
               onClick={() => field('occasion', form.occasion === value ? '' : value)}
               className={`pub-chip transition-all${form.occasion === value ? ' pub-chip--brand' : ''}`}
             >
@@ -1056,13 +1077,34 @@ function GuestForm({ form, onChange, onSubmit }: {
         </div>
       </div>
 
+      {/* Preferences — multi-select, feels like a light touch not a form field */}
       <div>
-        <FieldLabel>{t('booking.form.specialRequests')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
+        <p style={{ fontSize: 11, color: 'var(--pub-text-muted)', marginBottom: 10, letterSpacing: 0 }}>
+          {t('booking.form.preferencesHint')}
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          {PREFERENCES.map(({ value, tKey }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={form.preferences.includes(value)}
+              onClick={() => togglePref(value)}
+              className="pub-chip transition-all"
+            >
+              {t(tKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Additional requests — secondary, open-ended */}
+      <div>
+        <FieldLabel>{t('booking.form.additionalRequests')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <textarea
-          placeholder={t('booking.form.specialRequestsPlaceholder')}
+          placeholder={t('booking.form.additionalRequestsPlaceholder')}
           value={form.guestNotes}
           onChange={e => field('guestNotes', e.target.value)}
-          rows={3}
+          rows={2}
           className="pub-textarea"
         />
       </div>
@@ -1076,6 +1118,9 @@ function GuestForm({ form, onChange, onSubmit }: {
             {t('booking.form.requiredHint')}
           </p>
         )}
+        <p className="text-center text-[11px] mt-4" style={{ color: 'var(--pub-text-micro)', lineHeight: 1.5 }}>
+          {t('booking.trust.strip')}
+        </p>
       </div>
     </form>
   );
@@ -1225,11 +1270,40 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 
 // ─── Confirmed card ────────────────────────────────────────────────────────────
 
-function ConfirmedCard({ result, profile }: { result: BookingResult; profile: PublicRestaurantProfile | null }) {
+function ConfirmedCard({ result, profile, occasion }: {
+  result: BookingResult;
+  profile: PublicRestaurantProfile | null;
+  occasion: string;
+}) {
   const { t }                  = useTranslation();
   const { isRTL, intlLocale }  = useLocale();
+
+  const occasionLabel = occasion
+    ? (OCCASIONS.find(o => o.value === occasion)?.tKey ?? null)
+    : null;
+
+  const waUrl = profile?.phone
+    ? `https://wa.me/${profile.phone.replace(/\D/g, '')}`
+    : null;
+
   return (
     <GlassCard>
+      {/* Restaurant logo — small, elegant, above icon */}
+      {result.restaurantLogoUrl && (
+        <div className="flex justify-center mb-4">
+          <img
+            src={result.restaurantLogoUrl}
+            alt={result.restaurantName}
+            style={{
+              width: 44, height: 44, borderRadius: 12,
+              objectFit: 'cover',
+              border: '1px solid var(--pub-border-2)',
+            }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      )}
+
       {/* Confirmation icon */}
       <div className="text-center mb-5">
         <div className="pub-outcome-icon pub-outcome-icon--brand" aria-hidden="true">✓</div>
@@ -1260,14 +1334,18 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
         </p>
         <div className="flex items-center justify-center gap-2 flex-wrap">
           <span className="pub-chip">{t('common.guestCount', { count: result.partySize })}</span>
+          {occasionLabel && (
+            <span className="pub-chip pub-chip--brand">{t(occasionLabel)}</span>
+          )}
           {result.status === 'PENDING' && (
             <span className="pub-chip pub-chip--warning">{t('booking.confirmed.pendingBadge')}</span>
           )}
         </div>
       </div>
 
+      {/* Address + navigation */}
       {profile?.address && (
-        <div className="text-center mb-2">
+        <div className="text-center mb-4">
           <p className="text-[13px] leading-relaxed mb-3" style={{ color: 'var(--pub-text-secondary)' }}>
             {profile.address}
           </p>
@@ -1282,7 +1360,43 @@ function ConfirmedCard({ result, profile }: { result: BookingResult; profile: Pu
         </div>
       )}
 
-      <p className="text-center text-[12px] mt-5" style={{ color: 'var(--pub-text-micro)' }}>
+      {/* Parking notes */}
+      {profile?.parkingNotes && (
+        <div className="text-center mb-4 px-2">
+          <p className="text-[10px] uppercase tracking-widest rtl:tracking-normal mb-1" style={{ color: 'var(--pub-text-muted)' }}>
+            {t('booking.confirmed.parking')}
+          </p>
+          <p className="text-[12px] leading-relaxed" style={{ color: 'var(--pub-text-tertiary)' }}>
+            {profile.parkingNotes}
+          </p>
+        </div>
+      )}
+
+      {/* WhatsApp CTA — shown only when restaurant has a phone number */}
+      {waUrl && (
+        <div className="mt-2 mb-4">
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', padding: '12px 20px',
+              borderRadius: 'var(--pub-radius-lg)',
+              background: 'rgba(37,211,102,0.065)',
+              border: '1px solid rgba(37,211,102,0.18)',
+              color: 'rgba(37,211,102,0.72)',
+              fontSize: 14, fontWeight: 400,
+              textDecoration: 'none',
+              letterSpacing: '0.01em',
+            }}
+          >
+            {t('booking.confirmed.whatsapp')}
+          </a>
+        </div>
+      )}
+
+      <p className="text-center text-[12px] mt-3" style={{ color: 'var(--pub-text-micro)' }}>
         {t('booking.confirmed.phoneSent')}
       </p>
     </GlassCard>
