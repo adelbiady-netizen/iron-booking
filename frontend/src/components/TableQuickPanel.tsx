@@ -57,7 +57,7 @@ export default function TableQuickPanel({
   inFlightIds,
 }: Props) {
   const T = useT();
-  const { locale } = useLocale();
+  const { locale, dir } = useLocale();
 
   // ── Loading state ──────────────────────────────────────────────────────────
   const [busy, setBusy] = useState(false);
@@ -296,7 +296,7 @@ export default function TableQuickPanel({
             <div className="space-y-4">
 
               {/* ── GUEST IDENTITY ─────────────────────────────────────────── */}
-              <div>
+              <div dir={dir}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-iron-text font-bold text-[22px] leading-tight tracking-tight">{res.guestName}</span>
                   {res.guest?.isVip && (
@@ -323,6 +323,7 @@ export default function TableQuickPanel({
               {/* ── PHONE ──────────────────────────────────────────────────── */}
               {res.guestPhone && (
                 <a
+                  dir="ltr"
                   href={`tel:${res.guestPhone}`}
                   className="flex items-center gap-2 text-[15px] font-mono font-semibold text-iron-text hover:text-iron-green-light transition-colors"
                   onClick={e => e.stopPropagation()}

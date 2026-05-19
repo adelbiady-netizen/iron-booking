@@ -107,7 +107,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       disabled={disabled}
       title={title}
       className={`rounded-xl border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-4 min-h-[52px] flex-1' : 'text-xs font-semibold px-3 py-2.5'
+        primary ? 'text-sm font-semibold px-4 py-4 min-h-[52px] flex-1' : 'text-xs font-semibold px-3 py-3'
       } ${cls}`}
       style={primary ? { boxShadow: '0 2px 8px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.07)' } : undefined}
     >
@@ -550,7 +550,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     const fmtTime = fmtHostTime;
 
     return (
-      <section className="border-t border-iron-border/25 pt-4 space-y-2.5">
+      <section className="border-t border-iron-border/30 pt-4 space-y-2.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">
           {T.guestDrawer.confirmationSection}
         </p>
@@ -728,7 +728,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
         </div>
         {/* Destructive */}
-        <div className="flex gap-1.5 mt-2 pt-2 border-t border-iron-border/30">
+        <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
           <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
           <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
         </div>
@@ -801,7 +801,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber} onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
         </div>
         {/* Destructive */}
-        <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-iron-border/30">
+        <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
           <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
           <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
         </div>
@@ -847,7 +847,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
         </div>
         {/* Destructive */}
-        <div className="flex gap-1.5 mt-2.5 pt-2.5 border-t border-iron-border/30">
+        <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
           <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => setMode('cancel')} disabled={busy} />
         </div>
       </>
@@ -898,7 +898,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/50 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/65 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
 
         {/* Header */}
         <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.08) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 6px 22px rgba(0,0,0,0.36)' }}>
@@ -916,7 +916,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Phone — prominent, clickable, copyable */}
-              <div className="flex items-center gap-2 mt-1">
+              <div dir="ltr" className="flex items-center gap-2 mt-1">
                 {res.guestPhone ? (
                   <>
                     <a
@@ -976,7 +976,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
 
               {/* Party + table — compact secondary line */}
-              <div className="flex items-center gap-1.5 mt-1.5 text-iron-text/85 text-sm font-medium">
+              <div dir="ltr" className="flex items-center gap-1.5 mt-1.5 text-iron-text/85 text-sm font-medium">
                 <span>{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
@@ -1210,7 +1210,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               .sort((a, b) => a.time.localeCompare(b.time));
             if (others.length === 0) return null;
             return (
-              <section className="border-t border-iron-border/25 pt-4 space-y-1.5">
+              <section className="border-t border-iron-border/30 pt-4 space-y-1.5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
                   {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
                 </p>
@@ -1237,7 +1237,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Guest CRM */}
           {res.guest && (
-            <section className="border-t border-iron-border/25 pt-4 space-y-2">
+            <section className="border-t border-iron-border/30 pt-4 space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
@@ -1267,7 +1267,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {!['SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && <ConfirmationSection />}
 
           {/* Actions */}
-          <section ref={actionsRef} className="border-t border-iron-border/25 pt-4">
+          <section ref={actionsRef} className="border-t border-iron-border/30 pt-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-3">
               {T.guestDrawer.sectionActions}
             </p>
@@ -1643,7 +1643,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Table lock */}
           {assignedTable && mode !== 'lock' && (
-            <section className="border-t border-iron-border/25 pt-4">
+            <section className="border-t border-iron-border/30 pt-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-3">{T.guestDrawer.sectionTableLock}</p>
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
@@ -1661,7 +1661,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
 
           {mode === 'lock' && assignedTable && (
-            <section className="border-t border-iron-border/25 pt-4 space-y-3">
+            <section className="border-t border-iron-border/30 pt-4 space-y-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">{T.lockModal.title(assignedTable.name)}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCK_QUICK_REASONS.map(r => (
@@ -1699,7 +1699,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
 
           {/* Lifecycle timestamps */}
-          <section className="border-t border-iron-border/25 pt-4 space-y-2">
+          <section className="border-t border-iron-border/30 pt-4 space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
               {T.guestDrawer.sectionTimeline}
             </p>
