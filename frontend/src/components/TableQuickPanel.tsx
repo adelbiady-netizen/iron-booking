@@ -216,7 +216,7 @@ export default function TableQuickPanel({
     );
   }
 
-  const primaryShadow: React.CSSProperties = { boxShadow: '0 1px 4px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06)' };
+  const primaryShadow: React.CSSProperties = { boxShadow: '0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.09)' };
 
   // ── Status pill ────────────────────────────────────────────────────────────
   const statusConfig = (() => {
@@ -256,7 +256,7 @@ export default function TableQuickPanel({
     <aside className="h-full w-full bg-iron-bg flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/50 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.022) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 22px rgba(0,0,0,0.32)' }}>
+        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/50 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.06) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 8px 28px rgba(0,0,0,0.40)' }}>
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="flex items-center gap-2.5">
@@ -300,7 +300,7 @@ export default function TableQuickPanel({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-iron-text font-bold text-[22px] leading-tight tracking-tight">{res.guestName}</span>
                   {res.guest?.isVip && (
-                    <span className="text-amber-400 text-[10px] font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                    <span className="text-amber-400 text-[10px] font-semibold bg-amber-500/14 px-1.5 py-0.5 rounded border border-amber-500/28 shrink-0">
                       {T.common.vip}
                     </span>
                   )}
@@ -339,7 +339,7 @@ export default function TableQuickPanel({
               )}
 
               {/* ── CORE DETAILS ───────────────────────────────────────────── */}
-              <div className="rounded-xl bg-iron-bg/50 border border-iron-border/30 px-3 py-2.5 space-y-1.5" style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04)' }}>
+              <div className="rounded-xl bg-iron-bg/50 border border-iron-border/30 px-3 py-2.5 space-y-1.5" style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.05)' }}>
                 <div className="flex justify-between text-[13px]">
                   <span className="text-iron-muted/70">{T.tableQuickPanel.labelTime}</span>
                   <span className="text-iron-text font-semibold tabular-nums">{normalizeTime(res.time)}</span>
@@ -431,8 +431,8 @@ export default function TableQuickPanel({
                 {res.hostNotes && !editingNote && (
                   <button
                     onClick={() => { setEditingNote(true); setNoteDraft(res.hostNotes ?? ''); }}
-                    className="w-full text-left px-2.5 py-2 rounded-lg bg-amber-900/8 border border-amber-500/20 hover:border-amber-500/40 transition-colors"
-                    style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.72)' }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-amber-900/10 border border-amber-500/25 hover:border-amber-500/40 transition-colors"
+                    style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.78)' }}
                   >
                     <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.hostNote}</p>
                     <p className="text-amber-100/85 text-xs">{res.hostNotes}</p>

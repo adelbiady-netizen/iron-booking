@@ -67,14 +67,14 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const style = STATUS_STYLE[displayStatus] ?? STATUS_STYLE['AVAILABLE'];
 
   const shadowStyle: React.CSSProperties = (() => {
-    if (selected)             return { boxShadow: 'inset 0 0 0 1px rgba(111,138,60,0.18), 0 2px 14px rgba(0,0,0,0.42)' };
-    if (table.locked)         return { boxShadow: '0 1px 8px rgba(0,0,0,0.28)' };
-    if (isOverdue)            return { boxShadow: 'inset 0 0 0 1px rgba(249,115,22,0.16), 0 2px 16px rgba(0,0,0,0.44)' };
+    if (selected)             return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 0 1px rgba(111,138,60,0.24), 0 4px 18px rgba(0,0,0,0.52)' };
+    if (table.locked)         return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 8px rgba(0,0,0,0.28)' };
+    if (isOverdue)            return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 0 1px rgba(249,115,22,0.18), 0 2px 16px rgba(0,0,0,0.46)' };
     switch (displayStatus) {
-      case 'OCCUPIED':      return { boxShadow: 'inset 0 0 0 1px rgba(111,138,60,0.12), 0 2px 12px rgba(0,0,0,0.38)' };
-      case 'RESERVED_SOON': return { boxShadow: 'inset 0 0 0 1px rgba(245,158,11,0.10), 0 2px 12px rgba(0,0,0,0.34)' };
-      case 'RESERVED':      return { boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.07), 0 2px 10px rgba(0,0,0,0.30)' };
-      default:              return { boxShadow: '0 1px 4px rgba(0,0,0,0.20)' };
+      case 'OCCUPIED':      return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 0 1px rgba(111,138,60,0.14), 0 2px 14px rgba(0,0,0,0.42)' };
+      case 'RESERVED_SOON': return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 0 1px rgba(245,158,11,0.12), 0 2px 12px rgba(0,0,0,0.36)' };
+      case 'RESERVED':      return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 0 1px rgba(59,130,246,0.08), 0 2px 10px rgba(0,0,0,0.32)' };
+      default:              return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 7px rgba(0,0,0,0.26)' };
     }
   })();
 

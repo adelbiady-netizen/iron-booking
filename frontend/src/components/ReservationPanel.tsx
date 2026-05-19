@@ -445,9 +445,9 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/[0.22] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.62]' : ''}`}
+                  className={`w-full flex items-stretch border-b border-iron-border/[0.26] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.62]' : ''}`}
                   style={{ boxShadow: selectedId === r.id
-                    ? 'inset 0 0 0 1px rgba(111,138,60,0.18), 0 2px 10px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06)'
+                    ? 'inset 0 0 0 1px rgba(111,138,60,0.22), 0 3px 14px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.07)'
                     : 'inset 0 1px 0 rgba(255,255,255,0.022)'
                   }}
                   onMouseEnter={() => onHoverRow?.(r.id)}

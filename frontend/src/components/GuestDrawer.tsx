@@ -109,7 +109,7 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
       className={`rounded-xl border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
         primary ? 'text-sm font-semibold px-4 py-4 min-h-[52px] flex-1' : 'text-xs font-semibold px-3 py-3'
       } ${cls}`}
-      style={primary ? { boxShadow: '0 2px 8px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.07)' } : undefined}
+      style={primary ? { boxShadow: '0 3px 12px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.10)' } : undefined}
     >
       {label}
     </button>
@@ -551,7 +551,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
     return (
       <section className="border-t border-iron-border/30 pt-4 space-y-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65">
           {T.guestDrawer.confirmationSection}
         </p>
 
@@ -898,10 +898,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/65 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/65 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.07)' }}>
 
         {/* Header */}
-        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.08) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 6px 22px rgba(0,0,0,0.36)' }}>
+        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.11) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 8px 30px rgba(0,0,0,0.44)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
               {/* Time anchor first, then name — time is the primary scan element */}
@@ -909,7 +909,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 <span className="text-iron-green-light font-bold tabular-nums shrink-0 tracking-tight" style={{ fontSize: '28px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
                 <h2 className="text-iron-text font-bold text-[22px] tracking-tight leading-tight truncate">{res.guestName}</h2>
                 {res.guest?.isVip && (
-                  <span className="text-amber-400 text-xs font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0">
+                  <span className="text-amber-400 text-xs font-semibold bg-amber-500/14 px-2 py-0.5 rounded-full border border-amber-500/28 shrink-0">
                     {T.common.vip}
                   </span>
                 )}
@@ -1060,13 +1060,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {(res.hostNotes || res.guestNotes || res.occasion) && (
             <section className="space-y-2">
               {res.hostNotes && (
-                <div className="px-3 py-2.5 rounded-lg bg-amber-900/8 border border-amber-500/20" style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.72)' }}>
+                <div className="px-3 py-2.5 rounded-lg bg-amber-900/10 border border-amber-500/25" style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.78)' }}>
                   <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
                   <p className="text-amber-100/85 text-[13px] leading-relaxed">{res.hostNotes}</p>
                 </div>
               )}
               {res.guestNotes && (
-                <div className="px-3 py-2.5 rounded-lg bg-iron-card/70 border border-iron-border/70">
+                <div className="px-3 py-2.5 rounded-lg bg-iron-card/80 border border-iron-border/75">
                   <p className="text-[10px] text-iron-muted/70 font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
                   <p className="text-iron-text/90 text-[13px]">{res.guestNotes}</p>
                 </div>
@@ -1086,7 +1086,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 ? 'border-amber-500/30 bg-amber-500/5'
                 : 'border-iron-green/30 bg-iron-green/5'
             }`}>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65">
                 {smartSuggestion?.mode === 'upgrade'
                   ? T.guestDrawer.sectionSmartUpgrade
                   : T.guestDrawer.sectionSmartSuggest}
@@ -1186,7 +1186,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             )}
 
             <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">{T.guestDrawer.rowTable}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65">{T.guestDrawer.rowTable}</span>
               <span className="text-iron-text text-sm font-semibold">
                 {(() => {
                   if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
@@ -1211,7 +1211,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (others.length === 0) return null;
             return (
               <section className="border-t border-iron-border/30 pt-4 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
                   {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
                 </p>
                 {others.map(r => (
@@ -1238,7 +1238,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Guest CRM */}
           {res.guest && (
             <section className="border-t border-iron-border/30 pt-4 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
               <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`} />
@@ -1268,7 +1268,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Actions */}
           <section ref={actionsRef} className="border-t border-iron-border/30 pt-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-3">
               {T.guestDrawer.sectionActions}
             </p>
 
@@ -1644,7 +1644,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {/* Table lock */}
           {assignedTable && mode !== 'lock' && (
             <section className="border-t border-iron-border/30 pt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-3">{T.guestDrawer.sectionTableLock}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-3">{T.guestDrawer.sectionTableLock}</p>
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
                   <div>
@@ -1662,7 +1662,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {mode === 'lock' && assignedTable && (
             <section className="border-t border-iron-border/30 pt-4 space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55">{T.lockModal.title(assignedTable.name)}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65">{T.lockModal.title(assignedTable.name)}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCK_QUICK_REASONS.map(r => (
                   <button
@@ -1700,7 +1700,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* Lifecycle timestamps */}
           <section className="border-t border-iron-border/30 pt-4 space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/55 mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
               {T.guestDrawer.sectionTimeline}
             </p>
             {!res.confirmedAt && !res.seatedAt && !res.completedAt && !res.cancelledAt && !res.noShowAt && (

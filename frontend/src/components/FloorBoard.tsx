@@ -947,7 +947,7 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.09), 0 6px 24px rgba(0,0,0,0.44)' }}>
+      <div className="flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.15), 0 6px 24px rgba(0,0,0,0.44)' }}>
         {/* Live service cluster */}
         <div className="flex items-center gap-1.5">
           <Stat label={T.floorBoard.statSeated} value={seatedParties} color="text-iron-green-light" live />
@@ -1111,8 +1111,8 @@ export default function FloorBoard({
                   width:  z.maxX - z.minX + PAD * 2,
                   height: z.maxY - z.minY + PAD * 2,
                   borderRadius: 24,
-                  border: `1px solid ${z.color}0A`,
-                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}05 0%, ${z.color}02 60%, transparent 85%)`,
+                  border: `1px solid ${z.color}14`,
+                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}08 0%, ${z.color}03 60%, transparent 85%)`,
                   pointerEvents: 'none',
                 }}
               />
