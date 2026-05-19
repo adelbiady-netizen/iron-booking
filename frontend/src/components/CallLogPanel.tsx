@@ -16,7 +16,6 @@ function fmtTime(iso: string): string {
 }
 
 // Only allow https/http recording URLs. Blocks javascript: and other schemes.
-// Returns null rather than throwing so a bad URL never crashes the row.
 function safeRecordingUrl(raw: string | null): string | null {
   if (!raw) return null;
   try {
@@ -71,27 +70,35 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     if (d.toDateString() === yesterday.toDateString()) return T.callLog.yesterday;
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
+  const missedCount = calls.filter(c => c.status !== 'answered' && c.status !== 'ANSWERED').length;
   const hasMore = calls.length < total;
 
   return (
-    <div
-      className="fixed inset-y-0 right-0 z-50 flex flex-col bg-iron-surface border-l border-iron-border shadow-2xl"
-      style={{ width: 360 }}
-    >
+    <div className="h-full flex flex-col bg-iron-elevated border-s border-iron-border/80" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -8px 0 40px rgba(0,0,0,0.48)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-iron-border">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-iron-text">{T.callLog.title}</span>
-          {total > 0 && (
-            <span className="text-[11px] text-iron-muted tabular-nums">{total}</span>
-          )}
+      <div
+        className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-iron-border/40"
+        style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div>
+            <p className="text-iron-text font-semibold text-sm leading-tight">{T.callLog.title}</p>
+            {total > 0 && (
+              <p className="text-iron-muted/60 text-[11px] font-medium leading-tight mt-0.5 tabular-nums">
+                {total} {T.callLog.title.toLowerCase()}
+                {missedCount > 0 && (
+                  <span className="text-red-400/80"> · {missedCount} {T.callLog.missed.toLowerCase()}</span>
+                )}
+              </p>
+            )}
+          </div>
         </div>
         <button
           onClick={onClose}
-          className="text-iron-muted hover:text-iron-text text-lg leading-none px-1 transition-colors"
+          className="text-iron-muted/50 hover:text-iron-text text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-iron-bg/60 transition-colors"
           aria-label="Close"
         >
           ×
@@ -101,15 +108,20 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
         {loading && calls.length === 0 && (
-          <p className="text-xs text-iron-muted px-4 py-8 text-center">{T.callLog.loading}</p>
+          <div className="flex items-center justify-center py-16">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+              <p className="text-iron-muted/60 text-xs">{T.callLog.loading}</p>
+            </div>
+          </div>
         )}
 
         {error && (
-          <div className="px-4 py-8 text-center">
-            <p className="text-xs text-iron-muted mb-2">{T.callLog.loadError}</p>
+          <div className="px-5 py-12 text-center">
+            <p className="text-iron-muted/70 text-sm mb-3">{T.callLog.loadError}</p>
             <button
               onClick={() => load(0)}
-              className="text-xs text-iron-accent hover:underline"
+              className="text-xs font-medium text-iron-green-light hover:text-iron-green transition-colors"
             >
               {T.callLog.retry}
             </button>
@@ -117,97 +129,122 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
         )}
 
         {!loading && !error && calls.length === 0 && (
-          <p className="text-xs text-iron-muted px-4 py-8 text-center">{T.callLog.empty}</p>
+          <div className="px-5 py-16 text-center">
+            <p className="text-iron-muted/50 text-sm">{T.callLog.empty}</p>
+          </div>
         )}
 
-        {calls.map(call => {
-          const isAnswered  = call.status === 'answered' || call.status === 'ANSWERED';
-          const phone       = call.phone || T.callLog.unknownCaller;
-          const dateLabel   = fmtDate(call.createdAt);
-          const timeLabel   = fmtTime(call.createdAt);
-          const normalized  = call.phone ? normalizePhone(call.phone) : '';
-          const recordingUrl = safeRecordingUrl(call.recordUrl);
+        <div className="divide-y divide-iron-border/15">
+          {calls.map(call => {
+            const isAnswered   = call.status === 'answered' || call.status === 'ANSWERED';
+            const phone        = call.phone || T.callLog.unknownCaller;
+            const normalized   = call.phone ? normalizePhone(call.phone) : '';
+            const recordingUrl = safeRecordingUrl(call.recordUrl);
+            const dateLabel    = fmtDate(call.createdAt);
+            const timeLabel    = fmtTime(call.createdAt);
+            const hasPhone     = !!call.phone;
 
-          return (
-            <div
-              key={call.id}
-              className="px-4 py-3 border-b border-iron-border/40 hover:bg-iron-elevated/30 transition-colors"
-            >
-              {/* Phone + recording */}
-              <div className="flex items-baseline justify-between gap-2 mb-1">
-                <span className="text-sm font-medium text-iron-text tracking-tight truncate">
+            return (
+              <div
+                key={call.id}
+                className={`relative px-5 py-4 hover:bg-iron-bg/35 transition-colors duration-100 group ${
+                  !isAnswered ? 'border-s-2 border-s-red-500/55' : 'border-s-2 border-s-transparent'
+                }`}
+              >
+                {/* Row 1: status + time */}
+                <div className="flex items-center justify-between gap-3 mb-2.5">
+                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wide shrink-0 ${
+                    isAnswered
+                      ? 'bg-iron-green/12 border-iron-green/30 text-iron-green-light'
+                      : 'bg-red-500/12 border-red-500/30 text-red-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAnswered ? 'bg-iron-green-light' : 'bg-red-400'}`} />
+                    {isAnswered ? T.callLog.answered : T.callLog.missed}
+                  </div>
+                  <span className="text-iron-muted/55 text-[11px] font-medium tabular-nums shrink-0">
+                    {dateLabel} · {timeLabel}
+                  </span>
+                </div>
+
+                {/* Row 2: caller identity */}
+                <p className={`font-bold tabular-nums tracking-tight leading-none mb-3 ${
+                  hasPhone
+                    ? 'text-iron-text text-[19px]'
+                    : 'text-iron-muted/60 text-[15px] italic'
+                }`}>
                   {phone}
-                </span>
-                {recordingUrl && (
-                  <a
-                    href={recordingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-iron-muted hover:text-iron-accent transition-colors flex-shrink-0"
-                  >
-                    {T.callLog.recording}
-                  </a>
-                )}
-              </div>
+                </p>
 
-              {/* Metadata: status dot · time · duration · group */}
-              <div className="flex items-center gap-1.5 text-[11px] text-iron-muted mb-2.5 flex-wrap">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    isAnswered ? 'bg-green-400/70' : 'bg-red-400/60'
-                  }`}
-                />
-                <span className={isAnswered ? 'text-green-400/80' : 'text-red-400/70'}>
-                  {isAnswered ? T.callLog.answered : T.callLog.missed}
-                </span>
-                <span className="opacity-30">·</span>
-                <span>{dateLabel} {timeLabel}</span>
-                {call.duration != null && call.duration > 0 && (
-                  <>
-                    <span className="opacity-30">·</span>
-                    <span>{T.callLog.duration(call.duration)}</span>
-                  </>
-                )}
-                {call.group && (
-                  <>
-                    <span className="opacity-30">·</span>
-                    <span className="truncate max-w-[80px]">{call.group}</span>
-                  </>
-                )}
-              </div>
+                {/* Row 3: secondary metadata + actions */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(call.duration != null && call.duration > 0 || call.group) && (
+                    <div className="flex items-center gap-1.5 text-xs text-iron-muted/60 mr-1">
+                      {call.duration != null && call.duration > 0 && (
+                        <span className="tabular-nums">{T.callLog.duration(call.duration)}</span>
+                      )}
+                      {call.duration != null && call.duration > 0 && call.group && (
+                        <span className="text-iron-muted/30">·</span>
+                      )}
+                      {call.group && (
+                        <span className="truncate max-w-[90px]">{call.group}</span>
+                      )}
+                    </div>
+                  )}
 
-              {/* Quick actions */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onNewReservation(normalized)}
-                  className="text-[11px] text-iron-muted hover:text-iron-text border border-iron-border/60 hover:border-iron-text/20 rounded px-2 py-0.5 transition-colors"
-                >
-                  {T.callLog.newReservation}
-                </button>
-                {normalized && (
-                  <button
-                    onClick={() => onFindGuest(normalized)}
-                    className="text-[11px] text-iron-muted hover:text-iron-text border border-iron-border/60 hover:border-iron-text/20 rounded px-2 py-0.5 transition-colors"
-                  >
-                    {T.callLog.findGuest}
-                  </button>
-                )}
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    {recordingUrl && (
+                      <a
+                        href={recordingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-iron-muted/55 hover:text-iron-text px-2 py-1 rounded-md hover:bg-iron-bg/60 transition-colors"
+                      >
+                        {T.callLog.recording}
+                      </a>
+                    )}
+                    {!isAnswered ? (
+                      <button
+                        onClick={() => onNewReservation(normalized)}
+                        className="text-[11px] font-semibold text-iron-green-light hover:text-iron-green px-2.5 py-1 rounded-md bg-iron-green/10 border border-iron-green/25 hover:bg-iron-green/18 transition-colors"
+                      >
+                        {T.callLog.newReservation}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onNewReservation(normalized)}
+                        className="text-[11px] font-medium text-iron-muted hover:text-iron-text px-2.5 py-1 rounded-md border border-iron-border/40 hover:border-iron-border/60 hover:bg-iron-bg/50 transition-colors"
+                      >
+                        {T.callLog.newReservation}
+                      </button>
+                    )}
+                    {hasPhone && (
+                      <button
+                        onClick={() => onFindGuest(normalized)}
+                        className="text-[11px] font-medium text-iron-muted hover:text-iron-text px-2.5 py-1 rounded-md border border-iron-border/40 hover:border-iron-border/60 hover:bg-iron-bg/50 transition-colors"
+                      >
+                        {T.callLog.findGuest}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
 
         {hasMore && !loading && (
           <button
             onClick={() => load(offset + LIMIT)}
-            className="w-full text-xs text-iron-muted hover:text-iron-text py-3 border-t border-iron-border/40 transition-colors"
+            className="w-full text-xs font-medium text-iron-muted/70 hover:text-iron-text py-4 border-t border-iron-border/20 transition-colors hover:bg-iron-bg/30"
           >
             {T.callLog.loadMore}
           </button>
         )}
 
         {loading && calls.length > 0 && (
-          <p className="text-xs text-iron-muted text-center py-3">{T.callLog.loading}</p>
+          <div className="flex items-center justify-center py-4">
+            <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+          </div>
         )}
       </div>
     </div>

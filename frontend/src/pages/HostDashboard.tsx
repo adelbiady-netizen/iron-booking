@@ -1547,6 +1547,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
+
+        {/* Left structural rail — table context panel. Width animates; map reflows around it. */}
+        <div
+          className="shrink-0 overflow-hidden border-r border-iron-border/50"
+          style={{
+            width: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 320 : 0,
+            transition: 'width 200ms ease-out',
+            boxShadow: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '3px 0 16px rgba(0,0,0,0.40)' : 'none',
+          }}
+        >
+          {quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
+            <TableQuickPanel
+              floorTable={quickFloorTable}
+              reservation={quickRes}
+              allTables={allTables}
+              isFutureDate={date > todayStr()}
+              nowTime={time}
+              isLiveView={isLiveView}
+              onClose={() => setQuickTable(null)}
+              onViewFull={(res) => { setQuickTable(null); setSelectedRes(res); }}
+              onSeat={handleContextMenuSeat}
+              onMoveTable={handleContextMenuMove}
+              onChangeTable={handleChooseTable}
+              onLock={handleLockTable}
+              onUnlock={handleUnlockTable}
+              onOpenCreate={(tableId) => { setPreselectedTableId(tableId); setCreateMode('reservation'); }}
+              onOpenWalkin={(tableId) => { setPreselectedTableId(tableId); setCreateMode('walkin'); }}
+              onUpdated={handleQuickPanelUpdated}
+              onSuccess={showToast}
+              inFlightIds={inFlightIds}
+            />
+          )}
+        </div>
+
         <FloorBoard
           tables={displayFloorTables}
           floorObjs={floorObjs}
@@ -1599,7 +1633,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           inFlightIds={inFlightIds}
         />
 
-        {/* Panel toggle handle — always visible between floor and panel */}
+        {/* Panel toggle handle — always visible between floor and right rail */}
         <button
           type="button"
           onClick={() => setPanelCollapsed(c => !c)}
@@ -1615,71 +1649,64 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           </svg>
         </button>
 
-        {/* Reservation panel wrapper — explicit width so CSS transition animates
-            correctly in both directions (auto/undefined can't be interpolated). */}
+        {/* Right structural rail — reservation feed or call log. Width animates; map reflows. */}
         <div
           className="shrink-0 overflow-hidden"
           style={{
-            width: panelCollapsed ? 0 : 416,
+            width: showCallLog ? 380 : (panelCollapsed ? 0 : 416),
             transition: 'width 200ms ease-out',
           }}
         >
-          <ReservationPanel
-            reservations={reservations}
-            selectedId={selectedRes?.id ?? null}
-            highlightId={highlightId}
-            onSelect={handlePanelSelect}
-            loading={resLoading}
-            onNewReservation={() => { setQuickTable(null); setPreselectedTableId(null); setCreateMode('reservation'); }}
-            onWalkIn={() => { setQuickTable(null); setCreateMode('walkin'); }}
-            waitlist={waitlist}
-            waitlistLoading={waitlistLoading}
-            onWaitlistAdd={handleWaitlistAdd}
-            onWaitlistSeat={handleWaitlistSeat}
-            onWaitlistNotify={handleWaitlistNotify}
-            onWaitlistCancel={handleWaitlistCancel}
-            onWaitlistNoShow={handleWaitlistNoShow}
-            nextInLine={nextInLine}
-            onSeatAtTable={handleSuggestionSeat}
-            entrySuggestions={entrySuggestions}
-            priorityQueue={priorityQueue}
-            nowTime={time}
-            operationalNow={operationalNow}
-            onContextMenuSeat={handleContextMenuSeat}
-            date={date}
-            reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
-            onReorganizeSelect={r => setSelectedRes(r)}
-            allTables={allTables}
-            onChooseTable={handleChooseTable}
-            isLiveView={isLiveView}
-            onHoverRow={setHoveredResId}
-          />
+          {showCallLog ? (
+            <CallLogPanel
+              latestCall={latestCall}
+              onClose={() => setShowCallLog(false)}
+              onNewReservation={(phone) => {
+                setCallPrefillPhone(phone);
+                setCreateMode('reservation');
+                setShowCallLog(false);
+              }}
+              onFindGuest={(phone) => {
+                setGuestSearchPhone(phone);
+                setActivePage('guests');
+                setShowCallLog(false);
+              }}
+            />
+          ) : (
+            <ReservationPanel
+              reservations={reservations}
+              selectedId={selectedRes?.id ?? null}
+              highlightId={highlightId}
+              onSelect={handlePanelSelect}
+              loading={resLoading}
+              onNewReservation={() => { setQuickTable(null); setPreselectedTableId(null); setCreateMode('reservation'); }}
+              onWalkIn={() => { setQuickTable(null); setCreateMode('walkin'); }}
+              waitlist={waitlist}
+              waitlistLoading={waitlistLoading}
+              onWaitlistAdd={handleWaitlistAdd}
+              onWaitlistSeat={handleWaitlistSeat}
+              onWaitlistNotify={handleWaitlistNotify}
+              onWaitlistCancel={handleWaitlistCancel}
+              onWaitlistNoShow={handleWaitlistNoShow}
+              nextInLine={nextInLine}
+              onSeatAtTable={handleSuggestionSeat}
+              entrySuggestions={entrySuggestions}
+              priorityQueue={priorityQueue}
+              nowTime={time}
+              operationalNow={operationalNow}
+              onContextMenuSeat={handleContextMenuSeat}
+              date={date}
+              reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
+              onReorganizeSelect={r => setSelectedRes(r)}
+              allTables={allTables}
+              onChooseTable={handleChooseTable}
+              isLiveView={isLiveView}
+              onHoverRow={setHoveredResId}
+            />
+          )}
         </div>
       </div>
       </BoardErrorBoundary>
-
-      {quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
-        <TableQuickPanel
-          floorTable={quickFloorTable}
-          reservation={quickRes}
-          allTables={allTables}
-          isFutureDate={date > todayStr()}
-          nowTime={time}
-          isLiveView={isLiveView}
-          onClose={() => setQuickTable(null)}
-          onViewFull={(res) => { setQuickTable(null); setSelectedRes(res); }}
-          onSeat={handleContextMenuSeat}
-          onMoveTable={handleContextMenuMove}
-          onChangeTable={handleChooseTable}
-          onLock={handleLockTable}
-          onUnlock={handleUnlockTable}
-          onOpenCreate={(tableId) => { setPreselectedTableId(tableId); setCreateMode('reservation'); }}
-          onOpenWalkin={(tableId) => { setPreselectedTableId(tableId); setCreateMode('walkin'); }}
-          onUpdated={handleQuickPanelUpdated}
-          onSuccess={showToast}
-          inFlightIds={inFlightIds}
-        />
-      )}
 
       {selectedRes && !createMode && (
         <DrawerErrorBoundary key={selectedRes.id} onClose={() => setSelectedRes(null)}>
@@ -1835,23 +1862,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         <ServiceReportPanel
           initialDate={date}
           onClose={() => setShowServiceReport(false)}
-        />
-      )}
-
-      {showCallLog && (
-        <CallLogPanel
-          latestCall={latestCall}
-          onClose={() => setShowCallLog(false)}
-          onNewReservation={(phone) => {
-            setCallPrefillPhone(phone);
-            setCreateMode('reservation');
-            setShowCallLog(false);
-          }}
-          onFindGuest={(phone) => {
-            setGuestSearchPhone(phone);
-            setActivePage('guests');
-            setShowCallLog(false);
-          }}
         />
       )}
 

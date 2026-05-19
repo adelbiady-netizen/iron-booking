@@ -937,60 +937,63 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-3.5 px-4 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.09), 0 6px 24px rgba(0,0,0,0.44)' }}>
-        {/* Live service state — what's happening right now */}
-        <Stat label={T.floorBoard.statSeated}    value={seatedParties} color="text-iron-green-light" />
-        {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" />}
-        {/* Freeing soon — only surfaces when capacity is actually tight (≤1 available).
-            Color is quiet green, not amber: this is good news, not a warning. */}
-        {freeingSoon > 0 && available <= 1 && <Stat label={T.floorBoard.statFreeing} value={freeingSoon} color="text-iron-green-light/50" />}
-        {/* Divider: live | upcoming */}
-        <div className="w-px h-3 bg-iron-border/50 -mx-1" />
-        {/* Upcoming — what's booked and what's open */}
-        <Stat label={T.floorBoard.statReserved}  value={reserved}     color="text-blue-400" />
-        <Stat label={T.floorBoard.statAvailable} value={available}    color="text-iron-muted" />
+      <div className="flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.09), 0 6px 24px rgba(0,0,0,0.44)' }}>
+        {/* Live service cluster */}
+        <div className="flex items-center gap-1.5">
+          <Stat label={T.floorBoard.statSeated} value={seatedParties} color="text-iron-green-light" live />
+          {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" live />}
+          {freeingSoon > 0 && available <= 1 && <Stat label={T.floorBoard.statFreeing} value={freeingSoon} color="text-iron-green-light/50" />}
+        </div>
+
+        <div className="w-px h-5 bg-iron-border/35 shrink-0" />
+
+        {/* Capacity cluster */}
+        <div className="flex items-center gap-1.5">
+          <Stat label={T.floorBoard.statReserved}  value={reserved}  color="text-blue-400" />
+          <Stat label={T.floorBoard.statAvailable} value={available} color="text-iron-muted" />
+        </div>
 
         {positioned && sections.length > 0 && (
           <>
-            <div className="w-px h-3 bg-iron-border mx-1" />
+            <div className="w-px h-5 bg-iron-border/35 shrink-0" />
             {sections.map(sec => (
               <button
                 key={sec.id}
                 className="flex items-center gap-1.5 transition-opacity"
-                style={{ opacity: hoveredSectionId !== null && hoveredSectionId !== sec.id ? 0.4 : 1 }}
+                style={{ opacity: hoveredSectionId !== null && hoveredSectionId !== sec.id ? 0.35 : 1 }}
                 onMouseEnter={() => setHoveredSectionId(sec.id)}
                 onMouseLeave={() => setHoveredSectionId(null)}
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                <span className="text-iron-muted text-[11px]">{formatSectionName(sec.name, locale)}</span>
+                <span className="text-iron-muted/75 text-[11px] font-medium">{formatSectionName(sec.name, locale)}</span>
               </button>
             ))}
           </>
         )}
 
         {pressureInfo && pressureInfo.level !== 'LOW' && (
-          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-xs font-medium ${
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${
             pressureInfo.level === 'HIGH'
               ? 'bg-red-900/20 border-red-500/25 text-red-400'
               : 'bg-amber-900/20 border-amber-500/25 text-amber-400'
           }`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pressureInfo.level === 'HIGH' ? 'bg-red-500' : 'bg-amber-500'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pressureInfo.level === 'HIGH' ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`} />
             {pressureInfo.level === 'HIGH' ? T.flowControl.pressureHigh : T.flowControl.pressureMed}
-            {pressureInfo.label && <span className="opacity-70">· {pressureInfo.label}</span>}
+            {pressureInfo.label && <span className="opacity-70"> · {pressureInfo.label}</span>}
           </div>
         )}
 
-        <span className="ml-auto text-xs text-iron-muted">{T.floorBoard.tableCount(dedupedTables.length)}</span>
+        <span className="ml-auto text-[11px] text-iron-muted/55 font-medium">{T.floorBoard.tableCount(dedupedTables.length)}</span>
 
-        <div className="flex items-center gap-px ml-3 rounded border border-iron-border overflow-hidden shrink-0">
+        <div className="flex items-center bg-iron-bg/40 rounded-lg overflow-hidden divide-x divide-iron-border/20 shrink-0">
           {(['floor', 'timeline'] as View[]).map(v => (
             <button
               key={v}
               onClick={() => !pickMode && setView(v)}
-              className={`px-2 py-0.5 text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === v
                   ? 'bg-iron-green/20 text-iron-green-light'
-                  : 'text-iron-muted hover:text-iron-text hover:bg-iron-border/30'
+                  : 'text-iron-muted hover:text-iron-text hover:bg-iron-bg/60'
               } ${pickMode ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               {v === 'floor' ? T.floorBoard.viewFloor : T.floorBoard.viewTimeline}
@@ -1592,11 +1595,11 @@ export default function FloorBoard({
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+function Stat({ label, value, color, live = false }: { label: string; value: number; color: string; live?: boolean }) {
   return (
-    <div className="flex items-baseline gap-1">
-      <span className={`text-lg font-bold tabular-nums leading-none ${color}`}>{value}</span>
-      <span className="text-iron-muted text-[10px] uppercase tracking-[0.07em] font-medium">{label}</span>
+    <div className={`flex flex-col items-center px-2.5 py-1.5 rounded-xl bg-iron-bg/[0.28] shrink-0${live && value > 0 ? ' animate-ambient-breathe' : ''}`}>
+      <span className={`text-[18px] font-bold tabular-nums leading-none ${color}`}>{value}</span>
+      <span className="text-iron-muted/60 text-[8px] uppercase tracking-[0.12em] font-semibold leading-none mt-0.5">{label}</span>
     </div>
   );
 }

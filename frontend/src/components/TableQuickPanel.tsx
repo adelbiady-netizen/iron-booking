@@ -251,9 +251,7 @@ export default function TableQuickPanel({
   const isClosed  = res && ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status);
 
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <aside className="fixed left-0 top-0 h-full w-80 bg-iron-card border-r border-iron-border z-50 flex flex-col shadow-2xl animate-slide-in-left">
+    <aside className="h-full w-full bg-iron-card flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
         <div className="p-4 border-b border-iron-border/70 shrink-0">
@@ -624,7 +622,6 @@ export default function TableQuickPanel({
             </button>
           </div>
         )}
-      </aside>
-    </>
+    </aside>
   );
 }

@@ -56,23 +56,27 @@ export default function CallDrawer({
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/55 z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <aside className={`fixed right-0 top-0 h-full w-80 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl animate-toast${highlight ? ' animate-call-ping' : ''}`}>
+      <aside className={`fixed right-0 top-0 h-full w-80 bg-iron-elevated border-l border-iron-border/60 z-50 flex flex-col animate-toast${highlight ? ' animate-call-ping' : ''}`} style={{ boxShadow: '-8px 0 48px rgba(0,0,0,0.56)' }}>
 
         {/* Header */}
-        <div className="p-4 border-b border-iron-border shrink-0 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">📞</span>
+        <div className="px-5 py-4 border-b border-iron-border/40 shrink-0 flex items-center justify-between" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-iron-green/15 border border-iron-green/30 flex items-center justify-center shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-iron-green-light">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.73a16 16 0 0 0 6 6l.89-.89a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.5 16z" />
+              </svg>
+            </div>
             <div>
-              <p className="text-iron-text font-semibold text-sm">{T.callDrawer.title}</p>
-              {callTime && <p className="text-iron-muted text-xs">{callTime}</p>}
+              <p className="text-iron-text font-semibold text-sm leading-tight">{T.callDrawer.title}</p>
+              {callTime && <p className="text-iron-muted/60 text-[11px] font-medium leading-tight mt-0.5">{callTime}</p>}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-iron-muted hover:text-iron-text text-2xl leading-none"
+            className="text-iron-muted/50 hover:text-iron-text text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-iron-bg/60 transition-colors"
             aria-label="Close"
           >
             ×
@@ -80,14 +84,14 @@ export default function CallDrawer({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
-          {/* Phone — labelled as incoming call, not just "Phone" */}
-          <div className="rounded-xl bg-iron-bg border border-iron-border px-4 py-3.5">
-            <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-1">
+          {/* Phone — caller identity surface */}
+          <div className="rounded-xl bg-iron-bg/60 border border-iron-border/50 px-4 py-4">
+            <p className="text-iron-muted/60 text-[10px] font-semibold uppercase tracking-widest mb-2">
               {T.callDrawer.incomingLabel}
             </p>
-            <p className="text-iron-text font-bold text-xl tracking-wide tabular-nums">
+            <p className="text-iron-text font-bold text-[22px] tracking-tight tabular-nums leading-none">
               {phone || T.callDrawer.unknownCaller}
             </p>
           </div>
@@ -205,16 +209,16 @@ export default function CallDrawer({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-iron-border shrink-0 flex gap-2">
+        <div className="px-5 py-4 border-t border-iron-border/40 shrink-0 flex gap-2" style={{ boxShadow: '0 -1px 0 rgba(255,255,255,0.04)' }}>
           <button
             onClick={() => onNewReservation(phone)}
-            className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors"
+            className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green/18 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/28 transition-colors min-h-[44px]"
           >
             {T.callDrawer.newReservation}
           </button>
           <button
             onClick={onClose}
-            className="text-xs text-iron-muted hover:text-iron-text px-4 transition-colors border border-iron-border/40 rounded-lg hover:border-iron-border"
+            className="text-xs font-medium text-iron-muted/70 hover:text-iron-text px-4 transition-colors border border-iron-border/40 rounded-xl hover:border-iron-border/60 hover:bg-iron-bg/50"
           >
             {T.callDrawer.dismiss}
           </button>
