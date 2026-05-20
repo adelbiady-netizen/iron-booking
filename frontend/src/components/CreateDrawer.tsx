@@ -311,7 +311,7 @@ export default function CreateDrawer({
   // a manual choice. Uses restaurant defaultTurnMinutes — no party-size inflation.
   useEffect(() => {
     if (durationManual) return;
-    setResDuration(String(defaultTurnMinutes ?? 90));
+    setResDuration(String(defaultTurnMinutes ?? getDefaultDuration(resParty)));
   }, [resParty, durationManual, defaultTurnMinutes]);
 
   // Same logic for walk-in duration.

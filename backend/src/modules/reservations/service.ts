@@ -164,7 +164,7 @@ export async function createReservation(
   actorName: string
 ) {
   const settings = await getRestaurantSettings(restaurantId);
-  const duration = input.duration ?? settings.defaultTurnMinutes;
+  const duration = input.duration ?? (input.partySize >= 3 ? 120 : 90);
   const date = parseDateArg(input.date);
 
   if (input.tableId) {
@@ -276,7 +276,11 @@ export async function updateReservation(
   const settings = await getRestaurantSettings(restaurantId);
   const date = input.date ? parseDateArg(input.date) : existing.date;
   const time = input.time ?? existing.time;
-  const duration = input.duration ?? existing.duration;
+  const duration = input.duration ?? (
+    input.partySize && input.partySize !== existing.partySize
+      ? (input.partySize >= 3 ? 120 : 90)
+      : existing.duration
+  );
   const tableId = input.tableId !== undefined ? input.tableId : existing.tableId;
   const combinedTableIds = input.combinedTableIds !== undefined ? input.combinedTableIds : existing.combinedTableIds;
 

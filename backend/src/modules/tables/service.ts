@@ -374,7 +374,7 @@ export async function getTableSuggestions(restaurantId: string, query: {
     select: { settings: true },
   });
   const s = restaurant.settings as Record<string, any>;
-  const duration = query.duration ?? (s.defaultTurnMinutes as number) ?? 90;
+  const duration = query.duration ?? (query.partySize >= 3 ? 120 : 90);
   const buffer = (s.bufferBetweenTurnsMinutes as number) ?? 15;
 
   return suggestTables({
