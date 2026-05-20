@@ -381,6 +381,7 @@ interface Props {
   // Right-click quick actions
   onContextMenuSeat?: (res: Reservation) => void;
   onContextMenuComplete?: (res: Reservation) => void;
+  onContextMenuMove?: (res: Reservation) => void;
   onContextMenuOpenDetails?: (res: Reservation) => void;
   onContextMenuArrive?: (res: Reservation) => void;
   // Currently active reservation in the GuestDrawer — used to show recovery
@@ -469,6 +470,7 @@ export default function FloorBoard({
   drawerOpen: _drawerOpen = false,
   onContextMenuSeat,
   onContextMenuComplete,
+  onContextMenuMove,
   onContextMenuOpenDetails,
   onContextMenuArrive,
   activeDrawerRes = null,
@@ -1358,9 +1360,10 @@ export default function FloorBoard({
         const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id) && !isDisplacedActive;
         const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
         const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
+        const canMove       = !!onContextMenuMove        && isOccupied    && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canOpenDetails;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canOpenDetails;
 
         return (
           <>
@@ -1404,6 +1407,14 @@ export default function FloorBoard({
                   className="w-full text-left px-3 py-2 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxComplete}
+                </button>
+              )}
+              {canMove && (
+                <button
+                  onClick={() => { onContextMenuMove!(currentRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxMove}
                 </button>
               )}
               {canOpenDetails && (

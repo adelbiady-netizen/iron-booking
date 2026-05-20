@@ -156,6 +156,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     busy: boolean;
     _key: number;
   } | null>(null);
+  const [pendingMove, setPendingMove] = useState<{
+    res: Reservation;
+    sourceTableName: string;
+    targetTableId: string;
+    targetCombinedIds: string[];
+    targetTableName: string;
+    busy: boolean;
+  } | null>(null);
   const [resLoading,        setResLoading]        = useState(false);
   const [loadError,         setLoadError]         = useState(false);
   const [errorPhase,        setErrorPhase]        = useState<'none' | 'reconnecting' | 'failed'>('none');
@@ -1317,24 +1325,44 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     handlePickTables(
       currentIds,
       sug,
-      async (ids) => {
+      (ids) => {
         if (!ids || ids.length === 0) return;
         const [primaryId, ...secondaryIds] = ids;
-        const name = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
-        try {
-          const updated = await api.reservations.move(res.id, primaryId, undefined, secondaryIds);
-          setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-          setRefreshKey(k => k + 1);
-          showToast(T.guestDrawer.toastMoved(name));
-          setQuickTable(null);
-        } catch (err) {
-          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
-        }
+        const targetName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
+        const sourceName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
+        setPendingMove({
+          res,
+          sourceTableName: sourceName,
+          targetTableId: primaryId,
+          targetCombinedIds: secondaryIds,
+          targetTableName: targetName,
+          busy: false,
+        });
       },
       'move',
       res.guestName,
     );
-  }, [handlePickTables, floorTables, showToast]);
+  }, [handlePickTables, floorTables]);
+
+  const confirmMove = useCallback(async () => {
+    if (!pendingMove || pendingMove.busy) return;
+    setPendingMove(p => p && ({ ...p, busy: true }));
+    try {
+      const updated = await api.reservations.move(
+        pendingMove.res.id,
+        pendingMove.targetTableId,
+        undefined,
+        pendingMove.targetCombinedIds,
+      );
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      showToast(T.guestDrawer.toastMoved(pendingMove.targetTableName));
+      setQuickTable(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      setPendingMove(null);
+    }
+  }, [pendingMove, showToast]);
 
   // Called after a reservation is created — update state optimistically and open it in the drawer.
   // No explicit setRefreshKey: SSE floor_updated fires for every mutation and triggers
@@ -1697,6 +1725,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           drawerOpen={!!(selectedRes || createMode)}
           onContextMenuSeat={handleContextMenuSeat}
           onContextMenuComplete={handleContextMenuComplete}
+          onContextMenuMove={handleContextMenuMove}
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
           activeDrawerRes={selectedRes}
@@ -1981,6 +2010,36 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             }
           }}
         />
+      )}
+
+      {/* Move-table confirmation — lightweight bottom-sheet style, no heavy modal */}
+      {pendingMove && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 pointer-events-none">
+          <div className="pointer-events-auto bg-iron-elevated border border-iron-border/60 rounded-xl px-5 py-4 shadow-2xl w-80">
+            <p className="text-sm font-semibold text-iron-text mb-1">
+              {T.floorBoard.moveConfirmTitle(pendingMove.res.guestName)}
+            </p>
+            <p className="text-xs text-iron-muted mb-4">
+              {T.floorBoard.moveConfirmBody(pendingMove.sourceTableName, pendingMove.targetTableName)}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPendingMove(null)}
+                disabled={pendingMove.busy}
+                className="px-3 py-1.5 text-xs text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {T.floorBoard.pickModeCancel}
+              </button>
+              <button
+                onClick={confirmMove}
+                disabled={pendingMove.busy}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {pendingMove.busy ? '…' : T.floorBoard.moveConfirmBtn}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
