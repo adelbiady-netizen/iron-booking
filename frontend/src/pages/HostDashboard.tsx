@@ -147,6 +147,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [hoveredResId,      setHoveredResId]      = useState<string | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reorganizeKeyRef = useRef(0);
+  const optimisticSeatSnapshotRef = useRef<Map<string, { res: Reservation; floorTable: FloorTable | null; tableId: string }>>(new Map());
   const [reorganizeConflict, setReorganizeConflict] = useState<{
     conflicts: ReorganizeConflict[];
     pendingReservationId: string;
@@ -518,22 +519,76 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [reservations]);
 
   const handleUpdated = useCallback((updated: Reservation) => {
+    optimisticSeatSnapshotRef.current.delete(updated.id);
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setQuickTable(null);
     setSelectedRes(updated);
-    // When the API confirms a seat, immediately reflect OCCUPIED on the floor board so
-    // the visual update is not gated on the subsequent SSE-triggered refresh (~500ms later).
-    // SSE still fires and reconciles authoritative state — this is post-API, not speculative.
+    // Reconcile floor board with API-confirmed seat. Computes floor-specific fields
+    // (minutesRemaining, expectedEndTime, isOverdue) from seatedAt + duration since the
+    // plain Reservation type doesn't carry them. SSE still fires afterward as authoritative sync.
     if (updated.status === 'SEATED' && updated.tableId) {
+      const now = Date.now();
+      const seatedAtMs = updated.seatedAt ? new Date(updated.seatedAt).getTime() : now;
+      const durationMs = (updated.duration ?? 90) * 60_000;
+      const expectedEndTime = new Date(seatedAtMs + durationMs).toISOString();
+      const minutesRemaining = Math.round((seatedAtMs + durationMs - now) / 60_000);
       setFloorTables(prev => prev.map(t => {
         if (t.id !== updated.tableId) return t;
         return {
           ...t,
           liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
-          currentReservation: { ...updated } as FloorTable['currentReservation'],
+          currentReservation: {
+            ...updated,
+            minutesRemaining,
+            expectedEndTime,
+            isOverdue: minutesRemaining < 0,
+          },
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== updated.id),
         };
       }));
+    }
+  }, []);
+
+  // Applies an optimistic seat to reservations + floorTables before the API responds.
+  // Captures a rollback snapshot so handleOptimisticSeatRollback can restore exact prior state.
+  // Combined tables are not patched here — SSE reconciles them as it does for context-menu seats.
+  const handleOptimisticSeat = useCallback((seatRes: Reservation, tableId: string, _combinedIds: string[]) => {
+    const now = Date.now();
+    const seatedAt = new Date(now).toISOString();
+    const durationMs = (seatRes.duration ?? 90) * 60_000;
+    const expectedEndTime = new Date(now + durationMs).toISOString();
+    const minutesRemaining = Math.round(durationMs / 60_000);
+
+    let capturedFloorTable: FloorTable | null = null;
+    setFloorTables(prev => prev.map(t => {
+      if (t.id !== tableId) return t;
+      capturedFloorTable = t;
+      return {
+        ...t,
+        liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
+        currentReservation: {
+          ...seatRes, status: 'SEATED' as const, tableId, seatedAt,
+          minutesRemaining, expectedEndTime, isOverdue: false,
+        },
+        upcomingReservations: t.upcomingReservations.filter(r => r.id !== seatRes.id),
+      };
+    }));
+    setReservations(prev => prev.map(r =>
+      r.id === seatRes.id ? { ...r, status: 'SEATED' as const, tableId, seatedAt } : r
+    ));
+    optimisticSeatSnapshotRef.current.set(seatRes.id, {
+      res: seatRes, floorTable: capturedFloorTable, tableId,
+    });
+  }, []);
+
+  const handleOptimisticSeatRollback = useCallback((resId: string) => {
+    const snapshot = optimisticSeatSnapshotRef.current.get(resId);
+    if (!snapshot) return;
+    optimisticSeatSnapshotRef.current.delete(resId);
+    setReservations(prev => prev.map(r => r.id === resId ? snapshot.res : r));
+    if (snapshot.floorTable) {
+      const snap = snapshot.floorTable;
+      setFloorTables(prev => prev.map(t => t.id === snapshot.tableId ? snap : t));
     }
   }, []);
 
@@ -1835,6 +1890,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onPickTables={handlePickTables}
             onPickTablesCancel={handlePickCancel}
             onDateTimeChange={handleDrawerDateTimeChange}
+            onOptimisticSeat={handleOptimisticSeat}
+            onOptimisticSeatRollback={handleOptimisticSeatRollback}
           />
         </DrawerErrorBoundary>
       )}

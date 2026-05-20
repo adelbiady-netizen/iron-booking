@@ -202,9 +202,13 @@ interface Props {
   /** Called when the host changes the date/time in edit mode so the floor board
    *  can reload for the same date and stay in sync with the drawer. */
   onDateTimeChange?: (date: string, time: string) => void;
+  /** Applied before the seat API call; host sees the floor update at 0ms. */
+  onOptimisticSeat?: (res: Reservation, tableId: string, combinedIds: string[]) => void;
+  /** Restores floor/reservation state if the seat API rejects. */
+  onOptimisticSeatRollback?: (resId: string) => void;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -510,6 +514,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
     setError(null);
     setBusy(true);
+    // Optimistic update: floor board reflects OCCUPIED immediately at 0ms.
+    // Rolled back below if the backend rejects the request.
+    onOptimisticSeat?.(res, tableId, combinedIds);
     const t0 = performance.now();
     console.log('[perf:seat] click → request', new Date().toISOString());
     try {
@@ -519,6 +526,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       console.log('[perf:seat] UI updated', Math.round(performance.now() - t0) + 'ms');
       onSuccess?.(toastMsg);
     } catch (err: unknown) {
+      // Restore floor/reservation to pre-optimistic state before showing error or conflict modal.
+      onOptimisticSeatRollback?.(res.id);
       if (err instanceof ApiError && err.code === 'CONFLICT') {
         const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }> } | null;
         if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
