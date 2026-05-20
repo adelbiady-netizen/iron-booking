@@ -37,7 +37,8 @@ export async function getTableAvailability(
   date: Date,
   timeStr: string,
   durationMinutes: number,
-  bufferMinutes: number
+  bufferMinutes: number,
+  tableIds?: string[]
 ): Promise<TableAvailability[]> {
   const slotStart = parseTimeOnDate(date, timeStr);
   const slotEnd = addMinutes(slotStart, durationMinutes);
@@ -45,10 +46,16 @@ export async function getTableAvailability(
   const effectiveStart = addMinutes(slotStart, -bufferMinutes);
   const effectiveEnd = addMinutes(slotEnd, bufferMinutes);
 
-  // Pull all tables, reservations, and blocks for this date in one pass
+  // Pull tables, reservations, and blocks for this date in one pass.
+  // When tableIds is provided, scope both queries to only the relevant tables
+  // so validation skips the full O(all_tables × all_reservations) scan.
   const [tables, reservations, blocks] = await Promise.all([
     prisma.table.findMany({
-      where: { restaurantId, isActive: true },
+      where: {
+        restaurantId,
+        isActive: true,
+        ...(tableIds ? { id: { in: tableIds } } : {}),
+      },
     }),
     prisma.reservation.findMany({
       where: {
@@ -56,6 +63,12 @@ export async function getTableAvailability(
         date,
         status: { in: [...ACTIVE_STATUSES] as ReservationStatus[] },
         tableId: { not: null },
+        ...(tableIds ? {
+          OR: [
+            { tableId: { in: tableIds } },
+            { combinedTableIds: { hasSome: tableIds } },
+          ],
+        } : {}),
       },
       select: {
         id: true,

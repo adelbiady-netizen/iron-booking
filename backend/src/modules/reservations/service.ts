@@ -1140,7 +1140,8 @@ export async function validateTableAssignment(
     date,
     time,
     duration,
-    bufferMinutes
+    bufferMinutes,
+    [tableId, ...combinedTableIds]
   );
 
   // Check primary table availability
