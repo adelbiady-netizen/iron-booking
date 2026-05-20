@@ -356,6 +356,7 @@ export const T = {
     rowDuration:          'Duration',
     rowTable:             'Table',
     rowSource:            'Source',
+    rowGuests:            'Guests',
     rowOccasion:          'Occasion',
     rowGuestNotes:        'Guest notes',
     rowHostNotes:         'Host notes',

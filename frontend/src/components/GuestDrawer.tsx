@@ -905,32 +905,34 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
 
-              {/* Name — identity dominant */}
-              <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1.5">
-                <h2 className="text-iron-text font-bold text-[26px] tracking-tight leading-tight truncate min-w-0">{res.guestName}</h2>
+              {/* Name + primary status — identity dominant row */}
+              <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1">
+                <h2 className="text-iron-text font-bold text-[28px] tracking-tight leading-none truncate min-w-0">{res.guestName}</h2>
                 {res.guest?.isVip && (
                   <span className="text-amber-400 text-xs font-semibold bg-amber-500/14 px-2 py-0.5 rounded-full border border-amber-500/28 shrink-0">
                     {T.common.vip}
                   </span>
                 )}
+                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_PILL[res.status]}`}>
+                  {STATUS_LABEL[res.status]}
+                </span>
               </div>
 
               {/* Reservation facts — time · party · table */}
-              <div dir="ltr" className="flex items-center gap-2 mb-2.5 flex-wrap">
-                <span className="text-iron-green-light font-bold tabular-nums shrink-0" style={{ fontSize: '22px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
-                <span className="text-iron-border/55 leading-none">·</span>
-                <span className="text-iron-text/90 text-[15px] font-semibold shrink-0">{T.common.guests(res.partySize)}</span>
+              <div dir="ltr" className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-iron-green-light font-bold tabular-nums leading-none shrink-0" style={{ fontSize: '22px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
+                <span className="text-iron-border/40 leading-none">·</span>
+                <span className="text-iron-text/80 text-[14px] font-semibold shrink-0">{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
-                    <span className="text-iron-border/55 leading-none">·</span>
-                    <span className="text-iron-text/90 text-[15px] font-semibold">
+                    <span className="text-iron-border/40 leading-none">·</span>
+                    <span className="text-iron-text/65 text-[13px] font-medium">
                       {res.combinedTableIds.length
                         ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
                         : res.table.name}
                     </span>
                   </>
                 )}
-                <span className="text-iron-muted/60 text-[12px] font-medium">{formatReservationSource(res.source, locale)}</span>
               </div>
 
               {/* Phone — primary contact block */}
@@ -969,32 +971,50 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 )}
               </div>
 
-              {/* Status + badges */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[res.status]}`}>
-                  {STATUS_LABEL[res.status]}
-                </span>
-                {res.returnedToListAt && (
-                  <span className="text-xs px-2 py-0.5 rounded-full border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
-                    {T.guestDrawer.returnedToList}
-                  </span>
-                )}
-                {res.reorganizeAt && (
-                  <span className="text-xs px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
-                    {T.guestDrawer.reorganizeBadge}
-                  </span>
-                )}
-                {res.isRunningLate && res.status !== 'SEATED' && (
-                  <span className="text-xs px-2 py-0.5 rounded-full border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
-                    {T.guestDrawer.runningLate}
-                  </span>
-                )}
-                {res.isConfirmedByGuest && (
-                  <span className="text-[11px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">
-                    {T.guestDrawer.guestConfirmed}
-                  </span>
-                )}
-              </div>
+              {/* Arrival urgency — compact header indicator for immediate visibility */}
+              {isLiveView && nowTime && (() => {
+                const aState = arrivalState(res.time, res.status, nowTime);
+                if (!aState) return null;
+                const minsLate = Math.abs(minutesUntilRes(res.time, nowTime));
+                const cfg = {
+                  ARRIVING_SOON: { cls: 'bg-amber-500/12 border-amber-500/22 text-amber-400', label: T.arrival.arrivingSoon },
+                  DUE_NOW:       { cls: 'bg-amber-500/20 border-amber-400/38 text-amber-300', label: T.arrival.dueNow },
+                  LATE:          { cls: 'bg-orange-900/16 border-orange-500/30 text-orange-400', label: T.arrival.lateMin(minsLate) },
+                  NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-red-500/30 text-red-400',         label: T.arrival.noShowRisk },
+                }[aState];
+                return (
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border mb-2 ${cfg.cls}`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-80" />
+                    <span className="text-[11px] font-semibold leading-none">{cfg.label}</span>
+                  </div>
+                );
+              })()}
+
+              {/* Contextual state badges — secondary operational flags */}
+              {(res.returnedToListAt || res.reorganizeAt || (res.isRunningLate && res.status !== 'SEATED') || res.isConfirmedByGuest) && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {res.returnedToListAt && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
+                      {T.guestDrawer.returnedToList}
+                    </span>
+                  )}
+                  {res.reorganizeAt && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
+                      {T.guestDrawer.reorganizeBadge}
+                    </span>
+                  )}
+                  {res.isRunningLate && res.status !== 'SEATED' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
+                      {T.guestDrawer.runningLate}
+                    </span>
+                  )}
+                  {res.isConfirmedByGuest && (
+                    <span className="text-[11px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">
+                      {T.guestDrawer.guestConfirmed}
+                    </span>
+                  )}
+                </div>
+              )}
 
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -1169,37 +1189,58 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
-          {/* Reservation details — visual timing grid */}
-          <section className="space-y-2">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-                <p className="text-iron-green-light font-bold text-xl tabular-nums leading-none">{normalizeTime(res.time)}</p>
-                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowTime}</p>
-              </div>
-              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-                <p className="text-iron-text font-bold text-sm tabular-nums leading-none">{res.date.slice(0, 10)}</p>
-                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowDate}</p>
-              </div>
-              <div className="flex flex-col items-center px-2 py-3 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-                <p className="text-iron-text font-bold text-xl tabular-nums leading-none">{res.duration}<span className="text-sm font-medium text-iron-muted">m</span></p>
-                <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider mt-1.5">{T.guestDrawer.rowDuration}</p>
-              </div>
-            </div>
+          {/* Reservation details — embedded operational surface */}
+          <section className="rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.05)' }}>
+            <div className="divide-y divide-white/[0.04]">
 
-            {res.status === 'SEATED' && res.seatedAt && (
-              <Ts label={T.guestDrawer.rowSeatedAt} ts={res.seatedAt} />
-            )}
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowTime}</span>
+                <span className="text-iron-green-light text-[15px] font-bold tabular-nums leading-none">{normalizeTime(res.time)}</span>
+              </div>
 
-            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-iron-bg border border-iron-border/60" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65">{T.guestDrawer.rowTable}</span>
-              <span className="text-iron-text text-sm font-semibold">
-                {(() => {
-                  if (!res.table) return res.tableId ? '…' : T.guestDrawer.tableUnassigned;
-                  if (!res.combinedTableIds.length) return res.table.name;
-                  const secondaryNames = res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id);
-                  return [res.table.name, ...secondaryNames].join(' + ');
-                })()}
-              </span>
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowGuests}</span>
+                <span className="text-iron-text text-[13px] font-semibold">{T.common.guests(res.partySize)}</span>
+              </div>
+
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowDuration}</span>
+                <span className="text-iron-text text-[13px] font-semibold tabular-nums">{T.guestDrawer.durationValue(res.duration)}</span>
+              </div>
+
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowTable}</span>
+                <span className="text-iron-text text-[13px] font-semibold text-right leading-snug">
+                  {(() => {
+                    if (!res.table) return <span className="text-iron-muted/55 font-medium">{res.tableId ? '…' : T.guestDrawer.tableUnassigned}</span>;
+                    const tableStr = res.combinedTableIds.length
+                      ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
+                      : res.table.name;
+                    const zone = res.table.section?.name;
+                    return <>{tableStr}{zone && <span className="text-iron-muted/50 font-medium text-[11px] ms-1">· {zone}</span>}</>;
+                  })()}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between px-3.5 py-2.5">
+                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowDate}</span>
+                <span className="text-iron-text/70 text-[13px] font-medium tabular-nums">{res.date.slice(0, 10)}</span>
+              </div>
+
+              {res.source && (
+                <div className="flex items-center justify-between px-3.5 py-2.5">
+                  <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowSource}</span>
+                  <span className="text-iron-muted/75 text-[12px] font-medium">{formatReservationSource(res.source, locale)}</span>
+                </div>
+              )}
+
+              {res.status === 'SEATED' && res.seatedAt && (
+                <div className="flex items-center justify-between px-3.5 py-2.5">
+                  <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowSeatedAt}</span>
+                  <span className="text-iron-text text-[13px] font-semibold tabular-nums">{fmtHostTime(res.seatedAt)}</span>
+                </div>
+              )}
+
             </div>
           </section>
 

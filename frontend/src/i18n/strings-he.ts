@@ -352,6 +352,7 @@ export const THe = {
     rowDuration:          'משך',
     rowTable:             'שולחן',
     rowSource:            'מקור',
+    rowGuests:            'אורחים',
     rowOccasion:          'אירוע',
     rowGuestNotes:        'הערות אורח',
     rowHostNotes:         'הערות פנימיות',
