@@ -560,6 +560,31 @@ export const THe = {
     close:            'סגור',
   },
 
+  // ── SmartAssign ────────────────────────────────────────────────────────────
+  smartAssign: {
+    trigger:          (n: number) => `שיבוץ חכם · ${n}`,
+    modalTitle:       'שיבוץ חכם',
+    modalSubtitle:    (n: number) => `${n} הזמנות ללא שולחן`,
+    previewLoading:   'בודק זמינות…',
+    readyLabel:       'הצעת שיבוץ',
+    noTableLabel:     'לא נמצא שולחן מתאים',
+    tightWarning:     'פער צפוף',
+    displacedBadge:   'הוסר משולחן',
+    applyBtn:         'אשר שיבוץ',
+    cancelBtn:        'ביטול',
+    executingLabel:   'משבץ…',
+    resultTitle:      'השיבוץ הושלם',
+    resultAssigned:   (n: number) => `${n} שובצו`,
+    resultFailed:     (n: number) => `${n} לא ניתן היה לשבץ`,
+    resultNone:       'אין מה לשבץ',
+    undoBtn:          'בטל שיבוץ',
+    undoInProgress:   'מבטל…',
+    undoCleared:      (n: number) => `${n} בוטלו`,
+    undoSkipped:      (n: number) => `${n} דולגו (שונו ידנית)`,
+    manuallyChanged:  'שונה ידנית — דולג',
+    doneBtn:          'סגור',
+  },
+
   // ── CallDrawer ─────────────────────────────────────────────────────────────
   callDrawer: {
     title:           'שיחה נכנסת',

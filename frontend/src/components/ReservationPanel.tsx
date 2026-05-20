@@ -67,6 +67,7 @@ interface Props {
   onChooseTable?: (r: Reservation) => void;
   isLiveView?: boolean;
   onHoverRow?: (id: string | null) => void;
+  onSmartAssign?: () => void;
 }
 
 export default function ReservationPanel({
@@ -75,7 +76,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onChooseTable, isLiveView, onHoverRow,
+  onChooseTable, isLiveView, onHoverRow, onSmartAssign,
 }: Props) {
   const T = useT();
   const { dir } = useLocale();
@@ -108,6 +109,11 @@ export default function ReservationPanel({
   const noTableCount = reservations
     .filter(r => matchesSearch(r.guestName, r.guestPhone, search, r.occasion))
     .filter(r => ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table)
+    .length;
+
+  // Unassigned count for Smart Assign trigger — includes displaced reservations
+  const unassignedCount = reservations
+    .filter(r => ['PENDING', 'CONFIRMED'].includes(r.status) && r.tableId === null)
     .length;
 
   const FILTERS: { label: string; value: FilterValue; count?: number }[] = [
@@ -201,26 +207,37 @@ export default function ReservationPanel({
             style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}
           />
           {tab === 'reservations' && (
-            <div className="flex gap-0.5 flex-wrap">
-              {FILTERS.map(f => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value)}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
-                    filter === f.value
-                      ? 'text-iron-text font-semibold bg-iron-elevated border border-iron-border/40'
-                      : 'text-iron-muted/70 font-medium hover:text-iron-text hover:bg-iron-bg/50'
-                  }`}
-                >
-                  {f.label}
-                  {f.count !== undefined && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-amber-500/20 text-amber-400">
-                      {f.count}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="flex items-center gap-0.5 flex-wrap">
+                {FILTERS.map(f => (
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
+                      filter === f.value
+                        ? 'text-iron-text font-semibold bg-iron-elevated border border-iron-border/40'
+                        : 'text-iron-muted/70 font-medium hover:text-iron-text hover:bg-iron-bg/50'
+                    }`}
+                  >
+                    {f.label}
+                    {f.count !== undefined && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-amber-500/20 text-amber-400">
+                        {f.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {/* Smart Assign trigger — only when there are unassigned reservations and it's today */}
+                {onSmartAssign && unassignedCount > 0 && !isFutureDate && (
+                  <button
+                    onClick={onSmartAssign}
+                    className="ms-auto text-[11px] font-medium px-2.5 py-1 rounded-lg border border-iron-border/35 text-iron-muted/60 hover:text-iron-text hover:border-iron-green/45 transition-colors touch-manipulation"
+                  >
+                    {T.smartAssign.trigger(unassignedCount)}
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

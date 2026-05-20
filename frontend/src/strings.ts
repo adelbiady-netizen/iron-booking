@@ -575,6 +575,31 @@ export const T = {
     close:            'Close',
   },
 
+  // ── SmartAssign ────────────────────────────────────────────────────────────
+  smartAssign: {
+    trigger:          (n: number) => `Smart Assign · ${n}`,
+    modalTitle:       'Smart Assignment',
+    modalSubtitle:    (n: number) => `${n} unassigned reservation${n === 1 ? '' : 's'}`,
+    previewLoading:   'Analyzing availability…',
+    readyLabel:       'Suggested',
+    noTableLabel:     'No suitable table found',
+    tightWarning:     'Tight gap',
+    displacedBadge:   'Displaced',
+    applyBtn:         'Apply Assignment',
+    cancelBtn:        'Cancel',
+    executingLabel:   'Assigning…',
+    resultTitle:      'Assignment Complete',
+    resultAssigned:   (n: number) => `${n} assigned`,
+    resultFailed:     (n: number) => `${n} could not be assigned`,
+    resultNone:       'Nothing to assign',
+    undoBtn:          'Undo Assignment',
+    undoInProgress:   'Undoing…',
+    undoCleared:      (n: number) => `${n} cleared`,
+    undoSkipped:      (n: number) => `${n} skipped (manually changed)`,
+    manuallyChanged:  'Manually changed — skipped',
+    doneBtn:          'Done',
+  },
+
   // ── CallDrawer ─────────────────────────────────────────────────────────────
   callDrawer: {
     title:           'Incoming Call',

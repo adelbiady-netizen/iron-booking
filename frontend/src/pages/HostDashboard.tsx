@@ -26,6 +26,7 @@ import ServiceReportPanel from '../components/ServiceReportPanel';
 import BulkConfirmModal from '../components/BulkConfirmModal';
 import TableQuickPanel from '../components/TableQuickPanel';
 import CallLogPanel from '../components/CallLogPanel';
+import SmartAssignModal from '../components/SmartAssignModal';
 
 type CreateMode = 'reservation' | 'walkin';
 
@@ -186,6 +187,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [showServiceReport,   setShowServiceReport]   = useState(false);
   const [showBulkConfirm,    setShowBulkConfirm]    = useState(false);
   const [showCallLog,        setShowCallLog]        = useState(false);
+  const [showSmartAssign,    setShowSmartAssign]    = useState(false);
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
   const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
   const [panelCollapsed,     setPanelCollapsed]     = useState(false);
@@ -1705,6 +1707,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onChooseTable={handleChooseTable}
               isLiveView={isLiveView}
               onHoverRow={setHoveredResId}
+              onSmartAssign={() => setShowSmartAssign(true)}
             />
           )}
         </div>
@@ -1875,6 +1878,19 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           reservations={reservations}
           onClose={() => setShowBulkConfirm(false)}
           onSuccess={showToast}
+        />
+      )}
+
+      {showSmartAssign && (
+        <SmartAssignModal
+          reservations={reservations}
+          tables={allTables}
+          date={date}
+          onClose={() => setShowSmartAssign(false)}
+          onUpdated={(updated) => {
+            setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+          }}
+          onApply={() => {}}
         />
       )}
 
