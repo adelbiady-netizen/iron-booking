@@ -780,12 +780,7 @@ export default function FloorBoard({
       }
       return;
     }
-    // Reorganize mode: any table click is forwarded to the manager's lift flow
-    if (reorganizeMode) {
-      onReorganizeTableClick?.(t);
-      return;
-    }
-    // Pick mode: toggle or warn
+    // Pick mode takes priority: a specific in-progress pick overrides reorganize mode.
     if (pickMode) {
       const ps = getPickStatus(t);
       if (ps === 'current') {
@@ -802,6 +797,11 @@ export default function FloorBoard({
       setPickSelection(prev =>
         prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
       );
+      return;
+    }
+    // Reorganize mode: any table click is forwarded to the manager's lift flow
+    if (reorganizeMode) {
+      onReorganizeTableClick?.(t);
       return;
     }
     // Combine mode: toggle available tables

@@ -435,8 +435,34 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     return () => { clearInterval(retryId); clearTimeout(escalateId); };
   }, [loadError]);
 
+  // When an unassigned PENDING/CONFIRMED reservation is active in GuestDrawer,
+  // any floor-table click should assign that reservation to the clicked table
+  // rather than opening the table's own panel or triggering the reorganize lift flow.
+  const handleAssignActiveRes = useCallback(async (table: FloorTable) => {
+    if (!selectedRes) return;
+    const res = selectedRes;
+    try {
+      const updated = await api.reservations.update(res.id, { tableId: table.id, combinedTableIds: [] });
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      setSelectedRes(updated);
+      showToast(T.guestDrawer.toastTableAssigned(table.name));
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    }
+  }, [selectedRes, showToast]);
+
+  const isActiveUnassigned = useCallback((r: Reservation | null): r is Reservation => {
+    return !!r && !r.tableId && ['PENDING', 'CONFIRMED'].includes(r.status);
+  }, []);
+
   const handleSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
+    // If an unassigned reservation is active in GuestDrawer, clicking any reserved
+    // table assigns the active reservation there instead of switching focus.
+    if (isActiveUnassigned(selectedRes) && enriched.tableId) {
+      const clickedTable = floorTables.find(t => t.id === enriched.tableId);
+      if (clickedTable) { handleAssignActiveRes(clickedTable); return; }
+    }
     const floorTable = floorTables.find(t => t.id === enriched.tableId) ?? null;
     if (floorTable) {
       setSelectedRes(null);
@@ -444,7 +470,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     } else {
       setSelectedRes(enriched);
     }
-  }, [reservations, floorTables]);
+  }, [reservations, floorTables, selectedRes, isActiveUnassigned, handleAssignActiveRes]);
 
   const handlePanelSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
@@ -569,9 +595,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handleInsightAction, reservations, floorTables]);
 
   const handleAvailableClick = useCallback((table: FloorTable) => {
+    if (isActiveUnassigned(selectedRes)) { handleAssignActiveRes(table); return; }
     setSelectedRes(null);
     setQuickTable({ tableId: table.id, reservationId: null });
-  }, []);
+  }, [selectedRes, isActiveUnassigned, handleAssignActiveRes]);
 
   const handleCombineToggle = useCallback((tableId: string) => {
     setCombinedSelection(prev =>
@@ -589,12 +616,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [combinedSelection]);
 
   const handleReorganizeTableClick = useCallback((table: FloorTable) => {
+    // If an unassigned reservation is active in GuestDrawer, assign it to the
+    // clicked table instead of triggering the floor-lift flow.
+    if (isActiveUnassigned(selectedRes)) { handleAssignActiveRes(table); return; }
     const tableResv = reservations.filter(
       r => r.tableId === table.id && ['CONFIRMED', 'PENDING'].includes(r.status) && !r.reorganizeAt
     );
     setRebuildDayTarget({ table, resv: tableResv });
     setRebuildDayReason('');
-  }, [reservations]);
+  }, [selectedRes, isActiveUnassigned, handleAssignActiveRes, reservations]);
 
   const handleLockTable = useCallback((table: FloorTable) => {
     setLockTarget(table);
@@ -1702,7 +1732,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onContextMenuSeat={handleContextMenuSeat}
               date={date}
               reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
-              onReorganizeSelect={r => setSelectedRes(r)}
+              onReorganizeSelect={r => { setReorganizeMode(false); setRebuildDayTarget(null); setSelectedRes(r); }}
               allTables={allTables}
               onChooseTable={handleChooseTable}
               isLiveView={isLiveView}
