@@ -87,7 +87,7 @@ export const NO_SHOW_AFTER_MINUTES = 30;
 //  > 90m  | AVAILABLE  (list only — far future)
 // 15–90m  | RESERVED   (blue — near-term committed)
 //  0–15m  | RESERVED_SOON (amber — arriving soon)
-// past    | RESERVED_SOON until NO_SHOW_AFTER_MINUTES, then AVAILABLE
+// past    | RESERVED_SOON / RESERVED until reservation.start + reservation.duration
 export const MAP_VISIBILITY_MINUTES = 90;
 
 // ─── reservationIsUpcoming ────────────────────────────────────────────────────
@@ -98,9 +98,14 @@ export const MAP_VISIBILITY_MINUTES = 90;
 //   (a) the reservation starts within durationMinutes + bufferMinutes in the future
 //       (forward cap must match the validator: reservationConflicts fires when
 //        slotEnd + buffer > resStart, i.e. resStart - slotStart < duration + buffer),
-//   (b) it hasn't expired as a no-show (started < NO_SHOW_AFTER_MINUTES ago), AND
-//   (c) the turn overlaps the buffered slot: resEnd > slotTime − bufferMinutes
-//       (backward boundary mirrors reservationConflicts exactly).
+//   (b) the turn still overlaps the buffered slot: resEnd > slotTime − bufferMinutes
+//       (backward boundary mirrors reservationConflicts exactly — uses the
+//        reservation's own duration, not defaultTurnMinutes or NO_SHOW_AFTER_MINUTES).
+//
+// No-show detection (the old condition (b) / NO_SHOW_AFTER_MINUTES guard) was
+// removed. The floor must stay RESERVED until the reservation's actual end time
+// regardless of whether the guest has arrived; the "needs action" sidebar section
+// handles late/no-show prompts independently.
 //
 // durationMinutes MUST be the restaurant's default turn duration (not the
 // hard-coded MAP_VISIBILITY_MINUTES constant) so the board and validator agree
@@ -118,7 +123,6 @@ export function reservationIsUpcoming(
   const resStart     = parseTimeOnDate(date, res.time);
   const resEnd       = addMinutes(resStart, res.duration);
   const minutesUntil = (resStart.getTime() - slotTime.getTime()) / 60_000;
-  return minutesUntil >= -NO_SHOW_AFTER_MINUTES
-    && minutesUntil <= durationMinutes + bufferMinutes
+  return minutesUntil <= durationMinutes + bufferMinutes
     && resEnd > addMinutes(slotTime, -bufferMinutes);
 }

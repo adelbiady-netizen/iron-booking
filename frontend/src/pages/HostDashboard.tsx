@@ -355,16 +355,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // arrival alerts rather than flooding the panel with false LATE/NO_SHOW badges.
   const isLiveView = liveMode && isLiveServiceView(date, time);
 
-  // Floor-release filter: reservations 50+ minutes past their booking time no longer
-  // block the table. Strip them from upcomingReservations so the table shows AVAILABLE
-  // on the floor map. The sidebar "needs action" section handles these separately.
+  // Floor-release filter: once a reservation's actual end time has passed
+  // (start + duration) the table is released on the live floor map. Uses the
+  // reservation's own duration rather than the fixed FLOOR_RELEASE_MINUTES
+  // constant so 120-minute turns stay RESERVED until their real end time.
+  // The sidebar "needs action" section handles late/no-show prompts separately.
   // Only active in live view — never in browse/planning mode.
   const displayFloorTables = useMemo(() => {
     if (!isLiveView) return floorTables;
     return floorTables.map(t => {
       if (t.liveStatus !== 'RESERVED_SOON' && t.liveStatus !== 'RESERVED') return t;
       const active = t.upcomingReservations.filter(
-        r => minutesUntilRes(r.time, time) > -FLOOR_RELEASE_MINUTES,
+        r => minutesUntilRes(r.time, time) > -(r.duration ?? FLOOR_RELEASE_MINUTES),
       );
       if (active.length === t.upcomingReservations.length) return t;
       if (active.length === 0) {
