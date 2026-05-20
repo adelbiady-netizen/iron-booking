@@ -163,15 +163,17 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     }
 
     // Find all non-SEATED reservations that should mark this table non-AVAILABLE.
-    // Forward cap = defaultDuration + bufferMinutes so the board agrees exactly
-    // with reservationConflicts() (validator fires when slotEnd+buffer > resStart,
-    // i.e. minutesUntil < duration+buffer).  Previously used MAP_VISIBILITY_MINUTES
-    // (90) which diverged when defaultTurnMinutes ≠ 90.
+    // Use a full 24-hour planning horizon instead of defaultDuration so that ALL
+    // of today's future reservations are consistently visible at any board time.
+    // The old defaultDuration cap (e.g. 240 min) created a hard horizon: a 19:30
+    // reservation silently disappeared at board time 15:00 while a 19:00 one
+    // still showed — purely because it fell 15 minutes past the cutoff. Reservations
+    // are already date-scoped by the caller, so 1440 min covers any service day.
     const upcoming = reservations
       .filter((r) => {
         if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
         if (r.status === 'SEATED') return false;
-        return reservationIsUpcoming(r, date, slotTime, bufferMinutes, defaultDuration);
+        return reservationIsUpcoming(r, date, slotTime, bufferMinutes, 24 * 60);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
