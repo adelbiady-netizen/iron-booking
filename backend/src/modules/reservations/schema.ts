@@ -40,6 +40,8 @@ export const UpdateReservationSchema = z.object({
   tableId: z.string().uuid().nullable().optional(),
   combinedTableIds: z.array(z.string().uuid()).optional(),
   tags: z.array(z.string()).optional(),
+  overrideConflicts: z.boolean().default(false),
+  reorganizeIds: z.array(z.string().uuid()).default([]),
 });
 
 export const AssignTableSchema = z.object({

@@ -229,6 +229,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const reorganizeKeyRef = useRef(0);
+  const editReorganizeKeyRef = useRef(0);
   const inflightRef = useRef(false);
   const actionsRef = useRef<HTMLElement>(null);
   const prevIsArrivedRef = useRef(res.isArrived);
@@ -236,6 +237,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
     pendingTableId: string;
     pendingCombinedIds: string[];
+    pendingToast: string;
+    _key: number;
+  } | null>(null);
+  const [editConflictModal, setEditConflictModal] = useState<{
+    conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
+    pendingPayload: Parameters<typeof api.reservations.update>[1];
     pendingToast: string;
     _key: number;
   } | null>(null);
@@ -428,24 +435,46 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     const tableChanged = editTableId !== res.tableId ||
       JSON.stringify([...editCombinedTableIds].sort()) !== JSON.stringify([...(res.combinedTableIds ?? [])].sort());
 
-    await run(
-      () => api.reservations.update(res.id, {
-        guestName:  editName.trim(),
-        guestPhone: editPhone.trim() || undefined,
-        partySize,
-        ...(isSeated ? {} : {
-          date:     editDate !== res.date.slice(0, 10) ? editDate : undefined,
-          time:     editTime !== res.time ? editTime : undefined,
-          ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
-        }),
-        duration:   editDuration,
-        // Only include when changed; empty string clears an existing value
-        ...(editOccasion.trim() !== (res.occasion ?? '')        ? { occasion:   editOccasion.trim() }  : {}),
-        ...(editNotes.trim() !== (res.guestNotes ?? '')         ? { guestNotes: editNotes.trim() }     : {}),
-        ...(editHostNotes.trim() !== (res.hostNotes ?? '')      ? { hostNotes:  editHostNotes.trim() } : {}),
+    const payload = {
+      guestName:  editName.trim(),
+      guestPhone: editPhone.trim() || undefined,
+      partySize,
+      ...(isSeated ? {} : {
+        date:     editDate !== res.date.slice(0, 10) ? editDate : undefined,
+        time:     editTime !== res.time ? editTime : undefined,
+        ...(tableChanged ? { tableId: editTableId, combinedTableIds: editCombinedTableIds } : {}),
       }),
-      T.guestDrawer.toastUpdated
-    );
+      duration:   editDuration,
+      // Only include when changed; empty string clears an existing value
+      ...(editOccasion.trim() !== (res.occasion ?? '')        ? { occasion:   editOccasion.trim() }  : {}),
+      ...(editNotes.trim() !== (res.guestNotes ?? '')         ? { guestNotes: editNotes.trim() }     : {}),
+      ...(editHostNotes.trim() !== (res.hostNotes ?? '')      ? { hostNotes:  editHostNotes.trim() } : {}),
+    };
+
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+    setError(null);
+    setBusy(true);
+    try {
+      const updated = await api.reservations.update(res.id, payload);
+      setRes(updated);
+      onUpdated(updated);
+      setMode('view');
+      setUnseatConfirm(false);
+      onSuccess?.(T.guestDrawer.toastUpdated);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'CONFLICT') {
+        const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }> } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+          setEditConflictModal({ conflicts: det.conflicts, pendingPayload: payload, pendingToast: T.guestDrawer.toastUpdated, _key: ++editReorganizeKeyRef.current });
+          return;
+        }
+      }
+      setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+    } finally {
+      setBusy(false);
+      inflightRef.current = false;
+    }
   }
 
   async function run(fn: () => Promise<Reservation>, successMsg?: string) {
@@ -873,7 +902,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         />
       )}
 
-      {/* Reorganize confirmation modal */}
+      {/* Reorganize confirmation modal — seat flow */}
       {reorganizeModal && (
         <ReorganizeConflictModal
           key={reorganizeModal._key}
@@ -893,6 +922,40 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
             } finally {
               setBusy(false);
+            }
+          }}
+        />
+      )}
+
+      {/* Reorganize confirmation modal — edit flow */}
+      {editConflictModal && (
+        <ReorganizeConflictModal
+          key={editConflictModal._key}
+          conflicts={editConflictModal.conflicts}
+          busy={busy}
+          onCancel={() => setEditConflictModal(null)}
+          onConfirm={async (selectedIds) => {
+            const { pendingPayload, pendingToast } = editConflictModal;
+            setEditConflictModal(null);
+            setError(null);
+            setBusy(true);
+            inflightRef.current = true;
+            try {
+              const updated = await api.reservations.update(res.id, {
+                ...pendingPayload,
+                overrideConflicts: true,
+                reorganizeIds: selectedIds,
+              });
+              setRes(updated);
+              onUpdated(updated);
+              setMode('view');
+              setUnseatConfirm(false);
+              onSuccess?.(pendingToast);
+            } catch (err: unknown) {
+              setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+            } finally {
+              setBusy(false);
+              inflightRef.current = false;
             }
           }}
         />

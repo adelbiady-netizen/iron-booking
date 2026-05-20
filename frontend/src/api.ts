@@ -271,6 +271,8 @@ export const api = {
       duration: number;
       tableId: string | null;
       combinedTableIds: string[];
+      overrideConflicts: boolean;
+      reorganizeIds: string[];
     }>) =>
       request<Reservation>(`/reservations/${id}`, {
         method: 'PATCH',
