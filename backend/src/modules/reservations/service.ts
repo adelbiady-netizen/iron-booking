@@ -488,20 +488,49 @@ export async function seatReservation(
 
   if (!overrideConflicts) {
     // Use nowTimeStr (current restaurant-local time) instead of r.time so the
-    // conflict check matches what the floor board already shows. The floor board
-    // shows AVAILABLE when no reservation exists within the next 90 minutes;
-    // seating should never block on reservations the board doesn't surface.
-    await validateTableAssignment(
-      restaurantId,
-      tableId,
-      r.date,
-      nowTimeStr,
-      r.duration,
-      settings.bufferBetweenTurnsMinutes,
-      r.partySize,
-      id,
-      resolvedCombinedIds
-    );
+    // conflict check matches what the floor board already shows.
+    // When validateTableAssignment detects a conflict it means the incoming
+    // reservation's duration would physically overlap a future booking on this
+    // table (e.g. r.duration > defaultTurnMinutes). Surface this as an
+    // overrideable TABLE_HAS_FUTURE_RESERVATIONS rather than a hard block so
+    // the host gets the ReorganizeConflictModal and can choose to proceed.
+    try {
+      await validateTableAssignment(
+        restaurantId,
+        tableId,
+        r.date,
+        nowTimeStr,
+        r.duration,
+        settings.bufferBetweenTurnsMinutes,
+        r.partySize,
+        id,
+        resolvedCombinedIds
+      );
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
+        if (det?.conflictingReservationId) {
+          const conflictRes = await prisma.reservation.findUnique({
+            where: { id: det.conflictingReservationId },
+            select: { id: true, guestName: true, time: true, partySize: true },
+          });
+          if (conflictRes) {
+            const [fH, fM] = conflictRes.time.split(':').map(Number);
+            throw new ConflictError('This table has upcoming reservations', {
+              code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+              conflicts: [{
+                id:          conflictRes.id,
+                guestName:   conflictRes.guestName,
+                time:        conflictRes.time,
+                partySize:   conflictRes.partySize,
+                minutesUntil: (fH * 60 + fM) - nowMins,
+              }],
+            });
+          }
+        }
+      }
+      throw err;
+    }
   }
 
   // Hard safety guard — never allow double-seating regardless of overrideConflicts.
