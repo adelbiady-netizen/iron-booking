@@ -521,8 +521,20 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setQuickTable(null);
     setSelectedRes(updated);
-    // No explicit refresh — backend emits floor_updated via SSE after every mutation,
-    // which triggers the single background refresh via setRefreshKey in the SSE handler.
+    // When the API confirms a seat, immediately reflect OCCUPIED on the floor board so
+    // the visual update is not gated on the subsequent SSE-triggered refresh (~500ms later).
+    // SSE still fires and reconciles authoritative state — this is post-API, not speculative.
+    if (updated.status === 'SEATED' && updated.tableId) {
+      setFloorTables(prev => prev.map(t => {
+        if (t.id !== updated.tableId) return t;
+        return {
+          ...t,
+          liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
+          currentReservation: { ...updated } as FloorTable['currentReservation'],
+          upcomingReservations: t.upcomingReservations.filter(r => r.id !== updated.id),
+        };
+      }));
+    }
   }, []);
 
   // Updates reservations in-place. No explicit refreshKey — SSE floor_updated fires for
