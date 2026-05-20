@@ -75,6 +75,50 @@ export default function App() {
     localStorage.setItem('iron_theme', theme);
   }, [theme]);
 
+  // Proactive JWT refresh — runs every 5 minutes while logged in.
+  // Refreshes when within 60 minutes of expiry so the SSE connection never
+  // gets a 401 mid-shift due to the 8h (or configured) token lifetime.
+  useEffect(() => {
+    if (!auth) return;
+
+    function decodeExp(token: string): number | null {
+      try {
+        const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(b64));
+        return typeof payload.exp === 'number' ? payload.exp : null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function tryRefresh() {
+      if (!auth) return;
+      const exp = decodeExp(auth.token);
+      if (exp === null) return;
+      const secsLeft = exp - Math.floor(Date.now() / 1000);
+      if (secsLeft > 3600) return;
+      console.log('[auth] token refresh scheduled — expires in', secsLeft, 's');
+      try {
+        const { token } = await api.auth.refresh();
+        const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
+        if (isHQ) {
+          storeHQAuth(token, auth.user);
+        } else {
+          storeAuth(token, auth.user);
+        }
+        setSessionToken(token);
+        setAuth(prev => prev ? { ...prev, token } : null);
+        console.log('[auth] token refreshed successfully');
+      } catch (err) {
+        console.warn('[auth] token refresh failed', err);
+      }
+    }
+
+    tryRefresh();
+    const id = setInterval(tryRefresh, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [auth?.token]);
+
   function handleZoom(next: number) {
     setZoom(clampZoom(next));
   }

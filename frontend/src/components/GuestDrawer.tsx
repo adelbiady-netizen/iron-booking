@@ -867,7 +867,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       {/* Backdrop — hidden during map pick so the floor is accessible */}
       {!(pickingOnMap || pickingForAction) && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 animate-backdrop-in"
+          className="fixed inset-0 z-40 animate-backdrop-in"
+          style={{ background: 'linear-gradient(96deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.44) 100%)' }}
           onClick={onClose}
         />
       )}
@@ -898,10 +899,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-96 bg-iron-elevated border-l border-iron-border/65 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.14), -24px 0 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.07)' }}>
+      <aside className={`fixed right-0 top-0 h-full w-[26rem] bg-iron-elevated border-l border-iron-border/55 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.04), -4px 0 0 rgba(0,0,0,0.22), -24px 0 56px rgba(0,0,0,0.68), -64px 0 96px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08), inset 2px 0 0 rgba(111,138,60,0.12)' }}>
 
         {/* Header */}
-        <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.11) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 8px 30px rgba(0,0,0,0.44)' }}>
+        <div className="px-5 pt-5 pb-4 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.15) 0%, rgba(0,0,0,0.04) 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 16px 48px rgba(0,0,0,0.52)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
 
@@ -1038,7 +1039,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.06) 0%, transparent 40px)' }}>
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.10) 0%, transparent 60px)' }}>
 
           {/* Arrival state banner — contextual quick action surfaces the most urgent next step */}
           {(() => {

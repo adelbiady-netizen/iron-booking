@@ -2832,6 +2832,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           opacity = 1;
           break;
       }
+      // Future-turn softening: this table is selectable (no real conflict with the selected slot)
+      // but carries a RESERVED/RESERVED_SOON status for a later turn. Reduce the reserved
+      // background so the pick-ring border is the dominant availability signal and the reserved
+      // tint becomes secondary context ("there's a later guest, but you can still seat here").
+      if ((pickStatus === 'recommended' || pickStatus === 'possible' || pickStatus === 'tight') &&
+          (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')) {
+        bg = isDark ? 'rgba(203,220,248,0.44)' : 'rgba(219,234,254,0.42)';
+      }
     }
   }
 
@@ -3156,12 +3164,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = displayStatus === 'RESERVED_SOON';
-        const guestColor = isSoon ? '#92400e'
+        // In pick mode: if this table is selectable (recommended/possible/tight), its reservation
+        // is a later turn that does not conflict with the selected slot. Recede the label visually
+        // so the pick-ring border is the dominant signal and the guest info is secondary context.
+        const isFutureTurnOnly = pickMode && !!pickStatus && pickStatus !== 'unavailable' && pickStatus !== 'current';
+        const guestColor = isFutureTurnOnly
+          ? isDark ? 'rgba(96,165,250,0.52)' : 'rgba(30,64,175,0.45)'
+          : isSoon ? '#92400e'
           : isDark ? '#1d4ed8' : '#1e40af';
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
             {/* Name zone — always centered; stable anchor regardless of badge presence */}
-            <p style={{ fontSize: 14, color: guestColor, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
+            <p style={{ fontSize: isFutureTurnOnly ? 12 : 14, color: guestColor, fontWeight: isFutureTurnOnly ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
             </p>
             {/* Metadata zone — time + partySize; chip always visible even on narrow cards */}
@@ -3172,17 +3186,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
                   <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: 0.92, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
-                  <span style={{ fontSize: 11, color: isSoon ? '#92400e' : '#3f3f46', fontWeight: isSoon ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11, color: isSoon && !isFutureTurnOnly ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isFutureTurnOnly ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     · {normalizeTime(nextRes.time)}
                   </span>
-                  {isToday && isSoon && nextRes.minutesUntil > 0 && (
+                  {isToday && isSoon && !isFutureTurnOnly && nextRes.minutesUntil > 0 && (
                     <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       · {T.floorBoard.inNMin(nextRes.minutesUntil)}
                     </span>
                   )}
                 </span>
-                {/* Chip — always rendered at end; flex:1 on text group keeps it pushed to edge */}
-                {(isSoon || isCombined) && (
+                {/* Chips suppressed in future-turn-only context — operational urgency is irrelevant
+                    when assigning a slot that clears before this reservation starts. */}
+                {(isSoon || isCombined) && !isFutureTurnOnly && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
                       <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>

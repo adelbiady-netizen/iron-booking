@@ -180,6 +180,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({}),
       }),
+    refresh: () =>
+      request<{ token: string }>('/auth/refresh', { method: 'POST' }),
   },
 
   tables: {

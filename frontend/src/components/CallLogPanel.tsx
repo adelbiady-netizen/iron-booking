@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { normalizePhone } from '../utils/phone';
@@ -47,15 +47,22 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
   const [error, setError]     = useState(false);
   const [scope, setScope]     = useState<Scope>('today');
 
-  // Computed once at mount — stable reference for the UTC date of today.
-  const todayUtc = useRef(new Date().toISOString().slice(0, 10)).current;
-
   const load = useCallback(async (off: number, filterDate?: string) => {
     setLoading(true);
     setError(false);
     try {
       const res = await api.callLogs.list({ limit: LIMIT, offset: off, date: filterDate });
-      setCalls(off === 0 ? res.data : prev => [...prev, ...res.data]);
+      if (off === 0) {
+        // Merge: keep any SSE-prepended calls not yet returned by the DB (e.g. arrived
+        // just after UTC midnight when the date filter targets the previous UTC day).
+        setCalls(prev => {
+          const dbIds = new Set(res.data.map(c => c.id));
+          const liveOnly = prev.filter(c => !dbIds.has(c.id));
+          return [...liveOnly, ...res.data];
+        });
+      } else {
+        setCalls(prev => [...prev, ...res.data]);
+      }
       setTotal(res.meta.total);
       setOffset(off);
     } catch {
@@ -65,13 +72,15 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
     }
   }, []);
 
-  // Reload from scratch whenever scope changes
+  // Reload from scratch whenever scope changes.
+  // Compute the UTC date fresh each time so stale-mount dates never filter out recent calls.
   useEffect(() => {
+    const filterDate = scope === 'today' ? new Date().toISOString().slice(0, 10) : undefined;
     setCalls([]);
     setTotal(0);
     setOffset(0);
-    load(0, scope === 'today' ? todayUtc : undefined);
-  }, [load, scope, todayUtc]);
+    load(0, filterDate);
+  }, [load, scope]);
 
   // Prepend live SSE-delivered call without a refetch. Guard by id to prevent duplicates.
   useEffect(() => {
@@ -160,7 +169,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
           <div className="px-5 py-12 text-center">
             <p className="text-iron-muted/70 text-sm mb-3">{T.callLog.loadError}</p>
             <button
-              onClick={() => load(0, scope === 'today' ? todayUtc : undefined)}
+              onClick={() => load(0, scope === 'today' ? new Date().toISOString().slice(0, 10) : undefined)}
               className="text-xs font-medium text-iron-green-light hover:text-iron-green transition-colors"
             >
               {T.callLog.retry}
@@ -301,7 +310,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
 
         {hasMore && !loading && (
           <button
-            onClick={() => load(offset + LIMIT, scope === 'today' ? todayUtc : undefined)}
+            onClick={() => load(offset + LIMIT, scope === 'today' ? new Date().toISOString().slice(0, 10) : undefined)}
             className="w-full text-xs font-medium text-iron-muted/70 hover:text-iron-text py-4 border-t border-iron-border/20 transition-colors hover:bg-iron-bg/30"
           >
             {T.callLog.loadMore}

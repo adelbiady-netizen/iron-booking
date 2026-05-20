@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
 import { validate } from '../../middleware/validate';
+import { authenticate } from '../../middleware/auth';
 import { UnauthorizedError, NotFoundError } from '../../lib/errors';
 
 const router = Router();
@@ -483,5 +484,26 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
       res.status(500).json({ error: { code: 'DEV_SUPER_LOGIN_ERROR', message: err?.message ?? 'Unknown error' } });
     }
   });
+
+// POST /auth/refresh — re-signs the caller's JWT with a fresh expiry.
+// Requires a currently valid (non-expired) Bearer token.
+// Payload claims are preserved exactly; no role or permission changes.
+router.post('/refresh', authenticate, (req: Request, res: Response) => {
+  const { userId, restaurantId, role, email, firstName, lastName, groupId } = req.auth;
+  const token = jwt.sign(
+    {
+      userId,
+      restaurantId,
+      role,
+      email,
+      firstName,
+      lastName,
+      ...(groupId ? { groupId } : {}),
+    },
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiresIn as any }
+  );
+  res.json({ token });
+});
 
 export default router;
