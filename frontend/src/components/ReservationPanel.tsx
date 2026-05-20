@@ -132,7 +132,7 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62)' }}>
+    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04), inset 2px 0 8px rgba(0,0,0,0.16)' }}>
 
       {/* Tab bar + action buttons */}
       <div className="px-3.5 pt-3.5 pb-0 border-b border-iron-border/40" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 18px rgba(0,0,0,0.26)' }}>
@@ -244,7 +244,7 @@ export default function ReservationPanel({
         />
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" style={{ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.05) 0%, transparent 36px)' }}>
             {/* Overdue section — CONFIRMED/PENDING reservations 50+ min past their time
                 that still have a table assigned. Floor map released these already;
                 host must manually mark no-show or recover. */}
@@ -414,7 +414,7 @@ export default function ReservationPanel({
                 : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
 
               const rowBg = selectedId === r.id
-                ? 'bg-iron-green/15'
+                ? 'bg-iron-green/[0.18]'
                 : highlightId === r.id
                 ? 'animate-flash'
                 : isStale
@@ -445,10 +445,10 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/[0.26] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.62]' : ''}`}
+                  className={`w-full flex items-stretch border-b border-iron-border/[0.18] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.58]' : ''}`}
                   style={{ boxShadow: selectedId === r.id
-                    ? 'inset 0 0 0 1px rgba(111,138,60,0.22), 0 3px 14px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.07)'
-                    : 'inset 0 1px 0 rgba(255,255,255,0.022)'
+                    ? 'inset 0 0 0 1px rgba(111,138,60,0.28), 0 4px 18px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08)'
+                    : 'inset 0 1px 0 rgba(255,255,255,0.020)'
                   }}
                   onMouseEnter={() => onHoverRow?.(r.id)}
                   onMouseLeave={() => onHoverRow?.(null)}
@@ -456,7 +456,7 @@ export default function ReservationPanel({
                   {/* Time anchor column — left rail for instant time scanning */}
                   <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3.5 gap-1">
                     <span className="text-iron-text text-[16px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
-                    <span className="text-iron-muted/60 text-[11px] tabular-nums leading-none font-medium">{r.partySize}p</span>
+                    <span className="text-iron-muted/65 text-[11px] tabular-nums leading-none font-medium">{r.partySize}p</span>
                   </div>
 
                   <button
@@ -485,9 +485,9 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 2 — table assignment */}
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-1">
                       {r.table ? (
-                        <span className="text-iron-text/75 text-[12px] font-medium leading-none">{r.table.name}</span>
+                        <span className="text-iron-text/55 text-[12px] font-medium leading-none">{r.table.name}</span>
                       ) : (
                         (() => {
                           const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
@@ -505,9 +505,9 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 3 — phone identity layer */}
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5 mt-1.5">
                       {r.guestPhone ? (
-                        <span dir="ltr" className="text-iron-muted/70 text-[11px] font-mono tabular-nums tracking-wider leading-none">
+                        <span dir="ltr" className="text-iron-muted/65 text-[12px] font-mono tabular-nums tracking-wider leading-none">
                           {(() => {
                             const d = r.guestPhone.replace(/\D/g, '');
                             if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;

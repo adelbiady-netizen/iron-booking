@@ -25,7 +25,7 @@ interface RowProps { label: string; value: string; accent?: boolean; warn?: bool
 function Row({ label, value, accent, warn }: RowProps) {
   return (
     <div className="flex justify-between items-baseline gap-3">
-      <span className="text-iron-muted/70 text-[13px] font-medium shrink-0">{label}</span>
+      <span className="text-iron-muted/60 text-[13px] font-medium shrink-0">{label}</span>
       <span className={`text-[13px] text-right font-semibold ${warn ? 'text-orange-400' : accent ? 'text-iron-green-light' : 'text-iron-text'}`}>
         {value}
       </span>
@@ -37,7 +37,7 @@ function Ts({ label, ts }: { label: string; ts: string }) {
   const t = fmtHostTime(ts);
   return (
     <div className="flex justify-between">
-      <span className="text-iron-muted/70 text-xs font-medium">{label}</span>
+      <span className="text-iron-muted/60 text-xs font-medium">{label}</span>
       <span className="text-iron-text text-xs font-semibold tabular-nums">{t}</span>
     </div>
   );
@@ -1018,7 +1018,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.06) 0%, transparent 40px)' }}>
 
           {/* Arrival state banner — contextual quick action surfaces the most urgent next step */}
           {(() => {
