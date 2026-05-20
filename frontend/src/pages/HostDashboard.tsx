@@ -334,10 +334,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     api.tables.listFloorObjects().then(setFloorObjs).catch(() => {});
   }, [refreshKey]);
 
-  // Static table list for seat/move/create pickers — refresh on layout saves
+  // Static table list for seat/move/create pickers — loaded once on mount.
+  // Tables don't change during service; a full page reload picks up any admin changes.
   useEffect(() => {
     api.tables.list().then(setAllTables).catch(() => {});
-  }, [refreshKey]);
+  }, []);
 
   // Operational timestamp: dashboard date + time as a local-time ms value.
   // Used instead of Date.now() for wait-time and ETA calculations so that
@@ -856,6 +857,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // uses operational time, covers both assigned and unassigned reservations).
   const arrivalInsights = useMemo((): FloorInsight[] => {
     if (!isLiveView) return [];
+    const resMap = new Map(reservations.map(r => [r.id, r]));
     return reservations
       .filter(r => r.status === 'CONFIRMED')
       .filter(r => !isFloorReleased(r.time, r.status, time)) // floor-released → sidebar "needs action" only
@@ -874,11 +876,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         }];
       })
       .sort((a, b) => {
-        // Most-late first
-        const aId = reservations.find(r => r.id === a.reservationId);
-        const bId = reservations.find(r => r.id === b.reservationId);
-        const aMins = aId ? Math.abs(minutesUntilRes(aId.time, time)) : 0;
-        const bMins = bId ? Math.abs(minutesUntilRes(bId.time, time)) : 0;
+        // Most-late first — resMap built once before sort to avoid O(n) find per comparison
+        const aMins = Math.abs(minutesUntilRes(resMap.get(a.reservationId)?.time ?? '00:00', time));
+        const bMins = Math.abs(minutesUntilRes(resMap.get(b.reservationId)?.time ?? '00:00', time));
         return bMins - aMins;
       });
   }, [reservations, time, T, isLiveView]);

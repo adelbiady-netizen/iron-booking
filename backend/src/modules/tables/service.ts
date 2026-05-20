@@ -72,18 +72,30 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
 
   const requiredGapMinutes = defaultDuration + bufferMinutes;
 
+  // Pre-index reservations by table ID (primary + combined) so each per-table
+  // lookup below is O(1) rather than a full O(m) scan through all reservations.
+  type TableRes = (typeof reservations)[number];
+  const resByTableId = new Map<string, TableRes[]>();
+  for (const r of reservations) {
+    const ids: string[] = [];
+    if (r.tableId) ids.push(r.tableId);
+    for (const cid of r.combinedTableIds) ids.push(cid);
+    for (const id of ids) {
+      const list = resByTableId.get(id);
+      if (list) list.push(r); else resByTableId.set(id, [r]);
+    }
+  }
+
   return effectiveTables.map((table) => {
     // Respect lockedUntil expiry without a DB write
     const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotTime);
 
+    const tableReservations = resByTableId.get(table.id) ?? [];
+
     // Gap analysis: next non-SEATED reservation starting strictly after slotTime.
     // Used by the frontend scoring layer to gate "Best fit" on canFitIncomingTurn.
-    const nextFutureRes = reservations
-      .filter(r => {
-        if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
-        if (r.status === 'SEATED') return false;
-        return parseTimeOnDate(date, r.time) > slotTime;
-      })
+    const nextFutureRes = tableReservations
+      .filter(r => r.status !== 'SEATED' && parseTimeOnDate(date, r.time) > slotTime)
       .sort((a, b) => a.time.localeCompare(b.time))[0] ?? null;
     const nextReservationStart = nextFutureRes
       ? parseTimeOnDate(date, nextFutureRes.time).toISOString()
@@ -123,10 +135,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     // AND past the turn's scheduled end+buffer) the table is released so hosts
     // can plan ahead. The 5-minute threshold prevents 1-min HH:mm rounding jitter
     // from releasing a SEATED table during live service (ghost-SEATED bug).
-    const seated = reservations.find(
-      (r) => (r.tableId === table.id || r.combinedTableIds.includes(table.id))
-        && r.status === 'SEATED'
-    );
+    const seated = tableReservations.find(r => r.status === 'SEATED');
     if (seated) {
       const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
       // Mirror reservationConflicts() backward boundary: resEnd ≤ slotTime − buffer → no conflict.
@@ -169,12 +178,8 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     // reservation silently disappeared at board time 15:00 while a 19:00 one
     // still showed — purely because it fell 15 minutes past the cutoff. Reservations
     // are already date-scoped by the caller, so 1440 min covers any service day.
-    const upcoming = reservations
-      .filter((r) => {
-        if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
-        if (r.status === 'SEATED') return false;
-        return reservationIsUpcoming(r, date, slotTime, bufferMinutes, 24 * 60);
-      })
+    const upcoming = tableReservations
+      .filter(r => r.status !== 'SEATED' && reservationIsUpcoming(r, date, slotTime, bufferMinutes, 24 * 60))
       .sort((a, b) => a.time.localeCompare(b.time));
 
     const nextRes = upcoming[0];
@@ -468,7 +473,12 @@ async function findBestCombination(
   let bestResult: BestTableResult | null = null;
   let bestScore = -1;
 
-  // Try all pairs
+  // Try all pairs; exit early when a clearly optimal pair is found.
+  // Score ceiling for a pair is 70 (same section=20, max distance bonus=20,
+  // zero waste=20, pair bonus=10). A score ≥ 65 means same section + close
+  // proximity + near-exact fit — no remaining pair can practically score higher.
+  const PAIR_EARLY_EXIT = 65;
+  let earlyExited = false;
   for (let i = 0; i < tables.length; i++) {
     for (let j = i + 1; j < tables.length; j++) {
       const pair = [tables[i], tables[j]];
@@ -483,8 +493,10 @@ async function findBestCombination(
           score,
           reason: 'COMBINED_PAIR',
         };
+        if (bestScore >= PAIR_EARLY_EXIT) { earlyExited = true; break; }
       }
     }
+    if (earlyExited) break;
   }
 
   if (bestResult) return bestResult;
