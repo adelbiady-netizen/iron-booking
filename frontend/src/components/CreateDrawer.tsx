@@ -95,7 +95,7 @@ function snapToSlot(time: string): string {
 export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables,
   preselectedTableId, preselectedCombinedTableIds, floorObjs,
-  initialData, gapHint, defaultTurnMinutes, onClose, onCreated,
+  initialData, gapHint, onClose, onCreated,
   onPickTables, onPickTablesCancel,
   onDateTimeChange,
 }: Props) {
@@ -110,7 +110,7 @@ export default function CreateDrawer({
   const [resDate,      setResDate]      = useState(defaultDate);
   const [resTime,      setResTime]      = useState(snapToSlot(gapHint?.startTime ?? defaultTime));
   const [resDuration,  setResDuration]  = useState(
-    gapHint ? String(gapHint.durationMins) : String(defaultTurnMinutes ?? 90)
+    gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
   );
   // durationManual: host has explicitly chosen a duration → suppress auto-defaults.
   // Starts true when a gap hint pre-fills the slot duration; false otherwise so
@@ -125,7 +125,7 @@ export default function CreateDrawer({
   const [wiName,          setWiName]          = useState(initialData?.guestName  ?? '');
   const [wiPhone,         setWiPhone]         = useState(initialData?.guestPhone ?? '');
   const [wiParty,         setWiParty]         = useState(initialData?.partySize  ?? 2);
-  const [wiDuration,      setWiDuration]      = useState(String(defaultTurnMinutes ?? getDefaultDuration(initialData?.partySize ?? 2)));
+  const [wiDuration,      setWiDuration]      = useState(String(getDefaultDuration(initialData?.partySize ?? 2)));
   const [wiDurationManual, setWiDurationManual] = useState(false);
   const [wiNotes,         setWiNotes]         = useState('');
   const [wiTable,            setWiTable]            = useState(preselectedTableId ?? '');
@@ -308,17 +308,17 @@ export default function CreateDrawer({
   }, [wiParty, wiDuration, mode]);
 
   // Auto-default duration when party size changes, unless the host already made
-  // a manual choice. Uses restaurant defaultTurnMinutes — no party-size inflation.
+  // a manual choice.
   useEffect(() => {
     if (durationManual) return;
-    setResDuration(String(defaultTurnMinutes ?? getDefaultDuration(resParty)));
-  }, [resParty, durationManual, defaultTurnMinutes]);
+    setResDuration(String(getDefaultDuration(resParty)));
+  }, [resParty, durationManual]);
 
   // Same logic for walk-in duration.
   useEffect(() => {
     if (wiDurationManual) return;
-    setWiDuration(String(defaultTurnMinutes ?? getDefaultDuration(wiParty)));
-  }, [wiParty, wiDurationManual, defaultTurnMinutes]);
+    setWiDuration(String(getDefaultDuration(wiParty)));
+  }, [wiParty, wiDurationManual]);
 
   // Board → drawer: when the host navigates to a different date on the top bar,
   // pull the new date into the reservation form so board and drawer stay on the

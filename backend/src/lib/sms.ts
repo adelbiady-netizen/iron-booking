@@ -43,8 +43,7 @@ export async function sendWhatsApp(restaurantId: string, phone: string, body: st
   const token      = restaurant?.ultramsgToken;
 
   if (!instanceId || !token) {
-    console.warn(`[WhatsApp] Restaurant ${restaurantId} has no WhatsApp credentials — message not sent to ${to}`);
-    return { success: false, to, body };
+    throw new Error(`WhatsApp credentials not configured for this restaurant — message not sent to ${to}`);
   }
 
   let res: Response;
