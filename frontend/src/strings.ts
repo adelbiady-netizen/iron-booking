@@ -84,6 +84,7 @@ export const T = {
     unlockTable:      'Unlock table',
     lockTable:        'Lock table…',
     ctxSeat:          'Seat',
+    ctxReassign:      'Reassign',
     ctxComplete:      'Complete table',
     ctxOpenDetails:   'Open details',
     ctxMarkArrived:   'Mark arrived',

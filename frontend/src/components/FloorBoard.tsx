@@ -383,6 +383,9 @@ interface Props {
   onContextMenuComplete?: (res: Reservation) => void;
   onContextMenuOpenDetails?: (res: Reservation) => void;
   onContextMenuArrive?: (res: Reservation) => void;
+  // Currently active reservation in the GuestDrawer — used to show recovery
+  // actions ("שבץ מחדש") when the drawer holds a displaced/reorganized reservation.
+  activeDrawerRes?: Reservation | null;
   inFlightIds?: ReadonlySet<string>;
 }
 
@@ -468,6 +471,7 @@ export default function FloorBoard({
   onContextMenuComplete,
   onContextMenuOpenDetails,
   onContextMenuArrive,
+  activeDrawerRes = null,
   inFlightIds,
 }: Props) {
   const T = useT();
@@ -1342,11 +1346,21 @@ export default function FloorBoard({
           (currentRes?.status === 'PENDING' || currentRes?.status === 'CONFIRMED') ? currentRes : null
         );
 
-        const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
+        // True when the GuestDrawer holds a displaced/reorganized reservation
+        // that hasn't been re-assigned yet. Switches the primary context action
+        // from the normal "הושב" to the recovery "שבץ מחדש".
+        const isDisplacedActive = !!(
+          activeDrawerRes &&
+          !activeDrawerRes.tableId &&
+          (activeDrawerRes.reorganizeAt || activeDrawerRes.returnedToListAt) &&
+          (activeDrawerRes.status === 'PENDING' || activeDrawerRes.status === 'CONFIRMED')
+        );
+        const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id) && !isDisplacedActive;
         const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
         const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
-        const hasActions    = canSeat || canArrive || canComplete || canOpenDetails;
+        const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canOpenDetails;
 
         return (
           <>
@@ -1360,6 +1374,14 @@ export default function FloorBoard({
               </div>
 
               {/* Primary operational actions */}
+              {canRecover && (
+                <button
+                  onClick={() => { onContextMenuSeat!({ ...activeDrawerRes!, tableId: t.id }); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxReassign}
+                </button>
+              )}
               {canSeat && (
                 <button
                   onClick={() => { onContextMenuSeat!({ ...seatableRes!, tableId: t.id }); setCtxMenu(null); }}

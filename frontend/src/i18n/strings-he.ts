@@ -84,6 +84,7 @@ export const THe = {
     unlockTable:      'שחרר שולחן',
     lockTable:        'נעל שולחן…',
     ctxSeat:          'הושבה',
+    ctxReassign:      'שבץ מחדש',
     ctxComplete:      'סיום הושבה',
     ctxOpenDetails:   'פתח פרטים',
     ctxMarkArrived:   'סמן הגיע',

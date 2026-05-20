@@ -476,9 +476,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const enriched = reservations.find(x => x.id === r.id) ?? r;
     setQuickTable(null);
     setSelectedRes(enriched);
-    const [h, m] = r.time.split(':').map(Number);
-    setTime(snapTo30(h * 60 + m));
-    setLiveMode(false);
+    // Only jump the board to the reservation's time for upcoming (non-seated) reservations.
+    // SEATED/COMPLETED reservations are already in progress or done — don't disrupt the
+    // host's current floor view by jumping away from the live service snapshot.
+    if (enriched.status === 'PENDING' || enriched.status === 'CONFIRMED') {
+      const [h, m] = enriched.time.split(':').map(Number);
+      setTime(snapTo30(h * 60 + m));
+      setLiveMode(false);
+    }
   }, [reservations]);
 
   const handleUpdated = useCallback((updated: Reservation) => {
@@ -1665,6 +1670,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuComplete={handleContextMenuComplete}
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
+          activeDrawerRes={selectedRes}
           inFlightIds={inFlightIds}
         />
 
