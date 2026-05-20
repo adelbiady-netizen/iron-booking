@@ -907,22 +907,22 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
               {/* Name + primary status — identity dominant row */}
               <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1">
-                <h2 className="text-iron-text font-bold text-[28px] tracking-tight leading-none truncate min-w-0">{res.guestName}</h2>
+                <h2 className="text-iron-text font-black text-[34px] tracking-tight leading-none truncate min-w-0">{res.guestName}</h2>
                 {res.guest?.isVip && (
                   <span className="text-amber-400 text-xs font-semibold bg-amber-500/14 px-2 py-0.5 rounded-full border border-amber-500/28 shrink-0">
                     {T.common.vip}
                   </span>
                 )}
-                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_PILL[res.status]}`}>
+                <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
               </div>
 
               {/* Reservation facts — time · party · table */}
               <div dir="ltr" className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="text-iron-green-light font-bold tabular-nums leading-none shrink-0" style={{ fontSize: '22px', letterSpacing: '-0.03em' }}>{normalizeTime(res.time)}</span>
-                <span className="text-iron-border/40 leading-none">·</span>
-                <span className="text-iron-text/80 text-[14px] font-semibold shrink-0">{T.common.guests(res.partySize)}</span>
+                <span className="text-iron-green-light font-black tabular-nums leading-none shrink-0" style={{ fontSize: '26px', letterSpacing: '-0.04em' }}>{normalizeTime(res.time)}</span>
+                <span className="text-iron-border/35 leading-none">·</span>
+                <span className="text-iron-text font-bold text-[17px] shrink-0">{T.common.guests(res.partySize)}</span>
                 {res.table && (
                   <>
                     <span className="text-iron-border/40 leading-none">·</span>
@@ -1189,59 +1189,63 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
-          {/* Reservation details — embedded operational surface */}
-          <section className="rounded-xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.05)' }}>
-            <div className="divide-y divide-white/[0.04]">
+          {/* ── Service zone: table + duration tiles, meta footer ─────────── */}
+          <section className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
 
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowTime}</span>
-                <span className="text-iron-green-light text-[15px] font-bold tabular-nums leading-none">{normalizeTime(res.time)}</span>
+              {/* Table tile */}
+              <div className="px-3.5 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}>
+                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1.5">{T.guestDrawer.rowTable}</div>
+                {!res.table ? (
+                  <div className={`text-[13px] font-medium ${res.tableId ? 'text-iron-muted/55' : 'text-iron-muted/45 italic'}`}>
+                    {res.tableId ? '…' : T.guestDrawer.tableUnassigned}
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-iron-text font-bold text-[15px] leading-tight">
+                      {res.combinedTableIds.length
+                        ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
+                        : res.table.name}
+                    </div>
+                    {res.table.section?.name && (
+                      <div className="text-iron-muted/50 text-[11px] mt-0.5">{res.table.section.name}</div>
+                    )}
+                  </>
+                )}
               </div>
 
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowGuests}</span>
-                <span className="text-iron-text text-[13px] font-semibold">{T.common.guests(res.partySize)}</span>
-              </div>
-
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowDuration}</span>
-                <span className="text-iron-text text-[13px] font-semibold tabular-nums">{T.guestDrawer.durationValue(res.duration)}</span>
-              </div>
-
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowTable}</span>
-                <span className="text-iron-text text-[13px] font-semibold text-right leading-snug">
+              {/* Duration tile with computed end time */}
+              <div className="px-3.5 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}>
+                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1.5">{T.guestDrawer.rowDuration}</div>
+                <div className="text-iron-text font-bold text-[15px] tabular-nums leading-tight">{T.guestDrawer.durationValue(res.duration)}</div>
+                <div className="text-iron-muted/50 text-[11px] tabular-nums mt-0.5">
                   {(() => {
-                    if (!res.table) return <span className="text-iron-muted/55 font-medium">{res.tableId ? '…' : T.guestDrawer.tableUnassigned}</span>;
-                    const tableStr = res.combinedTableIds.length
-                      ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
-                      : res.table.name;
-                    const zone = res.table.section?.name;
-                    return <>{tableStr}{zone && <span className="text-iron-muted/50 font-medium text-[11px] ms-1">· {zone}</span>}</>;
+                    const [rh, rm] = res.time.split(':').map(Number);
+                    const total = rh * 60 + rm + res.duration;
+                    const eh = Math.floor(total / 60) % 24;
+                    const em = total % 60;
+                    const endStr = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                    return `→ ${normalizeTime(endStr)}`;
                   })()}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowDate}</span>
-                <span className="text-iron-text/70 text-[13px] font-medium tabular-nums">{res.date.slice(0, 10)}</span>
-              </div>
-
-              {res.source && (
-                <div className="flex items-center justify-between px-3.5 py-2.5">
-                  <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowSource}</span>
-                  <span className="text-iron-muted/75 text-[12px] font-medium">{formatReservationSource(res.source, locale)}</span>
                 </div>
-              )}
-
-              {res.status === 'SEATED' && res.seatedAt && (
-                <div className="flex items-center justify-between px-3.5 py-2.5">
-                  <span className="text-iron-muted/55 text-[11px] font-semibold uppercase tracking-[0.10em]">{T.guestDrawer.rowSeatedAt}</span>
-                  <span className="text-iron-text text-[13px] font-semibold tabular-nums">{fmtHostTime(res.seatedAt)}</span>
-                </div>
-              )}
+              </div>
 
             </div>
+
+            {/* Secondary meta: date (non-today), source, seated-at */}
+            {(res.date.slice(0, 10) !== _todayStr || res.source || (res.status === 'SEATED' && res.seatedAt)) && (
+              <div className="flex items-center gap-x-3 px-0.5 flex-wrap gap-y-1">
+                {res.date.slice(0, 10) !== _todayStr && (
+                  <span className="text-iron-muted/50 text-[11px] tabular-nums">{res.date.slice(0, 10)}</span>
+                )}
+                {res.source && (
+                  <span className="text-iron-muted/45 text-[11px]">{formatReservationSource(res.source, locale)}</span>
+                )}
+                {res.status === 'SEATED' && res.seatedAt && (
+                  <span className="text-iron-muted/55 text-[11px] tabular-nums">{T.guestDrawer.rowSeatedAt}: {fmtHostTime(res.seatedAt)}</span>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Other reservations at the same table */}
