@@ -253,7 +253,7 @@ export default function TableQuickPanel({
   const isClosed  = res && ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status);
 
   return (
-    <aside className="h-full w-full bg-iron-bg flex flex-col">
+    <aside className="h-full w-full bg-iron-bg flex flex-col animate-slide-in-left">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
         <div className="px-4 pt-4 pb-3.5 border-b border-iron-border/50 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.06) 0%, transparent 80%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 8px 28px rgba(0,0,0,0.40)' }}>

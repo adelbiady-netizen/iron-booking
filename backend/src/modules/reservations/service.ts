@@ -467,13 +467,16 @@ export async function seatReservation(
   combinedTableIds?: string[],
   reorganizeIds: string[] = []
 ) {
-  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  const t0 = Date.now();
+  const [r, settings] = await Promise.all([
+    assertReservationBelongsToRestaurant(id, restaurantId),
+    getRestaurantSettings(restaurantId),
+  ]);
+  console.log(`[perf:seat] init queries ${Date.now() - t0}ms`);
 
   if (!['CONFIRMED', 'PENDING'].includes(r.status)) {
     throw new BusinessRuleError(`Cannot seat a reservation with status ${r.status}`);
   }
-
-  const settings = await getRestaurantSettings(restaurantId);
 
   // Seating is only allowed on the reservation's own service date.
   // Use the restaurant's configured timezone so late-night service (past UTC midnight)
@@ -619,7 +622,8 @@ export async function seatReservation(
     throw new BusinessRuleError('Table is currently occupied — cannot seat another guest');
   }
 
-  return prisma.$transaction(async (tx) => {
+  console.log(`[perf:seat] validation done ${Date.now() - t0}ms`);
+  const result = await prisma.$transaction(async (tx) => {
     // Walk-in override: unassign future reservations on the target table so they
     // surface in the ללא שולחן list for immediate reassignment by the host.
     // Uses the same conflict window as Check 1 (defaultTurnMinutes + buffer from now).
@@ -708,6 +712,8 @@ export async function seatReservation(
     });
     return updated;
   });
+  console.log(`[perf:seat] total seatReservation ${Date.now() - t0}ms`);
+  return result;
 }
 
 export async function moveReservation(
@@ -716,13 +722,16 @@ export async function moveReservation(
   input: MoveTableInput,
   actorName: string
 ) {
-  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  const t0 = Date.now();
+  const [r, settings] = await Promise.all([
+    assertReservationBelongsToRestaurant(id, restaurantId),
+    getRestaurantSettings(restaurantId),
+  ]);
+  console.log(`[perf:move] init queries ${Date.now() - t0}ms`);
 
   if (r.status !== 'SEATED') {
     throw new BusinessRuleError('Can only move a reservation that is currently seated');
   }
-
-  const settings = await getRestaurantSettings(restaurantId);
 
   if (!input.overrideConflicts) {
     // Same as seatReservation: use current restaurant-local time so the conflict
@@ -746,7 +755,8 @@ export async function moveReservation(
     );
   }
 
-  return prisma.$transaction(async (tx) => {
+  console.log(`[perf:move] validation done ${Date.now() - t0}ms`);
+  const result = await prisma.$transaction(async (tx) => {
     const updated = await tx.reservation.update({
       where: { id },
       data: {
@@ -767,6 +777,8 @@ export async function moveReservation(
     });
     return updated;
   });
+  console.log(`[perf:move] total moveReservation ${Date.now() - t0}ms`);
+  return result;
 }
 
 export async function markArrived(

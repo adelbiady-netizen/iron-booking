@@ -123,6 +123,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [date, setDate]             = useState(todayStr);
   const [time, setTime]             = useState(nowTime);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Separate key for floor-objects (static layout data). Only incremented on layout
+  // save — never on reservation mutations, SSE events, or auto-refresh ticks.
+  const [floorLayoutKey, setFloorLayoutKey] = useState(0);
   const [liveMode, setLiveMode]     = useState(true);
   const liveModeRef    = useRef(true);
   // In-flight guard — keyed by reservationId. Ref for synchronous guard checks;
@@ -142,6 +145,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
   const [highlightId,       setHighlightId]       = useState<string | null>(null);
   const [hoveredResId,      setHoveredResId]      = useState<string | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reorganizeKeyRef = useRef(0);
   const [reorganizeConflict, setReorganizeConflict] = useState<{
     conflicts: ReorganizeConflict[];
@@ -267,6 +271,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // emits floor_updated over SSE. Trigger the same refresh key that the 60-second
     // poll uses so the floor board + reservation list update immediately.
     floor_updated: () => {
+      console.log('[perf:seat] SSE floor_updated → refreshKey++', new Date().toISOString());
       setRefreshKey(k => k + 1);
       setWaitlistRefreshKey(k => k + 1);
     },
@@ -281,6 +286,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // Debounced hover: 50ms delay on set, immediate clear on null.
+  // Prevents continuous HostDashboard + FloorBoard re-renders while the host
+  // moves the cursor across the reservation list during live service.
+  const handleHoverRow = useCallback((id: string | null) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (id === null) { setHoveredResId(null); return; }
+    hoverTimerRef.current = setTimeout(() => setHoveredResId(id), 50);
+  }, []);
+
   // Fetch floor + reservations together whenever date, time, or refreshKey change.
   // Stale-while-revalidate: only show the full loading spinner on initial page
   // load or when the user navigates to a different date. Background polls
@@ -290,12 +304,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const isBackground = loadedDateRef.current === date;
 
     async function load() {
+      const t0 = performance.now();
+      console.log('[perf:floor] load start', { date, time, refreshKey, isBackground });
       if (!isBackground) setResLoading(true);
       const [floorResult, resResult, insightResult] = await Promise.allSettled([
         api.tables.floor(date, time),
         api.reservations.list({ date, limit: '500' }),
         api.tables.insights(date, time),
       ]);
+      console.log('[perf:floor] API responses received', Math.round(performance.now() - t0) + 'ms');
       if (cancelled) return;
       const floorOk = floorResult.status === 'fulfilled';
       const resOk   = resResult.status   === 'fulfilled';
@@ -323,16 +340,19 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       if (floorOk || resOk) setLoadError(false);
       else setLoadError(true);
       setResLoading(false);
+      console.log('[perf:floor] state updated', Math.round(performance.now() - t0) + 'ms');
     }
 
     load();
     return () => { cancelled = true; };
   }, [date, time, refreshKey]);
 
-  // Floor objects — static layout data, refresh when layout is saved
+  // Floor objects — static layout data. Loaded once on mount and after layout save.
+  // Deliberately NOT on refreshKey so reservation mutations, SSE floor_updated events,
+  // auto-refresh ticks, and error-retries do not refetch this never-changing data.
   useEffect(() => {
     api.tables.listFloorObjects().then(setFloorObjs).catch(() => {});
-  }, [refreshKey]);
+  }, [floorLayoutKey]);
 
   // Static table list for seat/move/create pickers — loaded once on mount.
   // Tables don't change during service; a full page reload picks up any admin changes.
@@ -497,11 +517,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // which triggers the single background refresh via setRefreshKey in the SSE handler.
   }, []);
 
-  // Updates reservations in-place; the panel auto-refreshes via quickRes derivation.
+  // Updates reservations in-place. No explicit refreshKey — SSE floor_updated fires for
+  // every mutation and triggers the single authoritative floor refresh, matching the
+  // already-correct handleUpdated (GuestDrawer) pattern. Double-refresh eliminated.
   const handleQuickPanelUpdated = useCallback((updated: Reservation) => {
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-    setRefreshKey(k => k + 1);
-    setWaitlistRefreshKey(k => k + 1);
   }, []);
 
   const handleInsightAction = useCallback(async (tableId: string, reservationId: string) => {
@@ -925,6 +945,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
     return [...translated, ...extra];
   }, [insights, arrivalInsights, reservations, floorTables, time, T, isLiveView]);
+
+  const reorganizeQueue = useMemo(
+    () => reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status)),
+    [reservations],
+  );
 
   const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string }) => {
     const entry = await api.waitlist.add({ ...data, date });
@@ -1467,7 +1492,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     return (
       <LayoutEditor
         onClose={() => setLayoutMode(false)}
-        onSaved={() => { setLayoutMode(false); setRefreshKey(k => k + 1); }}
+        onSaved={() => { setLayoutMode(false); setFloorLayoutKey(k => k + 1); }}
       />
     );
   }
@@ -1590,12 +1615,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left structural rail — table context panel. Width animates; map reflows around it. */}
+        {/* Left structural rail — table context panel.
+            Width snaps instantly (no transition) so the floor board never reflows
+            continuously during open/close. The panel content uses animate-slide-in-left
+            (GPU transform only) for a smooth entrance without layout cost. */}
         <div
           className="shrink-0 overflow-hidden border-e border-iron-border/40"
           style={{
             width: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 320 : 0,
-            transition: 'width 200ms ease-out',
             boxShadow: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '1px 0 0 rgba(255,255,255,0.05), 6px 0 28px rgba(0,0,0,0.55), 20px 0 60px rgba(0,0,0,0.35)' : 'none',
           }}
         >
@@ -1739,12 +1766,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               operationalNow={operationalNow}
               onContextMenuSeat={handleContextMenuSeat}
               date={date}
-              reorganizeQueue={reservations.filter(r => r.reorganizeAt != null && ['CONFIRMED', 'PENDING'].includes(r.status))}
+              reorganizeQueue={reorganizeQueue}
               onReorganizeSelect={r => { setReorganizeMode(false); setRebuildDayTarget(null); setSelectedRes(r); }}
               allTables={allTables}
               onChooseTable={handleChooseTable}
               isLiveView={isLiveView}
-              onHoverRow={setHoveredResId}
+              onHoverRow={handleHoverRow}
               onSmartAssign={() => setShowSmartAssign(true)}
             />
           )}

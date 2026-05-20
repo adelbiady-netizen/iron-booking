@@ -195,6 +195,7 @@ router.post('/:id/confirm', async (req: Request, res: Response, next: NextFuncti
 
 // POST /reservations/:id/seat
 router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: Response, next: NextFunction) => {
+  const t0 = Date.now();
   try {
     const r = await service.seatReservation(
       req.auth.restaurantId,
@@ -205,6 +206,7 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
       req.body.combinedTableIds,
       req.body.reorganizeIds
     );
+    console.log(`[perf:seat] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
@@ -212,8 +214,10 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
 
 // POST /reservations/:id/move
 router.post('/:id/move', validate(MoveTableSchema), async (req: Request, res: Response, next: NextFunction) => {
+  const t0 = Date.now();
   try {
     const r = await service.moveReservation(req.auth.restaurantId, p(req, 'id'), req.body, actorName(req));
+    console.log(`[perf:move] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }

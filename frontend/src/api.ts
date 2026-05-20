@@ -192,8 +192,8 @@ export const api = {
     insights: (date: string, time: string) =>
       request<FloorInsight[]>(`/tables/insights?date=${date}&time=${encodeURIComponent(time)}`),
     list: () => request<Table[]>('/tables'),
-    suggest: (params: { date: string; time: string; partySize: number; duration?: number; excludeReservationId?: string }) =>
-      request<BackendTableSuggestion[]>(`/tables/suggest?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}${params.excludeReservationId ? `&excludeReservationId=${params.excludeReservationId}` : ''}`),
+    suggest: (params: { date: string; time: string; partySize: number; duration?: number; excludeReservationId?: string }, options?: RequestInit) =>
+      request<BackendTableSuggestion[]>(`/tables/suggest?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}${params.excludeReservationId ? `&excludeReservationId=${params.excludeReservationId}` : ''}`, options),
     best: (params: { date: string; time: string; partySize: number; duration?: number; excludeReservationId?: string }) =>
       request<BestTableResult | null>(`/tables/best?date=${params.date}&time=${encodeURIComponent(params.time)}&partySize=${params.partySize}${params.duration ? `&duration=${params.duration}` : ''}${params.excludeReservationId ? `&excludeReservationId=${params.excludeReservationId}` : ''}`),
     create: (body: {

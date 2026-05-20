@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal from './ReorganizeConflictModal';
@@ -273,14 +273,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       setSmartSuggestion(null);
       return;
     }
-    let cancelled = false;
+    const controller = new AbortController();
     setSmartLoading(true);
     setSmartSuggestion(null);
     api.tables.suggest({
       date: res.date, time: res.time, partySize: res.partySize,
       duration: res.duration, excludeReservationId: res.id,
-    }).then(list => {
-      if (cancelled) return;
+    }, { signal: controller.signal }).then(list => {
       const currentEntry = res.tableId ? (list.find(s => s.tableId === res.tableId) ?? null) : null;
       const bestOther = list.filter(s => s.tableId !== res.tableId).find(s => !!s.tableId) ?? null;
 
@@ -294,12 +293,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           setSmartSuggestion(null);
         }
       }
-    }).catch(() => {
-      if (!cancelled) setSmartSuggestion(null);
+    }).catch((err: unknown) => {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setSmartSuggestion(null);
     }).finally(() => {
-      if (!cancelled) setSmartLoading(false);
+      if (!controller.signal.aborted) setSmartLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => controller.abort();
   }, [res.id, res.status, res.tableId]);
 
   // Scroll to the seating actions when a guest is just marked arrived,
@@ -482,8 +482,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     inflightRef.current = true;
     setError(null);
     setBusy(true);
+    const t0 = performance.now();
+    console.log('[perf:action] click → request', new Date().toISOString());
     try {
       const updated = await fn();
+      console.log('[perf:action] response', Math.round(performance.now() - t0) + 'ms');
       setRes(updated);
       onUpdated(updated);
       setMode('view');
@@ -507,9 +510,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
     setError(null);
     setBusy(true);
+    const t0 = performance.now();
+    console.log('[perf:seat] click → request', new Date().toISOString());
     try {
       const updated = await api.reservations.seat(res.id, tableId, false, combinedIds);
+      console.log('[perf:seat] API response received', Math.round(performance.now() - t0) + 'ms');
       setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
+      console.log('[perf:seat] UI updated', Math.round(performance.now() - t0) + 'ms');
       onSuccess?.(toastMsg);
     } catch (err: unknown) {
       if (err instanceof ApiError && err.code === 'CONFLICT') {
@@ -524,6 +531,19 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       setBusy(false);
     }
   }
+
+  // Other active reservations at the same table — memoized to avoid re-filtering
+  // the full allReservations array (up to 500 items) on every render.
+  const othersAtTable = useMemo(() => {
+    if (!res.tableId || !allReservations) return [];
+    return allReservations
+      .filter(r =>
+        r.tableId === res.tableId &&
+        r.id !== res.id &&
+        !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(r.status)
+      )
+      .sort((a, b) => a.time.localeCompare(b.time));
+  }, [res.tableId, res.id, allReservations]);
 
   // ─── Action buttons per status ──────────────────────────────────────────────
 
@@ -1313,41 +1333,30 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           </section>
 
           {/* Other reservations at the same table */}
-          {(() => {
-            if (!res.tableId || !allReservations) return null;
-            const others = allReservations
-              .filter(r =>
-                r.tableId === res.tableId &&
-                r.id !== res.id &&
-                !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(r.status)
-              )
-              .sort((a, b) => a.time.localeCompare(b.time));
-            if (others.length === 0) return null;
-            return (
-              <section className="border-t border-iron-border/30 pt-4 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
-                  {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
-                </p>
-                {others.map(r => (
-                  <div key={r.id} className="flex items-center gap-2 py-0.5">
-                    <span className="text-iron-text text-xs font-bold tabular-nums w-10 shrink-0">{normalizeTime(r.time)}</span>
-                    <span className="text-iron-muted/50 text-xs">·</span>
-                    <span className="text-iron-text text-xs font-medium truncate flex-1">{r.guestName}</span>
-                    <span className="text-iron-muted text-[11px] font-medium shrink-0">{T.common.guests(r.partySize)}</span>
-                    <span className={`text-[10px] px-1.5 py-px rounded font-medium shrink-0 ${
-                      r.status === 'CONFIRMED' ? 'bg-iron-border/15 text-iron-muted' :
-                      r.status === 'SEATED'    ? 'bg-iron-green/20 text-iron-green-light' :
-                                                 'bg-iron-border/20 text-iron-muted'
-                    }`}>
-                      {r.status === 'CONFIRMED' ? T.reservationStatus.CONFIRMED :
-                       r.status === 'SEATED'    ? T.reservationStatus.SEATED :
-                                                  T.reservationStatus.PENDING}
-                    </span>
-                  </div>
-                ))}
-              </section>
-            );
-          })()}
+          {othersAtTable.length > 0 && (
+            <section className="border-t border-iron-border/30 pt-4 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
+                {T.guestDrawer.sectionTableUpcoming(res.table?.name ?? '')}
+              </p>
+              {othersAtTable.map(r => (
+                <div key={r.id} className="flex items-center gap-2 py-0.5">
+                  <span className="text-iron-text text-xs font-bold tabular-nums w-10 shrink-0">{normalizeTime(r.time)}</span>
+                  <span className="text-iron-muted/50 text-xs">·</span>
+                  <span className="text-iron-text text-xs font-medium truncate flex-1">{r.guestName}</span>
+                  <span className="text-iron-muted text-[11px] font-medium shrink-0">{T.common.guests(r.partySize)}</span>
+                  <span className={`text-[10px] px-1.5 py-px rounded font-medium shrink-0 ${
+                    r.status === 'CONFIRMED' ? 'bg-iron-border/15 text-iron-muted' :
+                    r.status === 'SEATED'    ? 'bg-iron-green/20 text-iron-green-light' :
+                                               'bg-iron-border/20 text-iron-muted'
+                  }`}>
+                    {r.status === 'CONFIRMED' ? T.reservationStatus.CONFIRMED :
+                     r.status === 'SEATED'    ? T.reservationStatus.SEATED :
+                                                T.reservationStatus.PENDING}
+                  </span>
+                </div>
+              ))}
+            </section>
+          )}
 
           {/* Guest CRM */}
           {res.guest && (
