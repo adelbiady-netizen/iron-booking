@@ -150,19 +150,13 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className="relative flex flex-col items-center justify-center px-4 py-1" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className="relative flex items-center justify-center px-4 py-2" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
               dir="ltr"
               className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
               style={{ fontSize: '40px', letterSpacing: '-0.045em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
-            </span>
-            <span
-              dir="ltr"
-              className="text-iron-muted/45 text-[10px] font-medium tabular-nums leading-none pointer-events-none select-none mt-0.5"
-            >
-              {T.topBar.realClock} {realClock}
             </span>
             <select
               value={time}
@@ -177,6 +171,16 @@ export default function TopBar({
             </select>
           </div>
           <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
+        </div>
+
+        {/* Real clock — exact current time, passive read-only display */}
+        <div
+          dir="ltr"
+          className="flex flex-col items-center px-2.5 py-1 rounded-lg shrink-0 select-none pointer-events-none"
+          style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
+        >
+          <span className="text-iron-muted/45 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
+          <span className="text-iron-text/62 text-[13px] font-semibold tabular-nums leading-none">{realClock}</span>
         </div>
 
         {/* ── Service State — adjacent to time ─────────────────── */}
