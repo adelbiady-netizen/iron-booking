@@ -2466,13 +2466,26 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
         const isActive     = isOccupied || table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
         const filledCount  = isActive ? displayCount : 0;
 
+        // Per-table tier for RESERVED chairs — mirrors MapTable thresholds.
+        const chairNextMin = table.upcomingReservations[0]?.minutesUntil ?? 0;
+        const isChairMid   = table.liveStatus === 'RESERVED' && chairNextMin >= 150 && chairNextMin < 300;
+        const isChairFar   = table.liveStatus === 'RESERVED' && chairNextMin >= 300;
+
+        // Chair fill/stroke scale with reservation proximity.
+        // FAR: desaturated + -44% alpha — ambient hint only, not a first-scan signal.
+        // MID: same hue, -24% alpha — informative but not dominant.
+        // NEAR: unchanged — full operational emphasis.
         const filledFill =
-          isOccupied                                    ? 'rgba(22,163,74,0.75)'   // solid green
-          : tableDisplayStatus === 'RESERVED_SOON'    ? 'rgba(217,119,6,0.72)'   // solid amber
-          : 'rgba(37,99,235,0.68)';                                                 // solid blue
+          isOccupied                                  ? 'rgba(22,163,74,0.75)'
+          : tableDisplayStatus === 'RESERVED_SOON'  ? 'rgba(217,119,6,0.72)'
+          : isChairFar                               ? 'rgba(59,130,246,0.38)'   // FAR: lighter hue, low alpha
+          : isChairMid                               ? 'rgba(37,99,235,0.52)'    // MID: -24%
+          : 'rgba(37,99,235,0.68)';                                               // NEAR: full
         const filledStroke =
-          isOccupied                                    ? 'rgba(22,163,74,0.40)'
-          : tableDisplayStatus === 'RESERVED_SOON'    ? 'rgba(217,119,6,0.35)'
+          isOccupied                                  ? 'rgba(22,163,74,0.40)'
+          : tableDisplayStatus === 'RESERVED_SOON'  ? 'rgba(217,119,6,0.35)'
+          : isChairFar                               ? 'rgba(37,99,235,0.18)'
+          : isChairMid                               ? 'rgba(37,99,235,0.25)'
           : 'rgba(37,99,235,0.32)';
         const emptyFill   = `rgba(180,174,168,${(0.55 * quietLevel).toFixed(2)})`;
         const emptyStroke = `rgba(160,155,150,${(0.30 * quietLevel).toFixed(2)})`;
@@ -2481,8 +2494,12 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
         // seat pad body. Backrest is more opaque — it's the solid structural element.
         // Bar-seating and dots use the seat pad only (no backrest differentiation).
         const filledBack = isOccupied
-          ? 'rgba(21,128,61,0.85)' : tableDisplayStatus === 'RESERVED_SOON'
-          ? 'rgba(180,83,9,0.82)'  : 'rgba(29,78,216,0.78)';
+          ? 'rgba(21,128,61,0.85)'
+          : tableDisplayStatus === 'RESERVED_SOON'
+          ? 'rgba(180,83,9,0.82)'
+          : isChairFar  ? 'rgba(37,99,235,0.44)'
+          : isChairMid  ? 'rgba(29,78,216,0.62)'
+          : 'rgba(29,78,216,0.78)';
         const emptyBack  = `rgba(155,149,144,${(0.65 * quietLevel).toFixed(2)})`;
         const backH      = useDots || isBarSeating ? 0 : Math.round(cH * 0.35);
         const seatH      = cH - backH;
@@ -2775,7 +2792,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     } else if (displayStatus === 'RESERVED_SOON') {
       boxShadow = '0 2px 14px rgba(217,119,6,0.13)';   // amber urgency bloom
     } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
-      boxShadow = '0 2px 10px rgba(59,130,246,0.09)';  // approaching reserved — soft blue
+      boxShadow = '0 2px 18px rgba(59,130,246,0.18)';  // NEAR: visible blue bloom — operational signal
     }
   }
 
@@ -2785,10 +2802,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
     } else if (displayStatus === 'RESERVED') {
       borderColor = isQuietReserved
-        ? 'rgba(59,130,246,0.22)'    // FAR 300+ min: soft blue — reserved but not urgent
+        ? 'rgba(59,130,246,0.18)'    // FAR 300+ min: barely-there awareness edge
         : isMidFutureReserved
-        ? 'rgba(59,130,246,0.32)'    // MID 150–300 min: moderate signal
-        : 'rgba(59,130,246,0.44)';   // NEAR <150 min: clear committed signal
+        ? 'rgba(59,130,246,0.26)'    // MID 150–300 min: informative, clearly below NEAR
+        : 'rgba(59,130,246,0.52)';   // NEAR <150 min: strong committed signal
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
     } else if (table.liveStatus === 'BLOCKED') {
@@ -3214,18 +3231,23 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // is a later turn that does not conflict with the selected slot. Recede the label visually
         // so the pick-ring border is the dominant signal and the guest info is secondary context.
         const isFutureTurnOnly = pickMode && !!pickStatus && pickStatus !== 'unavailable' && pickStatus !== 'current';
-        // FAR (300+ min): awareness-only — soft typography, no urgency styling
+        // Progressive typography — NEAR 14/700, MID 13/600, FAR 12/500
         const guestColor = isFutureTurnOnly
           ? isDark ? 'rgba(96,165,250,0.52)' : 'rgba(30,64,175,0.45)'
           : isQuietReserved
           ? isDark ? 'rgba(96,165,250,0.55)' : 'rgba(30,64,175,0.48)'
+          : isMidFutureReserved
+          ? isDark ? 'rgba(96,165,250,0.80)' : 'rgba(30,64,175,0.72)'   // MID: slightly muted
           : isSoon ? '#92400e'
           : isDark ? '#1d4ed8' : '#1e40af';
         const isReceded = isFutureTurnOnly || isQuietReserved;
+        const guestFontSize   = isReceded ? 12 : isMidFutureReserved ? 13 : 14;
+        const guestFontWeight = isReceded ? 500 : isMidFutureReserved ? 600 : 700;
+        const metaOpacity     = isQuietReserved ? 0.60 : isMidFutureReserved ? 0.78 : 0.92;
         return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
             {/* Name zone — always centered; stable anchor regardless of badge presence */}
-            <p style={{ fontSize: isReceded ? 12 : 14, color: guestColor, fontWeight: isReceded ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
+            <p style={{ fontSize: guestFontSize, color: guestColor, fontWeight: guestFontWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
             </p>
             {/* Metadata zone — time + partySize; chip always visible even on narrow cards */}
@@ -3233,10 +3255,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
                 {/* Text group — shrinks first; chip stays fixed */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: isQuietReserved ? 0.60 : 0.92, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: metaOpacity, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
-                  <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: isQuietReserved ? 0.60 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: metaOpacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     · {normalizeTime(nextRes.time)}
                   </span>
                   {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
