@@ -6,21 +6,6 @@ import { eventBus } from '../../lib/eventBus';
 
 const router = Router();
 
-// ── Debug build sentinel ──────────────────────────────────────────────────────
-// Emitted once at module load so Render logs confirm this build is active.
-const BUILD_TIMESTAMP = new Date().toISOString();
-// __COMMIT_HASH__ is replaced at build time by a Vite/esbuild define; falls
-// back to the env var Render injects, then to 'local' for local runs.
-const COMMIT_HASH =
-  (typeof process !== 'undefined' && process.env['RENDER_GIT_COMMIT']?.slice(0, 8)) ?? 'local';
-console.log(
-  '[SSE DEBUG BUILD ACTIVE]',
-  '| commit:', COMMIT_HASH,
-  '| moduleLoadedAt:', BUILD_TIMESTAMP,
-);
-
-let sessionCounter = 0;
-
 /**
  * GET /api/integrations/events?token=<jwt>
  *
@@ -65,47 +50,21 @@ router.get('/', (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no'); // disable nginx / Render response buffering
   res.flushHeaders();
 
-  const sessionId  = `S${++sessionCounter}`;
-  const sessionTag = `[SSE:${sessionId}]`;
-  const totalAfterOpen = eventBus.listenerCount('incoming_call') + 1; // +1 for this connection
-  console.log(
-    sessionTag, 'Connection opened',
-    '| restaurantId:', payload.restaurantId,
-    '| userId:', payload.userId,
-    '| role:', payload.role,
-    '| total incoming_call sessions after open:', totalAfterOpen,
-  );
+  const sessionTag = `[SSE:${payload.restaurantId}]`;
+  const activeSessions = eventBus.listenerCount('incoming_call') + 1; // +1 for this new connection
+  console.log(sessionTag, 'Connection opened — total active sessions:', activeSessions);
 
   // Ping every 25 s — most proxies drop idle connections at 30 s
   const ping = setInterval(() => res.write(':ping\n\n'), 25_000);
 
   function relay(data: Record<string, unknown>) {
-    const eventRestId   = data.restaurantId;
-    const sessionRestId = payload.restaurantId;
-    const matches       = eventRestId === sessionRestId;
-
-    // Always log so we can see exactly what IDs are being compared
-    console.log(
-      sessionTag, '[relay:incoming_call]',
-      '| event.restaurantId:', eventRestId,
-      '| session.restaurantId:', sessionRestId,
-      '| match:', matches,
-    );
-
-    if (!matches) return;
-
+    if (data.restaurantId !== payload.restaurantId) return;
     const frame = `event: incoming_call\ndata: ${JSON.stringify(data)}\n\n`;
     try {
-      const writeOk = res.write(frame);
-      // Belt-and-suspenders flush in case any middleware layer adds compression
+      res.write(frame);
       (res as unknown as { flush?: () => void }).flush?.();
-      console.log(
-        sessionTag, '[relay:incoming_call] WROTE frame',
-        '| bytes:', frame.length,
-        '| write returned:', writeOk,
-      );
     } catch (err) {
-      console.error(sessionTag, '[relay:incoming_call] res.write THREW:', err);
+      console.error(sessionTag, 'incoming_call write error:', err);
     }
   }
 
@@ -113,22 +72,15 @@ router.get('/', (req, res) => {
     if (data.restaurantId !== payload.restaurantId) return;
     const frame = `event: floor_updated\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`;
     try {
-      const writeOk = res.write(frame);
+      res.write(frame);
       (res as unknown as { flush?: () => void }).flush?.();
-      console.log(sessionTag, '[relay:floor_updated] WROTE frame | write returned:', writeOk);
     } catch (err) {
-      console.error(sessionTag, '[relay:floor_updated] res.write THREW:', err);
+      console.error(sessionTag, 'floor_updated write error:', err);
     }
   }
 
   eventBus.on('incoming_call', relay);
   eventBus.on('floor_updated', relayFloorUpdate);
-
-  console.log(
-    sessionTag, 'Listeners registered',
-    '| incoming_call listener count:', eventBus.listenerCount('incoming_call'),
-    '| floor_updated listener count:', eventBus.listenerCount('floor_updated'),
-  );
 
   req.on('close', () => {
     clearInterval(ping);
