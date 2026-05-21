@@ -340,18 +340,14 @@ export default function CreateDrawer({
     return tables.find(t => t.id === id)?.name ?? id;
   }
 
-  async function openMapPicker() {
+  function openMapPicker() {
+    // Use cached suggestions synchronously so setPickingOnMap + setTablePickMode
+    // fire in the same React batch (atomic render: drawer hides + pick mode activates).
+    // The auto-allocation useEffect already populates resSuggestions on debounce;
+    // if still loading, empty suggestions are fine — all tables remain selectable.
+    const sug = suggestBusy ? [] : resSuggestions;
     setPickingOnMap(true);
     setShowPicker(false);
-    // Suggestions may be empty (debounce hasn't fired) or stale (time just changed).
-    // Fetch fresh ones so the picker always shows correct availability.
-    let sug = resSuggestions;
-    if (suggestBusy || sug.length === 0) {
-      try {
-        const dur = resDuration ? parseInt(resDuration, 10) : undefined;
-        sug = await api.tables.suggest({ date: resDate, time: resTime, partySize: resParty, duration: dur });
-      } catch { /* fall back to cached */ }
-    }
     onPickTables?.(
       [resTable, ...resCombinedTableIds].filter(Boolean),
       sug,
@@ -367,19 +363,10 @@ export default function CreateDrawer({
     );
   }
 
-  async function openWiMapPicker() {
+  function openWiMapPicker() {
+    const sug = wiSuggestBusy ? [] : wiSuggestions;
     setWiPickingOnMap(true);
     setWiShowPicker(false);
-    let sug = wiSuggestions;
-    if (wiSuggestBusy || sug.length === 0) {
-      try {
-        const now = new Date();
-        const date = now.toISOString().slice(0, 10);
-        const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const dur = wiDuration ? parseInt(wiDuration, 10) : undefined;
-        sug = await api.tables.suggest({ date, time, partySize: wiParty, duration: dur });
-      } catch { /* fall back to cached */ }
-    }
     onPickTables?.(
       [wiTable, ...wiCombinedTableIds].filter(Boolean),
       sug,
