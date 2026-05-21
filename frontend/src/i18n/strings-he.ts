@@ -32,11 +32,12 @@ export const THe = {
 
   // ── Live table status labels ────────────────────────────────────────────────
   tableStatus: {
-    AVAILABLE:     'פנוי',
-    OCCUPIED:      'תפוס',
-    RESERVED_SOON: 'מגיע בקרוב',
-    RESERVED:      'שמור',
-    BLOCKED:       'חסום',
+    AVAILABLE:      'פנוי',
+    OCCUPIED:       'תפוס',
+    RESERVED_SOON:  'מגיע בקרוב',
+    RESERVED:       'שמור',
+    BLOCKED:        'חסום',
+    STALE_OCCUPIED: 'שרידי שירות',
   } as Record<string, string>,
 
   // ── TopBar ─────────────────────────────────────────────────────────────────

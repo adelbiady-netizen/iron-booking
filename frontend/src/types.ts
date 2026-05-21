@@ -11,7 +11,8 @@ export type LiveStatus =
   | 'OCCUPIED'
   | 'RESERVED'
   | 'RESERVED_SOON'
-  | 'BLOCKED';
+  | 'BLOCKED'
+  | 'STALE_OCCUPIED';
 
 export interface Section {
   id: string;

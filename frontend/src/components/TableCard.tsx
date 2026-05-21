@@ -49,11 +49,12 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
     ? table.liveStatus
     : 'RESERVED';
   const STATUS_STYLE: Record<string, StatusStyle> = {
-    AVAILABLE:     { border: 'border-iron-border/55 hover:border-iron-green/55',   bg: '',                  dot: 'bg-iron-border/75',   label: T.tableStatus.AVAILABLE,     labelColor: 'text-iron-muted/70' },
-    OCCUPIED:      { border: 'border-iron-green/80',                               bg: 'bg-iron-green/14',  dot: 'bg-iron-green-light', label: T.tableStatus.OCCUPIED,      labelColor: 'text-iron-green-light' },
-    RESERVED_SOON: { border: 'border-amber-400/90',                                bg: 'bg-amber-500/12',   dot: 'bg-amber-400',        label: T.tableStatus.RESERVED_SOON, labelColor: 'text-amber-400' },
-    RESERVED:      { border: 'border-blue-500/55',                                 bg: 'bg-blue-950/28',    dot: 'bg-blue-400',         label: T.tableStatus.RESERVED,      labelColor: 'text-blue-400/90' },
-    BLOCKED:       { border: 'border-iron-border/40',                              bg: 'bg-iron-bg/55',     dot: 'bg-iron-muted/55',    label: T.tableStatus.BLOCKED,       labelColor: 'text-iron-muted/65' },
+    AVAILABLE:      { border: 'border-iron-border/55 hover:border-iron-green/55',   bg: '',                   dot: 'bg-iron-border/75',    label: T.tableStatus.AVAILABLE,      labelColor: 'text-iron-muted/70' },
+    OCCUPIED:       { border: 'border-iron-green/80',                               bg: 'bg-iron-green/14',   dot: 'bg-iron-green-light',  label: T.tableStatus.OCCUPIED,       labelColor: 'text-iron-green-light' },
+    RESERVED_SOON:  { border: 'border-amber-400/90',                                bg: 'bg-amber-500/12',    dot: 'bg-amber-400',         label: T.tableStatus.RESERVED_SOON,  labelColor: 'text-amber-400' },
+    RESERVED:       { border: 'border-blue-500/55',                                 bg: 'bg-blue-950/28',     dot: 'bg-blue-400',          label: T.tableStatus.RESERVED,       labelColor: 'text-blue-400/90' },
+    BLOCKED:        { border: 'border-iron-border/40',                              bg: 'bg-iron-bg/55',      dot: 'bg-iron-muted/55',     label: T.tableStatus.BLOCKED,        labelColor: 'text-iron-muted/65' },
+    STALE_OCCUPIED: { border: 'border-amber-600/28',                                bg: 'bg-amber-500/5',     dot: 'bg-amber-500/60',      label: T.tableStatus.STALE_OCCUPIED, labelColor: 'text-amber-600/55' },
   };
   const currentRes = table.currentReservation;
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
@@ -154,6 +155,26 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
                 {isToday && mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
                 {isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
                 {isToday && mr < -5 && <span className="text-orange-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
+      {table.liveStatus === 'STALE_OCCUPIED' && currentRes && (() => {
+        const isCombined  = currentRes.combinedTableIds.length > 0;
+        const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
+        return (
+          <div>
+            <div className="flex items-center gap-1 min-w-0">
+              <p className="text-amber-800/70 text-[13px] font-medium truncate flex-1">{currentRes.guestName}</p>
+              {isCombined && (
+                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-amber-500/10 border-amber-500/20 text-amber-600/60">⊞</span>
+              )}
+            </div>
+            {!isSecondary && (
+              <p className="text-amber-600/50 text-xs font-medium">
+                {T.common.guests(currentRes.partySize)} · {T.tableStatus.STALE_OCCUPIED}
               </p>
             )}
           </div>

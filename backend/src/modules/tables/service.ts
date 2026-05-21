@@ -82,6 +82,12 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
   }).format(new Date());
   const realNowVirtual  = parseTimeOnDate(date, realNowStr);
 
+  // Stale-board detection: is the board date strictly before today in the restaurant's timezone?
+  // Used below to surface forgotten SEATED reservations as STALE_OCCUPIED rather than emergency red.
+  const todayLocal     = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
+  const boardDateStr   = (date instanceof Date ? date : new Date(String(date))).toISOString().slice(0, 10);
+  const isStaleBoardDate = boardDateStr < todayLocal;
+
   // A table is "placed" only when BOTH axes are meaningfully positioned (> 5 px).
   // Using AND (not OR) prevents a table dragged along one axis only — e.g. (100, 0)
   // — from passing the filter and ghosting onto the canvas.
@@ -156,6 +162,29 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     const seated = tableReservations.find(r => r.status === 'SEATED');
     if (seated) {
       const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
+
+      // Previous-service stale: the board is showing a past date and this SEATED
+      // reservation was never completed.  Do NOT show it as emergency red —
+      // return STALE_OCCUPIED so the frontend can render a low-urgency amber state.
+      // No DB write; the reservation stays SEATED for the host to manually resolve.
+      if (isStaleBoardDate) {
+        return {
+          ...table,
+          locked: effectiveLocked,
+          liveStatus: 'STALE_OCCUPIED' as const,
+          currentReservation: {
+            ...seated,
+            minutesRemaining: 0,
+            expectedEndTime: seatedScheduledEnd.toISOString(),
+            isOverdue: false,
+          },
+          upcomingReservations: [],
+          nextReservationStart,
+          effectiveGapMinutes,
+          requiredGapMinutes,
+          canFitIncomingTurn,
+        };
+      }
       // Mirror reservationConflicts() backward boundary: resEnd ≤ slotTime − buffer → no conflict.
       const seatedClearedBuffer = seatedScheduledEnd <= addMinutes(slotTime, -bufferMinutes);
       // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.

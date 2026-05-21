@@ -2716,7 +2716,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : tableRadius(table.shape);
 
   // Base (non-pick) colors
-  const isOverdue = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
+  const isOverdue      = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
+  const isStaleOccupied = table.liveStatus === 'STALE_OCCUPIED';
   const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
     ? minutesUntilEnd(table.currentReservation.expectedEndTime, _operationalNow ?? Date.now()) : null;
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
@@ -2743,7 +2744,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
 
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,236,253,0.96)'   // soft lavender — held
-    : isOverdue ? 'rgba(250,232,232,0.96)'                                            // soft red-tinted — overdue
+    : isOverdue       ? 'rgba(250,232,232,0.96)'                                     // soft red-tinted — overdue
+    : isStaleOccupied ? (isDark ? 'rgba(240,233,220,0.96)' : 'rgba(253,249,242,0.96)')  // warm muted — prev service
     : (STATUS_BG[displayStatus] ?? STATUS_BG['AVAILABLE']);
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
     bg = 'rgba(250,249,240,0.96)';     // soft barely-ivory — VIP prestige
@@ -2837,6 +2839,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
       ? sectionColor + '44'
       : sectionColor;
+  }
+
+  // STALE_OCCUPIED: warm amber border at low opacity — visibly "something here" but not urgent.
+  if (isStaleOccupied && !selected && !combinedSelected && !softHold) {
+    borderWidth = 1;
+    borderColor = 'rgba(217,119,6,0.36)';
   }
 
   // BLOCKED: intentional absence — near-ghost, clearly not in service
@@ -2996,6 +3004,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
     const leftEdgeColor = !isDark ? 'rgba(0,0,0,0)'
       : table.liveStatus === 'OCCUPIED'                          ? 'rgba(134,239,172,0.22)'
+      : isStaleOccupied                                         ? 'rgba(217,119,6,0.14)'
       : displayStatus   === 'RESERVED_SOON'                    ? 'rgba(251,191,36,0.20)'
       : displayStatus   === 'RESERVED' && !isFarFutureReserved  ? 'rgba(147,197,253,0.18)'
       :                                                            'rgba(255,255,255,0.28)';
@@ -3007,7 +3016,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
   // and the table number becomes a secondary label
-  const hasGuest = ['OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
+  const hasGuest = ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
 
   // Multi-turn stack — turns to show below the table boundary.
   // Uses `turns` prop (PENDING+CONFIRMED from full reservations list) — not table.upcomingReservations,
@@ -3015,7 +3024,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // OCCUPIED: all `turns` (current is SEATED and not in the list). RESERVED/SOON: skip index 0
   // (it's the primary turn already shown inside). AVAILABLE: all `turns`. Cap at 4.
   const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
-    ? table.liveStatus === 'OCCUPIED'
+    ? (table.liveStatus === 'OCCUPIED' || isStaleOccupied)
       ? turns.slice(0, 4)
       : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
       ? isDormantReserved ? [] : turns.slice(1, 5)
@@ -3072,7 +3081,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // Material surface — gradient angle and shape vary by table type so overhead light
         // reads correctly: radial for round, top-down for booths, angled for rectangular.
         // Pick/warn states are neutral (clarity first — no decoration during selection).
-        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, isFarFutureReserved ? 'AVAILABLE' : displayStatus, cls, isDark) : undefined,
+        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, (isFarFutureReserved || isStaleOccupied) ? 'AVAILABLE' : displayStatus, cls, isDark) : undefined,
         boxShadow,
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
@@ -3229,6 +3238,24 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               <span style={{ position: 'absolute', bottom: 3, right: 4, fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
                 ⊞
               </span>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* STALE_OCCUPIED — from a previous service day: muted amber, no urgency */}
+      {isStaleOccupied && currentRes && (() => {
+        const isCombined  = currentRes.combinedTableIds.length > 0;
+        const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative', paddingBottom: 6 }}>
+            <p style={{ fontSize: 12, color: isDark ? 'rgba(146,100,40,0.80)' : 'rgba(120,72,20,0.72)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
+              {currentRes.guestName}
+            </p>
+            {!isSecondary && (
+              <p style={{ fontSize: 9, color: isDark ? 'rgba(180,130,60,0.60)' : 'rgba(146,100,40,0.55)', fontWeight: 500, textAlign: 'center', margin: 0, lineHeight: 1.2, letterSpacing: '0.01em' }}>
+                שרידי שירות
+              </p>
             )}
           </div>
         );
