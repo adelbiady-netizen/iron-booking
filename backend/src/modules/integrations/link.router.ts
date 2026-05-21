@@ -69,7 +69,9 @@ function firstStrOrNull(val: unknown): string | null {
  *   record    – recording URL (optional)
  */
 router.get('/call', (req, res) => {
+  const t0 = Date.now();
   res.sendStatus(200);
+  console.log('[link/timing] ① 200 sent —', Date.now() - t0, 'ms');
 
   const callerStr    = firstStr(req.query.caller);
   const calledStr    = firstStrOrNull(req.query.called);
@@ -119,6 +121,8 @@ router.get('/call', (req, res) => {
 
   restaurantLookup
     .then(async restaurant => {
+      console.log('[link/timing] ② restaurant resolved —', Date.now() - t0, 'ms total');
+
       // ── Resolution logging ──────────────────────────────────────────────────
       if (groupRoute) {
         if (restaurant) {
@@ -153,6 +157,7 @@ router.get('/call', (req, res) => {
       // Without a provider-issued call ID we use a time-window guard.
       // TODO: replace with upsert on CallLog.linkCallId once the provider sends one.
       const cutoff = new Date(Date.now() - 60_000);
+      const tParallelStart = Date.now();
       const [duplicate, guestMatch] = await Promise.all([
         prisma.callLog.findFirst({
           where: {
@@ -171,6 +176,8 @@ router.get('/call', (req, res) => {
           : Promise.resolve(null),
       ]);
 
+      console.log('[link/timing] ③ parallel (dup+guest) —', Date.now() - tParallelStart, 'ms |', Date.now() - t0, 'ms total');
+
       if (duplicate) {
         console.log('[link/call] Duplicate webhook — skipping create. Existing id:', duplicate.id);
         return null;
@@ -181,7 +188,8 @@ router.get('/call', (req, res) => {
         : null;
       if (guestName) console.log('[link/call] Guest matched —', guestName);
 
-      return prisma.callLog.create({
+      const tCreate = Date.now();
+      const created = await prisma.callLog.create({
         data: {
           restaurantId:  restaurant?.id ?? null,
           phone:         callerStr,
@@ -198,6 +206,8 @@ router.get('/call', (req, res) => {
           guestName,
         },
       });
+      console.log('[link/timing] ④ callLog.create —', Date.now() - tCreate, 'ms |', Date.now() - t0, 'ms total');
+      return created;
     })
     .then(log => {
       if (!log) return; // duplicate — already logged above
@@ -234,6 +244,7 @@ router.get('/call', (req, res) => {
         guestName:     log.guestName,
       };
 
+      console.log('[link/timing] ⑤ SSE emit —', Date.now() - t0, 'ms total ← HOST AWARENESS POINT');
       eventBus.emit('incoming_call', payload);
 
       const activeSessions = eventBus.listenerCount('incoming_call');
