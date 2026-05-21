@@ -598,4 +598,5 @@ export interface CallLogItem {
   restaurantName: string | null;
   routingStatus: string | null;
   createdAt: string;
+  guestName?: string | null;
 }

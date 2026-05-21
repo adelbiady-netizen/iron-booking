@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../../lib/prisma';
 import { eventBus } from '../../lib/eventBus';
+import { lookupGuestByPhone } from '../guests/service';
 
 const router = Router();
 
@@ -147,25 +148,38 @@ router.get('/call', (req, res) => {
         console.warn('[link/call] No routing signal — neither group nor DNIS (called) param present. Persisting as unrouted.');
       }
 
-      // ── Idempotency: deduplicate webhook retries within a 60-second window ──
+      // ── Idempotency check + guest lookup — run in parallel ──────────────────
       // A retry delivers the same (caller, called, group, status) within seconds.
       // Without a provider-issued call ID we use a time-window guard.
       // TODO: replace with upsert on CallLog.linkCallId once the provider sends one.
       const cutoff = new Date(Date.now() - 60_000);
-      const duplicate = await prisma.callLog.findFirst({
-        where: {
-          phone:  callerStr,
-          called: calledStr,
-          group:  groupStr,
-          status: statusStr,
-          createdAt: { gte: cutoff },
-        },
-        select: { id: true },
-      });
+      const [duplicate, guestMatch] = await Promise.all([
+        prisma.callLog.findFirst({
+          where: {
+            phone:  callerStr,
+            called: calledStr,
+            group:  groupStr,
+            status: statusStr,
+            createdAt: { gte: cutoff },
+          },
+          select: { id: true },
+        }),
+        // Guest lookup: only when a restaurant is resolved; uses dual-format OR
+        // query to match both +972 and 05 storage formats without false misses.
+        restaurant?.id
+          ? lookupGuestByPhone(restaurant.id, callerStr)
+          : Promise.resolve(null),
+      ]);
+
       if (duplicate) {
         console.log('[link/call] Duplicate webhook — skipping create. Existing id:', duplicate.id);
         return null;
       }
+
+      const guestName = guestMatch
+        ? `${guestMatch.firstName} ${guestMatch.lastName}`.trim() || null
+        : null;
+      if (guestName) console.log('[link/call] Guest matched —', guestName);
 
       return prisma.callLog.create({
         data: {
@@ -181,6 +195,7 @@ router.get('/call', (req, res) => {
           category:       groupRoute ? groupRoute.category       : null,
           channel:        groupRoute ? groupRoute.channel        : null,
           restaurantName: groupRoute ? groupRoute.restaurantName : null,
+          guestName,
         },
       });
     })
@@ -216,6 +231,7 @@ router.get('/call', (req, res) => {
         group:         log.group,
         restaurantName: log.restaurantName,
         routingStatus: log.routingStatus,
+        guestName:     log.guestName,
       };
 
       eventBus.emit('incoming_call', payload);

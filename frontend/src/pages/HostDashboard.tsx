@@ -233,6 +233,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         id?: string; phone: string; createdAt: string; status?: string;
         duration?: number | null; recordUrl?: string | null; group?: string | null;
         restaurantName?: string | null; routingStatus?: string | null;
+        guestName?: string | null;
       };
 
       console.log('[call:sse] ① event received', {
@@ -253,6 +254,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         group:         d.group ?? null,
         restaurantName: d.restaurantName ?? null,
         routingStatus: d.routingStatus ?? null,
+        guestName:     d.guestName ?? null,
       };
       setLatestCall(callItem);
       console.log('[call:sse] ② setLatestCall dispatched', { id: callItem.id, panelOpen: showCallLog });

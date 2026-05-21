@@ -585,6 +585,7 @@ model CallLog {
   category       String?   // "reservation" | future categories
   channel        String?   // "phone" | "sms" | future channels
   restaurantName String?   // denormalised; set when group routing resolves to a known target
+  guestName      String?   // denormalised snapshot — first+last at call time; null if no match
 
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
 

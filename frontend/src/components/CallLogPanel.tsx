@@ -245,14 +245,21 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
                     </span>
                   </div>
 
-                  {/* Row 2: caller identity — formatted phone as dominant anchor */}
-                  <p className={`font-bold tabular-nums tracking-tight leading-none mb-3 ${
-                    hasPhone
-                      ? 'text-iron-text text-[20px]'
-                      : 'text-iron-muted/60 text-[15px] italic font-normal'
-                  }`}>
-                    {displayPhone}
-                  </p>
+                  {/* Row 2: caller identity — guest name first when matched, phone below */}
+                  {call.guestName ? (
+                    <div className="mb-3">
+                      <p className="font-semibold text-iron-text text-[17px] leading-tight">{call.guestName}</p>
+                      <p className="text-iron-muted/55 text-[12px] tabular-nums leading-tight mt-0.5">{displayPhone}</p>
+                    </div>
+                  ) : (
+                    <p className={`font-bold tabular-nums tracking-tight leading-none mb-3 ${
+                      hasPhone
+                        ? 'text-iron-text text-[20px]'
+                        : 'text-iron-muted/60 text-[15px] italic font-normal'
+                    }`}>
+                      {displayPhone}
+                    </p>
+                  )}
 
                   {/* Row 3: secondary metadata + actions */}
                   <div className="flex items-center gap-2 flex-wrap">

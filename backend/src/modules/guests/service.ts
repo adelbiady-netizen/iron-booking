@@ -172,13 +172,29 @@ export async function updateGuest(restaurantId: string, id: string, data: Partia
   return prisma.guest.update({ where: { id }, data: data as any });
 }
 
+// Returns the alternate Israeli format for a normalized phone number so that
+// guests stored as +972XXXXXXXXX are found when the caller sends 05XXXXXXXX and
+// vice-versa. Returns null for non-Israeli numbers or numbers too short to convert.
+function israeliAlternate(normalized: string): string | null {
+  if (normalized.startsWith('+972') && normalized.length >= 12)
+    return '0' + normalized.slice(4);
+  if (/^0\d{8,9}$/.test(normalized))
+    return '+972' + normalized.slice(1);
+  return null;
+}
+
 export async function lookupGuestByPhone(restaurantId: string, rawPhone: string) {
   const normalized = normalizePhone(rawPhone);
   // Require at least 7 digits — ignore partial/empty input
   if (normalized.replace(/\D/g, '').length < 7) return null;
 
+  const alt = israeliAlternate(normalized);
+  const phoneFilter: Prisma.GuestWhereInput = alt
+    ? { OR: [{ phone: normalized }, { phone: alt }] }
+    : { phone: normalized };
+
   return prisma.guest.findFirst({
-    where: { restaurantId, phone: normalized },
+    where: { restaurantId, ...phoneFilter },
     select: {
       id: true,
       firstName: true,

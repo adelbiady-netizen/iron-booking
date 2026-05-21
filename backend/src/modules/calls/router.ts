@@ -29,7 +29,7 @@ router.get('/', async (req, res, next) => {
         select: {
           id: true, phone: true, status: true, duration: true,
           recordUrl: true, group: true, restaurantName: true,
-          routingStatus: true, createdAt: true,
+          routingStatus: true, createdAt: true, guestName: true,
         },
       }),
       prisma.callLog.count({ where }),
