@@ -553,6 +553,14 @@ export default function FloorBoard({
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('scroll', onScroll, true); };
   }, [ctxMenu]);
 
+  // Cancel pick mode on Esc
+  useEffect(() => {
+    if (!pickMode) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onPickCancel?.(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pickMode, onPickCancel]);
+
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
   useEffect(() => {

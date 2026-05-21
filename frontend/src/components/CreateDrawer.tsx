@@ -363,6 +363,7 @@ export default function CreateDrawer({
           setManualOverride(true);
         }
       },
+      'seat',
     );
   }
 
@@ -390,7 +391,7 @@ export default function CreateDrawer({
           setWiManualOverride(true);
         }
       },
-      undefined,
+      'seat',
       undefined,
       true,
     );
