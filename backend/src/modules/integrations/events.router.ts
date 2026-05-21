@@ -52,7 +52,7 @@ router.get('/', (req, res) => {
 
   const sessionTag = `[SSE:${payload.restaurantId}]`;
   const activeSessions = eventBus.listenerCount('incoming_call') + 1; // +1 for this new connection
-  console.log(sessionTag, 'Connection opened — total active sessions:', activeSessions);
+  console.log(sessionTag, 'Connection opened — restaurantId:', payload.restaurantId, '| userId:', payload.userId, '| total sessions:', activeSessions);
 
   // Ping every 25 s — most proxies drop idle connections at 30 s
   const ping = setInterval(() => res.write(':ping\n\n'), 25_000);
