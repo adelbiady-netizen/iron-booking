@@ -141,8 +141,10 @@ router.get('/call', (req, res) => {
         } else {
           console.warn('[link/call] Resolution failed: DNIS', calledStr, '| group:', groupStr ?? '(none)', '— no restaurant match.');
         }
+      } else if (groupStr) {
+        console.warn('[link/call] Unknown group', groupStr, '— not in LINK_GROUP_ROUTES and no DNIS fallback. Persisting as unrouted.');
       } else {
-        console.warn('[link/call] No routing signal (no group, no DNIS) — persisting as unrouted.');
+        console.warn('[link/call] No routing signal — neither group nor DNIS (called) param present. Persisting as unrouted.');
       }
 
       // ── Idempotency: deduplicate webhook retries within a 60-second window ──
