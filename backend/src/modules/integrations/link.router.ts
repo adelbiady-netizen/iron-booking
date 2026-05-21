@@ -29,8 +29,8 @@ interface GroupRoute {
 }
 
 const LINK_GROUP_ROUTES: Record<string, GroupRoute> = {
-  '201': { restaurantSlug: 'italiano-dalla-costa', restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'phone' },
-  '203': { restaurantSlug: 'italiano-dalla-costa', restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'sms'   },
+  '201': { restaurantSlug: 'eataliano-dalla-costa', restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'phone' },
+  '203': { restaurantSlug: 'eataliano-dalla-costa', restaurantName: 'Eataliano Dalla Costa', category: 'reservation', channel: 'sms'   },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
