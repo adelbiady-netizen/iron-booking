@@ -76,17 +76,21 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
   // Compute the UTC date fresh each time so stale-mount dates never filter out recent calls.
   useEffect(() => {
     const filterDate = scope === 'today' ? new Date().toISOString().slice(0, 10) : undefined;
+    console.log('[call:panel] scope effect — scope:', scope, 'filterDate:', filterDate, 'latestCallId:', latestCall?.id ?? 'none');
     setCalls([]);
     setTotal(0);
     setOffset(0);
     load(0, filterDate);
-  }, [load, scope]);
+  }, [load, scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Prepend live SSE-delivered call without a refetch. Guard by id to prevent duplicates.
   useEffect(() => {
     if (!latestCall) return;
+    console.log('[call:panel] ④ latestCall effect fired', { id: latestCall.id, phone: latestCall.phone, status: latestCall.status });
     setCalls(prev => {
-      if (prev.some(c => c.id === latestCall.id)) return prev;
+      const isDupe = prev.some(c => c.id === latestCall.id);
+      console.log('[call:panel] ⑤ setCalls — prevLen:', prev.length, 'isDupe:', isDupe, 'result:', isDupe ? prev.length : prev.length + 1);
+      if (isDupe) return prev;
       return [latestCall, ...prev];
     });
     setTotal(prev => prev + 1);

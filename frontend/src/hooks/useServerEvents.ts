@@ -57,6 +57,7 @@ export function useServerEvents(handlers: EventHandlers): SseStatus {
       es.addEventListener('incoming_call', (e: MessageEvent) => {
         try {
           const data = JSON.parse(e.data) as unknown;
+          console.log('[call:sse] ⓪ SSE incoming_call received at hook layer — hasHandler:', !!handlersRef.current['incoming_call']);
           handlersRef.current['incoming_call']?.(data);
         } catch { /* ignore malformed JSON */ }
       });

@@ -228,15 +228,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const sseStatus = useServerEvents({
     incoming_call: (data) => {
+      const raw = data as Record<string, unknown>;
       const d = data as {
         id?: string; phone: string; createdAt: string; status?: string;
         duration?: number | null; recordUrl?: string | null; group?: string | null;
         restaurantName?: string | null; routingStatus?: string | null;
       };
 
+      console.log('[call:sse] ① event received', {
+        id: d.id, phone: d.phone, status: d.status,
+        restaurantId: raw.restaurantId, createdAt: d.createdAt,
+        routingStatus: d.routingStatus,
+      });
+
       // Always update the call log panel with the freshest record from SSE.
       // The panel guards against duplicates by id.
-      setLatestCall({
+      const callItem = {
         id:            d.id ?? `sse-${d.createdAt}`,
         phone:         d.phone,
         createdAt:     d.createdAt,
@@ -246,11 +253,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         group:         d.group ?? null,
         restaurantName: d.restaurantName ?? null,
         routingStatus: d.routingStatus ?? null,
-      });
+      };
+      setLatestCall(callItem);
+      console.log('[call:sse] ② setLatestCall dispatched', { id: callItem.id, panelOpen: showCallLog });
 
       const now = Date.now();
       // 1. Deduplication — same phone within 10 s (drawer only)
       if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) {
+        console.log('[call:sse] ③ drawer dedup fired — same phone within 10s, drawer suppressed (log still updated)');
         return;
       }
       lastCallRef.current = { phone: d.phone, at: now };
@@ -261,6 +271,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         if (callHighlightTimer.current) clearTimeout(callHighlightTimer.current);
         setCallHighlight(true);
         callHighlightTimer.current = setTimeout(() => setCallHighlight(false), 1200);
+        console.log('[call:sse] ③ drawer already open — updated + ping');
         return;
       }
 
@@ -272,8 +283,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
       if (typing) {
         setCallNotification(d);
+        console.log('[call:sse] ③ typing detected — badge shown');
       } else {
         setIncomingCall(d);
+        console.log('[call:sse] ③ drawer opened');
       }
     },
     // Push-triggered refresh: when any device mutates a reservation the backend
