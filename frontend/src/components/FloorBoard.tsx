@@ -2730,6 +2730,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
     bg = 'rgba(247,247,247,0.96)';     // soft neutral — bar clean
   }
+  // Progressive reservation tint — reduce the blue overlay alpha for MID/FAR turns.
+  // The table surface (opacity=1) stays spatially stable; only the reservation colour recedes.
+  // NEAR (<150 min): full tint (0.97) — operational, act now
+  // MID  (150–300):  reduced tint (0.68/0.70) — informative, plan ahead
+  // FAR  (300+):     faint tint  (0.32/0.35) — awareness, outline-reserved feel
+  if ((isMidFutureReserved || isQuietReserved) && !softHold && !isOverdue) {
+    bg = isQuietReserved
+      ? isDark ? 'rgba(203,220,248,0.32)' : 'rgba(219,234,254,0.35)'
+      : isDark ? 'rgba(203,220,248,0.65)' : 'rgba(219,234,254,0.68)';
+  }
 
   let borderColor = selected        ? '#22c55e'
     : combinedSelected ? '#3b82f6'
@@ -2754,9 +2764,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let opacity = dimmed ? 0.25
     : table.locked ? 0.55
     : isLongStable ? 0.90          // stable occupied recedes; urgent states stay full
-    : isQuietReserved ? 0.65       // FAR 300+ min: awareness — present but not competing
-    : isMidFutureReserved ? 0.78   // MID 150–300 min: informative, clearly present
     : 1;
+  // MID/FAR do NOT fade the table — only the reservation tint layer changes (see bg below)
   let cursor = 'pointer';
 
   // Ambient status glow — each occupied/arriving state casts its own light.
