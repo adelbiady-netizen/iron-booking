@@ -287,6 +287,8 @@ export const T = {
     tableChangeBtn:          'Change table',
     tableClearSelection:     'Clear selection',
     tableSelectOnMap:        'Select on map',
+    tableSelectFromMap:      'Pick table from map',
+    tableChangeFromMap:      'Change table on map',
     tablePickingOnMap:       'Selecting on map…',
     tableCapacityWarn:       (cap: number, party: number) => `Selected table capacity is ${cap}, reservation size is ${party}`,
     tableUseAuto:            '← Use suggested',

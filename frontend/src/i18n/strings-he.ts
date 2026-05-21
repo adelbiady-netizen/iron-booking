@@ -287,6 +287,8 @@ export const THe = {
     tableChangeBtn:          'שנה שולחן',
     tableClearSelection:     'נקה בחירה',
     tableSelectOnMap:        'בחר על המפה',
+    tableSelectFromMap:      'בחר שולחן מהמפה',
+    tableChangeFromMap:      'שנה שולחן מהמפה',
     tablePickingOnMap:       'בוחר על המפה…',
     tableCapacityWarn:       (cap: number, party: number) => `קיבולת השולחנות שנבחרו היא ${cap}, גודל הקבוצה ${party}`,
     tableUseAuto:            '← שולחן מוצע',

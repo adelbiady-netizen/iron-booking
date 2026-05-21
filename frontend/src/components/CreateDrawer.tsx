@@ -341,17 +341,18 @@ export default function CreateDrawer({
   }
 
   function openMapPicker() {
-    // Use cached suggestions synchronously so setPickingOnMap + setTablePickMode
-    // fire in the same React batch (atomic render: drawer hides + pick mode activates).
-    // The auto-allocation useEffect already populates resSuggestions on debounce;
-    // if still loading, empty suggestions are fine — all tables remain selectable.
+    console.log('[pick:create] select-on-map clicked');
+    console.log('[pick:create] onPickTables exists:', !!onPickTables);
     const sug = suggestBusy ? [] : resSuggestions;
     setPickingOnMap(true);
+    console.log('[pick:create] pickingOnMap set true');
     setShowPicker(false);
+    console.log('[pick:create] calling onPickTables with action=seat, sug.length=', sug.length);
     onPickTables?.(
       [resTable, ...resCombinedTableIds].filter(Boolean),
       sug,
       (ids) => {
+        console.log('[pick:create] callback fired with ids=', ids);
         setPickingOnMap(false);
         if (ids !== null) {
           setResTable(ids[0] ?? '');
@@ -361,6 +362,7 @@ export default function CreateDrawer({
       },
       'seat',
     );
+    console.log('[pick:create] onPickTables call returned');
   }
 
   function openWiMapPicker() {
@@ -957,6 +959,15 @@ export default function CreateDrawer({
 
             {/* ── Sticky confirm footer ── */}
             <div className="p-3 border-t border-iron-border shrink-0">
+              {onPickTables && !pickingOnMap && (
+                <button
+                  type="button"
+                  onClick={openMapPicker}
+                  className="w-full mb-2 py-2 text-sm font-medium rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors"
+                >
+                  {resTable ? T.createDrawer.tableChangeFromMap : T.createDrawer.tableSelectFromMap}
+                </button>
+              )}
               {phoneWarning ? (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-900/10 p-3 space-y-2.5">
                   <div>
@@ -1280,6 +1291,15 @@ export default function CreateDrawer({
             )}
 
             <div className="space-y-2">
+              {onPickTables && !wiPickingOnMap && (
+                <button
+                  type="button"
+                  onClick={openWiMapPicker}
+                  className="w-full py-2 text-sm font-medium rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors"
+                >
+                  {wiTable ? T.createDrawer.tableChangeFromMap : T.createDrawer.tableSelectFromMap}
+                </button>
+              )}
               {phoneWarning ? (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-900/10 p-3 space-y-2.5">
                   <div>
