@@ -2728,18 +2728,6 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120;
   const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
 
-  // ── Tier debug log (temporary) ────────────────────────────────────────────
-  if (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') {
-    console.log('[tier:debug] table=' + table.name,
-      '| boardDate=' + (date ?? '?'),
-      '| boardTime=' + (_nowTime ?? '?'),
-      '| resTime=' + (nextRes?.time ?? '—'),
-      '| rawMinutesUntil=' + nextRes?.minutesUntil,        // undefined = field missing from data
-      '| minutesUntilNext=' + minutesUntilNext,             // after ?? 0 fallback
-      '| tier=' + (isDormantReserved ? 'DORMANT' : isUpcomingReserved ? 'UPCOMING' : 'ACTIVE'),
-      '| liveStatus=' + table.liveStatus,
-    );
-  }
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
 
