@@ -2464,28 +2464,26 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
         const displayCount = Math.max(2, Math.min(seatCount, table.maxCovers, 12));
         const tableDisplayStatus = (isLiveView || table.liveStatus !== 'RESERVED_SOON') ? table.liveStatus : 'RESERVED';
         const isActive     = isOccupied || table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
-        const filledCount  = isActive ? displayCount : 0;
-
-        // Per-table tier for RESERVED chairs — mirrors MapTable thresholds.
-        const chairNextMin = table.upcomingReservations[0]?.minutesUntil ?? 0;
-        const isChairMid   = table.liveStatus === 'RESERVED' && chairNextMin >= 150 && chairNextMin < 300;
-        const isChairFar   = table.liveStatus === 'RESERVED' && chairNextMin >= 300;
+        // Per-table tier for RESERVED chairs — mirrors MapTable operational thresholds.
+        const chairNextMin    = table.upcomingReservations[0]?.minutesUntil ?? 0;
+        const isChairUpcoming = table.liveStatus === 'RESERVED' && chairNextMin >= 60 && chairNextMin < 120;
+        const isChairDormant  = table.liveStatus === 'RESERVED' && chairNextMin >= 120;
+        // DORMANT: chairs rendered empty — table reads as fully available on the floor.
+        const filledCount     = isActive && !isChairDormant ? displayCount : 0;
 
         // Chair fill/stroke scale with reservation proximity.
-        // FAR: desaturated + -44% alpha — ambient hint only, not a first-scan signal.
-        // MID: same hue, -24% alpha — informative but not dominant.
-        // NEAR: unchanged — full operational emphasis.
+        // UPCOMING (60–120 min): subtle blue — informative but not dominant.
+        // ACTIVE (<60 min): full operational emphasis.
+        // DORMANT (120+ min): filledCount=0, so these colors are unused.
         const filledFill =
           isOccupied                                  ? 'rgba(22,163,74,0.75)'
           : tableDisplayStatus === 'RESERVED_SOON'  ? 'rgba(217,119,6,0.72)'
-          : isChairFar                               ? 'rgba(59,130,246,0.38)'   // FAR: lighter hue, low alpha
-          : isChairMid                               ? 'rgba(37,99,235,0.52)'    // MID: -24%
-          : 'rgba(37,99,235,0.68)';                                               // NEAR: full
+          : isChairUpcoming                          ? 'rgba(59,130,246,0.40)'   // UPCOMING: subtle blue
+          : 'rgba(37,99,235,0.68)';                                               // ACTIVE: full
         const filledStroke =
           isOccupied                                  ? 'rgba(22,163,74,0.40)'
           : tableDisplayStatus === 'RESERVED_SOON'  ? 'rgba(217,119,6,0.35)'
-          : isChairFar                               ? 'rgba(37,99,235,0.18)'
-          : isChairMid                               ? 'rgba(37,99,235,0.25)'
+          : isChairUpcoming                          ? 'rgba(37,99,235,0.20)'   // UPCOMING: subtle
           : 'rgba(37,99,235,0.32)';
         const emptyFill   = `rgba(180,174,168,${(0.55 * quietLevel).toFixed(2)})`;
         const emptyStroke = `rgba(160,155,150,${(0.30 * quietLevel).toFixed(2)})`;
@@ -2497,8 +2495,7 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
           ? 'rgba(21,128,61,0.85)'
           : tableDisplayStatus === 'RESERVED_SOON'
           ? 'rgba(180,83,9,0.82)'
-          : isChairFar  ? 'rgba(37,99,235,0.44)'
-          : isChairMid  ? 'rgba(29,78,216,0.62)'
+          : isChairUpcoming ? 'rgba(37,99,235,0.50)'   // UPCOMING: subtle
           : 'rgba(29,78,216,0.78)';
         const emptyBack  = `rgba(155,149,144,${(0.65 * quietLevel).toFixed(2)})`;
         const backH      = useDots || isBarSeating ? 0 : Math.round(cH * 0.35);
@@ -2725,10 +2722,23 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
   // Stable/recession states — reduce visual weight to let urgent tables surface
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
-  const minutesUntilNext    = nextRes?.minutesUntil ?? 0;
-  const isMidFutureReserved = table.liveStatus === 'RESERVED' && minutesUntilNext >= 150 && minutesUntilNext < 300;
-  const isQuietReserved     = table.liveStatus === 'RESERVED' && minutesUntilNext >= 300;
-  const isFarFutureReserved = isMidFutureReserved || isQuietReserved;
+  const minutesUntilNext   = nextRes?.minutesUntil ?? 0;
+  const isUpcomingReserved = table.liveStatus === 'RESERVED' && minutesUntilNext >= 60 && minutesUntilNext < 120;
+  const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120;
+  const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
+
+  // ── Tier debug log (temporary) ────────────────────────────────────────────
+  if (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') {
+    console.log('[tier:debug] table=' + table.name,
+      '| boardDate=' + (date ?? '?'),
+      '| boardTime=' + (_nowTime ?? '?'),
+      '| resTime=' + (nextRes?.time ?? '—'),
+      '| rawMinutesUntil=' + nextRes?.minutesUntil,        // undefined = field missing from data
+      '| minutesUntilNext=' + minutesUntilNext,             // after ?? 0 fallback
+      '| tier=' + (isDormantReserved ? 'DORMANT' : isUpcomingReserved ? 'UPCOMING' : 'ACTIVE'),
+      '| liveStatus=' + table.liveStatus,
+    );
+  }
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
 
@@ -2747,9 +2757,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
     bg = 'rgba(247,247,247,0.96)';     // soft neutral — bar clean
   }
-  // FAR (300+ min): restore clean neutral surface — same as an empty table.
-  // Reservation awareness is carried by the border + typography layer only, not the surface.
-  if (isQuietReserved && !softHold && !isOverdue) {
+  // UPCOMING/DORMANT: restore clean neutral surface — same as an empty table.
+  // Only the blue border (UPCOMING) or nothing (DORMANT) carries the reservation signal.
+  if ((isUpcomingReserved || isDormantReserved) && !softHold && !isOverdue) {
     bg = STATUS_BG['AVAILABLE'];
   }
 
@@ -2777,7 +2787,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : table.locked ? 0.55
     : isLongStable ? 0.90          // stable occupied recedes; urgent states stay full
     : 1;
-  // MID/FAR do NOT fade the table — only the reservation tint layer changes (see bg below)
+  // UPCOMING/DORMANT do NOT fade the table — only the reservation tint layer changes (see bg below)
   let cursor = 'pointer';
 
   // Ambient status glow — each occupied/arriving state casts its own light.
@@ -2800,12 +2810,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (displayStatus === 'RESERVED_SOON') {
       borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
-    } else if (displayStatus === 'RESERVED') {
-      borderColor = isQuietReserved
-        ? 'rgba(59,130,246,0.18)'    // FAR 300+ min: barely-there awareness edge
-        : isMidFutureReserved
-        ? 'rgba(59,130,246,0.26)'    // MID 150–300 min: informative, clearly below NEAR
-        : 'rgba(59,130,246,0.52)';   // NEAR <150 min: strong committed signal
+    } else if (displayStatus === 'RESERVED' && !isDormantReserved) {
+      borderColor = isUpcomingReserved
+        ? 'rgba(59,130,246,0.24)'    // UPCOMING 60–120 min: subtle awareness edge
+        : 'rgba(59,130,246,0.52)';   // ACTIVE <60 min: strong committed signal
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
     } else if (table.liveStatus === 'BLOCKED') {
@@ -2820,6 +2828,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     borderWidth = cls === 'communal' ? 1.5 : cls === 'lounge' ? 1 : 1;
     borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
       ? sectionColor + '44'   // ~27% opacity — empty tables do not compete
+      : sectionColor;
+  }
+
+  // DORMANT (120+ min): matches AVAILABLE border — section color at low opacity, no blue signal.
+  if (isDormantReserved && !selected && !combinedSelected && !softHold) {
+    borderWidth = cls === 'communal' ? 1.5 : 1;
+    borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
+      ? sectionColor + '44'
       : sectionColor;
   }
 
@@ -2951,13 +2967,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         ? '0 0 0 1px rgba(251,191,36,0.44), 0 0 48px rgba(251,191,36,0.24)'
         : '0 0 0 1px rgba(217,119,6,0.58), 0 0 46px rgba(217,119,6,0.22)';
     } else if (displayStatus === 'RESERVED') {
+      // ACTIVE (<60 min): clear blue halo — service prep window is open.
+      // UPCOMING/DORMANT (60+ min): no halo — table surface is already neutral.
       halo = isFarFutureReserved
-        ? isDark
-          // Far future: quiet presence — no action needed yet
-          ? '0 0 0 1px rgba(147,197,253,0.12), 0 0 20px rgba(147,197,253,0.05)'
-          : '0 0 0 1px rgba(37,99,235,0.18), 0 0 20px rgba(37,99,235,0.05)'
+        ? undefined
         : isDark
-          // Approaching: clear signal — service prep window opening
           ? '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)'
           : '0 0 0 1px rgba(37,99,235,0.38), 0 0 36px rgba(37,99,235,0.14)';
     } else if (table.liveStatus === 'AVAILABLE') {
@@ -2981,10 +2995,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // This gives tactile status confirmation independent of the text layer.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
     const leftEdgeColor = !isDark ? 'rgba(0,0,0,0)'
-      : table.liveStatus === 'OCCUPIED'      ? 'rgba(134,239,172,0.22)'
-      : displayStatus   === 'RESERVED_SOON' ? 'rgba(251,191,36,0.20)'
-      : displayStatus   === 'RESERVED'      ? 'rgba(147,197,253,0.18)'
-      :                                        'rgba(255,255,255,0.28)';
+      : table.liveStatus === 'OCCUPIED'                          ? 'rgba(134,239,172,0.22)'
+      : displayStatus   === 'RESERVED_SOON'                    ? 'rgba(251,191,36,0.20)'
+      : displayStatus   === 'RESERVED' && !isFarFutureReserved  ? 'rgba(147,197,253,0.18)'
+      :                                                            'rgba(255,255,255,0.28)';
     const depthShadow = isDark
       ? `inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 ${leftEdgeColor}, inset -1px 0 0 rgba(0,0,0,0.13), inset 0 -2px 10px rgba(0,0,0,0.19)`
       : 'inset 0 1px 0 rgba(0,0,0,0.07), inset 0 -2px 8px rgba(0,0,0,0.11)';
@@ -3004,7 +3018,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? table.liveStatus === 'OCCUPIED'
       ? turns.slice(0, 4)
       : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
-      ? turns.slice(1, 5)
+      ? isDormantReserved ? [] : turns.slice(1, 5)
       : table.liveStatus === 'AVAILABLE'
       ? turns.slice(0, 4)
       : []
@@ -3030,12 +3044,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : displayStatus === 'RESERVED_SOON'
     // Arriving soon: stronger presence — host needs to prepare the table
     ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.66)) drop-shadow(0 1px 6px rgba(0,0,0,0.34))'
-    : displayStatus === 'RESERVED'
-    ? isQuietReserved
-      ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.38)) drop-shadow(0 1px 4px rgba(0,0,0,0.18))'  // FAR: quiet presence
-      : isMidFutureReserved
-      ? 'drop-shadow(0 2px 14px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'  // MID: recede
-      : 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'  // NEAR: maintain
+    : displayStatus === 'RESERVED' && !isDormantReserved
+    ? isUpcomingReserved
+      ? 'drop-shadow(0 2px 14px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'  // UPCOMING: recede
+      : 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'  // ACTIVE: maintain
     : table.liveStatus === 'BLOCKED'
     ? undefined
     // VIP tables cast a deeper shadow footprint even when empty — premium floor presence
@@ -3060,7 +3072,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // Material surface — gradient angle and shape vary by table type so overhead light
         // reads correctly: radial for round, top-down for booths, angled for rectangular.
         // Pick/warn states are neutral (clarity first — no decoration during selection).
-        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, isQuietReserved ? 'AVAILABLE' : displayStatus, cls, isDark) : undefined,
+        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, isFarFutureReserved ? 'AVAILABLE' : displayStatus, cls, isDark) : undefined,
         boxShadow,
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
@@ -3222,8 +3234,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* RESERVED / RESERVED_SOON */}
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+      {/* RESERVED / RESERVED_SOON — suppressed for DORMANT (120+ min): table renders as available */}
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && !isDormantReserved && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = displayStatus === 'RESERVED_SOON';
@@ -3231,19 +3243,19 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // is a later turn that does not conflict with the selected slot. Recede the label visually
         // so the pick-ring border is the dominant signal and the guest info is secondary context.
         const isFutureTurnOnly = pickMode && !!pickStatus && pickStatus !== 'unavailable' && pickStatus !== 'current';
-        // Progressive typography — NEAR 14/700, MID 13/600, FAR 12/500
+        // Progressive typography — ACTIVE 14/700, UPCOMING 13/600, DORMANT 12/500
         const guestColor = isFutureTurnOnly
           ? isDark ? 'rgba(96,165,250,0.52)' : 'rgba(30,64,175,0.45)'
-          : isQuietReserved
+          : isDormantReserved
           ? isDark ? 'rgba(96,165,250,0.55)' : 'rgba(30,64,175,0.48)'
-          : isMidFutureReserved
-          ? isDark ? 'rgba(96,165,250,0.80)' : 'rgba(30,64,175,0.72)'   // MID: slightly muted
+          : isUpcomingReserved
+          ? isDark ? 'rgba(96,165,250,0.80)' : 'rgba(30,64,175,0.72)'   // UPCOMING: slightly muted
           : isSoon ? '#92400e'
           : isDark ? '#1d4ed8' : '#1e40af';
-        const isReceded = isFutureTurnOnly || isQuietReserved;
-        const guestFontSize   = isReceded ? 12 : isMidFutureReserved ? 13 : 14;
-        const guestFontWeight = isReceded ? 500 : isMidFutureReserved ? 600 : 700;
-        const metaOpacity     = isQuietReserved ? 0.60 : isMidFutureReserved ? 0.78 : 0.92;
+        const isReceded = isFutureTurnOnly || isDormantReserved;
+        const guestFontSize   = isReceded ? 12 : isUpcomingReserved ? 13 : 14;
+        const guestFontWeight = isReceded ? 500 : isUpcomingReserved ? 600 : 700;
+        const metaOpacity     = isDormantReserved ? 0.60 : isUpcomingReserved ? 0.78 : 0.92;
         return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
             {/* Name zone — always centered; stable anchor regardless of badge presence */}
