@@ -2730,15 +2730,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
     bg = 'rgba(247,247,247,0.96)';     // soft neutral — bar clean
   }
-  // Progressive reservation tint — reduce the blue overlay alpha for MID/FAR turns.
-  // The table surface (opacity=1) stays spatially stable; only the reservation colour recedes.
-  // NEAR (<150 min): full tint (0.97) — operational, act now
-  // MID  (150–300):  reduced tint (0.68/0.70) — informative, plan ahead
-  // FAR  (300+):     faint tint  (0.32/0.35) — awareness, outline-reserved feel
-  if ((isMidFutureReserved || isQuietReserved) && !softHold && !isOverdue) {
-    bg = isQuietReserved
-      ? isDark ? 'rgba(203,220,248,0.32)' : 'rgba(219,234,254,0.35)'
-      : isDark ? 'rgba(203,220,248,0.65)' : 'rgba(219,234,254,0.68)';
+  // FAR (300+ min): restore clean neutral surface — same as an empty table.
+  // Reservation awareness is carried by the border + typography layer only, not the surface.
+  if (isQuietReserved && !softHold && !isOverdue) {
+    bg = STATUS_BG['AVAILABLE'];
   }
 
   let borderColor = selected        ? '#22c55e'
@@ -3048,7 +3043,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // Material surface — gradient angle and shape vary by table type so overhead light
         // reads correctly: radial for round, top-down for booths, angled for rectangular.
         // Pick/warn states are neutral (clarity first — no decoration during selection).
-        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, displayStatus, cls, isDark) : undefined,
+        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, isQuietReserved ? 'AVAILABLE' : displayStatus, cls, isDark) : undefined,
         boxShadow,
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
