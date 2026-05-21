@@ -2754,8 +2754,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let opacity = dimmed ? 0.25
     : table.locked ? 0.55
     : isLongStable ? 0.90          // stable occupied recedes; urgent states stay full
-    : isQuietReserved ? 0.38       // FAR 300+ min: near-ghost, border is the only signal
-    : isMidFutureReserved ? 0.60   // MID 150–300 min: muted but present
+    : isQuietReserved ? 0.65       // FAR 300+ min: awareness — present but not competing
+    : isMidFutureReserved ? 0.78   // MID 150–300 min: informative, clearly present
     : 1;
   let cursor = 'pointer';
 
@@ -2781,9 +2781,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
     } else if (displayStatus === 'RESERVED') {
       borderColor = isQuietReserved
-        ? 'rgba(59,130,246,0.08)'    // FAR 300+ min: barely-there hint
+        ? 'rgba(59,130,246,0.22)'    // FAR 300+ min: soft blue — reserved but not urgent
         : isMidFutureReserved
-        ? 'rgba(59,130,246,0.18)'    // MID 150–300 min: soft signal
+        ? 'rgba(59,130,246,0.32)'    // MID 150–300 min: moderate signal
         : 'rgba(59,130,246,0.44)';   // NEAR <150 min: clear committed signal
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
@@ -3011,9 +3011,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.66)) drop-shadow(0 1px 6px rgba(0,0,0,0.34))'
     : displayStatus === 'RESERVED'
     ? isQuietReserved
-      ? 'drop-shadow(0 1px 6px rgba(0,0,0,0.22)) drop-shadow(0 1px 2px rgba(0,0,0,0.10))'   // FAR: near-ghost
+      ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.38)) drop-shadow(0 1px 4px rgba(0,0,0,0.18))'  // FAR: quiet presence
       : isMidFutureReserved
-      ? 'drop-shadow(0 1px 10px rgba(0,0,0,0.34)) drop-shadow(0 1px 3px rgba(0,0,0,0.16))'  // MID: recede
+      ? 'drop-shadow(0 2px 14px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'  // MID: recede
       : 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'  // NEAR: maintain
     : table.liveStatus === 'BLOCKED'
     ? undefined
@@ -3111,16 +3111,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         }} />
       )}
 
-      {/* Table number — primary when empty, secondary label when a guest is present.
-          Quiet-reserved (FAR 300+ min) renders like empty: big number, capacity shown. */}
+      {/* Table number — primary when empty, secondary label when a guest is present */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
-          fontSize: (hasGuest && !isQuietReserved) ? 10 : 15,
-          fontWeight: (hasGuest && !isQuietReserved) ? 600 : 900,
-          color: (hasGuest && !isQuietReserved) ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
-          opacity: (hasGuest && !isQuietReserved) ? 0.88 : table.liveStatus === 'BLOCKED' ? 0.75 : 1,
+          fontSize: hasGuest ? 10 : 15,
+          fontWeight: hasGuest ? 600 : 900,
+          color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
+          opacity: hasGuest ? 0.88 : table.liveStatus === 'BLOCKED' ? 0.75 : 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-          letterSpacing: (hasGuest && !isQuietReserved) ? '0.04em' : '-0.02em',
+          letterSpacing: hasGuest ? '0.04em' : '-0.02em',
         }}>
           {table.name}
         </span>
@@ -3138,7 +3137,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       </div>
 
       {/* Capacity — wayfinding for empty tables only; noise on active tables */}
-      {(!hasGuest || isQuietReserved) && (
+      {!hasGuest && (
         <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 600 }}>
           {table.minCovers}–{table.maxCovers}p
         </span>
@@ -3204,8 +3203,6 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
       {/* RESERVED / RESERVED_SOON */}
       {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
-        // FAR quiet reserved (300+ min): no guest info — border + capacity are the only signals
-        if (isQuietReserved) return null;
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = displayStatus === 'RESERVED_SOON';
@@ -3213,14 +3210,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // is a later turn that does not conflict with the selected slot. Recede the label visually
         // so the pick-ring border is the dominant signal and the guest info is secondary context.
         const isFutureTurnOnly = pickMode && !!pickStatus && pickStatus !== 'unavailable' && pickStatus !== 'current';
+        // FAR (300+ min): awareness-only — soft typography, no urgency styling
         const guestColor = isFutureTurnOnly
           ? isDark ? 'rgba(96,165,250,0.52)' : 'rgba(30,64,175,0.45)'
+          : isQuietReserved
+          ? isDark ? 'rgba(96,165,250,0.55)' : 'rgba(30,64,175,0.48)'
           : isSoon ? '#92400e'
           : isDark ? '#1d4ed8' : '#1e40af';
+        const isReceded = isFutureTurnOnly || isQuietReserved;
         return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
             {/* Name zone — always centered; stable anchor regardless of badge presence */}
-            <p style={{ fontSize: isFutureTurnOnly ? 12 : 14, color: guestColor, fontWeight: isFutureTurnOnly ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
+            <p style={{ fontSize: isReceded ? 12 : 14, color: guestColor, fontWeight: isReceded ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
             </p>
             {/* Metadata zone — time + partySize; chip always visible even on narrow cards */}
@@ -3228,21 +3229,20 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
                 {/* Text group — shrinks first; chip stays fixed */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: 0.92, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: isQuietReserved ? 0.60 : 0.92, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
-                  <span style={{ fontSize: 11, color: isSoon && !isFutureTurnOnly ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isFutureTurnOnly ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: isQuietReserved ? 0.60 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     · {normalizeTime(nextRes.time)}
                   </span>
-                  {isToday && isSoon && !isFutureTurnOnly && nextRes.minutesUntil > 0 && (
+                  {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
                     <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       · {T.floorBoard.inNMin(nextRes.minutesUntil)}
                     </span>
                   )}
                 </span>
-                {/* Chips suppressed in future-turn-only context — operational urgency is irrelevant
-                    when assigning a slot that clears before this reservation starts. */}
-                {(isSoon || isCombined) && !isFutureTurnOnly && (
+                {/* Chips suppressed in future-turn-only and FAR-quiet-reserved context */}
+                {(isSoon || isCombined) && !isReceded && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
                       <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>
