@@ -7,6 +7,7 @@ import {
   ValidationError,
 } from '../../lib/errors';
 import { getTableAvailability } from '../../engine/availability';
+import { NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -701,6 +702,50 @@ export async function seatReservation(
       }
     }
 
+    // ── Overdue PENDING/CONFIRMED release ────────────────────────────────────
+    // Before writing the new SEATED row, atomically release any PENDING/CONFIRMED
+    // reservation on the target table(s) whose no-show deadline (scheduled time +
+    // NO_SHOW_AFTER_MINUTES) has already passed.  Releasing inside this transaction
+    // prevents hidden double table-ownership: the old claim is cleared in the same
+    // write as the new SEATED assignment, so no intermediate state can leave two
+    // reservations simultaneously owning the same table.
+    {
+      const allTargetTableIds = [tableId, ...resolvedCombinedIds];
+      const alreadyHandled   = new Set([id, ...reorganizeIds]);
+      const overdueCheckDate = parseDateArg(todayLocal);
+
+      const candidates = await tx.reservation.findMany({
+        where: {
+          restaurantId,
+          date: overdueCheckDate,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          id: { notIn: [...alreadyHandled] },
+          OR: [
+            { tableId: { in: allTargetTableIds } },
+            { combinedTableIds: { hasSome: allTargetTableIds } },
+          ],
+        },
+        select: { id: true, tableId: true, combinedTableIds: true, time: true, status: true },
+      });
+
+      for (const candidate of candidates) {
+        const [cH, cM] = candidate.time.split(':').map(Number);
+        if ((cH * 60 + cM) + NO_SHOW_AFTER_MINUTES > nowMins) continue;
+        await tx.reservation.update({
+          where: { id: candidate.id },
+          data: { tableId: null, combinedTableIds: [], returnedToListAt: new Date() },
+        });
+        await logActivity(tx, candidate.id, 'RELEASED_TABLE', actorName, {
+          note: 'Table released automatically — reservation overdue at time of new guest seating',
+          fromTableId: candidate.tableId ?? null,
+          fromCombinedTableIds: candidate.combinedTableIds,
+          releasedForReservationId: id,
+          reservationStatus: candidate.status,
+          overdueMinutes: nowMins - (cH * 60 + cM),
+        });
+      }
+    }
+
     const updated = await tx.reservation.update({
       where: { id },
       data: {
@@ -1032,6 +1077,34 @@ export async function unseatReservation(
         data: { status: 'WAITING', seatedAt: null },
       });
     }
+    return updated;
+  });
+}
+
+export async function releaseTableOwnership(
+  restaurantId: string,
+  id: string,
+  actorName: string
+) {
+  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  if (!['PENDING', 'CONFIRMED'].includes(r.status)) {
+    throw new BusinessRuleError(`Cannot release table for a reservation with status ${r.status}`);
+  }
+  if (!r.tableId && (r.combinedTableIds as string[]).length === 0) {
+    throw new BusinessRuleError('Reservation does not currently hold a table');
+  }
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.reservation.update({
+      where: { id },
+      data: { tableId: null, combinedTableIds: [], returnedToListAt: new Date() },
+      include: { table: true },
+    });
+    await logActivity(tx, id, 'RELEASED_TABLE', actorName, {
+      note: 'Table released manually — host action on late reservation',
+      fromTableId: r.tableId ?? null,
+      fromCombinedTableIds: r.combinedTableIds as string[],
+      reservationStatus: r.status,
+    });
     return updated;
   });
 }

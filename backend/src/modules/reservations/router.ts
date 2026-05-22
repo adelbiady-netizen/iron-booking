@@ -272,6 +272,17 @@ router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunctio
 });
 
 // POST /reservations/:id/unconfirm — revert CONFIRMED → PENDING
+// POST /reservations/:id/release-table — release table ownership from a late PENDING/CONFIRMED reservation.
+// Clears tableId and combinedTableIds without changing status or marking no-show.
+// Safe to call on any PENDING/CONFIRMED reservation that holds a table.
+router.post('/:id/release-table', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.releaseTableOwnership(req.auth.restaurantId, p(req, 'id'), actorName(req));
+    res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
 router.post('/:id/unconfirm', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const r = await service.unconfirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
