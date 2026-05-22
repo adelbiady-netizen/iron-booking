@@ -1263,7 +1263,9 @@ export async function validateTableAssignment(
       if (combinedAvail?.blockedBy) {
         throw new ConflictError(`Table ${combinedName} is blocked: ${combinedAvail.blockedBy}`);
       }
-      throw new ConflictError(`Table ${combinedName} is not available at that time`);
+      throw new ConflictError(`Table ${combinedName} is not available at that time`, {
+        conflictingReservationId: combinedAvail?.conflictingReservationId,
+      });
     }
   }
 }
