@@ -933,6 +933,7 @@ export const THe = {
     toastNotifyFail:    'שליחת וואטסאפ נכשלה',
     toastQuickSeated:    (table: string) => `האורח הושב בשולחן ${table}`,
     toastSeatAdvisory:   (table: string, minutes: number) => `הושב בשולחן ${table} — הזמנה הבאה בעוד ${minutes} דקות`,
+    toastSeatLateAdvisory: (minutesLate: number, remaining: number) => `האורח הגיע ${minutesLate} דקות מאוחר — חלון נותר: ${remaining} דקות`,
     toastQuickUndone:    'הפעולה בוטלה',
     toastUndoFail:       'הביטול נכשל',
     quickSeatUndo:       'בטל',

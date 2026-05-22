@@ -962,6 +962,7 @@ export const T = {
     toastNotifyFail:    'Failed to send WhatsApp',
     toastQuickSeated:    (table: string) => `Guest seated at ${table}`,
     toastSeatAdvisory:   (table: string, minutes: number) => `Seated at ${table} — next reservation in ${minutes} min`,
+    toastSeatLateAdvisory: (minutesLate: number, remaining: number) => `Guest arrived ${minutesLate} min late — planned window: ${remaining} min remaining`,
     toastQuickUndone:    'Reservation reverted',
     toastUndoFail:       'Failed to undo',
     quickSeatUndo:       'Undo',

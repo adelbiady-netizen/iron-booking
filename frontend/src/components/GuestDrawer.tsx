@@ -525,8 +525,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
       console.log('[perf:seat] UI updated', Math.round(performance.now() - t0) + 'ms');
       const advisory = updated._advisory;
-      const effectiveToast = advisory?.shortWindow && advisory.minutesUntil > 0
-        ? T.hostDashboard.toastSeatAdvisory(tableName(tableId), advisory.minutesUntil)
+      const effectiveToast = advisory?.shortWindow
+        ? (advisory.minutesLate && advisory.minutesLate > 0
+            ? T.hostDashboard.toastSeatLateAdvisory(advisory.minutesLate, advisory.minutesUntil)
+            : advisory.minutesUntil > 0
+              ? T.hostDashboard.toastSeatAdvisory(tableName(tableId), advisory.minutesUntil)
+              : toastMsg)
         : toastMsg;
       onSuccess?.(effectiveToast);
     } catch (err: unknown) {

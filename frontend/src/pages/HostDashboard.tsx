@@ -638,8 +638,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
       const advisory = updated._advisory;
-      const toastMsg = advisory?.shortWindow && advisory.minutesUntil > 0
-        ? T.hostDashboard.toastSeatAdvisory(tableName, advisory.minutesUntil)
+      const toastMsg = advisory?.shortWindow
+        ? (advisory.minutesLate && advisory.minutesLate > 0
+            ? T.hostDashboard.toastSeatLateAdvisory(advisory.minutesLate, advisory.minutesUntil)
+            : advisory.minutesUntil > 0
+              ? T.hostDashboard.toastSeatAdvisory(tableName, advisory.minutesUntil)
+              : T.hostDashboard.toastQuickSeated(tableName))
         : T.hostDashboard.toastQuickSeated(tableName);
       showToast(toastMsg, 'success', {
         label: T.hostDashboard.quickSeatUndo,

@@ -511,12 +511,27 @@ export async function seatReservation(
   const [nowH, nowM] = nowTimeStr.split(':').map(Number);
   const nowMins = nowH * 60 + nowM;
 
+  // Late-arrival window compression: if the guest arrives after their scheduled
+  // time, they have fewer minutes remaining in their planned turn. Using the full
+  // original duration from now would extend the validation window into the next
+  // reservation's slot, causing false conflicts. Use the remaining window instead.
+  const [resHr, resMn] = r.time.split(':').map(Number);
+  const scheduledMins = resHr * 60 + resMn;
+  const minutesLate = Math.max(0, nowMins - scheduledMins);
+  const effectiveDuration = minutesLate > 0 ? Math.max(r.duration - minutesLate, 15) : r.duration;
+
+  // True when the host is seating a guest at the table already assigned to this
+  // reservation (late arrival at own table). The reservation owns the table — skip
+  // availability validation to prevent self-conflict hard blocks. The occupiedCheck
+  // below still guards against actual double-seating.
+  const isSameTableReSeat = tableId === r.tableId;
+
   // Soft-pressure advisory: scan for upcoming reservations within the default
   // turn window. The table is physically free — seating proceeds unconditionally.
   // Advisory is returned on the response so the host sees a non-blocking warning.
   // Hard blocks (blocked periods, inactive tables, actual double-occupancy) are
   // handled separately below and in the occupiedCheck guard.
-  type SeatAdvisory = { shortWindow: boolean; minutesUntil: number; nextGuestName: string } | null;
+  type SeatAdvisory = { shortWindow: boolean; minutesUntil: number; nextGuestName: string; minutesLate?: number } | null;
   let seatAdvisory: SeatAdvisory = null;
 
   if (reorganizeIds.length === 0) {
@@ -548,6 +563,7 @@ export async function seatReservation(
         shortWindow: true,
         minutesUntil: (fH * 60 + fM) - nowMins,
         nextGuestName: nearest.guestName,
+        ...(minutesLate > 0 ? { minutesLate } : {}),
       };
       console.log('[seat:advisory] soft pressure — seating allowed, future reservation preserved', {
         reservationId: id,
@@ -555,17 +571,29 @@ export async function seatReservation(
         nextReservationId: nearest.id,
         nextGuestName: nearest.guestName,
         minutesUntil: seatAdvisory.minutesUntil,
+        minutesLate,
       });
     }
   }
 
-  if (!overrideConflicts) {
+  // Late-arriving guest at their own assigned table: set remaining-window advisory
+  // even when no future reservation pressure exists, so the host sees the compressed turn.
+  if (isSameTableReSeat && minutesLate > 0 && !seatAdvisory) {
+    seatAdvisory = { shortWindow: true, minutesUntil: effectiveDuration, nextGuestName: '', minutesLate };
+    console.log('[seat:advisory] late arrival at own table', {
+      reservationId: id, targetTableId: tableId, minutesLate, effectiveDuration,
+    });
+  }
+
+  if (!overrideConflicts && !isSameTableReSeat) {
     console.log('[availability:block] seatReservation incoming', {
       reservationId: id,
       reservationStatus: r.status,
       reservationScheduledTime: r.time,
       reservationDate: r.date,
       reservationDuration: r.duration,
+      effectiveDuration,
+      minutesLate,
       reservationCurrentTableId: r.tableId,
       reservationReorganizeAt: r.reorganizeAt,
       targetTableId: tableId,
@@ -583,7 +611,7 @@ export async function seatReservation(
         tableId,
         r.date,
         nowTimeStr,
-        r.duration,
+        effectiveDuration,
         settings.bufferBetweenTurnsMinutes,
         r.partySize,
         [id],
