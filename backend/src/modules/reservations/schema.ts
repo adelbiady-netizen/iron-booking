@@ -58,6 +58,10 @@ export const MoveTableSchema = z.object({
   combinedTableIds: z.array(z.string().uuid()).default([]),
 });
 
+export const SwapReservationsSchema = z.object({
+  reservationAId: z.string().uuid(),
+  reservationBId: z.string().uuid(),
+});
 
 export const ListReservationsQuerySchema = z.object({
   date: DateString.optional(),
@@ -77,4 +81,5 @@ export type CreateReservationInput = z.infer<typeof CreateReservationSchema>;
 export type UpdateReservationInput = z.infer<typeof UpdateReservationSchema>;
 export type AssignTableInput = z.infer<typeof AssignTableSchema>;
 export type MoveTableInput = z.infer<typeof MoveTableSchema>;
+export type SwapReservationsInput = z.infer<typeof SwapReservationsSchema>;
 export type ListReservationsQuery = z.infer<typeof ListReservationsQuerySchema>;

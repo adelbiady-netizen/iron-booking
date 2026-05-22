@@ -111,7 +111,13 @@ export const T = {
     pickModeCurrentTable:     'Current table',
     pickModeCurrentTableWarn: 'That\'s the current table — choose a different one',
     reorganizeBanner: 'Reorganize Mode — click any table to lift its upcoming reservations to the queue',
-    soon:      'Soon',
+    soon:             'Soon',
+    ctxSwap:          'Swap table',
+    swapModeHint:     'Click a seated table to swap with',
+    swapModeCancel:   'Cancel swap',
+    swapConfirmTitle: (a: string, b: string) => `Swap ${a} ↔ ${b}?`,
+    swapConfirmBody:  (tableA: string, tableB: string) => `${tableA} ↔ ${tableB}`,
+    swapConfirmBtn:   'Swap',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

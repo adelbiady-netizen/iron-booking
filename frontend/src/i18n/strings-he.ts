@@ -112,7 +112,13 @@ export const THe = {
     pickModeCurrentTable:     'שולחן נוכחי',
     pickModeCurrentTableWarn: 'זהו השולחן הנוכחי — בחר שולחן אחר',
     reorganizeBanner: 'מצב סידור מחדש — לחץ על שולחן להעברת הזמנותיו לתור הסידור',
-    soon:      'בקרוב',
+    soon:             'בקרוב',
+    ctxSwap:          'החלף שולחן',
+    swapModeHint:     'לחץ על שולחן מאוכלס להחלפה',
+    swapModeCancel:   'ביטול החלפה',
+    swapConfirmTitle: (a: string, b: string) => `להחליף ${a} ↔ ${b}?`,
+    swapConfirmBody:  (tableA: string, tableB: string) => `${tableA} ↔ ${tableB}`,
+    swapConfirmBtn:   'החלף',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

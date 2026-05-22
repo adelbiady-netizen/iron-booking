@@ -251,6 +251,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ tableId, reason: reason || undefined, overrideConflicts: false, combinedTableIds }),
       }),
+    swap: (aId: string, bId: string) =>
+      request<{ reservationA: Reservation; reservationB: Reservation }>('/reservations/swap', {
+        method: 'POST',
+        body: JSON.stringify({ reservationAId: aId, reservationBId: bId }),
+      }),
     complete: (id: string) =>
       request<Reservation>(`/reservations/${id}/complete`, { method: 'POST' }),
     noShow: (id: string) =>

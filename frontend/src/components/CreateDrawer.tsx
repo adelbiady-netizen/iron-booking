@@ -341,18 +341,13 @@ export default function CreateDrawer({
   }
 
   function openMapPicker() {
-    console.log('[pick:create] select-on-map clicked');
-    console.log('[pick:create] onPickTables exists:', !!onPickTables);
     const sug = suggestBusy ? [] : resSuggestions;
     setPickingOnMap(true);
-    console.log('[pick:create] pickingOnMap set true');
     setShowPicker(false);
-    console.log('[pick:create] calling onPickTables with action=seat, sug.length=', sug.length);
     onPickTables?.(
       [resTable, ...resCombinedTableIds].filter(Boolean),
       sug,
       (ids) => {
-        console.log('[pick:create] callback fired with ids=', ids);
         setPickingOnMap(false);
         if (ids !== null) {
           setResTable(ids[0] ?? '');
@@ -362,7 +357,6 @@ export default function CreateDrawer({
       },
       'seat',
     );
-    console.log('[pick:create] onPickTables call returned');
   }
 
   function openWiMapPicker() {

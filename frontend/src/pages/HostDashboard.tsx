@@ -165,6 +165,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     targetTableName: string;
     busy: boolean;
   } | null>(null);
+  const [swapSource, setSwapSource] = useState<{ res: Reservation; tableName: string } | null>(null);
+  const [pendingSwap, setPendingSwap] = useState<{
+    resA: Reservation;
+    tableNameA: string;
+    resB: Reservation;
+    tableNameB: string;
+    busy: boolean;
+  } | null>(null);
   const [resLoading,        setResLoading]        = useState(false);
   const [loadError,         setLoadError]         = useState(false);
   const [errorPhase,        setErrorPhase]        = useState<'none' | 'reconnecting' | 'failed'>('none');
@@ -1426,6 +1434,48 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, floorTables]);
 
+  const handleContextMenuSwap = useCallback((res: Reservation) => {
+    const tableName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
+    console.log('[swap:mode] source set, res=', res.id, res.guestName, 'tableId=', res.tableId, 'tableName=', tableName);
+    setSwapSource({ res, tableName });
+  }, [floorTables]);
+
+  const handleSwapTargetPick = useCallback((targetRes: Reservation) => {
+    console.log('[swap:target] handleSwapTargetPick called, swapSource=', swapSource?.res.id, 'targetRes=', targetRes.id, targetRes.guestName, 'tableId=', targetRes.tableId);
+    if (!swapSource) { console.log('[swap:target] BLOCKED: swapSource is null'); return; }
+    const tableNameB = floorTables.find(t => t.id === targetRes.tableId)?.name ?? (targetRes.tableId ?? '');
+    console.log('[swap:modal] opening pendingSwap, A=', swapSource.res.guestName, 'B=', targetRes.guestName);
+    setPendingSwap({
+      resA: swapSource.res,
+      tableNameA: swapSource.tableName,
+      resB: targetRes,
+      tableNameB,
+      busy: false,
+    });
+    setSwapSource(null);
+  }, [swapSource, floorTables]);
+
+  const confirmSwap = useCallback(async () => {
+    if (!pendingSwap || pendingSwap.busy) return;
+    console.log('[swap:confirm] request aId=', pendingSwap.resA.id, 'bId=', pendingSwap.resB.id);
+    setPendingSwap(p => p && ({ ...p, busy: true }));
+    try {
+      const result = await api.reservations.swap(pendingSwap.resA.id, pendingSwap.resB.id);
+      console.log('[swap:confirm] success, updatedA=', result.reservationA.id, 'tableId=', result.reservationA.tableId, 'updatedB=', result.reservationB.id, 'tableId=', result.reservationB.tableId);
+      setReservations(prev => prev.map(r => {
+        if (r.id === result.reservationA.id) return { ...r, ...result.reservationA };
+        if (r.id === result.reservationB.id) return { ...r, ...result.reservationB };
+        return r;
+      }));
+      showToast(T.floorBoard.swapConfirmTitle(pendingSwap.resA.guestName, pendingSwap.resB.guestName).replace('?', ''));
+    } catch (err) {
+      console.log('[swap:confirm] error=', err instanceof Error ? err.message : String(err));
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      setPendingSwap(null);
+    }
+  }, [pendingSwap, showToast]);
+
   const confirmMove = useCallback(async () => {
     if (!pendingMove || pendingMove.busy) return;
     setPendingMove(p => p && ({ ...p, busy: true }));
@@ -1810,8 +1860,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuMove={handleContextMenuMove}
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
+          onContextMenuSwap={handleContextMenuSwap}
           activeDrawerRes={selectedRes}
           inFlightIds={inFlightIds}
+          swapMode={!!swapSource}
+          swapSourceId={swapSource?.res.id ?? null}
+          onSwapTargetPick={handleSwapTargetPick}
+          onSwapCancel={() => setSwapSource(null)}
         />
 
         {/* Panel toggle handle — always visible between floor and right rail */}
@@ -2120,6 +2175,36 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors disabled:opacity-40"
               >
                 {pendingMove.busy ? '…' : T.floorBoard.moveConfirmBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Swap-table confirmation — lightweight bottom-sheet style */}
+      {pendingSwap && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 pointer-events-none">
+          <div className="pointer-events-auto bg-iron-elevated border border-iron-border/60 rounded-xl px-5 py-4 shadow-2xl w-80">
+            <p className="text-sm font-semibold text-iron-text mb-1">
+              {T.floorBoard.swapConfirmTitle(pendingSwap.resA.guestName, pendingSwap.resB.guestName)}
+            </p>
+            <p className="text-xs text-iron-muted mb-4">
+              {T.floorBoard.swapConfirmBody(pendingSwap.tableNameA, pendingSwap.tableNameB)}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPendingSwap(null)}
+                disabled={pendingSwap.busy}
+                className="px-3 py-1.5 text-xs text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {T.common.cancel}
+              </button>
+              <button
+                onClick={confirmSwap}
+                disabled={pendingSwap.busy}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {pendingSwap.busy ? '…' : T.floorBoard.swapConfirmBtn}
               </button>
             </div>
           </div>

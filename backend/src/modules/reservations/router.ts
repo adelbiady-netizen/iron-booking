@@ -7,6 +7,7 @@ import {
   UpdateReservationSchema,
   AssignTableSchema,
   MoveTableSchema,
+  SwapReservationsSchema,
   ListReservationsQuerySchema,
   ListReservationsQuery,
 } from './schema';
@@ -156,6 +157,18 @@ router.get('/activity-log', async (req: Request, res: Response, next: NextFuncti
     });
 
     res.json({ data, meta: { total, page: pageNum, limit: limitNum } });
+  } catch (err) { next(err); }
+});
+
+// POST /reservations/swap — atomically swap tables between two SEATED reservations
+router.post('/swap', validate(SwapReservationsSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log('[swap:api] request received, body=', JSON.stringify(req.body));
+    const { reservationAId, reservationBId } = req.body as { reservationAId: string; reservationBId: string };
+    console.log('[swap:api] parsed payload aId=', reservationAId, 'bId=', reservationBId, 'restaurantId=', req.auth.restaurantId);
+    const result = await service.swapReservations(req.auth.restaurantId, reservationAId, reservationBId, actorName(req));
+    res.json(result);
+    notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
 

@@ -781,6 +781,77 @@ export async function moveReservation(
   return result;
 }
 
+export async function swapReservations(
+  restaurantId: string,
+  aId: string,
+  bId: string,
+  actorName: string
+) {
+  if (aId === bId) throw new BusinessRuleError('Cannot swap a reservation with itself');
+
+  const [resA, resB, settings] = await Promise.all([
+    assertReservationBelongsToRestaurant(aId, restaurantId),
+    assertReservationBelongsToRestaurant(bId, restaurantId),
+    getRestaurantSettings(restaurantId),
+  ]);
+
+  console.log('[swap:service] loaded A=', resA.id, resA.guestName, 'status=', resA.status, 'tableId=', resA.tableId, 'combined=', resA.combinedTableIds, 'reorganizeAt=', resA.reorganizeAt);
+  console.log('[swap:service] loaded B=', resB.id, resB.guestName, 'status=', resB.status, 'tableId=', resB.tableId, 'combined=', resB.combinedTableIds, 'reorganizeAt=', resB.reorganizeAt);
+
+  if (resA.status !== 'SEATED') { console.log('[swap:service] FAIL: A not SEATED'); throw new BusinessRuleError(`${resA.guestName} must be seated to swap`); }
+  if (resB.status !== 'SEATED') { console.log('[swap:service] FAIL: B not SEATED'); throw new BusinessRuleError(`${resB.guestName} must be seated to swap`); }
+  if (!resA.tableId || !resB.tableId) { console.log('[swap:service] FAIL: missing tableId'); throw new BusinessRuleError('Both reservations must have a table assigned'); }
+  if (resA.tableId === resB.tableId) { console.log('[swap:service] FAIL: same table'); throw new BusinessRuleError('Reservations are already at the same table'); }
+  if ((resA.combinedTableIds as string[]).length > 0 || (resB.combinedTableIds as string[]).length > 0) {
+    console.log('[swap:service] FAIL: combined tables');
+    throw new BusinessRuleError('Swapping combined-table reservations is not supported');
+  }
+  if (resA.reorganizeAt || resB.reorganizeAt) { console.log('[swap:service] FAIL: reorganizeAt set'); throw new BusinessRuleError('Cannot swap a reservation in reorganize state'); }
+
+  const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: settings.timezone,
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date());
+
+  console.log('[swap:service] running validateTableAssignment, nowTimeStr=', nowTimeStr);
+  // Validate A at B's table — exclude B (it is vacating that table, not A)
+  await validateTableAssignment(restaurantId, resB.tableId, resA.date, nowTimeStr, resA.duration, settings.bufferBetweenTurnsMinutes, resA.partySize, bId);
+  // Validate B at A's table — exclude A (it is vacating that table, not B)
+  await validateTableAssignment(restaurantId, resA.tableId, resB.date, nowTimeStr, resB.duration, settings.bufferBetweenTurnsMinutes, resB.partySize, aId);
+
+  console.log('[swap:service] validation passed, executing transaction');
+  return prisma.$transaction(async (tx) => {
+    const [updatedA, updatedB] = await Promise.all([
+      tx.reservation.update({
+        where: { id: aId },
+        data: { tableId: resB.tableId, previousTableId: resA.tableId, movedByName: actorName },
+        include: { table: true },
+      }),
+      tx.reservation.update({
+        where: { id: bId },
+        data: { tableId: resA.tableId, previousTableId: resB.tableId, movedByName: actorName },
+        include: { table: true },
+      }),
+    ]);
+    await Promise.all([
+      logActivity(tx, aId, 'TABLE_SWAP', actorName, {
+        fromTableId: resA.tableId,
+        toTableId: resB.tableId,
+        swappedWithReservationId: bId,
+        swappedWithGuest: resB.guestName,
+      }),
+      logActivity(tx, bId, 'TABLE_SWAP', actorName, {
+        fromTableId: resB.tableId,
+        toTableId: resA.tableId,
+        swappedWithReservationId: aId,
+        swappedWithGuest: resA.guestName,
+      }),
+    ]);
+    console.log('[swap:service] transaction committed, A now at tableId=', resB.tableId, 'B now at tableId=', resA.tableId);
+    return { reservationA: updatedA, reservationB: updatedB };
+  });
+}
+
 export async function markArrived(
   restaurantId: string,
   id: string,

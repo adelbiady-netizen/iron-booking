@@ -384,10 +384,16 @@ interface Props {
   onContextMenuMove?: (res: Reservation) => void;
   onContextMenuOpenDetails?: (res: Reservation) => void;
   onContextMenuArrive?: (res: Reservation) => void;
+  onContextMenuSwap?: (res: Reservation) => void;
   // Currently active reservation in the GuestDrawer — used to show recovery
   // actions ("שבץ מחדש") when the drawer holds a displaced/reorganized reservation.
   activeDrawerRes?: Reservation | null;
   inFlightIds?: ReadonlySet<string>;
+  // Swap mode — enter by right-clicking a seated table and choosing "Swap table"
+  swapMode?: boolean;
+  swapSourceId?: string | null;
+  onSwapTargetPick?: (res: Reservation) => void;
+  onSwapCancel?: () => void;
 }
 
 const CANVAS_W = 1500;
@@ -473,8 +479,13 @@ export default function FloorBoard({
   onContextMenuMove,
   onContextMenuOpenDetails,
   onContextMenuArrive,
+  onContextMenuSwap,
   activeDrawerRes = null,
   inFlightIds,
+  swapMode = false,
+  swapSourceId = null,
+  onSwapTargetPick,
+  onSwapCancel,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -560,6 +571,15 @@ export default function FloorBoard({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [pickMode, onPickCancel]);
+
+  // Cancel swap mode on Esc
+  useEffect(() => {
+    console.log('[swap:floor] swapMode prop changed to', swapMode, 'swapSourceId=', swapSourceId);
+    if (!swapMode) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onSwapCancel?.(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [swapMode, swapSourceId, onSwapCancel]);
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
@@ -794,6 +814,18 @@ export default function FloorBoard({
       }
       return;
     }
+    // Swap mode: clicking a seated non-source table picks it as the swap target
+    if (swapMode) {
+      const res = t.currentReservation;
+      const eligible = res?.status === 'SEATED' && res.id !== swapSourceId;
+      console.log('[swap:target] clicked table=', t.name, 'liveStatus=', t.liveStatus, 'currentRes=', res?.id, res?.guestName, 'status=', res?.status, 'swapSourceId=', swapSourceId, 'eligible=', eligible, eligible ? '' : res?.id === swapSourceId ? 'REASON: is source' : res?.status !== 'SEATED' ? `REASON: status=${res?.status}` : 'REASON: no currentRes');
+      if (eligible) {
+        onSwapTargetPick?.(res!);
+      } else if (res?.id === swapSourceId) {
+        onSwapCancel?.();
+      }
+      return;
+    }
     // Pick mode takes priority: a specific in-progress pick overrides reorganize mode.
     if (pickMode) {
       const ps = getPickStatus(t);
@@ -916,6 +948,17 @@ export default function FloorBoard({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+
+      {/* Swap mode banner */}
+      {swapMode && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-violet-900/20 border-b border-violet-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse shrink-0" />
+          <span className="text-violet-300 text-xs font-medium flex-1">{T.floorBoard.swapModeHint}</span>
+          <button type="button" onClick={onSwapCancel} className="text-violet-300/70 text-xs hover:text-violet-200 transition-colors shrink-0 touch-manipulation px-1 py-1">
+            {T.floorBoard.swapModeCancel}
+          </button>
+        </div>
+      )}
 
       {/* Pick mode banner */}
       {pickMode && (
@@ -1211,18 +1254,25 @@ export default function FloorBoard({
                 : undefined;
               const ps = pickMode ? getPickStatus(t) : null;
               const isWLCanvasTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
+              const isSwapSource = swapMode && t.currentReservation?.id === swapSourceId;
+              const swapDimmed   = swapMode && !isSwapSource && (
+                t.liveStatus !== 'OCCUPIED' ||
+                !t.currentReservation ||
+                (t.currentReservation.combinedTableIds ?? []).length > 0 ||
+                !!t.currentReservation.reorganizeAt
+              );
               return (
                 <MapTable
                   key={t.id}
                   table={t}
                   selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
                   combinedSelected={!pickMode && combinedSelection.includes(t.id)}
-                  dimmed={dimmed}
+                  dimmed={dimmed || swapDimmed}
                   bestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
                   waitlistAssignTarget={isWLCanvasTarget}
                   softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
                   onClick={() => handleClick(t)}
-                  onContextMenu={e => !pickMode && handleContextMenu(e, t)}
+                  onContextMenu={e => !pickMode && !swapMode && handleContextMenu(e, t)}
                   insight={!pickMode ? insight : undefined}
                   onInsightAction={
                     !pickMode && insight?.reservationId
@@ -1240,6 +1290,7 @@ export default function FloorBoard({
                   pickMode={pickMode}
                   pickSelected={pickMode && pickSelection.includes(t.id)}
                   pickStatus={ps}
+                  swapSource={isSwapSource}
                   wlPickWarn={wlPickWarn === t.id}
                   quietFade={quietFade}
                   hoveredResId={hoveredResId}
@@ -1301,6 +1352,13 @@ export default function FloorBoard({
                   const isPickSelected = pickMode && pickSelection.includes(t.id);
                   const isWLTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
                   const ineligibleForAssign = !!waitlistAssignEntry && !pickMode && (t.liveStatus !== 'AVAILABLE' || t.locked);
+                  const isSwapSrc = swapMode && t.currentReservation?.id === swapSourceId;
+                  const gridSwapDimmed = swapMode && !isSwapSrc && (
+                    t.liveStatus !== 'OCCUPIED' ||
+                    !t.currentReservation ||
+                    (t.currentReservation.combinedTableIds ?? []).length > 0 ||
+                    !!t.currentReservation.reorganizeAt
+                  );
                   return (
                     <div
                       key={t.id}
@@ -1309,11 +1367,13 @@ export default function FloorBoard({
                           ? 'ring-2 ring-indigo-500/60 rounded-lg'
                           : wlPickWarn === t.id
                           ? 'ring-2 ring-red-500/60 rounded-lg'
+                          : isSwapSrc
+                          ? 'ring-2 ring-violet-500/60 rounded-lg'
                           : isPickSelected || combinedSelection.includes(t.id)
                           ? 'ring-2 ring-blue-500/50 rounded-lg'
                           : ''
                       }
-                      style={ineligibleForAssign ? { opacity: 0.3 } : undefined}
+                      style={ineligibleForAssign || gridSwapDimmed ? { opacity: 0.3 } : undefined}
                     >
                       <TableCard
                         table={t}
@@ -1321,7 +1381,7 @@ export default function FloorBoard({
                         isBestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
                         softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
                         onClick={() => handleClick(t)}
-                        onContextMenu={e => !pickMode && handleContextMenu(e, t)}
+                        onContextMenu={e => !pickMode && !swapMode && handleContextMenu(e, t)}
                         insight={!pickMode ? insight : undefined}
                         onInsightAction={
                           !pickMode && insight?.reservationId
@@ -1346,7 +1406,7 @@ export default function FloorBoard({
       ))}
 
       {/* Right-click context menu */}
-      {ctxMenu && !pickMode && (() => {
+      {ctxMenu && !pickMode && !swapMode && (() => {
         const t = ctxMenu.table;
         const currentRes = t.currentReservation;
         const isOccupied = t.liveStatus === 'OCCUPIED' && !!currentRes;
@@ -1371,9 +1431,12 @@ export default function FloorBoard({
         const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
         const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
         const canMove       = !!onContextMenuMove        && isOccupied    && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
+        const canSwap       = !!onContextMenuSwap        && isOccupied    && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '')
+                                && !(currentRes?.combinedTableIds ?? []).length && !currentRes?.reorganizeAt;
+        console.log('[swap:ctx] table=', t.name, 'isOccupied=', isOccupied, 'isToday=', isToday, 'onContextMenuSwap=', !!onContextMenuSwap, 'locked=', t.locked, 'combinedTableIds=', currentRes?.combinedTableIds, 'reorganizeAt=', currentRes?.reorganizeAt, 'canSwap=', canSwap);
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canOpenDetails;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails;
 
         return (
           <>
@@ -1425,6 +1488,14 @@ export default function FloorBoard({
                   className="w-full text-left px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMove}
+                </button>
+              )}
+              {canSwap && (
+                <button
+                  onClick={() => { console.log('[swap:ctx] clicked, res=', currentRes?.id, currentRes?.guestName); onContextMenuSwap!(currentRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-violet-400 hover:bg-violet-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxSwap}
                 </button>
               )}
               {canOpenDetails && (
@@ -2656,7 +2727,7 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2677,6 +2748,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   pickMode?: boolean;
   pickSelected?: boolean;
   pickStatus?: PickStatus;
+  swapSource?: boolean;
   waitlistAssignTarget?: boolean;
   wlPickWarn?: boolean;
   quietFade?: number;
@@ -2870,6 +2942,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     borderColor = '#ef4444';
     borderWidth = 2;
     boxShadow   = '0 0 0 3px rgba(239,68,68,0.35)';
+    opacity     = 1;
+  }
+
+  // Swap source — violet ring marks the reservation being swapped out
+  if (swapSource) {
+    borderColor = '#8b5cf6';
+    borderWidth = 2.5;
+    boxShadow   = '0 0 0 3px rgba(139,92,246,0.38), 0 0 40px rgba(139,92,246,0.20)';
     opacity     = 1;
   }
 
