@@ -789,30 +789,102 @@ export async function moveReservation(
     throw new BusinessRuleError('Can only move a reservation that is currently seated');
   }
 
+  // Hoist now-time outside the overrideConflicts guard so the overdue-release
+  // block in the transaction uses the same time anchor as validation.
+  const nowTimeStrMove  = new Intl.DateTimeFormat('en-GB', {
+    timeZone: settings.timezone,
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date());
+  const todayLocalMove  = new Intl.DateTimeFormat('en-CA', { timeZone: settings.timezone }).format(new Date());
+  const [nowMoveH, nowMoveM] = nowTimeStrMove.split(':').map(Number);
+  const nowMoveMins = nowMoveH * 60 + nowMoveM;
+
   if (!input.overrideConflicts) {
-    // Same as seatReservation: use current restaurant-local time so the conflict
-    // check stays consistent with what the floor board shows.
-    const nowTimeStrMove = new Intl.DateTimeFormat('en-GB', {
-      timeZone: settings.timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(new Date());
-    await validateTableAssignment(
+    try {
+      await validateTableAssignment(
+        restaurantId,
+        input.tableId,
+        r.date,
+        nowTimeStrMove,
+        r.duration,
+        settings.bufferBetweenTurnsMinutes,
+        r.partySize,
+        [id],
+        input.combinedTableIds ?? []
+      );
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
+        if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
+        // soft pressure: reservation time overlap — move proceeds
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // Hard safety guard — never allow moving to an actually occupied table.
+  // A SEATED reservation on the target would produce a ConflictError with a
+  // conflictingReservationId, which the soft-catch above would absorb as advisory.
+  // This explicit check re-adds the hard block for physical occupancy, matching
+  // seatReservation's occupiedCheck guard.
+  const moveTargetCombinedIds = input.combinedTableIds ?? [];
+  const moveOccupiedCheck = await prisma.reservation.findFirst({
+    where: {
       restaurantId,
-      input.tableId,
-      r.date,
-      nowTimeStrMove,
-      r.duration,
-      settings.bufferBetweenTurnsMinutes,
-      r.partySize,
-      [id],
-      input.combinedTableIds ?? []
-    );
+      date: parseDateArg(todayLocalMove),
+      status: 'SEATED',
+      id: { not: id },
+      OR: [
+        { tableId: input.tableId },
+        ...moveTargetCombinedIds.map(cid => ({ tableId: cid })),
+      ],
+    },
+    select: { id: true },
+  });
+  if (moveOccupiedCheck) {
+    throw new BusinessRuleError('Table is currently occupied — cannot move here');
   }
 
   console.log(`[perf:move] validation done ${Date.now() - t0}ms`);
   const result = await prisma.$transaction(async (tx) => {
+    // Release overdue PENDING/CONFIRMED reservations on the target table(s) atomically,
+    // same safety model as seatReservation: clear tableId/combinedTableIds before
+    // writing the new table assignment to prevent hidden double ownership.
+    {
+      const allMoveTargetIds = [input.tableId, ...(input.combinedTableIds ?? [])];
+      const moveOverdueDate  = parseDateArg(todayLocalMove);
+      const candidates = await tx.reservation.findMany({
+        where: {
+          restaurantId,
+          date: moveOverdueDate,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          id: { not: id },
+          OR: [
+            { tableId: { in: allMoveTargetIds } },
+            { combinedTableIds: { hasSome: allMoveTargetIds } },
+          ],
+        },
+        select: { id: true, tableId: true, combinedTableIds: true, time: true, status: true },
+      });
+      for (const candidate of candidates) {
+        const [cH, cM] = candidate.time.split(':').map(Number);
+        if ((cH * 60 + cM) + NO_SHOW_AFTER_MINUTES > nowMoveMins) continue;
+        await tx.reservation.update({
+          where: { id: candidate.id },
+          data: { tableId: null, combinedTableIds: [], returnedToListAt: new Date() },
+        });
+        await logActivity(tx, candidate.id, 'RELEASED_TABLE', actorName, {
+          note: 'Table released automatically — reservation overdue at time of table move',
+          fromTableId: candidate.tableId ?? null,
+          fromCombinedTableIds: candidate.combinedTableIds,
+          releasedForReservationId: id,
+          reservationStatus: candidate.status,
+          overdueMinutes: nowMoveMins - (cH * 60 + cM),
+        });
+      }
+    }
+
     const updated = await tx.reservation.update({
       where: { id },
       data: {
@@ -870,9 +942,25 @@ export async function swapReservations(
   // Exclude both IDs from every validation call so they don't block each other.
   const swapExclude = [aId, bId];
   console.log('[swap:validation] validating A→tableB', { reservationId: aId, targetTableId: resB.tableId, excludedIds: swapExclude });
-  await validateTableAssignment(restaurantId, resB.tableId, resA.date, nowTimeStr, resA.duration, settings.bufferBetweenTurnsMinutes, resA.partySize, swapExclude);
+  try {
+    await validateTableAssignment(restaurantId, resB.tableId, resA.date, nowTimeStr, resA.duration, settings.bufferBetweenTurnsMinutes, resA.partySize, swapExclude);
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
+      if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
+      // soft pressure: reservation time overlap — swap proceeds
+    } else { throw err; }
+  }
   console.log('[swap:validation] validating B→tableA', { reservationId: bId, targetTableId: resA.tableId, excludedIds: swapExclude });
-  await validateTableAssignment(restaurantId, resA.tableId, resB.date, nowTimeStr, resB.duration, settings.bufferBetweenTurnsMinutes, resB.partySize, swapExclude);
+  try {
+    await validateTableAssignment(restaurantId, resA.tableId, resB.date, nowTimeStr, resB.duration, settings.bufferBetweenTurnsMinutes, resB.partySize, swapExclude);
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
+      if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
+      // soft pressure: reservation time overlap — swap proceeds
+    } else { throw err; }
+  }
   console.log('[swap:validation] both validations passed');
 
   return prisma.$transaction(async (tx) => {
