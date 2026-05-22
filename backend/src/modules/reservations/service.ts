@@ -176,7 +176,7 @@ export async function createReservation(
       duration,
       settings.bufferBetweenTurnsMinutes,
       input.partySize,
-      undefined,
+      [],
       input.combinedTableIds
     );
   }
@@ -295,7 +295,7 @@ export async function updateReservation(
           duration,
           settings.bufferBetweenTurnsMinutes,
           input.partySize ?? existing.partySize,
-          id,
+          [id],
           combinedTableIds
         );
       } catch (err) {
@@ -573,7 +573,7 @@ export async function seatReservation(
         r.duration,
         settings.bufferBetweenTurnsMinutes,
         r.partySize,
-        id,
+        [id],
         resolvedCombinedIds
       );
     } catch (err) {
@@ -750,7 +750,7 @@ export async function moveReservation(
       r.duration,
       settings.bufferBetweenTurnsMinutes,
       r.partySize,
-      id,
+      [id],
       input.combinedTableIds ?? []
     );
   }
@@ -810,10 +810,14 @@ export async function swapReservations(
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date());
 
-  // Validate A at B's table — exclude B (it is vacating that table, not A)
-  await validateTableAssignment(restaurantId, resB.tableId, resA.date, nowTimeStr, resA.duration, settings.bufferBetweenTurnsMinutes, resA.partySize, bId);
-  // Validate B at A's table — exclude A (it is vacating that table, not B)
-  await validateTableAssignment(restaurantId, resA.tableId, resB.date, nowTimeStr, resB.duration, settings.bufferBetweenTurnsMinutes, resB.partySize, aId);
+  // Mutual exclusion: both A and B are simultaneously vacating their tables.
+  // Exclude both IDs from every validation call so they don't block each other.
+  const swapExclude = [aId, bId];
+  console.log('[swap:validation] validating A→tableB', { reservationId: aId, targetTableId: resB.tableId, excludedIds: swapExclude });
+  await validateTableAssignment(restaurantId, resB.tableId, resA.date, nowTimeStr, resA.duration, settings.bufferBetweenTurnsMinutes, resA.partySize, swapExclude);
+  console.log('[swap:validation] validating B→tableA', { reservationId: bId, targetTableId: resA.tableId, excludedIds: swapExclude });
+  await validateTableAssignment(restaurantId, resA.tableId, resB.date, nowTimeStr, resB.duration, settings.bufferBetweenTurnsMinutes, resB.partySize, swapExclude);
+  console.log('[swap:validation] both validations passed');
 
   return prisma.$transaction(async (tx) => {
     const [updatedA, updatedB] = await Promise.all([
@@ -1170,7 +1174,7 @@ export async function validateTableAssignment(
   duration: number,
   bufferMinutes: number,
   partySize: number,
-  excludeReservationId?: string,
+  excludeReservationIds: string[] = [],
   combinedTableIds: string[] = []
 ) {
   const table = await prisma.table.findUnique({ where: { id: tableId } });
@@ -1206,41 +1210,31 @@ export async function validateTableAssignment(
     time,
     duration,
     bufferMinutes,
-    [tableId, ...combinedTableIds]
+    [tableId, ...combinedTableIds],
+    excludeReservationIds
   );
 
-  // Check primary table availability
+  // Check primary table availability — any conflict here is a real third-party conflict
+  // (excluded reservations are already filtered out inside getTableAvailability)
   const tableAvail = availability.find((a) => a.tableId === tableId);
   if (!tableAvail?.isAvailable) {
-    if (
-      tableAvail?.conflictingReservationId &&
-      tableAvail.conflictingReservationId === excludeReservationId
-    ) {
-      // fall through to check combined tables
-    } else if (tableAvail?.blockedBy) {
+    if (tableAvail?.blockedBy) {
       throw new ConflictError(`Table ${table.name} is blocked: ${tableAvail.blockedBy}`);
-    } else {
-      throw new ConflictError(
-        `Table ${table.name} is not available at that time`,
-        {
-          conflictingReservationId: tableAvail?.conflictingReservationId,
-          nextAvailableAt: tableAvail?.nextAvailableAt,
-          validatorDebug: tableAvail?._debug,
-        }
-      );
     }
+    throw new ConflictError(
+      `Table ${table.name} is not available at that time`,
+      {
+        conflictingReservationId: tableAvail?.conflictingReservationId,
+        nextAvailableAt: tableAvail?.nextAvailableAt,
+        validatorDebug: tableAvail?._debug,
+      }
+    );
   }
 
-  // Check each combined table's availability
+  // Check each combined table's availability — same as primary, excluded IDs already filtered
   for (const combinedId of combinedTableIds) {
     const combinedAvail = availability.find((a) => a.tableId === combinedId);
     if (!combinedAvail?.isAvailable) {
-      if (
-        combinedAvail?.conflictingReservationId &&
-        combinedAvail.conflictingReservationId === excludeReservationId
-      ) {
-        continue;
-      }
       const combinedName = (await prisma.table.findUnique({
         where: { id: combinedId },
         select: { name: true },

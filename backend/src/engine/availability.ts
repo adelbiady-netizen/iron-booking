@@ -38,7 +38,8 @@ export async function getTableAvailability(
   timeStr: string,
   durationMinutes: number,
   bufferMinutes: number,
-  tableIds?: string[]
+  tableIds?: string[],
+  excludeReservationIds: string[] = []
 ): Promise<TableAvailability[]> {
   const slotStart = parseTimeOnDate(date, timeStr);
   const slotEnd = addMinutes(slotStart, durationMinutes);
@@ -101,8 +102,16 @@ export async function getTableAvailability(
       };
     }
 
-    // Check reservation conflicts
-    const conflict = reservations.find((r) => {
+    // Check reservation conflicts — skip any reservations being mutually displaced (e.g. swap)
+    const eligibleReservations = excludeReservationIds.length
+      ? reservations.filter(r => !excludeReservationIds.includes(r.id))
+      : reservations;
+    if (excludeReservationIds.length) {
+      const skipped = reservations.filter(r => excludeReservationIds.includes(r.id)).map(r => r.id);
+      const candidates = eligibleReservations.map(r => r.id);
+      console.log('[swap:validation] getTableAvailability table=', table.id, 'skippedIds=', skipped, 'candidateIds=', candidates);
+    }
+    const conflict = eligibleReservations.find((r) => {
       if (r.tableId !== table.id && !r.combinedTableIds.includes(table.id)) return false;
       return reservationConflicts(r, { date, time: timeStr, duration: durationMinutes }, bufferMinutes);
     });
