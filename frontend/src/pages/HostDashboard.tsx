@@ -1436,15 +1436,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleContextMenuSwap = useCallback((res: Reservation) => {
     const tableName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
-    console.log('[swap:mode] source set, res=', res.id, res.guestName, 'tableId=', res.tableId, 'tableName=', tableName);
     setSwapSource({ res, tableName });
   }, [floorTables]);
 
   const handleSwapTargetPick = useCallback((targetRes: Reservation) => {
-    console.log('[swap:target] handleSwapTargetPick called, swapSource=', swapSource?.res.id, 'targetRes=', targetRes.id, targetRes.guestName, 'tableId=', targetRes.tableId);
-    if (!swapSource) { console.log('[swap:target] BLOCKED: swapSource is null'); return; }
+    if (!swapSource) return;
     const tableNameB = floorTables.find(t => t.id === targetRes.tableId)?.name ?? (targetRes.tableId ?? '');
-    console.log('[swap:modal] opening pendingSwap, A=', swapSource.res.guestName, 'B=', targetRes.guestName);
     setPendingSwap({
       resA: swapSource.res,
       tableNameA: swapSource.tableName,
@@ -1457,24 +1454,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const confirmSwap = useCallback(async () => {
     if (!pendingSwap || pendingSwap.busy) return;
-    console.log('[swap:confirm] request aId=', pendingSwap.resA.id, 'bId=', pendingSwap.resB.id);
     setPendingSwap(p => p && ({ ...p, busy: true }));
     try {
       const result = await api.reservations.swap(pendingSwap.resA.id, pendingSwap.resB.id);
-      console.log('[swap:confirm] success, updatedA=', result.reservationA.id, 'tableId=', result.reservationA.tableId, 'updatedB=', result.reservationB.id, 'tableId=', result.reservationB.tableId);
       setReservations(prev => prev.map(r => {
         if (r.id === result.reservationA.id) return { ...r, ...result.reservationA };
         if (r.id === result.reservationB.id) return { ...r, ...result.reservationB };
         return r;
       }));
+      setRefreshKey(k => k + 1);
       showToast(T.floorBoard.swapConfirmTitle(pendingSwap.resA.guestName, pendingSwap.resB.guestName).replace('?', ''));
     } catch (err) {
-      console.log('[swap:confirm] error=', err instanceof Error ? err.message : String(err));
       showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
     } finally {
       setPendingSwap(null);
     }
-  }, [pendingSwap, showToast]);
+  }, [pendingSwap, showToast, setRefreshKey]);
 
   const confirmMove = useCallback(async () => {
     if (!pendingMove || pendingMove.busy) return;

@@ -821,8 +821,6 @@ export default function FloorBoard({
       ) ?? null;
       const isSource = res?.id === swapSourceId;
       const eligible = !!res && !isSource && !!res.tableId;
-      const reason = !res ? 'no assigned res' : isSource ? 'is source' : !res.tableId ? 'no tableId' : '';
-      console.log('[swap:target] table=', t.name, 'liveStatus=', t.liveStatus, 'res=', res?.id, res?.guestName, 'status=', res?.status, 'eligible=', eligible, reason ? `REASON: ${reason}` : '');
       if (eligible) {
         onSwapTargetPick?.(res!);
       } else if (isSource) {
@@ -1454,7 +1452,6 @@ export default function FloorBoard({
         const canSwap       = !!onContextMenuSwap && !!swapRes && !t.locked && isToday
                                 && !inFlightIds?.has(swapRes.id)
                                 && !(swapRes.combinedTableIds ?? []).length && !swapRes.reorganizeAt;
-        console.log('[swap:ctx] table=', t.name, 'liveStatus=', t.liveStatus, 'swapRes=', swapRes?.id, swapRes?.guestName, 'status=', swapRes?.status, 'canSwap=', canSwap);
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
         const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails;
@@ -1513,7 +1510,7 @@ export default function FloorBoard({
               )}
               {canSwap && (
                 <button
-                  onClick={() => { console.log('[swap:ctx] clicked, res=', swapRes?.id, swapRes?.guestName, 'status=', swapRes?.status); onContextMenuSwap!(swapRes!); setCtxMenu(null); }}
+                  onClick={() => { onContextMenuSwap!(swapRes!); setCtxMenu(null); }}
                   className="w-full text-left px-3 py-2 text-xs font-medium text-violet-400 hover:bg-violet-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxSwap}
