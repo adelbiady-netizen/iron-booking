@@ -18,13 +18,20 @@ export interface TableAvailability {
   nextAvailableAt?: Date;
   // Debug: populated only when isAvailable is false due to a reservation conflict
   _debug?: {
-    conflictingResId:    string;
-    conflictingResTime:  string;
-    conflictingResDuration: number;
-    conflictingResStatus: string;
-    incomingTime:        string;
-    incomingDuration:    number;
-    bufferMinutes:       number;
+    conflictingResId:         string;
+    conflictingResTime:       string;
+    conflictingResDuration:   number;
+    conflictingResStatus:     string;
+    conflictingResGuestName:  string;
+    conflictingResTableId:    string | null;
+    conflictingResCombinedTableIds: string[];
+    conflictingResReorganizeAt: Date | null;
+    isSelfConflict:           boolean;
+    slotWindow:               string;
+    conflictWindow:           string;
+    incomingTime:             string;
+    incomingDuration:         number;
+    bufferMinutes:            number;
   };
 }
 
@@ -79,6 +86,8 @@ export async function getTableAvailability(
         time: true,
         duration: true,
         status: true,
+        guestName: true,
+        reorganizeAt: true,
       },
     }),
     prisma.blockedPeriod.findMany({
@@ -119,14 +128,23 @@ export async function getTableAvailability(
 
     if (conflict) {
       const cStart = parseTimeOnDate(date, conflict.time);
+      const cEnd   = addMinutes(cStart, conflict.duration);
+      const sWindowStart = addMinutes(slotStart, -bufferMinutes);
+      const sWindowEnd   = addMinutes(slotEnd,    bufferMinutes);
+      const isSelf = excludeReservationIds.includes(conflict.id);
       console.log('[availability:block] conflict found', {
         tableId: table.id,
+        slotWindow: `[${sWindowStart.toISOString()}, ${sWindowEnd.toISOString()}]`,
         conflictingReservationId: conflict.id,
+        conflictingGuestName: conflict.guestName,
         conflictingStatus: conflict.status,
         conflictingTableId: conflict.tableId,
         conflictingCombinedTableIds: conflict.combinedTableIds,
         conflictingTime: conflict.time,
         conflictingDuration: conflict.duration,
+        conflictingWindow: `[${cStart.toISOString()}, ${cEnd.toISOString()}]`,
+        conflictingReorganizeAt: conflict.reorganizeAt,
+        isSelfConflict: isSelf,
         incomingTime: timeStr,
         incomingDuration: durationMinutes,
         bufferMinutes,
@@ -138,12 +156,19 @@ export async function getTableAvailability(
         conflictingReservationId: conflict.id,
         nextAvailableAt: addMinutes(cStart, durationMinutes + bufferMinutes),
         _debug: {
-          conflictingResId:       conflict.id,
-          conflictingResTime:     conflict.time,
-          conflictingResDuration: conflict.duration,
-          conflictingResStatus:   conflict.status,
-          incomingTime:           timeStr,
-          incomingDuration:       durationMinutes,
+          conflictingResId:              conflict.id,
+          conflictingResTime:            conflict.time,
+          conflictingResDuration:        conflict.duration,
+          conflictingResStatus:          conflict.status,
+          conflictingResGuestName:       conflict.guestName,
+          conflictingResTableId:         conflict.tableId,
+          conflictingResCombinedTableIds: conflict.combinedTableIds,
+          conflictingResReorganizeAt:    conflict.reorganizeAt,
+          isSelfConflict:                isSelf,
+          slotWindow:                    `[${sWindowStart.toISOString()}, ${sWindowEnd.toISOString()}]`,
+          conflictWindow:                `[${cStart.toISOString()}, ${cEnd.toISOString()}]`,
+          incomingTime:                  timeStr,
+          incomingDuration:              durationMinutes,
           bufferMinutes,
         },
       };

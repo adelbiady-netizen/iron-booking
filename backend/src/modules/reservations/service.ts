@@ -557,6 +557,20 @@ export async function seatReservation(
   }
 
   if (!overrideConflicts) {
+    console.log('[availability:block] seatReservation incoming', {
+      reservationId: id,
+      reservationStatus: r.status,
+      reservationScheduledTime: r.time,
+      reservationDate: r.date,
+      reservationDuration: r.duration,
+      reservationCurrentTableId: r.tableId,
+      reservationReorganizeAt: r.reorganizeAt,
+      targetTableId: tableId,
+      targetCombinedIds: resolvedCombinedIds,
+      validationTime: nowTimeStr,
+      bufferMinutes: settings.bufferBetweenTurnsMinutes,
+      excludeReservationIds: [id],
+    });
     // Use nowTimeStr (current restaurant-local time) instead of r.time so the
     // conflict check matches what the floor board already shows.
     // When validateTableAssignment detects a conflict it means the incoming
