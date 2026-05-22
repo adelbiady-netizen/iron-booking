@@ -524,7 +524,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       console.log('[perf:seat] API response received', Math.round(performance.now() - t0) + 'ms');
       setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
       console.log('[perf:seat] UI updated', Math.round(performance.now() - t0) + 'ms');
-      onSuccess?.(toastMsg);
+      const advisory = updated._advisory;
+      const effectiveToast = advisory?.shortWindow && advisory.minutesUntil > 0
+        ? T.hostDashboard.toastSeatAdvisory(tableName(tableId), advisory.minutesUntil)
+        : toastMsg;
+      onSuccess?.(effectiveToast);
     } catch (err: unknown) {
       // Restore floor/reservation to pre-optimistic state before showing error or conflict modal.
       onOptimisticSeatRollback?.(res.id);

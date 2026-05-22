@@ -510,13 +510,15 @@ export async function seatReservation(
   const [nowH, nowM] = nowTimeStr.split(':').map(Number);
   const nowMins = nowH * 60 + nowM;
 
-  // Check for near-term reservations on the target table. Only flag reservations
-  // within the effective validator window (defaultTurnMinutes + buffer) from
-  // now — matches the board visibility threshold (reservationIsUpcoming forward cap)
-  // so a table shown AVAILABLE always passes this check and vice versa.
-  // Skip this check when the caller has already selected IDs to reorganize,
-  // or when the host has explicitly acknowledged the conflict (overrideConflicts=true).
-  if (reorganizeIds.length === 0 && !overrideConflicts) {
+  // Soft-pressure advisory: scan for upcoming reservations within the default
+  // turn window. The table is physically free — seating proceeds unconditionally.
+  // Advisory is returned on the response so the host sees a non-blocking warning.
+  // Hard blocks (blocked periods, inactive tables, actual double-occupancy) are
+  // handled separately below and in the occupiedCheck guard.
+  type SeatAdvisory = { shortWindow: boolean; minutesUntil: number; nextGuestName: string } | null;
+  let seatAdvisory: SeatAdvisory = null;
+
+  if (reorganizeIds.length === 0) {
     const todayDateObj = parseDateArg(todayLocal);
     const windowEndMins = nowMins + settings.defaultTurnMinutes + settings.bufferBetweenTurnsMinutes;
 
@@ -539,19 +541,19 @@ export async function seatReservation(
     });
 
     if (withinWindow.length > 0) {
-      const conflicts = withinWindow.map(f => {
-        const [fH, fM] = f.time.split(':').map(Number);
-        return {
-          id: f.id,
-          guestName: f.guestName,
-          time: f.time,
-          partySize: f.partySize,
-          minutesUntil: (fH * 60 + fM) - nowMins,
-        };
-      });
-      throw new ConflictError('This table has upcoming reservations', {
-        code: 'TABLE_HAS_FUTURE_RESERVATIONS',
-        conflicts,
+      const nearest = withinWindow[0];
+      const [fH, fM] = nearest.time.split(':').map(Number);
+      seatAdvisory = {
+        shortWindow: true,
+        minutesUntil: (fH * 60 + fM) - nowMins,
+        nextGuestName: nearest.guestName,
+      };
+      console.log('[seat:advisory] soft pressure — seating allowed, future reservation preserved', {
+        reservationId: id,
+        targetTableId: tableId,
+        nextReservationId: nearest.id,
+        nextGuestName: nearest.guestName,
+        minutesUntil: seatAdvisory.minutesUntil,
       });
     }
   }
@@ -571,13 +573,9 @@ export async function seatReservation(
       bufferMinutes: settings.bufferBetweenTurnsMinutes,
       excludeReservationIds: [id],
     });
-    // Use nowTimeStr (current restaurant-local time) instead of r.time so the
-    // conflict check matches what the floor board already shows.
-    // When validateTableAssignment detects a conflict it means the incoming
-    // reservation's duration would physically overlap a future booking on this
-    // table (e.g. r.duration > defaultTurnMinutes). Surface this as an
-    // overrideable TABLE_HAS_FUTURE_RESERVATIONS rather than a hard block so
-    // the host gets the ReorganizeConflictModal and can choose to proceed.
+    // Validate table existence, active status, and blocked periods.
+    // Reservation-vs-reservation time overlap is soft pressure (handled above).
+    // Only hard errors (blocked period, inactive table, table not found) block seating.
     try {
       await validateTableAssignment(
         restaurantId,
@@ -594,26 +592,25 @@ export async function seatReservation(
       if (err instanceof ConflictError) {
         const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
         if (det?.conflictingReservationId) {
-          const conflictRes = await prisma.reservation.findUnique({
-            where: { id: det.conflictingReservationId },
-            select: { id: true, guestName: true, time: true, partySize: true },
-          });
-          if (conflictRes) {
-            const [fH, fM] = conflictRes.time.split(':').map(Number);
-            throw new ConflictError('This table has upcoming reservations', {
-              code: 'TABLE_HAS_FUTURE_RESERVATIONS',
-              conflicts: [{
-                id:          conflictRes.id,
-                guestName:   conflictRes.guestName,
-                time:        conflictRes.time,
-                partySize:   conflictRes.partySize,
-                minutesUntil: (fH * 60 + fM) - nowMins,
-              }],
-            });
+          // Soft pressure: reservation time overlap. Table is physically free.
+          // Advisory was already captured above; fall through to seating.
+          if (!seatAdvisory) {
+            // Combined-table scenario: Check 1 may not have seen this table.
+            seatAdvisory = { shortWindow: true, minutesUntil: 0, nextGuestName: '' };
           }
+          console.log('[seat:advisory] duration-overlap is soft pressure, seating allowed', {
+            reservationId: id, targetTableId: tableId,
+            conflictingId: det.conflictingReservationId,
+          });
+          // fall through — do not throw
+        } else {
+          // Hard conflict: blocked period or table-level constraint.
+          throw err;
         }
+      } else {
+        // NotFoundError, BusinessRuleError, ValidationError — always hard block.
+        throw err;
       }
-      throw err;
     }
   }
 
@@ -727,7 +724,7 @@ export async function seatReservation(
     return updated;
   });
   console.log(`[perf:seat] total seatReservation ${Date.now() - t0}ms`);
-  return result;
+  return Object.assign(result, { _advisory: seatAdvisory });
 }
 
 export async function moveReservation(

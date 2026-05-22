@@ -242,7 +242,7 @@ export const api = {
     confirm: (id: string) =>
       request<Reservation>(`/reservations/${id}/confirm`, { method: 'POST' }),
     seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = [], reorganizeIds: string[] = []) =>
-      request<Reservation>(`/reservations/${id}/seat`, {
+      request<Reservation & { _advisory?: { shortWindow: boolean; minutesUntil: number; nextGuestName: string } | null }>(`/reservations/${id}/seat`, {
         method: 'POST',
         body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganizeIds }),
       }),
