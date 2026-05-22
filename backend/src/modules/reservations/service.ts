@@ -1215,8 +1215,18 @@ export async function validateTableAssignment(
   );
 
   // Check primary table availability — any conflict here is a real third-party conflict
-  // (excluded reservations are already filtered out inside getTableAvailability)
+  // (excluded reservations and displaced/reorganize reservations are filtered out inside getTableAvailability)
   const tableAvail = availability.find((a) => a.tableId === tableId);
+  console.log('[availability:block] validateTableAssignment', {
+    targetTableId: tableId,
+    targetTableName: table.name,
+    timeWindow: `${time} + ${duration}min (buffer ${bufferMinutes}min)`,
+    excludedIds: excludeReservationIds,
+    isAvailable: tableAvail?.isAvailable,
+    conflictingReservationId: tableAvail?.conflictingReservationId,
+    blockedBy: tableAvail?.blockedBy,
+    debug: tableAvail?._debug,
+  });
   if (!tableAvail?.isAvailable) {
     if (tableAvail?.blockedBy) {
       throw new ConflictError(`Table ${table.name} is blocked: ${tableAvail.blockedBy}`);

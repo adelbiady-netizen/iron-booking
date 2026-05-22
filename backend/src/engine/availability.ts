@@ -64,6 +64,7 @@ export async function getTableAvailability(
         date,
         status: { in: [...ACTIVE_STATUSES] as ReservationStatus[] },
         tableId: { not: null },
+        reorganizeAt: null, // displaced reservations have vacated their original table
         ...(tableIds ? {
           OR: [
             { tableId: { in: tableIds } },
@@ -118,6 +119,19 @@ export async function getTableAvailability(
 
     if (conflict) {
       const cStart = parseTimeOnDate(date, conflict.time);
+      console.log('[availability:block] conflict found', {
+        tableId: table.id,
+        conflictingReservationId: conflict.id,
+        conflictingStatus: conflict.status,
+        conflictingTableId: conflict.tableId,
+        conflictingCombinedTableIds: conflict.combinedTableIds,
+        conflictingTime: conflict.time,
+        conflictingDuration: conflict.duration,
+        incomingTime: timeStr,
+        incomingDuration: durationMinutes,
+        bufferMinutes,
+        excludedIds: excludeReservationIds,
+      });
       return {
         tableId: table.id,
         isAvailable: false,
