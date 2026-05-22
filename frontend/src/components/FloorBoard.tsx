@@ -814,14 +814,18 @@ export default function FloorBoard({
       }
       return;
     }
-    // Swap mode: clicking a seated non-source table picks it as the swap target
+    // Swap mode: clicking any table that has an assigned active reservation picks it as the swap target
     if (swapMode) {
-      const res = t.currentReservation;
-      const eligible = res?.status === 'SEATED' && res.id !== swapSourceId;
-      console.log('[swap:target] clicked table=', t.name, 'liveStatus=', t.liveStatus, 'currentRes=', res?.id, res?.guestName, 'status=', res?.status, 'swapSourceId=', swapSourceId, 'eligible=', eligible, eligible ? '' : res?.id === swapSourceId ? 'REASON: is source' : res?.status !== 'SEATED' ? `REASON: status=${res?.status}` : 'REASON: no currentRes');
+      const res = t.currentReservation ?? t.upcomingReservations.find(
+        r => !!r.tableId && (r.status === 'SEATED' || r.status === 'PENDING' || r.status === 'CONFIRMED')
+      ) ?? null;
+      const isSource = res?.id === swapSourceId;
+      const eligible = !!res && !isSource && !!res.tableId;
+      const reason = !res ? 'no assigned res' : isSource ? 'is source' : !res.tableId ? 'no tableId' : '';
+      console.log('[swap:target] table=', t.name, 'liveStatus=', t.liveStatus, 'res=', res?.id, res?.guestName, 'status=', res?.status, 'eligible=', eligible, reason ? `REASON: ${reason}` : '');
       if (eligible) {
         onSwapTargetPick?.(res!);
-      } else if (res?.id === swapSourceId) {
+      } else if (isSource) {
         onSwapCancel?.();
       }
       return;
@@ -1254,12 +1258,17 @@ export default function FloorBoard({
                 : undefined;
               const ps = pickMode ? getPickStatus(t) : null;
               const isWLCanvasTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
-              const isSwapSource = swapMode && t.currentReservation?.id === swapSourceId;
+              const _canvasSwapRes = swapMode ? (
+                t.currentReservation ?? t.upcomingReservations.find(
+                  r => !!r.tableId && (r.status === 'SEATED' || r.status === 'PENDING' || r.status === 'CONFIRMED')
+                ) ?? null
+              ) : null;
+              const isSwapSource = swapMode && _canvasSwapRes?.id === swapSourceId;
               const swapDimmed   = swapMode && !isSwapSource && (
-                t.liveStatus !== 'OCCUPIED' ||
-                !t.currentReservation ||
-                (t.currentReservation.combinedTableIds ?? []).length > 0 ||
-                !!t.currentReservation.reorganizeAt
+                !_canvasSwapRes ||
+                !_canvasSwapRes.tableId ||
+                (_canvasSwapRes.combinedTableIds ?? []).length > 0 ||
+                !!_canvasSwapRes.reorganizeAt
               );
               return (
                 <MapTable
@@ -1352,12 +1361,17 @@ export default function FloorBoard({
                   const isPickSelected = pickMode && pickSelection.includes(t.id);
                   const isWLTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
                   const ineligibleForAssign = !!waitlistAssignEntry && !pickMode && (t.liveStatus !== 'AVAILABLE' || t.locked);
-                  const isSwapSrc = swapMode && t.currentReservation?.id === swapSourceId;
+                  const _gridSwapRes = swapMode ? (
+                    t.currentReservation ?? t.upcomingReservations.find(
+                      r => !!r.tableId && (r.status === 'SEATED' || r.status === 'PENDING' || r.status === 'CONFIRMED')
+                    ) ?? null
+                  ) : null;
+                  const isSwapSrc = swapMode && _gridSwapRes?.id === swapSourceId;
                   const gridSwapDimmed = swapMode && !isSwapSrc && (
-                    t.liveStatus !== 'OCCUPIED' ||
-                    !t.currentReservation ||
-                    (t.currentReservation.combinedTableIds ?? []).length > 0 ||
-                    !!t.currentReservation.reorganizeAt
+                    !_gridSwapRes ||
+                    !_gridSwapRes.tableId ||
+                    (_gridSwapRes.combinedTableIds ?? []).length > 0 ||
+                    !!_gridSwapRes.reorganizeAt
                   );
                   return (
                     <div
@@ -1427,13 +1441,20 @@ export default function FloorBoard({
         );
         const ctxNextRes         = t.upcomingReservations[0];
         const isCtxQuietReserved = t.liveStatus === 'RESERVED' && (ctxNextRes?.minutesUntil ?? 0) >= 300;
+        // Swap-eligible reservation: SEATED (currentReservation) or any upcoming
+        // PENDING/CONFIRMED reservation that has a table already assigned.
+        // RESERVED and RESERVED_SOON tables hold their reservation in upcomingReservations.
+        const swapRes = currentRes ?? t.upcomingReservations.find(
+          r => !!r.tableId && (r.status === 'PENDING' || r.status === 'CONFIRMED')
+        ) ?? null;
         const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id) && !isDisplacedActive && !isCtxQuietReserved;
         const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
         const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
         const canMove       = !!onContextMenuMove        && isOccupied    && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
-        const canSwap       = !!onContextMenuSwap        && isOccupied    && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '')
-                                && !(currentRes?.combinedTableIds ?? []).length && !currentRes?.reorganizeAt;
-        console.log('[swap:ctx] table=', t.name, 'isOccupied=', isOccupied, 'isToday=', isToday, 'onContextMenuSwap=', !!onContextMenuSwap, 'locked=', t.locked, 'combinedTableIds=', currentRes?.combinedTableIds, 'reorganizeAt=', currentRes?.reorganizeAt, 'canSwap=', canSwap);
+        const canSwap       = !!onContextMenuSwap && !!swapRes && !t.locked && isToday
+                                && !inFlightIds?.has(swapRes.id)
+                                && !(swapRes.combinedTableIds ?? []).length && !swapRes.reorganizeAt;
+        console.log('[swap:ctx] table=', t.name, 'liveStatus=', t.liveStatus, 'swapRes=', swapRes?.id, swapRes?.guestName, 'status=', swapRes?.status, 'canSwap=', canSwap);
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
         const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails;
@@ -1492,7 +1513,7 @@ export default function FloorBoard({
               )}
               {canSwap && (
                 <button
-                  onClick={() => { console.log('[swap:ctx] clicked, res=', currentRes?.id, currentRes?.guestName); onContextMenuSwap!(currentRes!); setCtxMenu(null); }}
+                  onClick={() => { console.log('[swap:ctx] clicked, res=', swapRes?.id, swapRes?.guestName, 'status=', swapRes?.status); onContextMenuSwap!(swapRes!); setCtxMenu(null); }}
                   className="w-full text-left px-3 py-2 text-xs font-medium text-violet-400 hover:bg-violet-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxSwap}

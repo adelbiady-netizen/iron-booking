@@ -798,8 +798,9 @@ export async function swapReservations(
   console.log('[swap:service] loaded A=', resA.id, resA.guestName, 'status=', resA.status, 'tableId=', resA.tableId, 'combined=', resA.combinedTableIds, 'reorganizeAt=', resA.reorganizeAt);
   console.log('[swap:service] loaded B=', resB.id, resB.guestName, 'status=', resB.status, 'tableId=', resB.tableId, 'combined=', resB.combinedTableIds, 'reorganizeAt=', resB.reorganizeAt);
 
-  if (resA.status !== 'SEATED') { console.log('[swap:service] FAIL: A not SEATED'); throw new BusinessRuleError(`${resA.guestName} must be seated to swap`); }
-  if (resB.status !== 'SEATED') { console.log('[swap:service] FAIL: B not SEATED'); throw new BusinessRuleError(`${resB.guestName} must be seated to swap`); }
+  const SWAPPABLE = ['SEATED', 'PENDING', 'CONFIRMED'] as const;
+  if (!(SWAPPABLE as readonly string[]).includes(resA.status)) { console.log('[swap:service] FAIL: A status not swappable', resA.status); throw new BusinessRuleError(`${resA.guestName} cannot be swapped (status: ${resA.status})`); }
+  if (!(SWAPPABLE as readonly string[]).includes(resB.status)) { console.log('[swap:service] FAIL: B status not swappable', resB.status); throw new BusinessRuleError(`${resB.guestName} cannot be swapped (status: ${resB.status})`); }
   if (!resA.tableId || !resB.tableId) { console.log('[swap:service] FAIL: missing tableId'); throw new BusinessRuleError('Both reservations must have a table assigned'); }
   if (resA.tableId === resB.tableId) { console.log('[swap:service] FAIL: same table'); throw new BusinessRuleError('Reservations are already at the same table'); }
   if ((resA.combinedTableIds as string[]).length > 0 || (resB.combinedTableIds as string[]).length > 0) {
