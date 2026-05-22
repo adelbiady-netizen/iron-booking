@@ -163,6 +163,22 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     if (seated) {
       const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
 
+      // Operational end = max(scheduledEnd, seatedAt + minimumOperationalWindow).
+      //
+      // Late arrivals receive a compressed window anchored to the original scheduled
+      // end — NOT a full new turn from seating time. The minimum window (default 15 min)
+      // guarantees an extremely-late guest is never instantly overdue the moment they sit.
+      //
+      // This value drives both the live-display timer and the planning-release check so
+      // live mode and planning mode always agree on when the table becomes available.
+      //
+      // The conflict/booking engine (reservationConflicts, getTableAvailability) is NOT
+      // affected — it correctly remains anchored to reservation.time + reservation.duration.
+      const seatedAtMs       = new Date(seated.seatedAt!).getTime();
+      const minWindowMs      = ((settings.minimumOperationalWindowMinutes as number | undefined) ?? 15) * 60_000;
+      const operationalEndMs = Math.max(seatedScheduledEnd.getTime(), seatedAtMs + minWindowMs);
+      const operationalEnd   = new Date(operationalEndMs);
+
       // Previous-service stale: the board is showing a past date and this SEATED
       // reservation was never completed.  Do NOT show it as emergency red —
       // return STALE_OCCUPIED so the frontend can render a low-urgency amber state.
@@ -186,14 +202,14 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         };
       }
       // Mirror reservationConflicts() backward boundary: resEnd ≤ slotTime − buffer → no conflict.
-      const seatedClearedBuffer = seatedScheduledEnd <= addMinutes(slotTime, -bufferMinutes);
+      // Uses operationalEnd (not seatedScheduledEnd alone) so planning-mode release agrees
+      // with live occupancy timing for extremely-late guests seated past their scheduled end.
+      const seatedClearedBuffer = operationalEnd <= addMinutes(slotTime, -bufferMinutes);
       // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.
       const releasedForPlanning = seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
 
       if (!releasedForPlanning) {
-        const seatedAtMs    = new Date(seated.seatedAt!).getTime();
-        const expectedEndMs = seatedAtMs + seated.duration * 60_000;
-        const minutesRemaining = Math.round((expectedEndMs - Date.now()) / 60_000);
+        const minutesRemaining = Math.round((operationalEndMs - Date.now()) / 60_000);
         const isOverdue = minutesRemaining < 0;
         return {
           ...table,
@@ -202,7 +218,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
           currentReservation: {
             ...seated,
             minutesRemaining,
-            expectedEndTime: new Date(expectedEndMs).toISOString(),
+            expectedEndTime: operationalEnd.toISOString(),
             isOverdue,
           },
           upcomingReservations: [],
