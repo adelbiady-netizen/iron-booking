@@ -48,6 +48,9 @@ model Restaurant {
   //   openingHour: string               "11:00"
   //   closingHour: string               "22:00"
   //   lastSeatingOffset: number         minutes before close (e.g. 60)
+  //   minimumOperationalWindowMinutes: number (e.g. 15 — min time shown on seated table timer)
+  //   serviceDayCutoffHour: number | null     (e.g. 4 — times 00:00–03:59 belong to the prior
+  //                                            service day's anchor date; null = disabled)
   // }
 
   // Link telephony DID — the number the system routes calls to for this restaurant.
