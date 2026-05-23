@@ -163,20 +163,22 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     if (seated) {
       const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
 
-      // Operational end = max(scheduledEnd, seatedAt + minimumOperationalWindow).
+      // Operational end = min(max(scheduledEnd, seatedAt + minWindow), scheduledEnd + minWindow).
       //
-      // Late arrivals receive a compressed window anchored to the original scheduled
-      // end — NOT a full new turn from seating time. The minimum window (default 15 min)
-      // guarantees an extremely-late guest is never instantly overdue the moment they sit.
-      //
-      // This value drives both the live-display timer and the planning-release check so
-      // live mode and planning mode always agree on when the table becomes available.
+      // For on-time / slightly-late guests: max(...) gives at least minWindow from seating so
+      // the timer is never instantly negative. For extremely-late guests (seatedAt >> scheduledEnd)
+      // the outer min caps the result at scheduledEnd + minWindow — preventing a runaway
+      // future turn (e.g., seatedAt=14:45 with scheduledEnd=12:00 gives 12:15, not 15:00).
       //
       // The conflict/booking engine (reservationConflicts, getTableAvailability) is NOT
       // affected — it correctly remains anchored to reservation.time + reservation.duration.
       const seatedAtMs       = new Date(seated.seatedAt!).getTime();
       const minWindowMs      = ((settings.minimumOperationalWindowMinutes as number | undefined) ?? 15) * 60_000;
-      const operationalEndMs = Math.max(seatedScheduledEnd.getTime(), seatedAtMs + minWindowMs);
+      const scheduledEndMs   = seatedScheduledEnd.getTime();
+      const operationalEndMs = Math.min(
+        Math.max(scheduledEndMs, seatedAtMs + minWindowMs),
+        scheduledEndMs + minWindowMs,
+      );
       const operationalEnd   = new Date(operationalEndMs);
 
       // Previous-service stale: the board is showing a past date and this SEATED
