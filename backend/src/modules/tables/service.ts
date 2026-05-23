@@ -9,6 +9,16 @@ import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_
 // Returns all tables with their live status for a given date/time.
 // This is what powers the host's table board.
 
+// parseTimeOnDate produces "virtual local time" Dates (no TZ suffix) so that all
+// occupancy arithmetic stays in the restaurant's local-time number space.
+// toISOString() would emit a UTC "Z" string — the IST client would then add +3 h,
+// shifting "16:00" to "19:00". We therefore format the virtual-local components
+// directly, producing a TZ-naive ISO string the client parses as local time.
+function fmtVirtualLocal(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+}
+
 export async function getFloorState(restaurantId: string, date: Date, time: string) {
   // Hoist slotTime so the blocks query can use the correct interval window.
   // Using a conservative lookahead (max turn 120 min + buffer 15 min = 135 min)
@@ -193,7 +203,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
           currentReservation: {
             ...seated,
             minutesRemaining: 0,
-            expectedEndTime: seatedScheduledEnd.toISOString(),
+            expectedEndTime: fmtVirtualLocal(seatedScheduledEnd),
             isOverdue: false,
           },
           upcomingReservations: [],
@@ -220,7 +230,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
           currentReservation: {
             ...seated,
             minutesRemaining,
-            expectedEndTime: operationalEnd.toISOString(),
+            expectedEndTime: fmtVirtualLocal(operationalEnd),
             isOverdue,
           },
           upcomingReservations: [],
