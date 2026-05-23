@@ -759,7 +759,7 @@ export async function getFloorInsights(
 ): Promise<FloorInsight[]> {
   const dateObj = new Date(date + 'T00:00:00.000Z');
 
-  const [floorState, unassigned] = await Promise.all([
+  const [floorState, unassigned, restaurantRow] = await Promise.all([
     getFloorState(restaurantId, dateObj, time),
     prisma.reservation.findMany({
       where: {
@@ -772,6 +772,10 @@ export async function getFloorInsights(
       },
       select: { id: true, guestName: true, partySize: true, time: true, status: true },
     }),
+    prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { timezone: true },
+    }),
   ]);
 
   const [nowH, nowM] = time.split(':').map(Number);
@@ -779,7 +783,10 @@ export async function getFloorInsights(
 
   // Operational alerts (LATE_GUEST, ENDING_SOON) are live-service alerts only.
   // They must never fire for future dates because the service day hasn't started.
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Use restaurant-local today (same pattern as getFloorState) so UTC+ restaurants
+  // running late-night service past UTC midnight get correct isToday behaviour.
+  const timezone = (restaurantRow?.timezone as string) ?? 'UTC';
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
   const isToday  = date === todayStr;
 
   // SEAT_NOW only fires for unassigned reservations that are imminent (within

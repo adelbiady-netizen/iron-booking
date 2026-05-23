@@ -101,7 +101,7 @@ export interface FloorTable extends Table {
   blockType?: string;
   currentReservation: (Reservation & {
     minutesRemaining: number;
-    expectedEndTime: string;   // seatedAt + duration, ISO — set by backend, always present
+    expectedEndTime: string;   // max(scheduledEnd, seatedAt + minWindow), ISO — set by backend. scheduledEnd = reservation.time + duration; minWindow defaults to 15 min
     isOverdue: boolean;        // true when minutesRemaining < 0; host must manually complete
   }) | null;
   upcomingReservations: Array<Reservation & { minutesUntil: number }>;

@@ -5,6 +5,7 @@ import { useT } from '../i18n/useT';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
 import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased } from '../utils/arrival';
+import { optimisticExpectedEnd } from '../utils/time';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import TopBar from '../components/TopBar';
@@ -505,15 +506,25 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const enriched = reservations.find(x => x.id === r.id) ?? r;
     setQuickTable(null);
     setSelectedRes(enriched);
-    // Only jump the board to the reservation's time for upcoming (non-seated) reservations.
-    // SEATED/COMPLETED reservations are already in progress or done — don't disrupt the
-    // host's current floor view by jumping away from the live service snapshot.
-    if (enriched.status === 'PENDING' || enriched.status === 'CONFIRMED') {
+    // Sync board time when the host opens a reservation for inspection so the floor map
+    // context matches the drawer. Includes SEATED so a live guest's table renders at the
+    // correct time. Historical statuses (COMPLETED, CANCELLED, NO_SHOW) are excluded —
+    // jumping to a past time during live service has no operational value.
+    if (enriched.status === 'PENDING' || enriched.status === 'CONFIRMED' || enriched.status === 'SEATED') {
       const [h, m] = enriched.time.split(':').map(Number);
       setTime(snapTo30(h * 60 + m));
       setLiveMode(false);
     }
   }, [reservations]);
+
+  const handleReorganizeSelect = useCallback((r: Reservation) => {
+    setReorganizeMode(false);
+    setRebuildDayTarget(null);
+    setSelectedRes(r);
+    const [h, m] = r.time.split(':').map(Number);
+    setTime(snapTo30(h * 60 + m));
+    setLiveMode(false);
+  }, []);
 
   const handleUpdated = useCallback((updated: Reservation) => {
     optimisticSeatSnapshotRef.current.delete(updated.id);
@@ -521,14 +532,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setQuickTable(null);
     setSelectedRes(updated);
     // Reconcile floor board with API-confirmed seat. Computes floor-specific fields
-    // (minutesRemaining, expectedEndTime, isOverdue) from seatedAt + duration since the
-    // plain Reservation type doesn't carry them. SSE still fires afterward as authoritative sync.
+    // (minutesRemaining, expectedEndTime, isOverdue) using the same max(scheduledEnd,
+    // seatedAt + minWindow) model as the backend. SSE still fires afterward as authoritative sync.
     if (updated.status === 'SEATED' && updated.tableId) {
       const now = Date.now();
       const seatedAtMs = updated.seatedAt ? new Date(updated.seatedAt).getTime() : now;
-      const durationMs = (updated.duration ?? 90) * 60_000;
-      const expectedEndTime = new Date(seatedAtMs + durationMs).toISOString();
-      const minutesRemaining = Math.round((seatedAtMs + durationMs - now) / 60_000);
+      const expectedEndTime = optimisticExpectedEnd(updated, seatedAtMs);
+      const minutesRemaining = Math.round((new Date(expectedEndTime).getTime() - now) / 60_000);
       setFloorTables(prev => prev.map(t => {
         if (t.id !== updated.tableId) return t;
         return {
@@ -552,9 +562,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const handleOptimisticSeat = useCallback((seatRes: Reservation, tableId: string, _combinedIds: string[]) => {
     const now = Date.now();
     const seatedAt = new Date(now).toISOString();
-    const durationMs = (seatRes.duration ?? 90) * 60_000;
-    const expectedEndTime = new Date(now + durationMs).toISOString();
-    const minutesRemaining = Math.round(durationMs / 60_000);
+    const expectedEndTime = optimisticExpectedEnd(seatRes, now);
+    const minutesRemaining = Math.round((new Date(expectedEndTime).getTime() - now) / 60_000);
 
     let capturedFloorTable: FloorTable | null = null;
     setFloorTables(prev => prev.map(t => {
@@ -608,7 +617,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // ── Optimistic update ────────────────────────────────────────────────────
     const now = Date.now();
     const seatedAt = new Date(now).toISOString();
-    const expectedEndTime = new Date(now + (res?.duration ?? 90) * 60_000).toISOString();
+    const expectedEndTime = res ? optimisticExpectedEnd(res, now) : new Date(now + 90 * 60_000).toISOString();
     let snapshotFloorTable: FloorTable | null = null;
     setReservations(prev => prev.map(r =>
       r.id === reservationId
@@ -623,7 +632,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
           currentReservation: res ? {
             ...res, status: 'SEATED' as const, tableId, seatedAt,
-            minutesRemaining: res.duration, expectedEndTime, isOverdue: false,
+            minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000), expectedEndTime, isOverdue: false,
           } : t.currentReservation,
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== reservationId),
         };
@@ -1221,7 +1230,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
       const now = Date.now();
       const seatedAt = new Date(now).toISOString();
-      const expectedEndTime = new Date(now + (res.duration ?? 90) * 60_000).toISOString();
+      const expectedEndTime = optimisticExpectedEnd(res, now);
       let snapshotFloorTable: FloorTable | null = null;
 
       inFlightRef.current.add(res.id);
@@ -1238,7 +1247,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
             currentReservation: {
               ...res, status: 'SEATED' as const, tableId: primaryId, seatedAt,
-              minutesRemaining: res.duration, expectedEndTime, isOverdue: false,
+              minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000), expectedEndTime, isOverdue: false,
             },
             upcomingReservations: t.upcomingReservations.filter(r => r.id !== res.id),
           };
@@ -1490,7 +1499,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // backend confirms it.
     if (created.status === 'SEATED' && created.tableId) {
       const now = Date.now();
-      const expectedEndTime = new Date(now + (created.duration ?? 90) * 60_000).toISOString();
+      const seatedAtMs = created.seatedAt ? new Date(created.seatedAt).getTime() : now;
+      const expectedEndTime = optimisticExpectedEnd(created, seatedAtMs);
       setFloorTables(prev => prev.map(t => {
         if (t.id !== created.tableId) return t;
         return {
@@ -1498,7 +1508,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
           currentReservation: {
             ...created,
-            minutesRemaining: created.duration,
+            minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000),
             expectedEndTime,
             isOverdue: false,
           },
@@ -1910,7 +1920,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onContextMenuSeat={handleContextMenuSeat}
               date={date}
               reorganizeQueue={reorganizeQueue}
-              onReorganizeSelect={r => { setReorganizeMode(false); setRebuildDayTarget(null); setSelectedRes(r); }}
+              onReorganizeSelect={handleReorganizeSelect}
               allTables={allTables}
               onChooseTable={handleChooseTable}
               isLiveView={isLiveView}

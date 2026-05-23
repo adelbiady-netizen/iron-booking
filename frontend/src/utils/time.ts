@@ -56,3 +56,21 @@ export function minutesUntilEnd(
     : operationalNow;
   return Math.floor((end - effectiveNow) / 60_000);
 }
+
+// Compute the optimistic expectedEndTime for a reservation being seated at seatedAtMs.
+// Mirrors the backend operationalEnd model:
+//   max(scheduledEnd, seatedAt + minimumOperationalWindow)
+// Prevents a brief full-duration timer when a late guest is seated — without this the
+// optimistic state shows now+duration instead of the correct compressed window.
+// date may be "YYYY-MM-DD" or a full ISO string; only the date part is used.
+export function optimisticExpectedEnd(
+  res: { date: string; time: string; duration: number },
+  seatedAtMs: number,
+): string {
+  const dateStr = String(res.date).slice(0, 10);
+  const scheduledEndMs =
+    new Date(`${dateStr}T${res.time}:00`).getTime() + res.duration * 60_000;
+  return new Date(
+    Math.max(scheduledEndMs, seatedAtMs + 15 * 60_000)
+  ).toISOString();
+}
