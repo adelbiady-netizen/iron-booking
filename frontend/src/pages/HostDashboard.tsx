@@ -634,7 +634,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // ── Optimistic update ────────────────────────────────────────────────────
     const now = Date.now();
     const seatedAt = new Date(now).toISOString();
-    const expectedEndTime = res ? optimisticExpectedEnd(res, now) : new Date(now + 90 * 60_000).toISOString();
+    const expectedEndTime = res ? optimisticExpectedEnd(res, now) : seatedAt; // fallback unused (currentReservation kept as-is when res is null)
     let snapshotFloorTable: FloorTable | null = null;
     setReservations(prev => prev.map(r =>
       r.id === reservationId
