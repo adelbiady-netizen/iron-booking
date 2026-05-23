@@ -372,7 +372,7 @@ export default function ReservationPanel({
               </div>
             )}
 
-            {!loading && (filter === 'ACTIVE'
+            {!loading && (filter === 'ACTIVE' && isLiveView
               ? (() => {
                   const isImminent = (r: (typeof visible)[0]) =>
                     !!nowTime && minutesUntilRes(r.time, nowTime) >= 0 && minutesUntilRes(r.time, nowTime) <= 30;
