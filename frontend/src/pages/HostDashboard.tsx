@@ -526,6 +526,20 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setLiveMode(false);
   }, []);
 
+  // Shared helper for any "open this reservation's details" action.
+  // Applies the same board-time sync as handlePanelSelect so the floor map
+  // always shows the correct time context when a drawer opens.
+  // Live-alert paths (arrival notifications, ENDING_SOON) use setSelectedRes
+  // directly and intentionally bypass this — they must not disrupt the live view.
+  const openReservationDetails = useCallback((res: Reservation) => {
+    setSelectedRes(res);
+    if (res.status === 'PENDING' || res.status === 'CONFIRMED' || res.status === 'SEATED') {
+      const [h, m] = res.time.split(':').map(Number);
+      setTime(snapTo30(h * 60 + m));
+      setLiveMode(false);
+    }
+  }, []);
+
   const handleUpdated = useCallback((updated: Reservation) => {
     optimisticSeatSnapshotRef.current.delete(updated.id);
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
@@ -828,17 +842,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleTimelineQuickAction = useCallback(async (action: 'seat' | 'move' | 'cancel', res: Reservation) => {
     if (action === 'seat') {
-      if (!res.tableId) { setSelectedRes(res); return; }
+      if (!res.tableId) { openReservationDetails(res); return; }
       try { await handleInsightAction(res.tableId, res.id); }
-      catch { setSelectedRes(res); }
+      catch { openReservationDetails(res); }
       return;
     }
-    if (action === 'move') { setSelectedRes(res); return; }
+    if (action === 'move') { openReservationDetails(res); return; }
     if (action === 'cancel') {
       try { await api.reservations.cancel(res.id); setRefreshKey(k => k + 1); }
       catch (err) { showToast(err instanceof Error ? err.message : T.hostDashboard.toastCancelFail, 'error'); }
     }
-  }, [handleInsightAction, showToast]);
+  }, [handleInsightAction, openReservationDetails, showToast]);
 
   const handleTableLocked = useCallback((updated: Table) => {
     setFloorTables(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t));
@@ -1365,8 +1379,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const handleContextMenuOpenDetails = useCallback((res: Reservation) => {
     const enriched = reservations.find(r => r.id === res.id) ?? res;
     setQuickTable(null);
-    setSelectedRes(enriched);
-  }, [reservations]);
+    openReservationDetails(enriched);
+  }, [reservations, openReservationDetails]);
 
   const handleContextMenuArrive = useCallback(async (res: Reservation) => {
     if (inFlightRef.current.has(res.id)) return;
@@ -1782,7 +1796,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               nowTime={time}
               isLiveView={isLiveView}
               onClose={() => setQuickTable(null)}
-              onViewFull={(res) => { setQuickTable(null); setSelectedRes(res); }}
+              onViewFull={(res) => { setQuickTable(null); openReservationDetails(res); }}
               onSeat={handleContextMenuSeat}
               onMoveTable={handleContextMenuMove}
               onChangeTable={handleChooseTable}
@@ -2001,7 +2015,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           }}
           onOpenReservation={(resId) => {
             const res = reservations.find(r => r.id === resId);
-            if (res) setSelectedRes(res);
+            if (res) openReservationDetails(res);
             lastCallRef.current = null; setIncomingCall(null);
           }}
           onClose={() => { lastCallRef.current = null; setIncomingCall(null); }}
