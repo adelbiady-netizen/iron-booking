@@ -567,6 +567,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== updated.id),
         };
       }));
+      setInsights(prev => prev.filter(i => i.reservationId !== updated.id));
     }
   }, []);
 
@@ -625,6 +626,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const res = reservations.find(r => r.id === reservationId);
     const combinedTableIds = res?.combinedTableIds ?? [];
 
+    const resSnapshot = res; // stable pre-optimistic snapshot — res is const but named explicitly for the rollback below
+
     inFlightRef.current.add(reservationId);
     setInFlightIds(new Set(inFlightRef.current));
 
@@ -682,7 +685,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       });
     } catch (err) {
       // ── Rollback ─────────────────────────────────────────────────────────
-      if (res) setReservations(prev => prev.map(r => r.id === reservationId ? res : r));
+      if (resSnapshot) setReservations(prev => prev.map(r => r.id === reservationId ? resSnapshot : r));
       if (snapshotFloorTable) { const snap = snapshotFloorTable; setFloorTables(prev => prev.map(t => t.id === tableId ? snap : t)); }
       // ─────────────────────────────────────────────────────────────────────
       if (err instanceof ApiError && err.code === 'CONFLICT') {
@@ -1274,7 +1277,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
         setInsights(prev => prev.filter(i => i.tableId !== primaryId && i.reservationId !== res.id));
         const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
-        showToast(T.hostDashboard.toastQuickSeated(tableName), 'success', {
+        const advisory = updated._advisory;
+        const toastMsg = advisory?.shortWindow
+          ? (advisory.minutesLate && advisory.minutesLate > 0
+              ? T.hostDashboard.toastSeatLateAdvisory(advisory.minutesLate, advisory.minutesUntil)
+              : advisory.minutesUntil > 0
+                ? T.hostDashboard.toastSeatAdvisory(tableName, advisory.minutesUntil)
+                : T.hostDashboard.toastQuickSeated(tableName))
+          : T.hostDashboard.toastQuickSeated(tableName);
+        showToast(toastMsg, 'success', {
           label: T.hostDashboard.quickSeatUndo,
           onClick: () => {
             api.reservations.undo(updated.id)
