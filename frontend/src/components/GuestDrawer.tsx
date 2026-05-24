@@ -1456,7 +1456,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     className={inputCls}
                     type="number"
                     min={1}
-                    max={30}
+                    max={100}
                     value={editParty}
                     onChange={e => setEditParty(e.target.value)}
                   />
