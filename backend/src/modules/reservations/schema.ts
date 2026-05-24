@@ -8,7 +8,7 @@ export const CreateReservationSchema = z.object({
   guestPhone: z.string().optional(),
   guestEmail: z.string().email().optional(),
   guestId: z.string().uuid().optional(), // link to existing guest record
-  partySize: z.number().int().min(1).max(30),
+  partySize: z.number().int().min(1).max(100),
   date: DateString,
   time: TimeString,
   duration: z.number().int().min(30).max(480).optional(), // override in minutes
@@ -30,7 +30,7 @@ export const UpdateReservationSchema = z.object({
   guestName: z.string().min(1).max(100).optional(),
   guestPhone: z.string().optional(),
   guestEmail: z.string().email().optional(),
-  partySize: z.number().int().min(1).max(30).optional(),
+  partySize: z.number().int().min(1).max(100).optional(),
   date: DateString.optional(),
   time: TimeString.optional(),
   duration: z.number().int().min(30).max(480).optional(),
