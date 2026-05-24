@@ -355,7 +355,7 @@ export default function CreateDrawer({
           setManualOverride(true);
         }
       },
-      'seat',
+      'change-table',
     );
   }
 
@@ -374,7 +374,7 @@ export default function CreateDrawer({
           setWiManualOverride(true);
         }
       },
-      'seat',
+      'change-table',
       undefined,
       true,
     );
@@ -625,7 +625,7 @@ export default function CreateDrawer({
                   <Input
                     type="number"
                     min={1}
-                    max={30}
+                    max={100}
                     value={resParty}
                     onChange={e => setResParty(parseInt(e.target.value, 10) || 1)}
                     required
@@ -1055,7 +1055,7 @@ export default function CreateDrawer({
                 <Input
                   type="number"
                   min={1}
-                  max={30}
+                  max={100}
                   value={wiParty}
                   onChange={e => setWiParty(parseInt(e.target.value, 10) || 1)}
                 />
