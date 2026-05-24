@@ -195,7 +195,7 @@ export default function CreateDrawer({
         const { guest } = await api.guests.lookupByPhone(resPhone);
         setGuestHint(guest);
         setHintDismissed(false);
-        if (guest) setResName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
+        if (guest) setResName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}`.trim() : prev);
       } catch { /* non-fatal */ }
     }, 400);
     return () => clearTimeout(t);
@@ -209,7 +209,7 @@ export default function CreateDrawer({
         const { guest } = await api.guests.lookupByPhone(wiPhone);
         setWiGuestHint(guest);
         setWiHintDismissed(false);
-        if (guest) setWiName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
+        if (guest) setWiName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}`.trim() : prev);
       } catch { /* non-fatal */ }
     }, 400);
     return () => clearTimeout(t);

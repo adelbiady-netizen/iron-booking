@@ -1381,7 +1381,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
                 {T.guestDrawer.sectionGuestProfile}
               </p>
-              <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`} />
+              <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`.trim()} />
               {res.guest.visitCount != null && (
                 <Row label={T.guestDrawer.rowVisits}   value={String(res.guest.visitCount)} />
               )}
