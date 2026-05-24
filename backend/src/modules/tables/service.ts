@@ -987,7 +987,7 @@ export async function batchSaveFloorObjects(
 export async function rebuildDay(
   restaurantId: string,
   tableId: string,
-  input: { date: string; reason?: string; rebuildSessionId: string; actor: string }
+  input: { date: string; reason?: string; rebuildSessionId: string; actor: string; ids?: string[] }
 ) {
   const table = await prisma.table.findUnique({ where: { id: tableId } });
   if (!table || table.restaurantId !== restaurantId) throw new NotFoundError('Table', tableId);
@@ -1001,6 +1001,9 @@ export async function rebuildDay(
       date: dateObj,
       status: { in: ['CONFIRMED', 'PENDING'] as ReservationStatus[] },
       reorganizeAt: null,
+      // When the caller passes specific IDs, lift only those rows.
+      // Omitting ids (or passing empty array) lifts all — preserved for backward compat.
+      ...(input.ids?.length ? { id: { in: input.ids } } : {}),
     },
   });
 

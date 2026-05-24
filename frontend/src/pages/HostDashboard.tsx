@@ -224,6 +224,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [rebuildDayTarget, setRebuildDayTarget] = useState<{ table: FloorTable; resv: Reservation[] } | null>(null);
   const [rebuildDayReason, setRebuildDayReason] = useState('');
   const [rebuildDayBusy, setRebuildDayBusy] = useState(false);
+  const [selectedRebuildIds, setSelectedRebuildIds] = useState<string[]>([]);
   const rebuildSessionIdRef = useRef('');
 
   // Floor-map table pick mode — triggered by CreateDrawer or GuestDrawer
@@ -779,6 +780,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       r => r.tableId === table.id && ['CONFIRMED', 'PENDING'].includes(r.status) && !r.reorganizeAt
     );
     setRebuildDayTarget({ table, resv: tableResv });
+    setSelectedRebuildIds(tableResv.map(r => r.id));
     setRebuildDayReason('');
   }, [selectedRes, isActiveUnassigned, handleAssignActiveRes, reservations]);
 
@@ -2075,14 +2077,23 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               <p className="text-iron-muted text-xs">{T.hostDashboard.rebuildDayNoRes}</p>
             ) : (
               <>
-                <p className="text-iron-muted text-xs">{T.hostDashboard.rebuildDayBody(rebuildDayTarget.resv.length)}</p>
+                <p className="text-iron-muted text-xs">{T.hostDashboard.rebuildDayBody(selectedRebuildIds.length)}</p>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
                   {rebuildDayTarget.resv.map(r => (
-                    <div key={r.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-iron-bg border border-iron-border">
+                    <label key={r.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md bg-iron-bg border border-iron-border cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRebuildIds.includes(r.id)}
+                        onChange={() => setSelectedRebuildIds(prev =>
+                          prev.includes(r.id) ? prev.filter(x => x !== r.id) : [...prev, r.id]
+                        )}
+                        disabled={rebuildDayBusy}
+                        className="w-3.5 h-3.5 rounded border-iron-border accent-amber-400 shrink-0"
+                      />
                       <span className="text-iron-text text-xs font-medium flex-1 truncate">{r.guestName}</span>
                       <span className="text-iron-muted text-[11px]">{T.common.guests(r.partySize)}</span>
                       <span className="text-amber-400 text-[11px]">{r.time}</span>
-                    </div>
+                    </label>
                   ))}
                 </div>
                 <input
@@ -2104,7 +2115,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               </button>
               {rebuildDayTarget.resv.length > 0 && (
                 <button
-                  disabled={rebuildDayBusy}
+                  disabled={rebuildDayBusy || selectedRebuildIds.length === 0}
                   onClick={async () => {
                     setRebuildDayBusy(true);
                     try {
@@ -2112,6 +2123,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                         date,
                         reason: rebuildDayReason.trim() || undefined,
                         rebuildSessionId: rebuildSessionIdRef.current,
+                        ids: selectedRebuildIds,
                       });
                       setRebuildDayTarget(null);
                       showToast(T.hostDashboard.toastRebuildDone(result.lifted, result.tableName));

@@ -220,7 +220,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ objects }),
       }),
-    rebuildDay: (tableId: string, body: { date: string; reason?: string; rebuildSessionId: string }) =>
+    rebuildDay: (tableId: string, body: { date: string; reason?: string; rebuildSessionId: string; ids?: string[] }) =>
       request<{ lifted: number; tableName: string }>(`/tables/${tableId}/rebuild-day`, {
         method: 'POST',
         body: JSON.stringify(body),
