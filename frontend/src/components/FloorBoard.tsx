@@ -2816,6 +2816,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Base (non-pick) colors
   const isOverdue      = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
+  const overdueMinutes = isOverdue ? (table.currentReservation?.minutesOverdue ?? 0) : 0;
+  const overdueTier: 'mild' | 'warning' | 'critical' | null =
+    overdueMinutes >= 45 ? 'critical' : overdueMinutes >= 15 ? 'warning' : overdueMinutes > 0 ? 'mild' : null;
   const isStaleOccupied = table.liveStatus === 'STALE_OCCUPIED';
   const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
     ? minutesUntilEnd(table.currentReservation.expectedEndTime, _operationalNow ?? Date.now()) : null;
@@ -2832,7 +2835,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
 
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,236,253,0.96)'   // soft lavender — held
-    : isOverdue       ? 'rgba(250,232,232,0.96)'                                     // soft red-tinted — overdue
+    : isOverdue       ? (overdueTier === 'critical' ? 'rgba(248,113,113,0.97)' : overdueTier === 'warning' ? 'rgba(252,165,165,0.97)' : 'rgba(254,202,202,0.97)')  // severity-tiered: mild/warning/critical
     : isStaleOccupied ? (isDark ? 'rgba(240,233,220,0.96)' : 'rgba(253,249,242,0.96)')  // warm muted — prev service
     : (STATUS_BG[displayStatus] ?? STATUS_BG['AVAILABLE']);
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
@@ -2856,11 +2859,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   let borderColor = selected        ? '#22c55e'
     : combinedSelected ? '#3b82f6'
     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
-    : isOverdue      ? '#ef4444'
+    : isOverdue      ? (overdueTier === 'critical' ? '#b91c1c' : overdueTier === 'warning' ? '#dc2626' : '#ef4444')
     : table.locked   ? '#f59e0b'
     : sectionColor;
 
-  let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
+  let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2
+    : overdueTier === 'critical' ? 2.5
+    : overdueTier === 'warning' ? 2
+    : 1.5;
 
   let boxShadow: string | undefined = selected
     ? '0 0 0 3px rgba(34,197,94,0.48), 0 0 36px rgba(34,197,94,0.22)'
@@ -2870,7 +2876,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? '0 0 0 3px rgba(99,102,241,0.34), 0 0 30px rgba(99,102,241,0.18)'
     : bestSuggestion
     ? '0 0 0 2px rgba(34,197,94,0.28), 0 0 30px rgba(34,197,94,0.15)'
-    : isOverdue ? '0 0 0 2px rgba(239,68,68,0.38)'   // structural ring — always present regardless of animation
+    : isOverdue ? (
+        overdueTier === 'critical' ? '0 0 0 3px rgba(185,28,28,0.80)' :
+        overdueTier === 'warning'  ? '0 0 0 2px rgba(220,38,38,0.60)' :
+        '0 0 0 2px rgba(239,68,68,0.38)'
+      )
     : table.locked ? '0 0 0 2px rgba(245,158,11,0.18)' : undefined;
 
   let opacity = dimmed ? 0.25
@@ -3045,9 +3055,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && !selected && !combinedSelected && !dimmed && !(softHold && table.liveStatus === 'AVAILABLE')) {
     let halo: string | undefined;
     if (isOverdue) {
-      halo = isDark
-        ? '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)'
-        : '0 0 0 1px rgba(239,68,68,0.55), 0 0 44px rgba(239,68,68,0.22)';
+      halo = overdueTier === 'critical'
+        ? (isDark
+          ? '0 0 0 1px rgba(185,28,28,0.70), 0 0 52px rgba(185,28,28,0.48)'
+          : '0 0 0 1px rgba(185,28,28,0.85), 0 0 52px rgba(185,28,28,0.40)')
+        : overdueTier === 'warning'
+        ? (isDark
+          ? '0 0 0 1px rgba(220,38,38,0.55), 0 0 48px rgba(220,38,38,0.36)'
+          : '0 0 0 1px rgba(220,38,38,0.72), 0 0 48px rgba(220,38,38,0.30)')
+        : (isDark
+          ? '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)'
+          : '0 0 0 1px rgba(239,68,68,0.55), 0 0 44px rgba(239,68,68,0.22)');
     } else if (table.liveStatus === 'OCCUPIED') {
       if (isEndingSoon) {
         // Ending soon: amber halo — table is about to free, seating opportunity imminent
@@ -3140,7 +3158,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : table.liveStatus === 'OCCUPIED'
     // Shadow density mirrors urgency — overdue comes forward most, stable recedes
     ? isOverdue
-      ? 'drop-shadow(0 6px 30px rgba(0,0,0,0.84)) drop-shadow(0 2px 8px rgba(220,38,38,0.28))'
+      ? overdueTier === 'critical'
+        ? 'drop-shadow(0 6px 32px rgba(0,0,0,0.88)) drop-shadow(0 2px 10px rgba(153,27,27,0.58))'
+        : overdueTier === 'warning'
+        ? 'drop-shadow(0 6px 30px rgba(0,0,0,0.86)) drop-shadow(0 2px 8px rgba(185,28,28,0.42))'
+        : 'drop-shadow(0 6px 30px rgba(0,0,0,0.84)) drop-shadow(0 2px 8px rgba(220,38,38,0.28))'
       : isEndingSoon
       ? 'drop-shadow(0 5px 26px rgba(0,0,0,0.78)) drop-shadow(0 1px 7px rgba(0,0,0,0.44))'
       : isLongStable
@@ -3235,7 +3257,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {!pickMode && !wlPickWarn && !waitlistAssignTarget && isOverdue && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          boxShadow: 'inset 0 0 20px rgba(239,68,68,0.32)',
+          boxShadow: overdueTier === 'critical'
+            ? 'inset 0 0 22px rgba(185,28,28,0.65)'
+            : overdueTier === 'warning'
+            ? 'inset 0 0 20px rgba(220,38,38,0.50)'
+            : 'inset 0 0 20px rgba(239,68,68,0.32)',
           animation: `table-tense 5.5s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 5.5).toFixed(2)}s`,
         }} />
@@ -3295,7 +3321,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const mr = minutesUntilEnd(currentRes.expectedEndTime, _operationalNow ?? Date.now());
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = isOverdue ? '#991b1b'
+        const nameColor = isOverdue ? (overdueTier === 'critical' ? '#7f1d1d' : '#991b1b')
           : isDark ? '#15803d' : '#166534';
         const nameWeight = isOverdue ? 800 : 700;
         return (

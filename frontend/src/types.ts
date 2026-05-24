@@ -103,6 +103,7 @@ export interface FloorTable extends Table {
     minutesRemaining: number;
     expectedEndTime: string;   // max(scheduledEnd, seatedAt + minWindow), ISO — set by backend. scheduledEnd = reservation.time + duration; minWindow defaults to 15 min
     isOverdue: boolean;        // true when minutesRemaining < 0; host must manually complete
+    minutesOverdue: number;    // 0 when not overdue; positive minutes past operational end
   }) | null;
   upcomingReservations: Array<Reservation & { minutesUntil: number }>;
   // Gap analysis — set by backend, used by frontend scoring to prevent "Best fit" on tight tables

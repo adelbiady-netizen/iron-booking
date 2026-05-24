@@ -205,6 +205,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
             minutesRemaining: 0,
             expectedEndTime: fmtVirtualLocal(seatedScheduledEnd),
             isOverdue: false,
+            minutesOverdue: 0,
           },
           upcomingReservations: [],
           nextReservationStart,
@@ -223,6 +224,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       if (!releasedForPlanning) {
         const minutesRemaining = Math.round((operationalEndMs - Date.now()) / 60_000);
         const isOverdue = minutesRemaining < 0;
+        const minutesOverdue = isOverdue ? -minutesRemaining : 0;
         return {
           ...table,
           locked: effectiveLocked,
@@ -232,6 +234,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
             minutesRemaining,
             expectedEndTime: fmtVirtualLocal(operationalEnd),
             isOverdue,
+            minutesOverdue,
           },
           upcomingReservations: [],
           nextReservationStart,

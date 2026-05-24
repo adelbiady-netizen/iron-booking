@@ -586,6 +586,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             minutesRemaining,
             expectedEndTime,
             isOverdue: minutesRemaining < 0,
+            minutesOverdue: minutesRemaining < 0 ? -minutesRemaining : 0,
           },
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== updated.id),
         };
@@ -612,7 +613,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
         currentReservation: {
           ...seatRes, status: 'SEATED' as const, tableId, seatedAt,
-          minutesRemaining, expectedEndTime, isOverdue: false,
+          minutesRemaining, expectedEndTime, isOverdue: false, minutesOverdue: 0,
         },
         upcomingReservations: t.upcomingReservations.filter(r => r.id !== seatRes.id),
       };
@@ -672,7 +673,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
           currentReservation: res ? {
             ...res, status: 'SEATED' as const, tableId, seatedAt,
-            minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000), expectedEndTime, isOverdue: false,
+            minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000), expectedEndTime, isOverdue: false, minutesOverdue: 0,
           } : t.currentReservation,
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== reservationId),
         };
@@ -1288,7 +1289,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             liveStatus: 'OCCUPIED' as FloorTable['liveStatus'],
             currentReservation: {
               ...res, status: 'SEATED' as const, tableId: primaryId, seatedAt,
-              minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000), expectedEndTime, isOverdue: false,
+              minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000), expectedEndTime, isOverdue: false, minutesOverdue: 0,
             },
             upcomingReservations: t.upcomingReservations.filter(r => r.id !== res.id),
           };
@@ -1560,6 +1561,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             minutesRemaining: Math.round((new Date(expectedEndTime).getTime() - now) / 60_000),
             expectedEndTime,
             isOverdue: false,
+            minutesOverdue: 0,
           },
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== created.id),
         };
