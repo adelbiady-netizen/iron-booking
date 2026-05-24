@@ -186,6 +186,7 @@ export default function CreateDrawer({
   const [seatAnywayBusy, setSeatAnywayBusy] = useState(false);
   const [phoneWarning, setPhoneWarning] = useState(false);
   const [pendingSeat,  setPendingSeat]  = useState(false);
+  const submitInFlightRef = useRef(false);
 
   // Debounced guest lookup by phone
   useEffect(() => {
@@ -413,6 +414,8 @@ export default function CreateDrawer({
   }
 
   async function doSubmitWalkIn(seatNow: boolean) {
+    if (submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
     setError(null);
     setBusy(true);
     try {
@@ -448,7 +451,11 @@ export default function CreateDrawer({
               return;
             }
           }
-          throw seatErr;
+          // Reservation was created; seat failed for an unexpected reason.
+          // Close drawer with the unseated walk-in rather than leaving it open
+          // and risking a duplicate submission.
+          onCreated(r);
+          return;
         }
       } else if (r.status === 'PENDING') {
         r = await api.reservations.confirm(r.id);
@@ -457,6 +464,7 @@ export default function CreateDrawer({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create walk-in');
     } finally {
+      submitInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -1310,8 +1318,9 @@ export default function CreateDrawer({
                     </button>
                     <button
                       type="button"
+                      disabled={busy}
                       onClick={() => { setPhoneWarning(false); doSubmitWalkIn(pendingSeat); }}
-                      className="flex-1 text-xs py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+                      className="flex-1 text-xs py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors disabled:opacity-50"
                     >
                       {T.createDrawer.phoneWarnContinue}
                     </button>
