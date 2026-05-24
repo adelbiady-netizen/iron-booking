@@ -15,7 +15,7 @@ export function normalizePhone(raw: string): string {
 export function splitName(fullName: string): { firstName: string; lastName: string } {
   const trimmed = fullName.trim();
   const idx = trimmed.indexOf(' ');
-  if (idx === -1) return { firstName: trimmed, lastName: trimmed };
+  if (idx === -1) return { firstName: trimmed, lastName: '' };
   return { firstName: trimmed.slice(0, idx), lastName: trimmed.slice(idx + 1).trim() };
 }
 
