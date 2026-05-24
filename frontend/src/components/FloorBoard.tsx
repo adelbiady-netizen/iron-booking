@@ -2564,7 +2564,8 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
         // Per-table tier for RESERVED chairs — mirrors MapTable operational thresholds.
         const chairNextMin    = table.upcomingReservations[0]?.minutesUntil ?? 0;
         const isChairUpcoming = table.liveStatus === 'RESERVED' && chairNextMin >= 60 && chairNextMin < 120;
-        const isChairDormant  = table.liveStatus === 'RESERVED' && chairNextMin >= 120;
+        const isChairCombined = (table.upcomingReservations[0]?.combinedTableIds?.length ?? 0) > 0;
+        const isChairDormant  = table.liveStatus === 'RESERVED' && chairNextMin >= 120 && !isChairCombined;
         // DORMANT: chairs rendered empty — table reads as fully available on the floor.
         const filledCount     = isActive && !isChairDormant ? displayCount : 0;
 
@@ -2822,8 +2823,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Stable/recession states — reduce visual weight to let urgent tables surface
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
   const minutesUntilNext   = nextRes?.minutesUntil ?? 0;
+  const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0;
   const isUpcomingReserved = table.liveStatus === 'RESERVED' && minutesUntilNext >= 60 && minutesUntilNext < 120;
-  const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120;
+  const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120 && !isNextResCombined;
   const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
