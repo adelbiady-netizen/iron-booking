@@ -577,6 +577,7 @@ model CallLog {
   called       String?     // dialed number (DNIS) — used for restaurant routing
   group        String?     // Link call group / ring group
   extension    String?     // Link extension reached
+  callid       String?     // provider-issued call identifier; shared across ring/answered events
   status       String
   duration     Int?        // seconds; null when not provided
   recordUrl    String?
@@ -594,6 +595,7 @@ model CallLog {
 
   @@index([phone])
   @@index([restaurantId])
+  @@index([callid])
   @@map("call_logs")
 }
 

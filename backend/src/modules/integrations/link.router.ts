@@ -77,6 +77,7 @@ router.get('/call', (req, res) => {
   const calledStr    = firstStrOrNull(req.query.called);
   const groupStr     = firstStrOrNull(req.query.group);
   const extensionStr = firstStrOrNull(req.query.extension);
+  const callidStr    = firstStrOrNull(req.query.callid);
   const statusStr    = firstStr(req.query.status);
   const recordStr    = firstStrOrNull(req.query.record);
   const rawDuration  = firstStrOrNull(req.query.duration);
@@ -88,6 +89,7 @@ router.get('/call', (req, res) => {
     '| called:', calledStr ?? '—',
     '| group:', groupStr ?? '—',
     '| status:', statusStr || '(empty)',
+    '| callid:', callidStr ?? '—',
     '| duration:', durationSecs ?? '—',
     '| hasRecord:', recordStr !== null,
   );
@@ -153,20 +155,21 @@ router.get('/call', (req, res) => {
       }
 
       // ── Idempotency check + guest lookup — run in parallel ──────────────────
-      // A retry delivers the same (caller, called, group, status) within seconds.
-      // Without a provider-issued call ID we use a time-window guard.
-      // TODO: replace with upsert on CallLog.linkCallId once the provider sends one.
-      const cutoff = new Date(Date.now() - 60_000);
+      // When the provider sends a callid we deduplicate on (callid, status) so that
+      // each call lifecycle step (ring, answered, missed) creates exactly one record
+      // regardless of retries or multi-extension fan-out.
+      // Fallback for legacy webhooks without callid: time-window guard on
+      // (phone, called, group, status) within 60 s.
       const tParallelStart = Date.now();
+      const dupWhere = callidStr
+        ? { callid: callidStr, status: statusStr }
+        : (() => {
+            const cutoff = new Date(Date.now() - 60_000);
+            return { phone: callerStr, called: calledStr, group: groupStr, status: statusStr, createdAt: { gte: cutoff } };
+          })();
       const [duplicate, guestMatch] = await Promise.all([
         prisma.callLog.findFirst({
-          where: {
-            phone:  callerStr,
-            called: calledStr,
-            group:  groupStr,
-            status: statusStr,
-            createdAt: { gte: cutoff },
-          },
+          where: dupWhere,
           select: { id: true },
         }),
         // Guest lookup: only when a restaurant is resolved; uses dual-format OR
@@ -196,6 +199,7 @@ router.get('/call', (req, res) => {
           called:        calledStr,
           group:         groupStr,
           extension:     extensionStr,
+          callid:        callidStr,
           status:        statusStr,
           duration:      durationSecs !== null && !isNaN(durationSecs) ? durationSecs : null,
           recordUrl:     recordStr,
@@ -235,6 +239,7 @@ router.get('/call', (req, res) => {
         phone:         log.phone,
         restaurantId:  log.restaurantId,
         createdAt:     log.createdAt.toISOString(),
+        callid:        log.callid,
         status:        log.status,
         duration:      log.duration,
         recordUrl:     log.recordUrl,

@@ -195,11 +195,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Combine-tables mode: host taps multiple available tables before creating a combined reservation
   const [combineMode,       setCombineMode]       = useState(false);
   const [combinedSelection, setCombinedSelection] = useState<string[]>([]);
-  const [incomingCall,         setIncomingCall]         = useState<{ phone: string; createdAt: string } | null>(null);
-  const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string } | null>(null);
+  const [incomingCall,         setIncomingCall]         = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
+  const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
   const [callHighlight,        setCallHighlight]        = useState(false);
   const [callPrefillPhone,     setCallPrefillPhone]     = useState('');
-  const lastCallRef            = useRef<{ phone: string; at: number } | null>(null);
+  const lastCallRef            = useRef<{ phone: string; at: number; callid?: string | null; status?: string } | null>(null);
   const callHighlightTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Waitlist manual table assignment — two-step flow: select table then confirm seat
@@ -239,7 +239,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     incoming_call: (data) => {
       const raw = data as Record<string, unknown>;
       const d = data as {
-        id?: string; phone: string; createdAt: string; status?: string;
+        id?: string; phone: string; createdAt: string; callid?: string | null; status?: string;
         duration?: number | null; recordUrl?: string | null; group?: string | null;
         restaurantName?: string | null; routingStatus?: string | null;
         guestName?: string | null;
@@ -268,22 +268,44 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setLatestCall(callItem);
       console.log('[call:sse] ② setLatestCall dispatched', { id: callItem.id, panelOpen: showCallLog });
 
+      const callid = d.callid ?? null;
       const now = Date.now();
-      // 1. Deduplication — same phone within 10 s (drawer only)
-      if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) {
-        console.log('[call:sse] ③ drawer dedup fired — same phone within 10s, drawer suppressed (log still updated)');
-        return;
-      }
-      lastCallRef.current = { phone: d.phone, at: now };
 
-      // 2. Drawer already open — update content + visual ping, no interruption
-      if (incomingCall) {
-        setIncomingCall(d);
-        if (callHighlightTimer.current) clearTimeout(callHighlightTimer.current);
-        setCallHighlight(true);
-        callHighlightTimer.current = setTimeout(() => setCallHighlight(false), 1200);
-        console.log('[call:sse] ③ drawer already open — updated + ping');
-        return;
+      // 1. Callid-aware handling (when provider sends a call identifier)
+      if (callid) {
+        // Same callid, drawer already open → update (ring → answered lifecycle transition)
+        if (incomingCall?.callid === callid) {
+          setIncomingCall(d);
+          if (callHighlightTimer.current) clearTimeout(callHighlightTimer.current);
+          setCallHighlight(true);
+          callHighlightTimer.current = setTimeout(() => setCallHighlight(false), 1200);
+          lastCallRef.current = { phone: d.phone, at: now, callid, status: d.status };
+          console.log('[call:sse] ③ same callid — drawer updated (ring→answered)');
+          return;
+        }
+        // Duplicate event: same callid + same status (second ring from another extension)
+        if (lastCallRef.current?.callid === callid && lastCallRef.current?.status === d.status) {
+          console.log('[call:sse] ③ duplicate callid+status — suppressed');
+          return;
+        }
+        // New call: update ref, fall through to open drawer
+        lastCallRef.current = { phone: d.phone, at: now, callid, status: d.status };
+      } else {
+        // 2. Backward compat: no callid — phone+time dedup (answered-only webhooks)
+        if (lastCallRef.current?.phone === d.phone && now - lastCallRef.current.at < 10_000) {
+          console.log('[call:sse] ③ drawer dedup fired — same phone within 10s (no callid)');
+          return;
+        }
+        lastCallRef.current = { phone: d.phone, at: now, callid: null, status: d.status };
+        // Drawer already open → update content + visual ping, no interruption
+        if (incomingCall) {
+          setIncomingCall(d);
+          if (callHighlightTimer.current) clearTimeout(callHighlightTimer.current);
+          setCallHighlight(true);
+          callHighlightTimer.current = setTimeout(() => setCallHighlight(false), 1200);
+          console.log('[call:sse] ③ no callid, drawer already open — updated + ping');
+          return;
+        }
       }
 
       // 3. User is actively typing — show small badge instead of opening drawer
@@ -297,7 +319,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         console.log('[call:sse] ③ typing detected — badge shown');
       } else {
         setIncomingCall(d);
-        console.log('[call:sse] ③ drawer opened');
+        console.log('[call:sse] ③ drawer opened', { status: d.status, callid });
       }
     },
     // Push-triggered refresh: when any device mutates a reservation the backend
