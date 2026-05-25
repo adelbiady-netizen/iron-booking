@@ -17,8 +17,8 @@
  *   node dist/scripts/internal/smsTest.js
  */
 
-import { prisma } from '../../lib/prisma';
-import { sendSms } from '../../lib/messaging';
+import { prisma } from '../lib/prisma';
+import { sendSms } from '../lib/messaging';
 import { MessageType } from '@prisma/client';
 
 // ── Production guard ──────────────────────────────────────────────────────────
