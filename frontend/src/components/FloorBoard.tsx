@@ -1467,9 +1467,9 @@ export default function FloorBoard({
                                 && !(swapRes.combinedTableIds ?? []).length && !swapRes.reorganizeAt;
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
-        // Show the table-first seating section only on AVAILABLE tables with no pre-assigned
-        // reservation — prevents ambiguity when a scheduled guest is already on record for this table.
-        const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && !seatableRes && eligibleGuests.length > 0;
+        // Show table-first seating on AVAILABLE and RESERVED/RESERVED_SOON tables.
+        // OCCUPIED and locked tables are still blocked. Backend handles future-reservation conflicts via reorganize modal.
+        const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && eligibleGuests.length > 0;
         const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails || canTableFirstSeat;
 
         return (
