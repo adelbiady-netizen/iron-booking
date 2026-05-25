@@ -2828,7 +2828,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const minutesUntilNext   = nextRes?.minutesUntil ?? 0;
   const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0;
   const isUpcomingReserved = table.liveStatus === 'RESERVED' && minutesUntilNext >= 60 && minutesUntilNext < 120;
-  const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120 && !isNextResCombined;
+  const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120;
   const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
@@ -2931,10 +2931,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : sectionColor;
   }
 
-  // DORMANT (120+ min): matches AVAILABLE border — section color at low opacity, no blue signal.
+  // DORMANT (120+ min): near-neutral border. Combined keeps a faint blue so hosts see table is committed.
   if (isDormantReserved && !selected && !combinedSelected && !softHold) {
     borderWidth = cls === 'communal' ? 1.5 : 1;
-    borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
+    borderColor = isNextResCombined
+      ? 'rgba(59,130,246,0.22)'   // combined dormant: faint blue — distinct from AVAILABLE, calm
+      : sectionColor.startsWith('#') && sectionColor.length === 7
       ? sectionColor + '44'
       : sectionColor;
   }
