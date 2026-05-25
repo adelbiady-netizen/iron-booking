@@ -107,6 +107,11 @@ class InforUSmsProvider implements SmsProvider {
 
     const text = await res.text().catch(() => '');
 
+    // ── RESPONSE DIAGNOSTIC (remove after confirming send works) ─────────────
+    console.log('[InforU][diag] HTTP status:', res.status);
+    console.log('[InforU][diag] Raw body:', text.slice(0, 500));
+    // ─────────────────────────────────────────────────────────────────────────
+
     if (!res.ok) {
       throw new Error(`InforU HTTP ${res.status}: ${text.slice(0, 200)}`);
     }
@@ -117,6 +122,10 @@ class InforUSmsProvider implements SmsProvider {
     } catch {
       throw new Error(`InforU returned non-JSON response (HTTP ${res.status})`);
     }
+
+    // ── PARSED DIAGNOSTIC ────────────────────────────────────────────────────
+    console.log('[InforU][diag] Parsed response:', JSON.stringify(parsed, null, 2));
+    // ─────────────────────────────────────────────────────────────────────────
 
     // InforU CAPI v2: Status "0" = success
     const statusStr = String(parsed?.Status ?? '');
