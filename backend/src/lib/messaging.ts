@@ -74,6 +74,16 @@ class InforUSmsProvider implements SmsProvider {
     if (!rawAuth) throw new Error('INFORU_BASIC_AUTH environment variable is not set');
     const basicAuth = rawAuth.startsWith('Basic ') ? rawAuth : `Basic ${rawAuth}`;
 
+    // ── AUTH DEBUG (remove after confirming header reaches InforU) ────────────
+    console.log('[InforU][auth-debug] Authorization exists:', !!basicAuth);
+    console.log('[InforU][auth-debug] Starts with "Basic ":', basicAuth.startsWith('Basic '));
+    console.log('[InforU][auth-debug] Length:', basicAuth.length);
+    console.log('[InforU][auth-debug] Prefix sample:', basicAuth.slice(0, 10) + '...');
+    console.log('[InforU][auth-debug] rawAuth defined:', rawAuth !== '');
+    console.log('[InforU][auth-debug] rawAuth length:', rawAuth.length);
+    console.log('[InforU][auth-debug] rawAuth starts with "Basic ":', rawAuth.startsWith('Basic '));
+    // ─────────────────────────────────────────────────────────────────────────
+
     const phone = toInforUPhone(to);
 
     const controller = new AbortController();
@@ -81,12 +91,15 @@ class InforUSmsProvider implements SmsProvider {
 
     let res: Response;
     try {
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': basicAuth,
+      };
+      console.log('[InforU][auth-debug] header keys:', Object.keys(requestHeaders));
+      console.log('[InforU][auth-debug] Content-Type:', requestHeaders['Content-Type']);
       res = await fetch(INFORU_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': basicAuth,
-        },
+        headers: requestHeaders,
         body: JSON.stringify({
           Data: {
             Message: body,
