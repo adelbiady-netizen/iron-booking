@@ -1521,7 +1521,7 @@ export default function FloorBoard({
                     const guestId  = guest.kind === 'reservation' ? guest.data.id : `wl-${guest.data.id}`;
                     const name     = guest.data.guestName;
                     const size     = guest.data.partySize;
-                    const busy     = guest.kind === 'reservation' && inFlightIds?.has(guest.data.id);
+                    const busy     = !!(inFlightIds?.has(guest.data.id));
                     const label    = guest.kind === 'waitlist'
                       ? T.floorBoard.ctxGuestWaitlist
                       : guest.data.isArrived
