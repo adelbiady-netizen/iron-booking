@@ -932,26 +932,35 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   // Guests eligible for table-first seating from the floor context menu.
   // Only populated on today's date; returns empty for future/past planning views.
-  // Priority order: ARRIVED > NOTIFIED waitlist > CONFIRMED (not arrived) > WAITING waitlist.
+  // Priority order: ARRIVED > CONFIRMED > PENDING > NOTIFIED waitlist > WAITING waitlist.
   const eligibleGuests = useMemo((): TableFirstGuest[] => {
     if (date !== todayStr()) return [];
     const today = date;
     const result: TableFirstGuest[] = [];
 
+    // 1. Arrived guests (any sitable status) — highest priority
     reservations
       .filter(r => r.isArrived && !r.tableId && (r.status === 'PENDING' || r.status === 'CONFIRMED'))
       .sort((a, b) => a.time.localeCompare(b.time))
       .forEach(r => result.push({ kind: 'reservation', data: r }));
 
-    waitlist
-      .filter(e => e.status === 'NOTIFIED' && e.date.slice(0, 10) === today)
-      .sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime())
-      .forEach(e => result.push({ kind: 'waitlist', data: e }));
-
+    // 2. Confirmed, not yet arrived
     reservations
       .filter(r => !r.isArrived && !r.tableId && r.status === 'CONFIRMED')
       .sort((a, b) => a.time.localeCompare(b.time))
       .forEach(r => result.push({ kind: 'reservation', data: r }));
+
+    // 3. Pending, not yet arrived (host-created / unconfirmed bookings)
+    reservations
+      .filter(r => !r.isArrived && !r.tableId && r.status === 'PENDING')
+      .sort((a, b) => a.time.localeCompare(b.time))
+      .forEach(r => result.push({ kind: 'reservation', data: r }));
+
+    // 4. Waitlist — notified first, then waiting
+    waitlist
+      .filter(e => e.status === 'NOTIFIED' && e.date.slice(0, 10) === today)
+      .sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime())
+      .forEach(e => result.push({ kind: 'waitlist', data: e }));
 
     waitlist
       .filter(e => e.status === 'WAITING' && e.date.slice(0, 10) === today)
