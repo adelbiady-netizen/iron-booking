@@ -7,6 +7,8 @@ import { config } from '../../config';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
+import { sendSms } from '../../lib/messaging';
+import { MessageType } from '@prisma/client';
 
 const router = Router();
 
@@ -892,5 +894,43 @@ router.post('/groups/:id/users', superAdminOnly, validate(CreateHqUserSchema), a
     res.status(201).json(user);
   } catch (err) { next(err); }
 });
+
+// ─── SMS test (SUPER_ADMIN only) ──────────────────────────────────────────────
+// POST /admin/sms/test
+// Sends a single SMS via the configured provider and returns the MessageLog result.
+// Used to verify InforU credentials and phone normalisation before wiring to
+// reservation flows. Remove or gate behind a feature flag after smoke test passes.
+
+const SmsTestSchema = z.object({
+  restaurantId: z.string().uuid(),
+  to:           z.string().min(7),
+  message:      z.string().min(1).max(160),
+  type:         z.nativeEnum(MessageType).optional().default(MessageType.SYSTEM),
+});
+
+router.post(
+  '/sms/test',
+  authenticate,
+  requireRole('SUPER_ADMIN'),
+  validate(SmsTestSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { restaurantId, to, message, type } = req.body as z.infer<typeof SmsTestSchema>;
+
+      // Verify restaurant exists before attempting send
+      const restaurant = await prisma.restaurant.findUnique({
+        where:  { id: restaurantId },
+        select: { id: true, name: true, settings: true },
+      });
+      if (!restaurant) throw new NotFoundError('Restaurant not found');
+
+      const result = await sendSms({ restaurantId, to, message, type });
+
+      // Return the full log row so caller can verify status / providerMessageId
+      const log = await prisma.messageLog.findUnique({ where: { id: result.messageLogId } });
+      res.json({ result, log });
+    } catch (err) { next(err); }
+  }
+);
 
 export default router;
