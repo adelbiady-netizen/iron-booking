@@ -620,7 +620,7 @@ export default function ReservationPanel({
             <button
               type="button"
               className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm text-iron-green-light font-medium hover:bg-iron-green/15 active:bg-iron-green/25 transition-colors cursor-pointer"
-              onClick={() => { onContextMenuSeat?.({ ...ctxMenu.res, tableId: null, combinedTableIds: [] }); setCtxMenu(null); }}
+              onClick={() => { console.log('[SeatPath] ReservationPanel context seat', { reservationId: ctxMenu.res.id, guestName: ctxMenu.res.guestName, tableId: ctxMenu.res.tableId, combinedTableIds: ctxMenu.res.combinedTableIds, status: ctxMenu.res.status, component: 'ReservationPanel', handler: 'onContextMenuSeat(stripped tableId)' }); onContextMenuSeat?.({ ...ctxMenu.res, tableId: null, combinedTableIds: [] }); setCtxMenu(null); }}
             >
               <span className="text-base leading-none shrink-0">🍽️</span>
               <span>{T.reservationPanel.ctxSeat}</span>

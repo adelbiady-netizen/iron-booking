@@ -1252,6 +1252,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, []);
 
   const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string) => {
+    console.log('[SeatPath] pick mode activated', { currentIds, action, guestName, suggestionCount: suggestions.length });
     tablePickCallbackRef.current = callback;
     setTablePickIds(currentIds);
     setTablePickSuggestions(suggestions);
@@ -1329,6 +1330,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handlePickTables, floorTables, allTables, showToast]);
 
   const handleContextMenuSeat = useCallback(async (res: Reservation) => {
+    console.log('[SeatPath] handleContextMenuSeat entered', { reservationId: res.id, guestName: res.guestName, incomingTableId: res.tableId, incomingCombinedIds: res.combinedTableIds, status: res.status, willSkipPickMode: Boolean(res.tableId), willEnterPickMode: !res.tableId });
     async function executeSeat(primaryId: string, secondaryIds: string[]) {
       if (inFlightRef.current.has(res.id)) return;
 

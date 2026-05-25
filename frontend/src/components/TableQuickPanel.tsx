@@ -496,7 +496,7 @@ export default function TableQuickPanel({
                   <div className="flex flex-col gap-2">
                     {res.status === 'PENDING' && (<>
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen} style={primaryShadow}
-                        onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
+                        onClick={() => { console.log('[SeatPath] TableQuickPanel PENDING seat', { reservationId: res.id, guestName: res.guestName, tableId: res.tableId, injectingTableId: floorTable.id, combinedTableIds: res.combinedTableIds, status: res.status, component: 'TableQuickPanel(PENDING)', handler: 'onSeat(injected tableId)' }); onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
                       <Btn label={T.guestDrawer.actionConfirm} cls={btnBlue} style={primaryShadow}
                         onClick={() => quick(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed, true)} />
@@ -504,7 +504,7 @@ export default function TableQuickPanel({
 
                     {res.status === 'CONFIRMED' && (
                       <Btn label={T.guestDrawer.actionSeat} cls={btnGreen} style={primaryShadow}
-                        onClick={() => { onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
+                        onClick={() => { console.log('[SeatPath] TableQuickPanel CONFIRMED seat', { reservationId: res.id, guestName: res.guestName, tableId: res.tableId, injectingTableId: floorTable.id, combinedTableIds: res.combinedTableIds, status: res.status, component: 'TableQuickPanel(CONFIRMED)', handler: 'onSeat(injected tableId)' }); onSeat({ ...res, tableId: floorTable.id }); onClose(); }}
                         disabled={isFutureDate || !!inFlightIds?.has(res.id)} />
                     )}
 

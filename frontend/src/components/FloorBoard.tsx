@@ -1493,7 +1493,7 @@ export default function FloorBoard({
               )}
               {canSeat && (
                 <button
-                  onClick={() => { onContextMenuSeat!({ ...seatableRes!, tableId: t.id }); setCtxMenu(null); }}
+                  onClick={() => { console.log('[SeatPath] FloorBoard context seat', { reservationId: seatableRes!.id, guestName: seatableRes!.guestName, tableId: seatableRes!.tableId, injectingTableId: t.id, combinedTableIds: seatableRes!.combinedTableIds, status: seatableRes!.status, component: 'FloorBoard', handler: 'onContextMenuSeat(injected tableId)' }); onContextMenuSeat!({ ...seatableRes!, tableId: t.id }); setCtxMenu(null); }}
                   className="w-full text-left px-3 py-2 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxSeat}

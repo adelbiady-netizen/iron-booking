@@ -670,7 +670,7 @@ export default function TableTimeline({
         >
           {canSeat(actionBar.res) && (
             <QuickBtn label={T.tableTimeline.actionSeat} color="#22c55e"
-              onClick={() => { onQuickAction?.('seat', actionBar.res); setActionBar(null); }}
+              onClick={() => { console.log('[SeatPath] TableTimeline seat', { reservationId: actionBar.res.id, guestName: actionBar.res.guestName, tableId: actionBar.res.tableId, combinedTableIds: actionBar.res.combinedTableIds, status: actionBar.res.status, component: 'TableTimeline', handler: 'onQuickAction(seat)' }); onQuickAction?.('seat', actionBar.res); setActionBar(null); }}
             />
           )}
           {canMove(actionBar.res) && (
