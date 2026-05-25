@@ -621,21 +621,28 @@ export async function seatReservation(
       if (err instanceof ConflictError) {
         const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
         if (det?.conflictingReservationId) {
-          // Soft pressure: reservation time overlap. Table is physically free.
-          // Advisory was already captured above; fall through to seating.
-          if (!seatAdvisory) {
-            // Combined-table scenario: Check 1 may not have seen this table.
-            seatAdvisory = { shortWindow: true, minutesUntil: 0, nextGuestName: '' };
-          }
-          console.log('[seat:advisory] duration-overlap is soft pressure, seating allowed', {
-            reservationId: id, targetTableId: tableId,
-            conflictingId: det.conflictingReservationId,
+          // Future reservation on this table — surface conflict modal instead of silently seating.
+          const conflictRes = await prisma.reservation.findUnique({
+            where: { id: det.conflictingReservationId },
+            select: { id: true, guestName: true, time: true, partySize: true },
           });
-          // fall through — do not throw
-        } else {
-          // Hard conflict: blocked period or table-level constraint.
-          throw err;
+          if (conflictRes) {
+            const [cH, cM] = conflictRes.time.split(':').map(Number);
+            const [nH, nM] = nowTimeStr.split(':').map(Number);
+            throw new ConflictError('This table has upcoming reservations', {
+              code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+              conflicts: [{
+                id:           conflictRes.id,
+                guestName:    conflictRes.guestName,
+                time:         conflictRes.time,
+                partySize:    conflictRes.partySize,
+                minutesUntil: (cH * 60 + cM) - (nH * 60 + nM),
+              }],
+            });
+          }
         }
+        // Hard conflict: blocked period, table-level constraint, or conflictRes not found.
+        throw err;
       } else {
         // NotFoundError, BusinessRuleError, ValidationError — always hard block.
         throw err;
