@@ -935,6 +935,7 @@ enum MessageType {
   WAITLIST
   MANUAL
   SYSTEM
+  RESERVATION_RECEIVED
 }
 
 enum MessageChannel {

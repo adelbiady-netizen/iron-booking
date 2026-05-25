@@ -1,6 +1,54 @@
 import { prisma } from './prisma';
 import { MessageChannel, MessageProvider, MessageStatus, MessageType } from '@prisma/client';
 
+// ─── Reservation received ─────────────────────────────────────────────────────
+
+function buildReservationReceivedText(p: {
+  guestName: string;
+  restaurantName: string;
+  date: string;
+  time: string;
+  partySize: number;
+  lang: 'en' | 'he';
+}): string {
+  if (p.lang === 'he') {
+    return `היי ${p.guestName}, ההזמנה שלך ב-${p.restaurantName} התקבלה ל-${p.date} בשעה ${p.time} עבור ${p.partySize} סועדים. מחכים לארח אותך.`;
+  }
+  return `Hi ${p.guestName}, your reservation at ${p.restaurantName} was received for ${p.date} at ${p.time} for ${p.partySize} guests. We look forward to hosting you.`;
+}
+
+// Fire-and-forget safe: caller should void + .catch(). Dedup prevents duplicates.
+export async function sendReservationReceivedSms(params: {
+  restaurantId:  string;
+  reservationId: string;
+  guestId?:      string;
+  phone:         string;
+  guestName:     string;
+  date:          string;
+  time:          string;
+  partySize:     number;
+  lang:          'en' | 'he';
+}): Promise<void> {
+  const { restaurantId, reservationId, guestId, phone, guestName, date, time, partySize, lang } = params;
+
+  // One SENT RESERVATION_RECEIVED per reservation lifetime — no retries needed
+  const already = await prisma.messageLog.findFirst({
+    where: { reservationId, messageType: MessageType.RESERVATION_RECEIVED, status: MessageStatus.SENT },
+  });
+  if (already) return;
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where:  { id: restaurantId },
+    select: { name: true },
+  });
+
+  const message = buildReservationReceivedText({
+    guestName, restaurantName: restaurant?.name ?? '', date, time, partySize, lang,
+  });
+
+  await sendSms({ restaurantId, to: phone, message, type: MessageType.RESERVATION_RECEIVED, reservationId, guestId });
+}
+
 // ─── Public input / output types ─────────────────────────────────────────────
 
 export interface SendSmsInput {

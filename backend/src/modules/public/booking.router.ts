@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
+import { sendReservationReceivedSms } from '../../lib/messaging';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { config } from '../../config';
 import { eventBus } from '../../lib/eventBus';
@@ -713,7 +714,21 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       }
     })();
 
-    // 2. Send WhatsApp confirmation
+    // 2. Send "reservation received" SMS — acknowledgment only, no link
+    void sendReservationReceivedSms({
+      restaurantId:  restaurant.id,
+      reservationId: reservation.id,
+      phone:         body.guestPhone.trim(),
+      guestName:     body.guestName.trim(),
+      date:          body.date,
+      time:          body.time,
+      partySize:     body.partySize,
+      lang:          body.lang === 'he' ? 'he' : 'en',
+    }).catch((e: unknown) => {
+      console.error('[booking] Reservation received SMS failed:', e instanceof Error ? e.message : e);
+    });
+
+    // 3. Send WhatsApp confirmation (Phase 4 — confirmation link, untouched)
     void (async () => {
       try {
         const lang       = body.lang ?? 'en';

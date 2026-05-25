@@ -12,8 +12,8 @@ import {
   ListReservationsQuery,
 } from './schema';
 import * as service from './service';
-import { sendConfirmationSms, sendReservationReceivedMessage } from '../../lib/sms';
-import { sendSms } from '../../lib/messaging';
+import { sendConfirmationSms } from '../../lib/sms';
+import { sendSms, sendReservationReceivedSms } from '../../lib/messaging';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
@@ -95,19 +95,25 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
     res.status(201).json(r);
     notifyFloorUpdated(req.auth.restaurantId);
 
-    // Fire-and-forget: send "reservation received" WhatsApp to the guest.
-    // Only for manual host-created reservations with a phone number.
+    // Fire-and-forget: send "reservation received" SMS via InforU.
+    // Skip walk-ins (guest is physically present) and missing phone numbers.
     // Failure is logged but never surfaces to the host — the reservation already exists.
-    if (r.guestPhone) {
-      const lang = r.guestLang === 'he' ? 'he' : 'en';
-      void sendReservationReceivedMessage(
-        req.auth.restaurantId,
-        r.guestPhone,
+    if (r.guestPhone && r.source !== 'WALK_IN') {
+      const lang    = r.guestLang === 'he' ? 'he' : 'en';
+      const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
+      void sendReservationReceivedSms({
+        restaurantId:  req.auth.restaurantId,
+        reservationId: r.id,
+        guestId:       r.guestId ?? undefined,
+        phone:         r.guestPhone,
+        guestName:     r.guestName,
+        date:          dateStr,
+        time:          r.time,
+        partySize:     r.partySize,
         lang,
-        { guestName: r.guestName, date: r.date, time: r.time, partySize: r.partySize, status: r.status },
-      ).catch((err: unknown) => {
+      }).catch((err: unknown) => {
         console.error(
-          `[ReservationReceived] Failed to notify guest for reservation ${r.id}:`,
+          `[ReservationReceived] Failed for reservation ${r.id}:`,
           err instanceof Error ? err.message : String(err),
         );
       });
