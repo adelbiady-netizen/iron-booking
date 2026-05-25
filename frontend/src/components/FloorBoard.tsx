@@ -1470,6 +1470,16 @@ export default function FloorBoard({
         // Show table-first seating on AVAILABLE and RESERVED/RESERVED_SOON tables.
         // OCCUPIED and locked tables are still blocked. Backend handles future-reservation conflicts via reorganize modal.
         const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && eligibleGuests.length > 0;
+        console.log('[FloorBoard ctx]', {
+          table: `${t.name}(${t.id.slice(-6)})`,
+          liveStatus: t.liveStatus,
+          isOccupied,
+          locked: t.locked,
+          isToday,
+          eligibleGuests: eligibleGuests.length,
+          hasOnTableFirstSeat: !!onTableFirstSeat,
+          canTableFirstSeat,
+        });
         const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails || canTableFirstSeat;
 
         return (
