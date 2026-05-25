@@ -471,7 +471,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
-  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName, pickWalkInMode = false,
+  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
@@ -638,9 +638,7 @@ export default function FloorBoard({
               if (sug) {
                 const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
                 const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
-                const hardBlock = isTableBlocked || isOccupiedNow ||
-                  (!pickWalkInMode && sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED'));
-                if (hardBlock) return false;
+                if (isTableBlocked || isOccupiedNow) return false;
               }
               return (
                 t.posX < fr.x + fr.w && t.posX + t.width  > fr.x &&
@@ -687,8 +685,9 @@ export default function FloorBoard({
     if (sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')) {
       const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
       const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
-      // Walk-in: future-reserved tables are selectable (amber/tight). Occupied and table-blocked stay hard.
-      if (pickWalkInMode && !isTableBlocked && !isOccupiedNow) return 'tight';
+      // Future-reserved tables are selectable (tight) in all pick modes — backend reorganize modal handles conflicts.
+      // Only occupied-now and locked tables stay hard-unavailable.
+      if (!isTableBlocked && !isOccupiedNow) return 'tight';
       return 'unavailable';
     }
     // TOO_SMALL-only blocked → downgrade to 'tight' (selectable with warning)
