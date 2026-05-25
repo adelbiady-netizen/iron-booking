@@ -13,6 +13,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
+    "list:restaurants": "ts-node --transpile-only src/scripts/listRestaurants.ts",
     "test:engine": "ts-node --transpile-only src/engine/occupancy.test.ts",
     "test:service-day": "ts-node --transpile-only src/engine/serviceDay.test.ts"
   },
