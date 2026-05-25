@@ -1158,6 +1158,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (!waitlistAssignEntry) return;
     const entry   = waitlistAssignEntry;
     const tableId = waitlistAssignTableId ?? undefined;
+    if (inFlightRef.current.has(entry.id)) return;
+    inFlightRef.current.add(entry.id);
+    setInFlightIds(new Set(inFlightRef.current));
     try {
       const { reservation } = await api.waitlist.seat(entry.id, tableId);
       setWaitlistAssignEntry(null);
@@ -1173,6 +1176,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       showToast(tableName ? T.hostDashboard.toastSeatAt(entry.guestName, tableName) : T.hostDashboard.toastSeated);
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+    } finally {
+      inFlightRef.current.delete(entry.id);
+      setInFlightIds(new Set(inFlightRef.current));
     }
   }, [waitlistAssignEntry, waitlistAssignTableId, floorTables, showToast]);
 

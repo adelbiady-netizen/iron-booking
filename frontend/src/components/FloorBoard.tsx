@@ -1710,7 +1710,8 @@ export default function FloorBoard({
           <button
             type="button"
             onClick={onWaitlistConfirmSeat}
-            className="bg-iron-green/80 hover:bg-iron-green text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+            disabled={!waitlistAssignTableId}
+            className="bg-iron-green/80 hover:bg-iron-green text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {T.waitlistAssign.seatNow}
           </button>
