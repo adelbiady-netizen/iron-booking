@@ -364,7 +364,10 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 });
 
-// POST /reservations/:id/send-confirmation — generate token + WhatsApp message
+// POST /reservations/:id/send-confirmation
+// Generates a confirmation token then attempts WhatsApp and InforU SMS independently.
+// Neither channel can block the other. Token is always persisted; confirmationSentAt
+// is set if at least one channel succeeds. Returns per-channel failure flags.
 router.post('/:id/send-confirmation', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const [reservation, restaurant] = await Promise.all([
@@ -378,67 +381,80 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
       throw new BusinessRuleError(`Cannot send confirmation for a ${reservation.status} reservation`);
     }
     if (!reservation.guestPhone) {
-      throw new BusinessRuleError('Reservation has no phone number for WhatsApp confirmation');
+      throw new BusinessRuleError('Reservation has no phone number for confirmation');
     }
 
-    const lang       = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
-    const token      = crypto.randomUUID();
-    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
+    const lang           = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
+    const token          = crypto.randomUUID();
+    const confirmUrl     = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
+    const restaurantName = restaurant?.name ?? 'the restaurant';
 
-    // Send SMS first — only persist token + sentAt together if send succeeds.
-    // This prevents a state where the token is saved but confirmationSentAt is
-    // never stamped, which would cause a future retry to overwrite the token and
-    // silently invalidate any link the guest already received.
-    await sendConfirmationSms(
-      req.auth.restaurantId,
-      reservation.guestPhone,
-      reservation.guestName,
-      restaurant?.name ?? 'the restaurant',
-      reservation.date.toISOString().split('T')[0],
-      reservation.time,
-      reservation.partySize,
-      confirmUrl,
-      lang
-    );
+    // ── Channel 1: WhatsApp ───────────────────────────────────────────────────
+    let whatsappFailed = false;
+    try {
+      await sendConfirmationSms(
+        req.auth.restaurantId,
+        reservation.guestPhone,
+        reservation.guestName,
+        restaurantName,
+        reservation.date.toISOString().split('T')[0],
+        reservation.time,
+        reservation.partySize,
+        confirmUrl,
+        lang
+      );
+    } catch (err) {
+      whatsappFailed = true;
+      console.error('[send-confirmation] WhatsApp failed:', err instanceof Error ? err.message : err);
+    }
 
+    // ── Channel 2: InforU SMS (10-min dedup) ──────────────────────────────────
+    let smsFailed    = false;
+    let smsAttempted = false;
+    try {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const recentSent = await prisma.messageLog.findFirst({
+        where: {
+          reservationId: reservation.id,
+          messageType:   MessageType.CONFIRMATION_REQUEST,
+          status:        MessageStatus.SENT,
+          sentAt:        { gte: tenMinutesAgo },
+        },
+      });
+      if (!recentSent) {
+        smsAttempted = true;
+        const message = buildConfirmationRequestSmsText(reservation, restaurantName);
+        const result  = await sendSms({
+          restaurantId:  req.auth.restaurantId,
+          to:            reservation.guestPhone,
+          message,
+          type:          MessageType.CONFIRMATION_REQUEST,
+          reservationId: reservation.id,
+          guestId:       reservation.guestId ?? undefined,
+        });
+        if (!result.success) smsFailed = true;
+      }
+    } catch {
+      smsAttempted = true;
+      smsFailed    = true;
+    }
+
+    // ── Persist token; stamp sentAt only if at least one channel succeeded ────
+    const anySent = !whatsappFailed || (smsAttempted && !smsFailed);
     const updated = await prisma.reservation.update({
       where: { id: reservation.id },
-      data:  { confirmationToken: token, confirmationSentAt: new Date() },
+      data: {
+        confirmationToken: token,
+        ...(anySent ? { confirmationSentAt: new Date() } : {}),
+      },
     });
 
-    res.json(updated);
+    res.json({
+      ...updated,
+      ...(whatsappFailed                  ? { whatsappFailed: true } : {}),
+      ...(smsAttempted && smsFailed       ? { smsFailed: true }      : {}),
+    });
     notifyFloorUpdated(req.auth.restaurantId);
-
-    // InforU SMS: fire-and-forget parallel channel — never affects WhatsApp flow or response.
-    // 10-minute dedup prevents spam on rapid resends.
-    if (reservation.guestPhone) {
-      void (async () => {
-        try {
-          const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-          const recentSent = await prisma.messageLog.findFirst({
-            where: {
-              reservationId: reservation.id,
-              messageType:   MessageType.CONFIRMATION_REQUEST,
-              status:        MessageStatus.SENT,
-              sentAt:        { gte: tenMinutesAgo },
-            },
-          });
-          if (recentSent) return;
-
-          const message = buildConfirmationRequestSmsText(reservation, restaurant?.name ?? '');
-          await sendSms({
-            restaurantId:  req.auth.restaurantId,
-            to:            reservation.guestPhone!,
-            message,
-            type:          MessageType.CONFIRMATION_REQUEST,
-            reservationId: reservation.id,
-            guestId:       reservation.guestId ?? undefined,
-          });
-        } catch {
-          // Intentionally swallowed — InforU failure must never surface here
-        }
-      })();
-    }
   } catch (err) { next(err); }
 });
 

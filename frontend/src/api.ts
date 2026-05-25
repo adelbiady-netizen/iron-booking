@@ -290,7 +290,7 @@ export const api = {
     undo: (id: string) =>
       request<Reservation>(`/reservations/${id}/undo`, { method: 'POST' }),
     sendConfirmation: (id: string) =>
-      request<Reservation>(`/reservations/${id}/send-confirmation`, { method: 'POST' }),
+      request<Reservation & { whatsappFailed?: boolean; smsFailed?: boolean }>(`/reservations/${id}/send-confirmation`, { method: 'POST' }),
     markConfirmedByGuest: (id: string) =>
       request<Reservation>(`/reservations/${id}/mark-confirmed`, { method: 'POST' }),
     markArrived: (id: string) =>

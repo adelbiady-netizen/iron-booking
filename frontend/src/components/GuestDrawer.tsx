@@ -504,6 +504,33 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
+  async function handleSendConfirmation() {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+    setError(null);
+    setBusy(true);
+    try {
+      const response = await api.reservations.sendConfirmation(res.id);
+      const { whatsappFailed, smsFailed, ...updated } = response;
+      setRes(updated as Reservation);
+      onUpdated(updated as Reservation);
+      setMode('view');
+      setUnseatConfirm(false);
+      if (whatsappFailed && smsFailed) {
+        setError(T.guestDrawer.toastConfirmationBothFailed);
+      } else if (whatsappFailed) {
+        onSuccess?.(T.guestDrawer.toastConfirmationWhatsappFailed);
+      } else {
+        onSuccess?.(res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+    } finally {
+      setBusy(false);
+      inflightRef.current = false;
+    }
+  }
+
   async function handleConfirm() {
     if (inflightRef.current) return;
     inflightRef.current = true;
@@ -699,10 +726,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   <ActionBtn
                     label={res.confirmationSentAt ? T.guestDrawer.resendConfirmation : T.guestDrawer.sendConfirmation}
                     cls={res.confirmationSentAt ? btnNeutral : btnBlue}
-                    onClick={() => run(
-                      () => api.reservations.sendConfirmation(res.id),
-                      res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent
-                    )}
+                    onClick={handleSendConfirmation}
                     disabled={busy}
                   />
                 )}
@@ -793,7 +817,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <ActionBtn
               label={T.guestDrawer.actionSendSms}
               cls={btnNeutral}
-              onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+              onClick={handleSendConfirmation}
               disabled={busy}
             />
           )}
@@ -865,7 +889,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <ActionBtn
               label={T.guestDrawer.actionSendSms}
               cls={btnNeutral}
-              onClick={() => run(() => api.reservations.sendConfirmation(res.id), res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent)}
+              onClick={handleSendConfirmation}
               disabled={busy}
             />
           )}
