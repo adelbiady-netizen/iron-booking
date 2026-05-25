@@ -51,6 +51,14 @@ model Restaurant {
   //   minimumOperationalWindowMinutes: number (e.g. 15 — min time shown on seated table timer)
   //   serviceDayCutoffHour: number | null     (e.g. 4 — times 00:00–03:59 belong to the prior
   //                                            service day's anchor date; null = disabled)
+  //
+  //   ── SMS / Messaging (Phase 1 — Iron Messaging) ──────────────────────────
+  //   smsEnabled: boolean               (default false — restaurant must opt in)
+  //   smsSenderName: string             (e.g. "IronGrill" — appears as SMS sender ID)
+  //   smsMonthlyQuota: number           (max outbound messages per month; 0 = unlimited)
+  //   smsUsedThisMonth: number          (running count; reset on first send of new month)
+  //   smsFallbackEnabled: boolean       (default false — future WhatsApp fallback if SMS fails)
+  //   smsProvider: 'INFORU' | 'MOCK'   (default 'MOCK'; switch to 'INFORU' when credentials ready)
   // }
 
   // Link telephony DID — the number the system routes calls to for this restaurant.
@@ -109,6 +117,7 @@ model Restaurant {
   floorObjects                FloorObject[]
   onlineBookingRestrictions   OnlineBookingRestriction[]
   portalPermissions           RestaurantPortalPermissions?
+  messageLogs                 MessageLog[]
 
   @@map("restaurants")
 }
@@ -311,6 +320,7 @@ model Guest {
   restaurant      Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   reservations    Reservation[]
   waitlistEntries WaitlistEntry[]
+  messageLogs     MessageLog[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -403,6 +413,7 @@ model Reservation {
   guest        Guest?         @relation(fields: [guestId], references: [id])
   table        Table?         @relation(fields: [tableId], references: [id])
   activityLog  ReservationActivity[]
+  messageLogs  MessageLog[]
 
   @@index([restaurantId, date])
   @@index([restaurantId, status])
@@ -875,4 +886,64 @@ model OnlineBookingRestriction {
 
   @@index([restaurantId, date])
   @@map("online_booking_restrictions")
+}
+
+// ─── Iron Messaging — SMS / Message Logs ─────────────────────────────────────
+// Provider-agnostic outbound message log. Every SMS attempt is recorded here
+// regardless of provider or outcome. MOCK provider used until InforU credentials
+// are available (Phase 2).
+
+model MessageLog {
+  id                String          @id @default(uuid())
+  restaurantId      String
+  reservationId     String?
+  guestId           String?
+  phone             String
+  messageType       MessageType
+  channel           MessageChannel  @default(SMS)
+  provider          MessageProvider
+  status            MessageStatus   @default(PENDING)
+  providerMessageId String?
+  errorMessage      String?
+  costAgorot        Int?            // provider-reported cost in agorot (1/100 ILS); null if not reported
+  body              String
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservation  Reservation? @relation(fields: [reservationId], references: [id])
+  guest        Guest?       @relation(fields: [guestId], references: [id])
+
+  @@index([restaurantId])
+  @@index([restaurantId, messageType])
+  @@index([reservationId])
+  @@map("message_logs")
+}
+
+enum MessageType {
+  CONFIRMATION
+  REMINDER
+  TABLE_READY
+  WAITLIST
+  MANUAL
+  SYSTEM
+}
+
+enum MessageChannel {
+  SMS
+}
+
+enum MessageProvider {
+  INFORU
+  MOCK
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
 }
