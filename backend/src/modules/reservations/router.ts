@@ -13,6 +13,8 @@ import {
 } from './schema';
 import * as service from './service';
 import { sendConfirmationSms, sendReminderSms, sendReservationReceivedMessage } from '../../lib/sms';
+import { sendSms } from '../../lib/messaging';
+import { MessageType, MessageStatus } from '@prisma/client';
 import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
@@ -24,6 +26,18 @@ import { eventBus } from '../../lib/eventBus';
 // Fire-and-forget — never awaited, never allowed to throw.
 function notifyFloorUpdated(restaurantId: string): void {
   eventBus.emit('floor_updated', { restaurantId });
+}
+
+function buildConfirmationSmsText(
+  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null },
+  restaurantName: string,
+): string {
+  const lang = r.guestLang ?? 'he';
+  const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
+  if (lang === 'he') {
+    return `שלום ${r.guestName}, הזמנתך ב${restaurantName} לתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים אושרה. תודה!`;
+  }
+  return `Hi ${r.guestName}, your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests has been confirmed. Thank you!`;
 }
 
 const router = Router();
@@ -199,8 +213,37 @@ router.patch('/:id', validate(UpdateReservationSchema), async (req: Request, res
 router.post('/:id/confirm', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const r = await service.confirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
-    res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+
+    let smsFailed = false;
+    if (r.guestPhone) {
+      try {
+        // Dedup: skip if a SENT confirmation SMS already exists for this reservation.
+        const existing = await prisma.messageLog.findFirst({
+          where: { reservationId: r.id, messageType: MessageType.CONFIRMATION, status: MessageStatus.SENT },
+        });
+        if (!existing) {
+          const restaurant = await prisma.restaurant.findUnique({
+            where:  { id: req.auth.restaurantId },
+            select: { name: true },
+          });
+          const message = buildConfirmationSmsText(r, restaurant?.name ?? '');
+          const result = await sendSms({
+            restaurantId:  req.auth.restaurantId,
+            to:            r.guestPhone,
+            message,
+            type:          MessageType.CONFIRMATION,
+            reservationId: r.id,
+            guestId:       r.guestId ?? undefined,
+          });
+          if (!result.success) smsFailed = true;
+        }
+      } catch {
+        smsFailed = true;
+      }
+    }
+
+    res.json(smsFailed ? { ...r, _smsFailed: true } : r);
   } catch (err) { next(err); }
 });
 

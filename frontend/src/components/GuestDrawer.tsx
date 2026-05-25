@@ -504,6 +504,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
+  async function handleConfirm() {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
+    setError(null);
+    setBusy(true);
+    try {
+      const response = await api.reservations.confirm(res.id);
+      const { _smsFailed, ...updated } = response;
+      setRes(updated as Reservation);
+      onUpdated(updated as Reservation);
+      setMode('view');
+      setUnseatConfirm(false);
+      onSuccess?.(_smsFailed ? T.guestDrawer.toastConfirmedSmsFailed : T.guestDrawer.toastConfirmed);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+    } finally {
+      setBusy(false);
+      inflightRef.current = false;
+    }
+  }
+
   async function seatWithReorganizeCheck(tableId: string, combinedIds: string[], toastMsg: string) {
     // Hard guard: never fire the seat API without a valid table.
     // Routes to picker instead so the host can assign one.
@@ -732,7 +753,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       <>
         {/* Primary */}
         <div className="flex gap-2">
-          <ActionBtn label={T.guestDrawer.actionConfirm} cls={btnBlue} onClick={() => run(() => api.reservations.confirm(res.id), T.guestDrawer.toastConfirmed)} disabled={busy} primary />
+          <ActionBtn label={T.guestDrawer.actionConfirm} cls={btnBlue} onClick={handleConfirm} disabled={busy} primary />
           <ActionBtn
             label={T.guestDrawer.actionSeat}
             cls={btnGreen}

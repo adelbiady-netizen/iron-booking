@@ -467,7 +467,8 @@ export const T = {
     attrMovedBy:          'Moved by',
     // Toasts
     toastUpdated:         'Reservation updated',
-    toastConfirmed:       'Reservation confirmed',
+    toastConfirmed:           'Reservation confirmed',
+    toastConfirmedSmsFailed:  'Reservation confirmed — SMS could not be sent',
     toastUnconfirmed:     'Reverted to pending',
     toastNoShow:          'Marked as no-show',
     toastArrived:         'Guest marked as arrived',
