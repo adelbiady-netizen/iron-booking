@@ -1262,6 +1262,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, []);
 
   const handlePickDone = useCallback((ids: string[]) => {
+    console.log('[PickModeClick] handlePickDone called', { ids, hasCallback: !!tablePickCallbackRef.current });
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
     setTablePickMode(false);

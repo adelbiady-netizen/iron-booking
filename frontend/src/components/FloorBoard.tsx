@@ -680,19 +680,23 @@ export default function FloorBoard({
     // In move mode, the guest's current table is shown as 'current' — not a valid target.
     if (pickAction === 'move' && pickIds.includes(t.id)) return 'current';
     const sug = pickSuggestions.find(s => s.tableId === t.id);
-    if (!sug) return null;
+    if (!sug) {
+      console.log('[PickModeClick] getPickStatus: no suggestion entry', { tableId: t.id, tableName: t.name, liveStatus: t.liveStatus, pickSuggestionsCount: pickSuggestions.length });
+      return null;
+    }
     // Only genuine conflicts/locks are hard-unavailable; capacity mismatches (TOO_SMALL) are advisory.
     if (sug.reasons.some(r => r.code === 'CONFLICT' || r.code === 'TABLE_BLOCKED')) {
       const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
       const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+      const result = (!isTableBlocked && !isOccupiedNow) ? 'tight' : 'unavailable';
+      console.log('[PickModeClick] getPickStatus: CONFLICT/BLOCKED path', { tableId: t.id, tableName: t.name, liveStatus: t.liveStatus, sugStatus: sug.status, reasons: sug.reasons, isTableBlocked, isOccupiedNow, result });
       // Future-reserved tables are selectable (tight) in all pick modes — backend reorganize modal handles conflicts.
       // Only occupied-now and locked tables stay hard-unavailable.
-      if (!isTableBlocked && !isOccupiedNow) return 'tight';
-      return 'unavailable';
+      return result;
     }
-    // TOO_SMALL-only blocked → downgrade to 'tight' (selectable with warning)
-    if (sug.status === 'blocked') return 'tight';
-    return sug.status as PickStatus;
+    const result = sug.status === 'blocked' ? 'tight' : sug.status as PickStatus;
+    console.log('[PickModeClick] getPickStatus: normal path', { tableId: t.id, tableName: t.name, liveStatus: t.liveStatus, sugStatus: sug.status, result });
+    return result;
   }
 
   if (loadError) {
@@ -835,6 +839,7 @@ export default function FloorBoard({
     // Pick mode takes priority: a specific in-progress pick overrides reorganize mode.
     if (pickMode) {
       const ps = getPickStatus(t);
+      console.log('[PickModeClick] handleClick in pickMode', { tableId: t.id, tableName: t.name, liveStatus: t.liveStatus, ps, pickAction, hasOnPickDone: !!onPickDone });
       if (ps === 'current') {
         setPickCurrentWarn(true);
         setTimeout(() => setPickCurrentWarn(false), 2500);
@@ -845,7 +850,7 @@ export default function FloorBoard({
         setTimeout(() => setPickWarn(w => (w === t.id ? null : w)), 2500);
         return;
       }
-      if (pickAction === 'seat') { onPickDone?.([t.id]); return; }
+      if (pickAction === 'seat') { console.log('[PickModeClick] calling onPickDone', { tableId: t.id }); onPickDone?.([t.id]); return; }
       setPickSelection(prev =>
         prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
       );
