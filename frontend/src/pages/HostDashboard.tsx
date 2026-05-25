@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { AuthState, BackendTableSuggestion, CallLogItem, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, WaitlistEntry } from '../types';
+import type { AuthState, BackendTableSuggestion, CallLogItem, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, TableFirstGuest, WaitlistEntry } from '../types';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import { api, ApiError } from '../api';
@@ -930,6 +930,37 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     });
   }, [waitlistMatches, floorTables]);
 
+  // Guests eligible for table-first seating from the floor context menu.
+  // Only populated on today's date; returns empty for future/past planning views.
+  // Priority order: ARRIVED > NOTIFIED waitlist > CONFIRMED (not arrived) > WAITING waitlist.
+  const eligibleGuests = useMemo((): TableFirstGuest[] => {
+    if (date !== todayStr()) return [];
+    const today = date;
+    const result: TableFirstGuest[] = [];
+
+    reservations
+      .filter(r => r.isArrived && !r.tableId && (r.status === 'PENDING' || r.status === 'CONFIRMED'))
+      .sort((a, b) => a.time.localeCompare(b.time))
+      .forEach(r => result.push({ kind: 'reservation', data: r }));
+
+    waitlist
+      .filter(e => e.status === 'NOTIFIED' && e.date.slice(0, 10) === today)
+      .sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime())
+      .forEach(e => result.push({ kind: 'waitlist', data: e }));
+
+    reservations
+      .filter(r => !r.isArrived && !r.tableId && r.status === 'CONFIRMED')
+      .sort((a, b) => a.time.localeCompare(b.time))
+      .forEach(r => result.push({ kind: 'reservation', data: r }));
+
+    waitlist
+      .filter(e => e.status === 'WAITING' && e.date.slice(0, 10) === today)
+      .sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime())
+      .forEach(e => result.push({ kind: 'waitlist', data: e }));
+
+    return result;
+  }, [date, reservations, waitlist]);
+
   // Smart seat: top table suggestions per active waitlist entry.
   // Runs whenever floorTables or operationalNow change; separate from nextInLine
   // so it doesn't trigger a re-score on every minute tick unnecessarily.
@@ -1154,17 +1185,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setWaitlistAssignTableId(null);
   }, []);
 
-  const handleWaitlistConfirmSeat = useCallback(async () => {
-    if (!waitlistAssignEntry) return;
-    const entry   = waitlistAssignEntry;
-    const tableId = waitlistAssignTableId ?? undefined;
-    if (inFlightRef.current.has(entry.id)) return;
+  // Shared waitlist-seat execution core — reused by handleWaitlistConfirmSeat (two-step
+  // confirm flow) and handleTableFirstSeat (table-first direct seat).
+  // Returns true on success so callers that own UI state (e.g. assign banner) can clear it.
+  const executeWaitlistSeat = useCallback(async (
+    entry: WaitlistEntry,
+    tableId: string | undefined,
+  ): Promise<boolean> => {
+    if (inFlightRef.current.has(entry.id)) return false;
     inFlightRef.current.add(entry.id);
     setInFlightIds(new Set(inFlightRef.current));
     try {
       const { reservation } = await api.waitlist.seat(entry.id, tableId);
-      setWaitlistAssignEntry(null);
-      setWaitlistAssignTableId(null);
       setReservations(prev => [...prev, reservation]);
       setRefreshKey(k => k + 1);
       setWaitlist(prev => prev.filter(e => e.id !== entry.id));
@@ -1174,13 +1206,28 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setTimeout(() => setHighlightId(null), 2000);
       const tableName = tableId ? (floorTables.find(t => t.id === tableId)?.name ?? 'table') : '';
       showToast(tableName ? T.hostDashboard.toastSeatAt(entry.guestName, tableName) : T.hostDashboard.toastSeated);
+      return true;
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+      return false;
     } finally {
       inFlightRef.current.delete(entry.id);
       setInFlightIds(new Set(inFlightRef.current));
     }
-  }, [waitlistAssignEntry, waitlistAssignTableId, floorTables, showToast]);
+  }, [floorTables, showToast]);
+
+  // Thin wrapper: reads from the two-step assign state, delegates to executeWaitlistSeat,
+  // then clears the assign banner only on success (so the host can retry on failure).
+  const handleWaitlistConfirmSeat = useCallback(async () => {
+    if (!waitlistAssignEntry) return;
+    const entry   = waitlistAssignEntry;
+    const tableId = waitlistAssignTableId ?? undefined;
+    const ok = await executeWaitlistSeat(entry, tableId);
+    if (ok) {
+      setWaitlistAssignEntry(null);
+      setWaitlistAssignTableId(null);
+    }
+  }, [waitlistAssignEntry, waitlistAssignTableId, executeWaitlistSeat]);
 
   // Bidirectional date sync: called by CreateDrawer and GuestDrawer (edit mode)
   // whenever the host changes the reservation date or time inside the drawer.
@@ -1381,6 +1428,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       res.guestName,
     );
   }, [handlePickTables, floorTables, showToast]);
+
+  // Table-first seating: host right-clicks an available table and picks a guest.
+  // Reservation path reuses handleContextMenuSeat with tableId pre-injected (skips pick mode).
+  // Waitlist path reuses executeWaitlistSeat directly (no assign-banner state involved).
+  const handleTableFirstSeat = useCallback((table: FloorTable, guest: TableFirstGuest) => {
+    if (guest.kind === 'reservation') {
+      handleContextMenuSeat({ ...guest.data, tableId: table.id });
+    } else {
+      void executeWaitlistSeat(guest.data, table.id);
+    }
+  }, [handleContextMenuSeat, executeWaitlistSeat]);
 
   const handleContextMenuComplete = useCallback(async (res: Reservation) => {
     if (inFlightRef.current.has(res.id)) return;
@@ -1905,6 +1963,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
           onContextMenuSwap={handleContextMenuSwap}
+          eligibleGuests={eligibleGuests}
+          onTableFirstSeat={handleTableFirstSeat}
           activeDrawerRes={selectedRes}
           inFlightIds={inFlightIds}
           swapMode={!!swapSource}

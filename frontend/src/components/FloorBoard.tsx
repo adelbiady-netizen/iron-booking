@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import type React from 'react';
-import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, WaitlistEntry } from '../types';
+import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, TableFirstGuest, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
 import { logOverride } from '../utils/flowControl';
 import TableCard from './TableCard';
@@ -389,6 +389,9 @@ interface Props {
   // actions ("שבץ מחדש") when the drawer holds a displaced/reorganized reservation.
   activeDrawerRes?: Reservation | null;
   inFlightIds?: ReadonlySet<string>;
+  // Table-first seating: right-click an AVAILABLE table to seat a waiting/arrived guest
+  eligibleGuests?: TableFirstGuest[];
+  onTableFirstSeat?: (table: FloorTable, guest: TableFirstGuest) => void;
   // Swap mode — enter by right-clicking a seated table and choosing "Swap table"
   swapMode?: boolean;
   swapSourceId?: string | null;
@@ -482,6 +485,8 @@ export default function FloorBoard({
   onContextMenuSwap,
   activeDrawerRes = null,
   inFlightIds,
+  eligibleGuests = [],
+  onTableFirstSeat,
   swapMode = false,
   swapSourceId = null,
   onSwapTargetPick,
@@ -1462,7 +1467,10 @@ export default function FloorBoard({
                                 && !(swapRes.combinedTableIds ?? []).length && !swapRes.reorganizeAt;
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails;
+        // Show the table-first seating section only on AVAILABLE tables with no pre-assigned
+        // reservation — prevents ambiguity when a scheduled guest is already on record for this table.
+        const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && !seatableRes && eligibleGuests.length > 0;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails || canTableFirstSeat;
 
         return (
           <>
@@ -1500,6 +1508,46 @@ export default function FloorBoard({
                   {T.floorBoard.ctxMarkArrived}
                 </button>
               )}
+
+              {/* Table-first seating — available table, no pre-scheduled guest */}
+              {canTableFirstSeat && (
+                <>
+                  <div className="px-3 pt-2 pb-0.5 mt-0.5 border-t border-iron-border/40">
+                    <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">
+                      {T.floorBoard.ctxSeatGuestHere}
+                    </span>
+                  </div>
+                  {eligibleGuests.slice(0, 5).map(guest => {
+                    const guestId  = guest.kind === 'reservation' ? guest.data.id : `wl-${guest.data.id}`;
+                    const name     = guest.data.guestName;
+                    const size     = guest.data.partySize;
+                    const busy     = guest.kind === 'reservation' && inFlightIds?.has(guest.data.id);
+                    const label    = guest.kind === 'waitlist'
+                      ? T.floorBoard.ctxGuestWaitlist
+                      : guest.data.isArrived
+                        ? T.floorBoard.ctxGuestArrived
+                        : T.floorBoard.ctxGuestConfirmed;
+                    const labelCls = guest.kind === 'waitlist'
+                      ? 'text-indigo-400'
+                      : guest.data.isArrived
+                        ? 'text-iron-green-light'
+                        : 'text-blue-400';
+                    return (
+                      <button
+                        key={guestId}
+                        disabled={!!busy}
+                        onClick={() => { onTableFirstSeat!(ctxMenu.table, guest); setCtxMenu(null); }}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-iron-bg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <span className="text-iron-text font-medium">{name}</span>
+                        <span className="text-iron-muted ml-1">· {size}p</span>
+                        <span className={`ml-1.5 text-[10px] font-semibold ${labelCls}`}>{label}</span>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
               {canComplete && (
                 <button
                   onClick={() => { onContextMenuComplete!(currentRes!); setCtxMenu(null); }}

@@ -118,6 +118,10 @@ export const T = {
     swapConfirmTitle: (a: string, b: string) => `Swap ${a} ↔ ${b}?`,
     swapConfirmBody:  (tableA: string, tableB: string) => `${tableA} ↔ ${tableB}`,
     swapConfirmBtn:   'Swap',
+    ctxSeatGuestHere:  'Seat guest here',
+    ctxGuestArrived:   'Arrived',
+    ctxGuestConfirmed: 'Confirmed',
+    ctxGuestWaitlist:  'Waitlist',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

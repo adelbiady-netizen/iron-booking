@@ -309,6 +309,12 @@ export interface BackendTableSuggestion {
 
 export type WaitlistStatus = 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT' | 'REMOVED';
 
+// Discriminated union for the table-first seating context menu.
+// Lets FloorBoard pass a typed guest to HostDashboard without importing component types.
+export type TableFirstGuest =
+  | { kind: 'reservation'; data: Reservation }
+  | { kind: 'waitlist';    data: WaitlistEntry };
+
 export interface WaitlistEntry {
   id: string;
   restaurantId: string;

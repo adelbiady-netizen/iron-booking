@@ -119,6 +119,10 @@ export const THe = {
     swapConfirmTitle: (a: string, b: string) => `להחליף ${a} ↔ ${b}?`,
     swapConfirmBody:  (tableA: string, tableB: string) => `${tableA} ↔ ${tableB}`,
     swapConfirmBtn:   'החלף',
+    ctxSeatGuestHere:  'שבץ אורח כאן',
+    ctxGuestArrived:   'הגיע',
+    ctxGuestConfirmed: 'מאושר',
+    ctxGuestWaitlist:  'המתנה',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
