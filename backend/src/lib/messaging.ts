@@ -70,8 +70,9 @@ class InforUSmsProvider implements SmsProvider {
   constructor(private readonly senderName: string) {}
 
   async send(to: string, body: string): Promise<{ providerMessageId: string }> {
-    const basicAuth = process.env.INFORU_BASIC_AUTH;
-    if (!basicAuth) throw new Error('INFORU_BASIC_AUTH environment variable is not set');
+    const rawAuth = process.env.INFORU_BASIC_AUTH ?? '';
+    if (!rawAuth) throw new Error('INFORU_BASIC_AUTH environment variable is not set');
+    const basicAuth = rawAuth.startsWith('Basic ') ? rawAuth : `Basic ${rawAuth}`;
 
     const phone = toInforUPhone(to);
 
@@ -84,7 +85,7 @@ class InforUSmsProvider implements SmsProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${basicAuth}`,
+          'Authorization': basicAuth,
         },
         body: JSON.stringify({
           Data: {
