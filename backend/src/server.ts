@@ -1,6 +1,7 @@
 import app from './app';
 import { config } from './config';
 import { prisma } from './lib/prisma';
+import { startScheduler, stopScheduler } from './lib/scheduler';
 import * as bcrypt from 'bcryptjs';
 
 // ─── Global crash guards ──────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
   // is not running — check the build log for compile/seed failures.
-  console.log('BOOT VERSION: api-test-route-enabled');
+  console.log('BOOT VERSION: phase-5b-reminder-scheduler');
   console.log('🔥 SERVER BOOTED AT', new Date().toISOString());
 
   // Verify DB connection before accepting traffic
@@ -96,11 +97,13 @@ async function main() {
   server.on('listening', () => {
     console.log(`[Iron Booking] Server running on port ${config.port} (${config.nodeEnv})`);
     console.log('🔥 SERVER LISTENING');
+    startScheduler(); // no-op unless REMINDER_SCHEDULER_ENABLED=true
   });
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`[${signal}] Shutting down...`);
+    stopScheduler(); // prevent new ticks from being scheduled during shutdown
     server.close(async () => {
       await prisma.$disconnect();
       console.log('[DB] Disconnected');

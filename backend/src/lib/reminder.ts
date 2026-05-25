@@ -8,6 +8,7 @@ export interface ReminderResult {
   skipped: number;
   failed: string[];
   total: number;
+  dryRunWouldSend?: number; // populated only when options.dryRun=true
 }
 
 function toHHmm(mins: number): string {
@@ -55,7 +56,8 @@ function buildReminderSmsText(
 export async function sendReservationReminders(
   restaurantId: string,
   date: string,
-  withinMinutes = 60
+  withinMinutes = 60,
+  options?: { dryRun?: boolean }
 ): Promise<ReminderResult> {
   const restaurant = await prisma.restaurant.findUnique({
     where:  { id: restaurantId },
@@ -98,8 +100,9 @@ export async function sendReservationReminders(
     },
   });
 
-  let sent    = 0;
-  let skipped = 0;
+  let sent             = 0;
+  let skipped          = 0;
+  let dryRunWouldSend  = 0;
   const failed: string[] = [];
 
   for (const r of reservations) {
@@ -125,6 +128,13 @@ export async function sendReservationReminders(
     const token      = r.confirmationToken ?? crypto.randomUUID();
     const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
     const message    = buildReminderSmsText(r, restaurantName, confirmUrl);
+
+    // Dry-run: log intent but do not send, do not update DB, do not write MessageLog
+    if (options?.dryRun) {
+      console.log(`[reminder][DRY-RUN] Would send REMINDER → ${r.guestPhone} (${r.guestName}) | reservationId=${r.id} | time=${r.time}`);
+      dryRunWouldSend++;
+      continue;
+    }
 
     try {
       const result = await sendSms({
@@ -155,5 +165,11 @@ export async function sendReservationReminders(
     }
   }
 
-  return { sent, skipped, failed, total: reservations.length };
+  return {
+    sent,
+    skipped,
+    failed,
+    total: reservations.length,
+    ...(options?.dryRun ? { dryRunWouldSend } : {}),
+  };
 }
