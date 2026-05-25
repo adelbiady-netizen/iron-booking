@@ -925,6 +925,7 @@ model MessageLog {
 
 enum MessageType {
   CONFIRMATION
+  CONFIRMATION_REQUEST
   REMINDER
   TABLE_READY
   WAITLIST

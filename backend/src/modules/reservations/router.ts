@@ -40,6 +40,18 @@ function buildConfirmationSmsText(
   return `Hi ${r.guestName}, your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests has been confirmed. Thank you!`;
 }
 
+function buildConfirmationRequestSmsText(
+  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null },
+  restaurantName: string,
+): string {
+  const lang = r.guestLang ?? 'he';
+  const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
+  if (lang === 'he') {
+    return `שלום ${r.guestName}, קיבלנו את הזמנתך ב${restaurantName} לתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים. שלחנו לך בקשת אישור. תודה!`;
+  }
+  return `Hi ${r.guestName}, we've received your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests. A confirmation request has been sent. Thank you!`;
+}
+
 const router = Router();
 router.use(authenticate);
 
@@ -396,6 +408,37 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
 
     res.json(updated);
     notifyFloorUpdated(req.auth.restaurantId);
+
+    // InforU SMS: fire-and-forget parallel channel — never affects WhatsApp flow or response.
+    // 10-minute dedup prevents spam on rapid resends.
+    if (reservation.guestPhone) {
+      void (async () => {
+        try {
+          const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+          const recentSent = await prisma.messageLog.findFirst({
+            where: {
+              reservationId: reservation.id,
+              messageType:   MessageType.CONFIRMATION_REQUEST,
+              status:        MessageStatus.SENT,
+              sentAt:        { gte: tenMinutesAgo },
+            },
+          });
+          if (recentSent) return;
+
+          const message = buildConfirmationRequestSmsText(reservation, restaurant?.name ?? '');
+          await sendSms({
+            restaurantId:  req.auth.restaurantId,
+            to:            reservation.guestPhone!,
+            message,
+            type:          MessageType.CONFIRMATION_REQUEST,
+            reservationId: reservation.id,
+            guestId:       reservation.guestId ?? undefined,
+          });
+        } catch {
+          // Intentionally swallowed — InforU failure must never surface here
+        }
+      })();
+    }
   } catch (err) { next(err); }
 });
 
