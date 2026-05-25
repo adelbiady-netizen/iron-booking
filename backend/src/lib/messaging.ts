@@ -70,19 +70,9 @@ class InforUSmsProvider implements SmsProvider {
   constructor(private readonly senderName: string) {}
 
   async send(to: string, body: string): Promise<{ providerMessageId: string }> {
-    const rawAuth = process.env.INFORU_BASIC_AUTH ?? '';
+    const rawAuth = (process.env.INFORU_BASIC_AUTH ?? '').trim();
     if (!rawAuth) throw new Error('INFORU_BASIC_AUTH environment variable is not set');
-    const basicAuth = rawAuth.startsWith('Basic ') ? rawAuth : `Basic ${rawAuth}`;
-
-    // ── AUTH DEBUG (remove after confirming header reaches InforU) ────────────
-    console.log('[InforU][auth-debug] Authorization exists:', !!basicAuth);
-    console.log('[InforU][auth-debug] Starts with "Basic ":', basicAuth.startsWith('Basic '));
-    console.log('[InforU][auth-debug] Length:', basicAuth.length);
-    console.log('[InforU][auth-debug] Prefix sample:', basicAuth.slice(0, 10) + '...');
-    console.log('[InforU][auth-debug] rawAuth defined:', rawAuth !== '');
-    console.log('[InforU][auth-debug] rawAuth length:', rawAuth.length);
-    console.log('[InforU][auth-debug] rawAuth starts with "Basic ":', rawAuth.startsWith('Basic '));
-    // ─────────────────────────────────────────────────────────────────────────
+    const authorization = rawAuth.startsWith('Basic ') ? rawAuth : `Basic ${rawAuth}`;
 
     const phone = toInforUPhone(to);
 
@@ -91,15 +81,12 @@ class InforUSmsProvider implements SmsProvider {
 
     let res: Response;
     try {
-      const requestHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': basicAuth,
-      };
-      console.log('[InforU][auth-debug] header keys:', Object.keys(requestHeaders));
-      console.log('[InforU][auth-debug] Content-Type:', requestHeaders['Content-Type']);
       res = await fetch(INFORU_ENDPOINT, {
         method: 'POST',
-        headers: requestHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authorization,
+        },
         body: JSON.stringify({
           Data: {
             Message: body,
