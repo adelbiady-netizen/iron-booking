@@ -878,12 +878,20 @@ export default function FloorBoard({
   }
 
   // ── Turn data ─────────────────────────────────────────────────────────────────
+  // Only show turns within the operational horizon — far-future reservations
+  // (e.g. 19:30 when board time is 13:00) must not appear in the stack.
+  const TURN_HORIZON_MINUTES = 90;
+  const nowMinutes = nowTime
+    ? (() => { const [h, m] = nowTime.split(':').map(Number); return h * 60 + m; })()
+    : null;
   const turnData = new Map<string, Reservation[]>();
   for (const r of reservations) {
     if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
     const norm = normalizeTime(r.time);
-    if (nowTime && norm < nowTime) {
-      continue;
+    if (nowTime && norm < nowTime) continue;
+    if (nowMinutes !== null) {
+      const [rh, rm] = norm.split(':').map(Number);
+      if (rh * 60 + rm - nowMinutes > TURN_HORIZON_MINUTES) continue;
     }
     const arr = turnData.get(r.tableId) ?? [];
     arr.push(r);
