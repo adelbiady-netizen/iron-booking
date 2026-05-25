@@ -783,7 +783,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             cls={btnGreen}
             primary
             onClick={() => {
-              console.log('[SeatPath] GuestDrawer PENDING seat', { reservationId: res.id, guestName: res.guestName, tableId: res.tableId, combinedTableIds: res.combinedTableIds, status: res.status, component: 'GuestDrawer(PENDING)', handler: res.tableId ? 'seatWithReorganizeCheck' : (onPickTables ? 'openActionMapPicker(seat)' : 'setMode(seat)') });
               if (!res.tableId) {
                 // No table assigned — must pick one before seating
                 if (onPickTables) openActionMapPicker('seat');
@@ -856,7 +855,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             cls={btnGreen}
             primary
             onClick={() => {
-              console.log('[SeatPath] GuestDrawer CONFIRMED seat', { reservationId: res.id, guestName: res.guestName, tableId: res.tableId, combinedTableIds: res.combinedTableIds, status: res.status, component: 'GuestDrawer(CONFIRMED)', handler: res.tableId ? 'seatWithReorganizeCheck' : (onPickTables ? 'openActionMapPicker(seat)' : 'setMode(seat)') });
               if (!res.tableId) {
                 // No table assigned — must pick one before seating
                 if (onPickTables) openActionMapPicker('seat');
