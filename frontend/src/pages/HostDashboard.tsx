@@ -4,7 +4,7 @@ import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
-import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased, arrivedFifoSort } from '../utils/arrival';
 import { optimisticExpectedEnd } from '../utils/time';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
@@ -938,10 +938,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const today = date;
     const result: TableFirstGuest[] = [];
 
-    // 1. Arrived guests (any sitable status) — highest priority
+    // 1. Arrived guests (any sitable status) — highest priority, strict FIFO by arrivedAt
     reservations
-      .filter(r => r.isArrived && !r.tableId && (r.status === 'PENDING' || r.status === 'CONFIRMED'))
-      .sort((a, b) => a.time.localeCompare(b.time))
+      .filter(r => r.isArrived && !!r.arrivedAt && !r.tableId && (r.status === 'PENDING' || r.status === 'CONFIRMED'))
+      .sort(arrivedFifoSort)
       .forEach(r => result.push({ kind: 'reservation', data: r }));
 
     // 2. Confirmed, not yet arrived
@@ -1500,7 +1500,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setInFlightIds(new Set(inFlightRef.current));
 
     setReservations(prev => prev.map(r =>
-      r.id === res.id ? { ...r, isArrived: true } : r
+      r.id === res.id ? { ...r, isArrived: true, arrivedAt: r.arrivedAt ?? new Date().toISOString() } : r
     ));
 
     try {

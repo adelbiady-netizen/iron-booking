@@ -6,7 +6,7 @@ import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
-import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased, arrivedFifoSort } from '../utils/arrival';
 import { normalizeTime } from '../utils/time';
 
 // Unified name + phone search — works for "052", "1234", "Yossi", "lev".
@@ -386,13 +386,8 @@ export default function ReservationPanel({
                     .sort((a, b) => a.time.localeCompare(b.time)); // earliest = most overdue first
                   const remaining = visible.filter(r => !isPastDue(r));
                   const arrivedBucket = remaining
-                    .filter(r => r.isArrived)
-                    .sort((a, b) => {
-                      if (a.arrivedAt && b.arrivedAt) return a.arrivedAt.localeCompare(b.arrivedAt);
-                      if (a.arrivedAt) return -1;
-                      if (b.arrivedAt) return 1;
-                      return a.time.localeCompare(b.time);
-                    });
+                    .filter(r => r.isArrived && !!r.arrivedAt)
+                    .sort(arrivedFifoSort);
                   return [
                     ...lateBucket,
                     ...arrivedBucket,

@@ -53,6 +53,16 @@ export function isStaleReservation(resTime: string, status: string, nowTime: str
   return isFloorReleased(resTime, status, nowTime);
 }
 
+// Strict FIFO comparator for arrived guests.
+// Pre-condition: both records must have non-null arrivedAt (filter with !!r.arrivedAt first).
+// Returns negative when a arrived before b (oldest first).
+export function arrivedFifoSort(
+  a: { arrivedAt: string | null },
+  b: { arrivedAt: string | null },
+): number {
+  return new Date(a.arrivedAt!).getTime() - new Date(b.arrivedAt!).getTime();
+}
+
 export function arrivalState(
   resTime: string,
   status: string,
