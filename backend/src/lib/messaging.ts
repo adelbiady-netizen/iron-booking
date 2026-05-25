@@ -46,10 +46,14 @@ class MockSmsProvider implements SmsProvider {
 const INFORU_ENDPOINT = 'https://capi.inforu.co.il/api/v2/SMS/SendSms';
 const INFORU_TIMEOUT_MS = 10_000;
 
-// InforU CAPI v2 response shape (fields may be absent on error paths)
+// InforU CAPI v2 response shape (fields may be absent on error paths).
+// Observed production shape: { StatusId: 1, StatusDescription: "Success" }
+// Legacy/error shape may use Status/Description instead.
 interface InforUResponse {
-  Status?:      string | number;
-  Description?: string;
+  StatusId?:          number;
+  StatusDescription?: string;
+  Status?:            string | number;
+  Description?:       string;
   Response?: {
     BatchId?:  string;
     Messages?: Array<{ MessageId?: string; Phone?: string; Status?: string }>;
@@ -127,12 +131,19 @@ class InforUSmsProvider implements SmsProvider {
     console.log('[InforU][diag] Parsed response:', JSON.stringify(parsed, null, 2));
     // ─────────────────────────────────────────────────────────────────────────
 
-    // InforU CAPI v2: Status "0" = success
-    const statusStr = String(parsed?.Status ?? '');
-    if (statusStr !== '0' && statusStr.toLowerCase() !== 'success') {
-      throw new Error(
-        `InforU rejected message: Status=${statusStr}${parsed?.Description ? ` — ${parsed.Description}` : ''}`
-      );
+    // InforU CAPI v2 success: StatusId===1 or StatusDescription==="Success"
+    // Fallback: legacy Status field "0" or "success" (error paths may use it)
+    const isSuccess =
+      parsed?.StatusId === 1 ||
+      parsed?.StatusDescription?.toLowerCase() === 'success' ||
+      String(parsed?.Status ?? '') === '0' ||
+      String(parsed?.Status ?? '').toLowerCase() === 'success';
+
+    if (!isSuccess) {
+      const statusDetail =
+        parsed?.StatusDescription ?? parsed?.Description ??
+        `StatusId=${parsed?.StatusId ?? ''} Status=${parsed?.Status ?? ''}`;
+      throw new Error(`InforU rejected message: ${statusDetail}`);
     }
 
     // Prefer per-message ID, fall back to batch ID, then synthesise one
