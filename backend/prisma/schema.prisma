@@ -59,6 +59,10 @@ model Restaurant {
   //   smsUsedThisMonth: number          (running count; reset on first send of new month)
   //   smsFallbackEnabled: boolean       (default false — future WhatsApp fallback if SMS fails)
   //   smsProvider: 'INFORU' | 'MOCK'   (default 'MOCK'; switch to 'INFORU' when credentials ready)
+  //
+  //   ── Reminders (Phase 5A — Iron Messaging) ───────────────────────────────
+  //   reminderEnabled: boolean          (default true — set false to disable all reminder sends)
+  //   reminderLeadMinutes: number       (minutes ahead to include in bulk reminder window; default 60)
   // }
 
   // Link telephony DID — the number the system routes calls to for this restaurant.

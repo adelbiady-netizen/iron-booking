@@ -12,7 +12,7 @@ import {
   ListReservationsQuery,
 } from './schema';
 import * as service from './service';
-import { sendConfirmationSms, sendReminderSms, sendReservationReceivedMessage } from '../../lib/sms';
+import { sendConfirmationSms, sendReservationReceivedMessage } from '../../lib/sms';
 import { sendSms } from '../../lib/messaging';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { sendReservationReminders } from '../../lib/reminder';
@@ -38,6 +38,18 @@ function buildConfirmationSmsText(
     return `שלום ${r.guestName}, הזמנתך ב${restaurantName} לתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים אושרה. תודה!`;
   }
   return `Hi ${r.guestName}, your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests has been confirmed. Thank you!`;
+}
+
+function buildReminderSmsText(
+  r: { guestName: string; time: string; guestLang?: string | null },
+  restaurantName: string,
+  confirmUrl: string,
+): string {
+  const lang = r.guestLang ?? 'he';
+  if (lang === 'he') {
+    return `היי ${r.guestName}, תזכורת להזמנה שלך ב${restaurantName} היום בשעה ${r.time}. לאישור: ${confirmUrl}`;
+  }
+  return `Hi ${r.guestName}, reminder for your reservation at ${restaurantName} today at ${r.time}. Confirm: ${confirmUrl}`;
 }
 
 function buildConfirmationRequestSmsText(
@@ -565,7 +577,7 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
   try {
     const [reservation, restaurant] = await Promise.all([
       prisma.reservation.findUnique({ where: { id: p(req, 'id') } }),
-      prisma.restaurant.findUnique({ where: { id: req.auth.restaurantId }, select: { name: true } }),
+      prisma.restaurant.findUnique({ where: { id: req.auth.restaurantId }, select: { name: true, settings: true } }),
     ]);
     if (!reservation || reservation.restaurantId !== req.auth.restaurantId) {
       throw new NotFoundError('Reservation', p(req, 'id'));
@@ -574,7 +586,7 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
       throw new BusinessRuleError(`Cannot send reminder for a ${reservation.status} reservation`);
     }
     if (!reservation.guestPhone) {
-      throw new BusinessRuleError('Reservation has no phone number for WhatsApp reminder');
+      throw new BusinessRuleError('Reservation has no phone number for reminder');
     }
     if (reservation.isConfirmedByGuest) {
       throw new BusinessRuleError('Guest has already confirmed — no reminder needed');
@@ -583,30 +595,48 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
       throw new BusinessRuleError('Maximum of 2 reminders already sent for this reservation');
     }
 
+    const settings = (restaurant?.settings ?? {}) as Record<string, unknown>;
+    if (settings.reminderEnabled === false) {
+      throw new BusinessRuleError('Reminders are disabled for this restaurant');
+    }
+    const leadMinutes = typeof settings.reminderLeadMinutes === 'number' ? settings.reminderLeadMinutes : 60;
+
+    // Dedup: block if a REMINDER was already SENT within the lead window
+    const recentReminder = await prisma.messageLog.findFirst({
+      where: {
+        reservationId: reservation.id,
+        messageType:   MessageType.REMINDER,
+        status:        MessageStatus.SENT,
+        sentAt:        { gte: new Date(Date.now() - leadMinutes * 60 * 1000) },
+      },
+    });
+    if (recentReminder) {
+      throw new BusinessRuleError('A reminder was already sent recently for this reservation');
+    }
+
     const lang       = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token      = reservation.confirmationToken ?? crypto.randomUUID();
     const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
+    const message    = buildReminderSmsText(reservation, restaurant?.name ?? 'the restaurant', confirmUrl);
 
-    await sendReminderSms(
-      req.auth.restaurantId,
-      reservation.guestPhone,
-      reservation.guestName,
-      restaurant?.name ?? 'the restaurant',
-      reservation.time,
-      confirmUrl,
-      lang
-    );
+    const result = await sendSms({
+      restaurantId:  req.auth.restaurantId,
+      to:            reservation.guestPhone,
+      message,
+      type:          MessageType.REMINDER,
+      reservationId: reservation.id,
+      guestId:       reservation.guestId ?? undefined,
+    });
 
     const updated = await prisma.reservation.update({
       where: { id: reservation.id },
       data: {
-        remindedAt:    new Date(),
-        reminderCount: { increment: 1 },
+        ...(result.success ? { remindedAt: new Date(), reminderCount: { increment: 1 } } : {}),
         ...(reservation.confirmationToken ? {} : { confirmationToken: token }),
       },
     });
 
-    res.json(updated);
+    res.json(result.success ? updated : { ...updated, _smsFailed: true });
     notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
 });
