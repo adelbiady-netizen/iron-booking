@@ -1805,30 +1805,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }
 
-  // ── Incoming call render mode decision ──────────────────────────────────────
-  // Full CallDrawer only when the right-side workspace is free.
-  // Compact card when any drawer or active floor workflow is open so the
-  // host's current context is not hidden.
-  const callActiveDrawer =
-    selectedRes       ? 'GuestDrawer'
-    : createMode      ? `CreateDrawer(${createMode})`
-    : tablePickMode   ? 'TablePickMode'
-    : waitlistAssignEntry ? 'WaitlistAssign'
-    : 'none';
+  // Full CallDrawer only when no drawer or active floor workflow is open.
+  // Compact card when the host is mid-flow so their context is not hidden.
   const callWorkflowActive = !!(selectedRes || createMode || tablePickMode || waitlistAssignEntry);
-
-  if (incomingCall) {
-    console.log('[IncomingCallMode]', {
-      incomingCall:       !!incomingCall,
-      selectedRes:        !!selectedRes,
-      createMode:         createMode,
-      tablePickMode:      tablePickMode,
-      waitlistAssignEntry: !!waitlistAssignEntry,
-      activeDrawer:       callActiveDrawer,
-      willRenderCard:     callWorkflowActive,
-      willRenderFullDrawer: !callWorkflowActive,
-    });
-  }
 
   return (
     <div className="h-full flex flex-col bg-iron-bg overflow-hidden">
