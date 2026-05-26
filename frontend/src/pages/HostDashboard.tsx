@@ -22,6 +22,7 @@ import HostsSettingsPage from './HostsSettingsPage';
 import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import CallDrawer from '../components/CallDrawer';
+import IncomingCallCard from '../components/IncomingCallCard';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
 import ServiceReportPanel from '../components/ServiceReportPanel';
 import BulkConfirmModal from '../components/BulkConfirmModal';
@@ -2152,7 +2153,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         </button>
       )}
 
-      {incomingCall && (
+      {incomingCall && !(selectedRes || createMode) && (
         <CallDrawer
           phone={incomingCall.phone}
           createdAt={incomingCall.createdAt}
@@ -2168,6 +2169,27 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             lastCallRef.current = null; setIncomingCall(null);
           }}
           onClose={() => { lastCallRef.current = null; setIncomingCall(null); }}
+        />
+      )}
+
+      {incomingCall && (selectedRes || createMode) && (
+        <IncomingCallCard
+          phone={incomingCall.phone}
+          createdAt={incomingCall.createdAt}
+          onOpen={() => {
+            setSelectedRes(null);
+            setCreateMode(null);
+            setPreselectedTableId(null);
+            setPreselectedCombinedTableIds([]);
+            setGapHint(null);
+            setCallPrefillPhone('');
+          }}
+          onNewReservation={(phone) => {
+            setCallPrefillPhone(phone);
+            setCreateMode('reservation');
+            lastCallRef.current = null; setIncomingCall(null);
+          }}
+          onDismiss={() => { lastCallRef.current = null; setIncomingCall(null); }}
         />
       )}
 

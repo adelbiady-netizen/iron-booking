@@ -617,6 +617,7 @@ export const THe = {
     noGuest:         'לא נמצאה רשומת אורח',
     newReservation:  'הזמנה חדשה',
     dismiss:         'סגור',
+    openFull:        'פתח',
     visits:          (n: number) => `${n} ביקורים`,
     noShows:         (n: number) => `${n} אי-הגעות`,
     frequentGuest:   'אורח קבוע',

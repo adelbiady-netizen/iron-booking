@@ -631,6 +631,7 @@ export const T = {
     noGuest:         'No guest record found',
     newReservation:  'New Reservation',
     dismiss:         'Dismiss',
+    openFull:        'Open',
     visits:          (n: number) => `${n} visit${n === 1 ? '' : 's'}`,
     noShows:         (n: number) => `${n} no-show${n === 1 ? '' : 's'}`,
     frequentGuest:   'Regular',
