@@ -55,13 +55,14 @@ function buildReminderSmsText(
 function buildConfirmationRequestSmsText(
   r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null },
   restaurantName: string,
+  confirmUrl: string,
 ): string {
   const lang = r.guestLang ?? 'he';
   const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
   if (lang === 'he') {
-    return `שלום ${r.guestName}, קיבלנו את הזמנתך ב${restaurantName} לתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים. שלחנו לך בקשת אישור. תודה!`;
+    return `שלום ${r.guestName}, אנא אשר/י את הגעתך ל${restaurantName} בתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים. לאישור: ${confirmUrl}`;
   }
-  return `Hi ${r.guestName}, we've received your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests. A confirmation request has been sent. Thank you!`;
+  return `Hi ${r.guestName}, please confirm your arrival at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests. Confirm here: ${confirmUrl}`;
 }
 
 const router = Router();
@@ -441,7 +442,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
       });
       if (!recentSent) {
         smsAttempted = true;
-        const message = buildConfirmationRequestSmsText(reservation, restaurantName);
+        const message = buildConfirmationRequestSmsText(reservation, restaurantName, confirmUrl);
         const result  = await sendSms({
           restaurantId:  req.auth.restaurantId,
           to:            reservation.guestPhone,
