@@ -29,25 +29,27 @@ export default function IncomingCallCard({ phone, createdAt, onOpen, onNewReserv
   const elapsed = useElapsed(createdAt);
 
   return (
-    <div className="fixed bottom-4 right-4 z-[60] w-72 bg-iron-elevated border border-iron-green/50 rounded-2xl shadow-2xl animate-toast overflow-hidden">
+    // Positioned bottom-left so it never overlaps the right-side workflow drawers.
+    // Physical left-4 matches the physical right-0 drawer positioning convention.
+    <div className="fixed bottom-4 left-4 z-[60] w-64 bg-iron-elevated border border-iron-green/30 rounded-xl shadow-lg animate-toast overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2.5">
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-iron-green opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-iron-green" />
+      <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-iron-green opacity-60" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-iron-green" />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-iron-muted/70 text-[10px] font-semibold uppercase tracking-widest leading-none mb-0.5">
+          <p className="text-iron-muted/60 text-[10px] font-medium uppercase tracking-widest leading-none mb-0.5">
             {T.callDrawer.title}
           </p>
-          <p className="text-iron-text font-bold text-sm leading-tight truncate tabular-nums">
+          <p className="text-iron-text font-semibold text-sm leading-tight truncate tabular-nums">
             {phone || T.callDrawer.unknownCaller}
           </p>
         </div>
-        <span className="text-iron-muted/60 text-[11px] tabular-nums shrink-0 font-medium">{elapsed}</span>
+        <span className="text-iron-muted/50 text-[10px] tabular-nums shrink-0">{elapsed}</span>
         <button
           onClick={onDismiss}
-          className="text-iron-muted/50 hover:text-iron-text text-xl leading-none w-7 h-7 flex items-center justify-center rounded-lg hover:bg-iron-bg/60 transition-colors shrink-0"
+          className="text-iron-muted/40 hover:text-iron-muted text-lg leading-none w-6 h-6 flex items-center justify-center rounded-md hover:bg-iron-bg/60 transition-colors shrink-0"
           aria-label={T.callDrawer.dismiss}
         >
           ×
@@ -55,16 +57,16 @@ export default function IncomingCallCard({ phone, createdAt, onOpen, onNewReserv
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 px-4 pb-3.5">
+      <div className="flex gap-1.5 px-3.5 pb-3">
         <button
           onClick={onOpen}
-          className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/18 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/28 transition-colors"
+          className="flex-1 text-[11px] font-medium py-1.5 rounded-md bg-iron-green/12 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/20 transition-colors"
         >
           {T.callDrawer.openFull}
         </button>
         <button
           onClick={() => onNewReservation(phone)}
-          className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-bg/60 border border-iron-border/40 text-iron-text hover:bg-iron-bg transition-colors"
+          className="flex-1 text-[11px] font-medium py-1.5 rounded-md bg-transparent border border-iron-border/30 text-iron-muted hover:text-iron-text hover:border-iron-border/50 transition-colors"
         >
           {T.callDrawer.newReservation}
         </button>
