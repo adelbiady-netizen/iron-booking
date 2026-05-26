@@ -622,6 +622,7 @@ export async function seatReservation(
         const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
         if (det?.conflictingReservationId) {
           // Future reservation on this table — surface conflict modal instead of silently seating.
+          console.log('[SeatConflictTransform]', { reservationId: id, conflictingReservationId: det.conflictingReservationId, tableId });
           const conflictRes = await prisma.reservation.findUnique({
             where: { id: det.conflictingReservationId },
             select: { id: true, guestName: true, time: true, partySize: true },
@@ -642,9 +643,11 @@ export async function seatReservation(
           }
         }
         // Hard conflict: blocked period, table-level constraint, or conflictRes not found.
+        console.log('[SeatHardReject]', { reason: (err as ConflictError).message, tableId, conflictingReservationId: det?.conflictingReservationId ?? null });
         throw err;
       } else {
         // NotFoundError, BusinessRuleError, ValidationError — always hard block.
+        console.log('[SeatHardReject]', { reason: (err as Error).message, tableId, errType: (err as Error).constructor?.name });
         throw err;
       }
     }
