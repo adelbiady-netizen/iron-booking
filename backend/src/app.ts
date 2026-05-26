@@ -65,6 +65,13 @@ app.use(
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined', {
   skip: (req) => req.path.startsWith('/api/integrations/events'),
 }));
+// Link telephony webhooks may send a form-encoded body with the wrong (or missing)
+// Content-Type, causing express.json() to reject it with entity.parse.failed.
+// body-parser skips parsing when req.body is already set, so mounting text/urlencoded
+// parsers for this path BEFORE the global JSON parser prevents the 400 rejection.
+app.use('/api/integrations/link', express.text({ type: '*/*' }));
+app.use('/api/integrations/link', express.urlencoded({ extended: false }));
+
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
