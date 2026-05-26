@@ -2147,7 +2147,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       {callNotification && !incomingCall && (
         <button
           onClick={() => { setIncomingCall(callNotification); setCallNotification(null); }}
-          className="fixed bottom-16 right-4 z-50 flex items-center gap-2.5 bg-iron-elevated border border-iron-green/50 text-iron-green-light text-sm font-semibold pl-3 pr-4 py-2.5 rounded-full shadow-2xl animate-toast"
+          className="fixed bottom-4 left-4 z-[60] flex items-center gap-2.5 bg-iron-elevated border border-iron-green/30 text-iron-green-light text-sm font-medium pl-3 pr-4 py-2 rounded-full shadow-lg animate-toast"
         >
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-iron-green opacity-75" />
