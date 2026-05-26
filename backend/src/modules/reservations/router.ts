@@ -405,7 +405,8 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
 
     const lang           = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token          = crypto.randomUUID();
-    const confirmUrl     = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
+    const confirmUrl      = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
+    const shortConfirmUrl = `${config.frontendBaseUrl}/c/${token}`;
     const restaurantName = restaurant?.name ?? 'the restaurant';
 
     // ── Channel 1: WhatsApp ───────────────────────────────────────────────────
@@ -442,7 +443,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
       });
       if (!recentSent) {
         smsAttempted = true;
-        const message = buildConfirmationRequestSmsText(reservation, restaurantName, confirmUrl);
+        const message = buildConfirmationRequestSmsText(reservation, restaurantName, shortConfirmUrl);
         const result  = await sendSms({
           restaurantId:  req.auth.restaurantId,
           to:            reservation.guestPhone,
@@ -621,10 +622,10 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
       throw new BusinessRuleError('A reminder was already sent recently for this reservation');
     }
 
-    const lang       = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
-    const token      = reservation.confirmationToken ?? crypto.randomUUID();
-    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
-    const message    = buildReminderSmsText(reservation, restaurant?.name ?? 'the restaurant', confirmUrl);
+    const lang            = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
+    const token           = reservation.confirmationToken ?? crypto.randomUUID();
+    const shortConfirmUrl = `${config.frontendBaseUrl}/c/${token}`;
+    const message         = buildReminderSmsText(reservation, restaurant?.name ?? 'the restaurant', shortConfirmUrl);
 
     const result = await sendSms({
       restaurantId:  req.auth.restaurantId,

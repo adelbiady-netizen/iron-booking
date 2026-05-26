@@ -124,10 +124,10 @@ export async function sendReservationReminders(
     });
     if (recentReminder) { skipped++; continue; }
 
-    const lang       = (r.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
-    const token      = r.confirmationToken ?? crypto.randomUUID();
-    const confirmUrl = `${config.frontendBaseUrl}/confirm?token=${token}${lang === 'he' ? '&lang=he' : ''}`;
-    const message    = buildReminderSmsText(r, restaurantName, confirmUrl);
+    const lang            = (r.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
+    const token           = r.confirmationToken ?? crypto.randomUUID();
+    const shortConfirmUrl = `${config.frontendBaseUrl}/c/${token}`;
+    const message         = buildReminderSmsText(r, restaurantName, shortConfirmUrl);
 
     // Dry-run: log intent but do not send, do not update DB, do not write MessageLog
     if (options?.dryRun) {

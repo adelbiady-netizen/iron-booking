@@ -210,6 +210,10 @@ export default function App() {
     const token = new URLSearchParams(window.location.search).get('token');
     if (token) return <ConfirmationPage token={token} />;
   }
+  if (path.startsWith('/c/')) {
+    const token = path.split('/')[2];
+    if (token) return <ConfirmationPage token={token} />;
+  }
   if (path.startsWith('/book/')) {
     const slug = path.split('/')[2];
     if (slug) return <BookingPage slug={slug} />;
