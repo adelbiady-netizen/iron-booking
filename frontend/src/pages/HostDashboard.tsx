@@ -1485,6 +1485,42 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [showToast]);
 
+  const handleContextMenuReturnToList = useCallback(async (res: Reservation) => {
+    if (inFlightRef.current.has(res.id)) return;
+
+    const tableId = res.tableId;
+    let snapshotFloorTable: FloorTable | null = null;
+
+    inFlightRef.current.add(res.id);
+    setInFlightIds(new Set(inFlightRef.current));
+
+    setReservations(prev => prev.map(r =>
+      r.id === res.id ? { ...r, status: 'CONFIRMED' as const, tableId: null, combinedTableIds: [], seatedAt: null } : r
+    ));
+    if (tableId) {
+      setFloorTables(prev => prev.map(t => {
+        if (t.id === tableId) {
+          snapshotFloorTable = t;
+          return { ...t, liveStatus: 'AVAILABLE' as FloorTable['liveStatus'], currentReservation: null };
+        }
+        return t;
+      }));
+    }
+
+    try {
+      const updated = await api.reservations.unseat(res.id);
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      showToast(T.guestDrawer.toastUnseated, 'success');
+    } catch (err) {
+      setReservations(prev => prev.map(r => r.id === res.id ? res : r));
+      if (snapshotFloorTable) { const snap = snapshotFloorTable; setFloorTables(prev => prev.map(t => t.id === tableId ? snap : t)); }
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      inFlightRef.current.delete(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
+    }
+  }, [showToast]);
+
   const handleContextMenuOpenDetails = useCallback((res: Reservation) => {
     const enriched = reservations.find(r => r.id === res.id) ?? res;
     setQuickTable(null);
@@ -1969,6 +2005,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuSeat={handleContextMenuSeat}
           onContextMenuComplete={handleContextMenuComplete}
           onContextMenuMove={handleContextMenuMove}
+          onContextMenuReturnToList={handleContextMenuReturnToList}
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
           onContextMenuSwap={handleContextMenuSwap}

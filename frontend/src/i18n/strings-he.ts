@@ -123,6 +123,7 @@ export const THe = {
     ctxGuestArrived:   'הגיע',
     ctxGuestConfirmed: 'מאושר',
     ctxGuestWaitlist:  'המתנה',
+    ctxReturnToList:   'החזר לרשימה',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

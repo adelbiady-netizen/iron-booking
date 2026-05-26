@@ -122,6 +122,7 @@ export const T = {
     ctxGuestArrived:   'Arrived',
     ctxGuestConfirmed: 'Confirmed',
     ctxGuestWaitlist:  'Waitlist',
+    ctxReturnToList:   'Return to list',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

@@ -385,6 +385,7 @@ interface Props {
   onContextMenuOpenDetails?: (res: Reservation) => void;
   onContextMenuArrive?: (res: Reservation) => void;
   onContextMenuSwap?: (res: Reservation) => void;
+  onContextMenuReturnToList?: (res: Reservation) => void;
   // Currently active reservation in the GuestDrawer — used to show recovery
   // actions ("שבץ מחדש") when the drawer holds a displaced/reorganized reservation.
   activeDrawerRes?: Reservation | null;
@@ -483,6 +484,7 @@ export default function FloorBoard({
   onContextMenuOpenDetails,
   onContextMenuArrive,
   onContextMenuSwap,
+  onContextMenuReturnToList,
   activeDrawerRes = null,
   inFlightIds,
   eligibleGuests = [],
@@ -1460,8 +1462,9 @@ export default function FloorBoard({
         ) ?? null;
         const canSeat       = !!onContextMenuSeat       && !!seatableRes && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id) && !isDisplacedActive && !isCtxQuietReserved;
         const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
-        const canComplete   = !!onContextMenuComplete    && isOccupied    && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
-        const canMove       = !!onContextMenuMove        && isOccupied    && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
+        const canComplete        = !!onContextMenuComplete       && isOccupied && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
+        const canMove            = !!onContextMenuMove           && isOccupied && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
+        const canReturnToList    = !!onContextMenuReturnToList   && isOccupied && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
         const canSwap       = !!onContextMenuSwap && !!swapRes && !t.locked && isToday
                                 && !inFlightIds?.has(swapRes.id)
                                 && !(swapRes.combinedTableIds ?? []).length && !swapRes.reorganizeAt;
@@ -1470,7 +1473,7 @@ export default function FloorBoard({
         // Show table-first seating on AVAILABLE and RESERVED/RESERVED_SOON tables.
         // OCCUPIED and locked tables are still blocked. Backend handles future-reservation conflicts via reorganize modal.
         const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && eligibleGuests.length > 0;
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canSwap || canOpenDetails || canTableFirstSeat;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat;
 
         return (
           <>
@@ -1562,6 +1565,14 @@ export default function FloorBoard({
                   className="w-full text-left px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMove}
+                </button>
+              )}
+              {canReturnToList && (
+                <button
+                  onClick={() => { onContextMenuReturnToList!(currentRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxReturnToList}
                 </button>
               )}
               {canSwap && (
