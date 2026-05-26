@@ -1805,6 +1805,31 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }
 
+  // ── Incoming call render mode decision ──────────────────────────────────────
+  // Full CallDrawer only when the right-side workspace is free.
+  // Compact card when any drawer or active floor workflow is open so the
+  // host's current context is not hidden.
+  const callActiveDrawer =
+    selectedRes       ? 'GuestDrawer'
+    : createMode      ? `CreateDrawer(${createMode})`
+    : tablePickMode   ? 'TablePickMode'
+    : waitlistAssignEntry ? 'WaitlistAssign'
+    : 'none';
+  const callWorkflowActive = !!(selectedRes || createMode || tablePickMode || waitlistAssignEntry);
+
+  if (incomingCall) {
+    console.log('[IncomingCallMode]', {
+      incomingCall:       !!incomingCall,
+      selectedRes:        !!selectedRes,
+      createMode:         createMode,
+      tablePickMode:      tablePickMode,
+      waitlistAssignEntry: !!waitlistAssignEntry,
+      activeDrawer:       callActiveDrawer,
+      willRenderCard:     callWorkflowActive,
+      willRenderFullDrawer: !callWorkflowActive,
+    });
+  }
+
   return (
     <div className="h-full flex flex-col bg-iron-bg overflow-hidden">
       <TopBar
@@ -2153,7 +2178,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         </button>
       )}
 
-      {incomingCall && !(selectedRes || createMode) && (
+      {incomingCall && !callWorkflowActive && (
         <CallDrawer
           phone={incomingCall.phone}
           createdAt={incomingCall.createdAt}
@@ -2172,7 +2197,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         />
       )}
 
-      {incomingCall && (selectedRes || createMode) && (
+      {incomingCall && callWorkflowActive && (
         <IncomingCallCard
           phone={incomingCall.phone}
           createdAt={incomingCall.createdAt}
