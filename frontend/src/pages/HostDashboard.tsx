@@ -64,7 +64,8 @@ function scoreWaitlistMatch(entry: WaitlistEntry, table: FloorTable, operational
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function snapTo30(totalMinutes: number): string {
@@ -465,6 +466,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   useEffect(() => {
     const floorId = setInterval(() => {
       if (!liveModeRef.current) return;
+      setDate(todayStr());
       setTime(nowTime());
       setRefreshKey(k => k + 1);
     }, 60_000);

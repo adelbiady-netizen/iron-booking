@@ -213,6 +213,50 @@ function NumInput({ value, onChange, min, max }: { value: number; onChange: (v: 
   );
 }
 
+// ─── Content-area error boundary ─────────────────────────────────────────────
+// Wraps the right-side content panel so a render crash (e.g. in GuestHubCmsPanel)
+// shows an inline error rather than escaping to the full-screen top-level boundary.
+// The `key` prop resets it whenever the user navigates to a different view or ID.
+
+interface PanelBoundaryState { hasError: boolean; message: string }
+
+class PanelErrorBoundary extends React.Component<{ children: ReactNode; resetKey: string }, PanelBoundaryState> {
+  state: PanelBoundaryState = { hasError: false, message: '' };
+
+  static getDerivedStateFromError(err: unknown): PanelBoundaryState {
+    return { hasError: true, message: err instanceof Error ? err.message : String(err) };
+  }
+
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (prev.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, message: '' });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-sm w-full text-center space-y-4">
+            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-red-500/30 flex items-center justify-center mx-auto">
+              <span className="text-red-400 text-lg font-bold">!</span>
+            </div>
+            <p className="text-iron-text font-semibold text-sm">Panel error</p>
+            <p className="text-iron-muted text-xs font-mono break-all leading-relaxed">{this.state.message}</p>
+            <button
+              onClick={() => this.setState({ hasError: false, message: '' })}
+              className="px-5 py-2.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white text-sm font-semibold transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -2546,23 +2590,25 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         </div>}
 
         {/* Main content */}
-        <div className="flex-1 overflow-hidden flex">
-          {view === 'splash' && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-iron-muted text-sm">
-                  {sidebarTab === 'groups'
-                    ? (groups.length === 0 ? T.admin.noGroupsHint : 'Select a group or create a new one')
-                    : (restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate)}
-                </p>
+        <PanelErrorBoundary resetKey={`${view}-${selectedId ?? ''}-${selectedGroupId ?? ''}`}>
+          <div className="flex-1 overflow-hidden flex">
+            {view === 'splash' && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-iron-muted text-sm">
+                    {sidebarTab === 'groups'
+                      ? (groups.length === 0 ? T.admin.noGroupsHint : 'Select a group or create a new one')
+                      : (restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate)}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-          {view === 'create'        && renderWizard()}
-          {view === 'detail'        && renderDetail()}
-          {view === 'create-group'  && renderCreateGroup()}
-          {view === 'group-detail'  && renderGroupDetail()}
-        </div>
+            )}
+            {view === 'create'        && renderWizard()}
+            {view === 'detail'        && renderDetail()}
+            {view === 'create-group'  && renderCreateGroup()}
+            {view === 'group-detail'  && renderGroupDetail()}
+          </div>
+        </PanelErrorBoundary>
       </div>
 
       {/* Toast */}
