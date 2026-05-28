@@ -333,6 +333,8 @@ export const api = {
       }),
     notify: (id: string) =>
       request<WaitlistEntry>(`/waitlist/${id}/notify`, { method: 'POST' }),
+    update: (id: string, data: { partySize?: number; guestName?: string; notes?: string }) =>
+      request<WaitlistEntry>(`/waitlist/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     remove: (id: string, reason: 'LEFT' | 'REMOVED') =>
       request<WaitlistEntry>(`/waitlist/${id}/remove`, { method: 'POST', body: JSON.stringify({ reason }) }),
   },

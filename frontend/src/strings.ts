@@ -259,6 +259,8 @@ export const T = {
     etaMin:           (n: number) => `ETA ${n}m`,
     waitingMin:       (n: number) => `waiting ${n}m`,
     justAdded:        'Just added',
+    editPartyTitle:   'Edit party size',
+    editPartySave:    'Save',
   },
 
   // ── CreateDrawer ───────────────────────────────────────────────────────────

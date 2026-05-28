@@ -260,6 +260,8 @@ export const THe = {
     etaMin:           (n: number) => `בעוד ${n} דק׳`,
     waitingMin:       (n: number) => `ממתין ${n} דק׳`,
     justAdded:        'נוסף עכשיו',
+    editPartyTitle:   'ערוך מספר אורחים',
+    editPartySave:    'שמור',
   },
 
   // ── CreateDrawer ───────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ interface Props {
   onAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
   onSeat: (entry: WaitlistEntry) => void;
   onNotify?: (entry: WaitlistEntry) => Promise<void>;
+  onUpdate?: (entry: WaitlistEntry, partySize: number) => Promise<void>;
   onCancel: (entry: WaitlistEntry) => void;
   onNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];
@@ -31,7 +32,7 @@ interface Props {
   isToday?: boolean;
 }
 
-export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow, isToday = true }: Props) {
+export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onUpdate, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow, isToday = true }: Props) {
   const T = useT();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [showForm, setShowForm] = useState(false);
@@ -43,6 +44,9 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   const [busyNotify, setBusyNotify] = useState<string | null>(null);
   const [busy,      setBusy]      = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+  const [editingId,  setEditingId]  = useState<string | null>(null);
+  const [editValue,  setEditValue]  = useState('');
+  const [editBusy,   setEditBusy]   = useState(false);
   const [pendingConflict, setPendingConflict] = useState<{
     entryId: string; tableId: string; tableName: string; conflictMin: number;
   } | null>(null);
@@ -54,6 +58,21 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   function resetForm() {
     setName(''); setPartySize('2'); setPhone(''); setError(null);
     setGuestHint(null); setHintDismissed(false);
+  }
+
+  async function handleSaveParty(entry: WaitlistEntry) {
+    const n = parseInt(editValue, 10);
+    if (!n || n < 1 || n > 30) return;
+    setEditBusy(true);
+    try {
+      await onUpdate?.(entry, n);
+      setEditingId(null);
+      setEditValue('');
+    } catch {
+      // keep edit open so host can retry
+    } finally {
+      setEditBusy(false);
+    }
   }
 
   // Debounced guest lookup by phone
@@ -266,7 +285,50 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                     )}
                   </div>
                   <p className="text-iron-muted text-[10px]">
-                    {T.waitlistPanel.guests(entry.partySize)}
+                    {editingId === entry.id ? (
+                      <span className="inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="number" min={1} max={30}
+                          value={editValue}
+                          autoFocus
+                          onChange={e => setEditValue(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleSaveParty(entry);
+                            if (e.key === 'Escape') { setEditingId(null); setEditValue(''); }
+                          }}
+                          className="w-10 bg-iron-bg border border-iron-green/50 rounded px-1 text-iron-text text-[10px] text-center focus:outline-none focus:border-iron-green"
+                        />
+                        <button
+                          type="button"
+                          disabled={editBusy}
+                          onClick={() => handleSaveParty(entry)}
+                          className="text-iron-green-light text-[10px] hover:text-iron-green disabled:opacity-40 transition-colors"
+                        >
+                          {editBusy ? '…' : T.waitlistPanel.editPartySave}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingId(null); setEditValue(''); }}
+                          className="text-iron-muted text-[10px] hover:text-iron-text transition-colors"
+                        >
+                          {T.common.cancel}
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        {T.waitlistPanel.guests(entry.partySize)}
+                        {onUpdate && (
+                          <button
+                            type="button"
+                            title={T.waitlistPanel.editPartyTitle}
+                            onClick={e => { e.stopPropagation(); setEditingId(entry.id); setEditValue(String(entry.partySize)); }}
+                            className="text-iron-muted/40 hover:text-iron-muted text-[9px] leading-none transition-colors touch-manipulation"
+                          >
+                            ✎
+                          </button>
+                        )}
+                      </span>
+                    )}
                     {entry.preferredTime && (
                       <span className="text-iron-muted/70">
                         {' · '}pref {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}

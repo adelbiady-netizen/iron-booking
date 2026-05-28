@@ -51,6 +51,7 @@ interface Props {
   onWaitlistAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
   onWaitlistSeat: (entry: WaitlistEntry) => void;
   onWaitlistNotify: (entry: WaitlistEntry) => Promise<void>;
+  onWaitlistUpdate?: (entry: WaitlistEntry, partySize: number) => Promise<void>;
   onWaitlistCancel: (entry: WaitlistEntry) => void;
   onWaitlistNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];
@@ -73,7 +74,7 @@ interface Props {
 export default function ReservationPanel({
   reservations, selectedId, highlightId, onSelect, loading,
   onNewReservation, onWalkIn,
-  waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistCancel, onWaitlistNoShow,
+  waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
   onChooseTable, isLiveView, onHoverRow, onSmartAssign,
@@ -250,6 +251,7 @@ export default function ReservationPanel({
           onAdd={onWaitlistAdd}
           onSeat={onWaitlistSeat}
           onNotify={onWaitlistNotify}
+          onUpdate={onWaitlistUpdate}
           onCancel={onWaitlistCancel}
           onNoShow={onWaitlistNoShow}
           nextInLine={nextInLine}
