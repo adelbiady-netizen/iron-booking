@@ -810,16 +810,24 @@ export default function FloorBoard({
   }
 
   function handleClick(t: FloorTable) {
-    // Waitlist assignment mode: clicking an available table replaces the current selection
+    // Waitlist assignment mode: host manual pick takes priority over system suggestions.
+    // Hard-block only physically occupied (OCCUPIED/STALE_OCCUPIED), admin-blocked
+    // (BLOCKED), or locked tables. Future-reserved tables (RESERVED/RESERVED_SOON)
+    // pass through — the backend returns TABLE_HAS_FUTURE_RESERVATIONS and the
+    // reorganize modal handles the decision.
     if (waitlistAssignEntry) {
-      if (t.liveStatus === 'AVAILABLE' && !t.locked) {
-        setWlPickWarn(null);   // clear any lingering rejection before confirming new pick
-        onWaitlistTablePick?.(t.id);
-      } else {
-        // Ring the ineligible table AND surface the rejection prominently in the confirm banner
+      const isHardBlocked =
+        t.liveStatus === 'OCCUPIED' ||
+        t.liveStatus === 'STALE_OCCUPIED' ||
+        t.liveStatus === 'BLOCKED' ||
+        t.locked;
+      if (isHardBlocked) {
         const wid = t.id;
         setWlPickWarn(wid);
         setTimeout(() => setWlPickWarn(w => (w === wid ? null : w)), 2500);
+      } else {
+        setWlPickWarn(null);
+        onWaitlistTablePick?.(t.id);
       }
       return;
     }
