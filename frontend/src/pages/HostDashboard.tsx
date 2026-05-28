@@ -1222,7 +1222,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       return true;
     } catch (err) {
       if (err instanceof ApiError && err.code === 'CONFLICT') {
-        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[]; conflictingReservationId?: string; validatorDebug?: Record<string, unknown> } | null;
+        // Diagnostic: always log full conflict details so the exact cause is visible in browser DevTools
+        console.error('[wl:seat:conflict]', {
+          tableId,
+          errCode:                  err.code,
+          errMessage:               err.message,
+          detCode:                  det?.code ?? null,
+          conflictingReservationId: det?.conflictingReservationId ?? null,
+          validatorDebug:           det?.validatorDebug ?? null,
+          fullDetails:              det,
+        });
         if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length && tableId) {
           const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
           setReorganizeConflict({
