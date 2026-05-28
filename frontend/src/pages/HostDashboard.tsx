@@ -159,6 +159,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     tableName: string;
     busy: boolean;
     _key: number;
+    pendingWaitlistEntry?: WaitlistEntry;
   } | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     res: Reservation;
@@ -1220,6 +1221,23 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       showToast(tableName ? T.hostDashboard.toastSeatAt(entry.guestName, tableName) : T.hostDashboard.toastSeated);
       return true;
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'CONFLICT') {
+        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length && tableId) {
+          const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
+          setReorganizeConflict({
+            conflicts: det.conflicts,
+            pendingReservationId: '',
+            pendingTableId: tableId,
+            pendingCombinedIds: [],
+            tableName: tName,
+            busy: false,
+            _key: ++reorganizeKeyRef.current,
+            pendingWaitlistEntry: entry,
+          });
+          return false;
+        }
+      }
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
       return false;
     } finally {
@@ -2322,15 +2340,28 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           busy={reorganizeConflict.busy}
           onCancel={() => setReorganizeConflict(null)}
           onConfirm={async (selectedIds) => {
-            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName } = reorganizeConflict;
+            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry } = reorganizeConflict;
             setReorganizeConflict(prev => prev ? { ...prev, busy: true } : null);
             try {
-              const updated = await api.reservations.seat(pendingReservationId, pendingTableId, true, pendingCombinedIds, selectedIds);
-              setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-              setRefreshKey(k => k + 1);
-              setInsights(prev => prev.filter(i => i.tableId !== pendingTableId && i.reservationId !== pendingReservationId));
-              setReorganizeConflict(null);
-              showToast(T.hostDashboard.toastQuickSeated(tableName), 'success');
+              if (pendingWaitlistEntry) {
+                // Waitlist-seat path: seat walk-in, backend unassigns conflicting future reservations
+                const { reservation } = await api.waitlist.seat(pendingWaitlistEntry.id, pendingTableId, true);
+                setReservations(prev => [...prev, reservation]);
+                setWaitlist(prev => prev.filter(e => e.id !== pendingWaitlistEntry.id));
+                setWaitlistAssignEntry(null);
+                setWaitlistAssignTableId(null);
+                setRefreshKey(k => k + 1);
+                setWaitlistRefreshKey(k => k + 1);
+                setReorganizeConflict(null);
+                showToast(T.hostDashboard.toastSeatAt(pendingWaitlistEntry.guestName, tableName));
+              } else {
+                const updated = await api.reservations.seat(pendingReservationId, pendingTableId, true, pendingCombinedIds, selectedIds);
+                setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+                setRefreshKey(k => k + 1);
+                setInsights(prev => prev.filter(i => i.tableId !== pendingTableId && i.reservationId !== pendingReservationId));
+                setReorganizeConflict(null);
+                showToast(T.hostDashboard.toastQuickSeated(tableName), 'success');
+              }
             } catch (err) {
               setReorganizeConflict(null);
               showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');

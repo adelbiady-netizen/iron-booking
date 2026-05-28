@@ -227,8 +227,10 @@ export const THe = {
     chooseBanner:  (name: string, party: number) => `בחר שולחן עבור ${name} (${party} סועדים)`,
     confirmSeat:   (name: string, table: string) => `הושב את ${name} בשולחן ${table}`,
     noTableSeat:   (name: string) => `הושב את ${name} (ללא שולחן)`,
-    cancelAssign:  'ביטול',
-    seatNow:       'הושב עכשיו',
+    cancelAssign:       'ביטול',
+    seatNow:            'הושב עכשיו',
+    tableNotAvailable:  (table: string) => `שולחן ${table} אינו פנוי`,
+    currentlySelected:  (table: string) => `נבחר כעת: ${table}`,
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────

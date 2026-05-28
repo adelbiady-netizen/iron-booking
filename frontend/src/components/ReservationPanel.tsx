@@ -6,7 +6,7 @@ import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
-import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased, arrivedFifoSort } from '../utils/arrival';
+import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased } from '../utils/arrival';
 import { normalizeTime } from '../utils/time';
 
 // Unified name + phone search — works for "052", "1234", "Yossi", "lev".
@@ -377,22 +377,31 @@ export default function ReservationPanel({
                   const isImminent = (r: (typeof visible)[0]) =>
                     !!nowTime && minutesUntilRes(r.time, nowTime) >= 0 && minutesUntilRes(r.time, nowTime) <= 30;
                   // Past-due: reservation time has already passed in live view.
-                  // These are operationally the hottest rows and must stay pinned at top
-                  // regardless of when other reservations were added.
                   const isPastDue = (r: (typeof visible)[0]) =>
                     !!isLiveView && !!nowTime && minutesUntilRes(r.time, nowTime) < 0;
-                  const lateBucket = visible
+
+                  // Arrived bucket: ALL arrived guests, strict FIFO by arrivedAt.
+                  // Arrived guests are excluded from lateBucket even if their reservation
+                  // time has passed — they've physically arrived and entered the FIFO queue.
+                  const arrivedBucket = visible
+                    .filter(r => r.isArrived)
+                    .sort((a, b) => {
+                      const aT = a.arrivedAt ? new Date(a.arrivedAt).getTime() : 0;
+                      const bT = b.arrivedAt ? new Date(b.arrivedAt).getTime() : 0;
+                      if (aT !== bT) return aT - bT;
+                      return a.time.localeCompare(b.time); // fallback: reservation time ASC
+                    });
+                  // Not-arrived guests only from here on.
+                  const notArrived = visible.filter(r => !r.isArrived);
+                  const lateBucket = notArrived
                     .filter(r => isPastDue(r))
                     .sort((a, b) => a.time.localeCompare(b.time)); // earliest = most overdue first
-                  const remaining = visible.filter(r => !isPastDue(r));
-                  const arrivedBucket = remaining
-                    .filter(r => r.isArrived && !!r.arrivedAt)
-                    .sort(arrivedFifoSort);
+                  const remaining = notArrived.filter(r => !isPastDue(r));
                   return [
                     ...lateBucket,
                     ...arrivedBucket,
-                    ...remaining.filter(r => !r.isArrived && isImminent(r)),
-                    ...remaining.filter(r => !r.isArrived && !isImminent(r)),
+                    ...remaining.filter(r => isImminent(r)),
+                    ...remaining.filter(r => !isImminent(r)),
                   ];
                 })()
               : visible
@@ -423,6 +432,7 @@ export default function ReservationPanel({
 
               const statusBadge = staleBadge ?? arrivalBadge ?? (needsReminder
                 ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25', label: T.reservationPanel.needsReminder }
+                : r.status === 'PENDING' ? null
                 : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
 
               const rowBg = selectedId === r.id
@@ -457,7 +467,7 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/[0.18] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.58]' : ''}`}
+                  className={`w-full flex items-stretch border-b border-iron-border/[0.26] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.58]' : ''}`}
                   style={{ boxShadow: selectedId === r.id
                     ? 'inset 0 0 0 1px rgba(111,138,60,0.28), 0 4px 18px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08)'
                     : 'inset 0 1px 0 rgba(255,255,255,0.020)'
@@ -466,9 +476,9 @@ export default function ReservationPanel({
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
                   {/* Time anchor column — left rail for instant time scanning */}
-                  <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3.5 gap-1">
-                    <span className="text-iron-text text-[16px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
-                    <span className="text-iron-muted/65 text-[11px] tabular-nums leading-none font-medium">{r.partySize}p</span>
+                  <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-[18px] gap-1.5">
+                    <span className="text-iron-text text-[17px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
+                    <span className="text-iron-muted/65 text-[12px] tabular-nums leading-none font-semibold">{r.partySize}p</span>
                   </div>
 
                   <button
@@ -476,13 +486,13 @@ export default function ReservationPanel({
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     dir={dir}
-                    className="flex-1 text-start px-3 py-3.5 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
+                    className="flex-1 text-start px-3 py-[18px] min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
                     {/* Row 1 — name + VIP + status badge */}
                     <div className="flex items-center gap-2 mb-1">
                       <span className="flex-1 min-w-0 flex items-center gap-1.5">
-                        <span className="text-iron-text text-[16px] font-bold tracking-tight truncate leading-snug min-w-0">
+                        <span className="text-iron-text text-[18px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
                         {r.guest?.isVip && (
@@ -491,13 +501,15 @@ export default function ReservationPanel({
                           </span>
                         )}
                       </span>
-                      <span dir="ltr" className={`text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${statusBadge.cls}`}>
-                        {statusBadge.label}
-                      </span>
+                      {statusBadge && (
+                        <span dir="ltr" className={`text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${statusBadge.cls}`}>
+                          {statusBadge.label}
+                        </span>
+                      )}
                     </div>
 
                     {/* Row 2 — table assignment */}
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5 mt-1.5">
                       {r.table ? (
                         <span className="text-iron-text/55 text-[12px] font-medium leading-none">{r.table.name}</span>
                       ) : (
@@ -517,9 +529,9 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 3 — phone identity layer */}
-                    <div className="flex items-center gap-1.5 mt-1.5">
+                    <div className="flex items-center gap-1.5 mt-2">
                       {r.guestPhone ? (
-                        <span dir="ltr" className="text-iron-muted/65 text-[12px] font-mono tabular-nums tracking-wider leading-none">
+                        <span dir="ltr" className="text-iron-muted/50 text-[12px] font-mono tabular-nums tracking-wider leading-none">
                           {(() => {
                             const d = r.guestPhone.replace(/\D/g, '');
                             if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
@@ -536,7 +548,7 @@ export default function ReservationPanel({
 
                     {/* Row 4 — optional signal chips */}
                     {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
-                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {r.occasion && (
                           <span className="text-[11px] text-iron-green-light/80 font-medium">{r.occasion}</span>
                         )}

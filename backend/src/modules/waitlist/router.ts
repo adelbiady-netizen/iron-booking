@@ -91,7 +91,8 @@ router.post('/:id/seat', async (req: Request, res: Response, next: NextFunction)
     const result = await service.seatWaitlistGuest(
       req.auth.restaurantId,
       p(req, 'id'),
-      req.body.tableId
+      req.body.tableId,
+      req.body.overrideConflicts === true
     );
     res.json(result);
     eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });

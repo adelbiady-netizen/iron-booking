@@ -326,10 +326,10 @@ export const api = {
       request<WaitlistEntry[]>(`/waitlist?date=${date}${time ? `&time=${encodeURIComponent(time)}` : ''}`),
     add: (body: { guestName: string; partySize: number; guestPhone?: string; date: string; notes?: string }) =>
       request<WaitlistEntry>('/waitlist', { method: 'POST', body: JSON.stringify(body) }),
-    seat: (id: string, tableId?: string) =>
+    seat: (id: string, tableId?: string, overrideConflicts = false) =>
       request<{ entry: WaitlistEntry; reservation: Reservation }>(`/waitlist/${id}/seat`, {
         method: 'POST',
-        body: JSON.stringify({ tableId }),
+        body: JSON.stringify({ tableId, overrideConflicts }),
       }),
     notify: (id: string) =>
       request<WaitlistEntry>(`/waitlist/${id}/notify`, { method: 'POST' }),

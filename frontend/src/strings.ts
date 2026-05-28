@@ -226,8 +226,10 @@ export const T = {
     chooseBanner:  (name: string, party: number) => `Choose a table for ${name} (${party}p)`,
     confirmSeat:   (name: string, table: string) => `Seat ${name} at ${table}`,
     noTableSeat:   (name: string) => `Seat ${name} (no table)`,
-    cancelAssign:  'Cancel',
-    seatNow:       'Seat Now',
+    cancelAssign:       'Cancel',
+    seatNow:            'Seat Now',
+    tableNotAvailable:  (table: string) => `Table ${table} is not available`,
+    currentlySelected:  (table: string) => `Currently selected: ${table}`,
   },
 
   // ── WaitlistPanel ──────────────────────────────────────────────────────────

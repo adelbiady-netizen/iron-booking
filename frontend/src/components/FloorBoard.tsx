@@ -276,9 +276,9 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
           'linear-gradient(180deg, rgba(255,255,255,0.052) 0%, rgba(255,255,255,0.012) 30%, rgba(0,0,0,0.16) 86%, rgba(0,0,0,0.32) 100%)',
           'linear-gradient(90deg, rgba(255,255,255,0.014) 0%, transparent 30%, transparent 68%, rgba(0,0,0,0.10) 100%)',
         ].join(', '),
-        border: '1.5px solid rgba(66,68,80,0.75)',
+        border: '1px solid rgba(66,68,80,0.42)',
         borderRadius: 3,
-        boxShadow: '0 2px 16px rgba(0,0,0,0.56), inset 1px 0 0 rgba(255,255,255,0.06), inset -1px 0 0 rgba(0,0,0,0.24)',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.32), inset 1px 0 0 rgba(255,255,255,0.04), inset -1px 0 0 rgba(0,0,0,0.16)',
         labelColor: 'rgb(var(--iron-text))',
         labelSize: 10, labelWeight: 400, labelOpacity: 0.80,
         labelLetterSpacing: undefined, labelTransform: undefined,
@@ -288,9 +288,9 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
       return {
         bg: `rgba(18,22,16,${(0.28 + (1 - brightness) * 0.10).toFixed(2)})`,
         backgroundImage: 'radial-gradient(ellipse 75% 65% at 50% 42%, rgba(255,240,210,0.030) 0%, rgba(255,220,160,0.012) 58%, transparent 82%)',
-        border: '1px solid rgba(44,54,40,0.62)',
+        border: '1px solid rgba(44,54,40,0.28)',
         borderRadius: 12,
-        boxShadow: 'inset 0 0 28px rgba(0,0,0,0.30)',
+        boxShadow: 'inset 0 0 14px rgba(0,0,0,0.14)',
         labelColor: 'rgb(var(--iron-text))',
         labelSize: 10, labelWeight: 400, labelOpacity: 0.45,
         labelLetterSpacing: '0.10em', labelTransform: 'uppercase',
@@ -813,11 +813,13 @@ export default function FloorBoard({
     // Waitlist assignment mode: clicking an available table replaces the current selection
     if (waitlistAssignEntry) {
       if (t.liveStatus === 'AVAILABLE' && !t.locked) {
+        setWlPickWarn(null);   // clear any lingering rejection before confirming new pick
         onWaitlistTablePick?.(t.id);
       } else {
-        // Flash the ineligible table so the host understands why nothing changed
-        setWlPickWarn(t.id);
-        setTimeout(() => setWlPickWarn(w => (w === t.id ? null : w)), 1200);
+        // Ring the ineligible table AND surface the rejection prominently in the confirm banner
+        const wid = t.id;
+        setWlPickWarn(wid);
+        setTimeout(() => setWlPickWarn(w => (w === wid ? null : w)), 2500);
       }
       return;
     }
@@ -1746,7 +1748,20 @@ export default function FloorBoard({
       {waitlistAssignEntry && !pickMode && (
         <div className="shrink-0 border-t border-indigo-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            {waitlistAssignTableId ? (
+            {wlPickWarn ? (
+              // Rejection state: amber warning + current selection shown below so host can't confuse them
+              <div className="flex flex-col gap-0.5">
+                <span className="text-amber-400 text-sm font-semibold">
+                  ⚠ {T.waitlistAssign.tableNotAvailable(tables.find(t => t.id === wlPickWarn)?.name ?? wlPickWarn)}
+                </span>
+                <span className="text-iron-text/70 text-xs">
+                  {waitlistAssignTableId
+                    ? T.waitlistAssign.currentlySelected(tables.find(t => t.id === waitlistAssignTableId)?.name ?? waitlistAssignTableId)
+                    : T.waitlistAssign.chooseBanner(waitlistAssignEntry.guestName, waitlistAssignEntry.partySize)
+                  }
+                </span>
+              </div>
+            ) : waitlistAssignTableId ? (
               <span className="text-iron-text text-sm font-semibold truncate">
                 {T.waitlistAssign.confirmSeat(
                   waitlistAssignEntry.guestName,
@@ -2937,13 +2952,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : 1.5;
 
   let boxShadow: string | undefined = selected
-    ? '0 0 0 3px rgba(34,197,94,0.48), 0 0 36px rgba(34,197,94,0.22)'
+    ? '0 0 0 3px rgba(34,197,94,0.48), 0 0 18px rgba(34,197,94,0.11)'
     : combinedSelected
-    ? '0 0 0 3px rgba(59,130,246,0.48), 0 0 32px rgba(59,130,246,0.20)'
+    ? '0 0 0 3px rgba(59,130,246,0.48), 0 0 16px rgba(59,130,246,0.10)'
     : softHold && table.liveStatus === 'AVAILABLE'
-    ? '0 0 0 3px rgba(99,102,241,0.34), 0 0 30px rgba(99,102,241,0.18)'
+    ? '0 0 0 3px rgba(99,102,241,0.34), 0 0 14px rgba(99,102,241,0.08)'
     : bestSuggestion
-    ? '0 0 0 2px rgba(34,197,94,0.28), 0 0 30px rgba(34,197,94,0.15)'
+    ? '0 0 0 2px rgba(34,197,94,0.28), 0 0 14px rgba(34,197,94,0.07)'
     : isOverdue ? (
         overdueTier === 'critical' ? '0 0 0 3px rgba(185,28,28,0.80)' :
         overdueTier === 'warning'  ? '0 0 0 2px rgba(220,38,38,0.60)' :
@@ -2963,14 +2978,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!boxShadow && !table.locked) {
     if (table.liveStatus === 'OCCUPIED' && !isOverdue) {
       boxShadow = isEndingSoon
-        ? '0 2px 14px rgba(251,191,36,0.14)'     // freeing soon — warm amber readiness
+        ? '0 2px 8px rgba(251,191,36,0.08)'      // freeing soon — warm amber readiness
         : isLongStable
-        ? '0 2px 8px rgba(34,197,94,0.08)'        // long stable — very subtle, recedes
-        : '0 2px 12px rgba(34,197,94,0.13)';      // active occupancy — warm green presence
+        ? '0 1px 5px rgba(34,197,94,0.05)'        // long stable — very subtle, recedes
+        : '0 2px 8px rgba(34,197,94,0.08)';       // active occupancy — warm green presence
     } else if (displayStatus === 'RESERVED_SOON') {
-      boxShadow = '0 2px 14px rgba(217,119,6,0.13)';   // amber urgency bloom
+      boxShadow = '0 2px 8px rgba(217,119,6,0.08)';    // amber urgency bloom
     } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
-      boxShadow = '0 2px 18px rgba(59,130,246,0.18)';  // NEAR: visible blue bloom — operational signal
+      boxShadow = '0 2px 10px rgba(59,130,246,0.09)';  // NEAR: faint blue bloom — operational signal
     }
   }
 
@@ -2980,8 +2995,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
     } else if (displayStatus === 'RESERVED' && !isDormantReserved) {
       borderColor = isUpcomingReserved
-        ? 'rgba(59,130,246,0.24)'    // UPCOMING 60–120 min: subtle awareness edge
-        : 'rgba(59,130,246,0.52)';   // ACTIVE <60 min: strong committed signal
+        ? 'rgba(59,130,246,0.14)'    // UPCOMING 60–120 min: subtle awareness edge
+        : 'rgba(59,130,246,0.34)';   // ACTIVE <60 min: committed signal
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
     } else if (table.liveStatus === 'BLOCKED') {
@@ -3003,7 +3018,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (isDormantReserved && !selected && !combinedSelected && !softHold) {
     borderWidth = cls === 'communal' ? 1.5 : 1;
     borderColor = isNextResCombined
-      ? 'rgba(59,130,246,0.22)'   // combined dormant: faint blue — distinct from AVAILABLE, calm
+      ? 'rgba(59,130,246,0.13)'   // combined dormant: faint blue — distinct from AVAILABLE, calm
       : sectionColor.startsWith('#') && sectionColor.length === 7
       ? sectionColor + '44'
       : sectionColor;
@@ -3309,7 +3324,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {!pickMode && isEndingSoon && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 80% at 50% 88%, rgba(251,191,36,0.22) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 80% 80% at 50% 88%, rgba(251,191,36,0.10) 0%, transparent 70%)',
           animation: `table-ending 6.5s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
         }} />
@@ -3318,7 +3333,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       {!pickMode && !wlPickWarn && !waitlistAssignTarget && displayStatus === 'RESERVED_SOON' && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 80% at 50% 12%, rgba(251,191,36,0.16) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 80% 80% at 50% 12%, rgba(251,191,36,0.07) 0%, transparent 70%)',
           animation: `table-incoming 5s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 5.0).toFixed(2)}s`,
         }} />
@@ -3328,10 +3343,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
           boxShadow: overdueTier === 'critical'
-            ? 'inset 0 0 22px rgba(185,28,28,0.65)'
+            ? 'inset 0 0 18px rgba(185,28,28,0.46)'
             : overdueTier === 'warning'
-            ? 'inset 0 0 20px rgba(220,38,38,0.50)'
-            : 'inset 0 0 20px rgba(239,68,68,0.32)',
+            ? 'inset 0 0 16px rgba(220,38,38,0.34)'
+            : 'inset 0 0 16px rgba(239,68,68,0.22)',
           animation: `table-tense 5.5s ease-in-out infinite`,
           animationDelay: `-${(_animSeed % 5.5).toFixed(2)}s`,
         }} />
