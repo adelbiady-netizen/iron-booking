@@ -478,6 +478,21 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     return () => { clearInterval(floorId); clearInterval(waitlistId); };
   }, []);
 
+  // Midnight date guard — independent of liveMode.
+  // If the displayed date has fallen behind today (app open overnight with
+  // liveMode off, or host forgot to click Now), roll it to today so the
+  // waitlist never stays pinned to a past operational day.
+  // Does NOT touch time or liveMode — future-date browsing is unaffected.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDate(d => {
+        const today = todayStr();
+        return d < today ? today : d;
+      });
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Reconnect strategy: when both critical API calls fail, retry every 2.5s
   // and restore the dashboard automatically when the backend responds.
   // After 35s of continuous failure, escalate to a harder failure message.

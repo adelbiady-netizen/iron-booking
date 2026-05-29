@@ -106,13 +106,15 @@ export async function listWaitlist(restaurantId: string, date: string, time?: st
   const now = new Date();
   const timeStr = time ?? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-  // Lazy archival: any WAITING/NOTIFIED entry from before the queried date is
-  // stale — the operational day has passed. Archive them so they no longer
-  // appear in any active queue, including historical views of that prior date.
+  // Lazy archival: archive WAITING/NOTIFIED entries from before today.
+  // Uses server-side UTC today as the cutoff — not parsedDate — so stale
+  // entries are swept even when the frontend sends yesterday's date (which
+  // happens when liveMode was off at midnight and the date state didn't roll).
+  const serverToday = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z');
   await prisma.waitlistEntry.updateMany({
     where: {
       restaurantId,
-      date: { lt: parsedDate },
+      date: { lt: serverToday },
       status: { in: ['WAITING', 'NOTIFIED'] },
     },
     data: { status: 'ARCHIVED' },
