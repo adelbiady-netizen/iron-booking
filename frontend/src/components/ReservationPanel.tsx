@@ -128,7 +128,7 @@ export default function ReservationPanel({
 
   const visible = reservations
     .filter(r => {
-      if (filter === 'ACTIVE')   return ['PENDING', 'CONFIRMED'].includes(r.status);
+      if (filter === 'ACTIVE')   return ['PENDING', 'CONFIRMED'].includes(r.status) && !!r.table;
       if (filter === 'SEATED')   return r.status === 'SEATED';
       if (filter === 'DONE')     return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
       if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
@@ -311,8 +311,8 @@ export default function ReservationPanel({
               );
             })()}
 
-            {/* Reorganize queue — shown above normal list when reservations need reassignment */}
-            {reorganizeQueue && reorganizeQueue.length > 0 && (
+            {/* Reorganize queue — work queue, only relevant on NO_TABLE tab */}
+            {filter === 'NO_TABLE' && reorganizeQueue && reorganizeQueue.length > 0 && (
               <div className="border-b border-amber-500/20 bg-amber-500/5">
                 <div className="px-3.5 py-2 flex items-center gap-2">
                   <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest flex-1">
