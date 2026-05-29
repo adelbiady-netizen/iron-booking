@@ -78,6 +78,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     env: config.nodeEnv,
+    commit: process.env.RENDER_GIT_COMMIT ?? 'local',
     timestamp: new Date().toISOString(),
   });
 });
