@@ -111,13 +111,19 @@ export async function listWaitlist(restaurantId: string, date: string, time?: st
   // entries are swept even when the frontend sends yesterday's date (which
   // happens when liveMode was off at midnight and the date state didn't roll).
   const serverToday = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z');
-  await prisma.waitlistEntry.updateMany({
+  const archived = await prisma.waitlistEntry.updateMany({
     where: {
       restaurantId,
       date: { lt: serverToday },
       status: { in: ['WAITING', 'NOTIFIED'] },
     },
     data: { status: 'ARCHIVED' },
+  });
+  console.log('[waitlist:list]', {
+    receivedDate: date,
+    parsedDate: parsedDate.toISOString(),
+    serverToday: serverToday.toISOString(),
+    archivedCount: archived.count,
   });
 
   const [entries, floorTables, restaurant] = await Promise.all([
