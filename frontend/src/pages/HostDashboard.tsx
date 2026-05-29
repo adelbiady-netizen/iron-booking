@@ -453,6 +453,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     let cancelled = false;
     const isBackground = loadedDateRef.current === date;
     if (!isBackground) setWaitlistLoading(true);
+    console.log('[waitlist:fetch]', { date, todayStr: todayStr(), liveMode, url: `/waitlist?date=${date}&time=${time}` });
     api.waitlist.list(date, time)
       .then(data => { if (!cancelled) setWaitlist(data); })
       .catch(() => {})
