@@ -307,7 +307,7 @@ export interface BackendTableSuggestion {
   nextRes?: { guestName: string; time: string; partySize: number };
 }
 
-export type WaitlistStatus = 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT' | 'REMOVED';
+export type WaitlistStatus = 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT' | 'REMOVED' | 'ARCHIVED';
 
 // Discriminated union for the table-first seating context menu.
 // Lets FloorBoard pass a typed guest to HostDashboard without importing component types.

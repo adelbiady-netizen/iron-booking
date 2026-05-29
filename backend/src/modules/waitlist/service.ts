@@ -106,6 +106,18 @@ export async function listWaitlist(restaurantId: string, date: string, time?: st
   const now = new Date();
   const timeStr = time ?? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+  // Lazy archival: any WAITING/NOTIFIED entry from before the queried date is
+  // stale — the operational day has passed. Archive them so they no longer
+  // appear in any active queue, including historical views of that prior date.
+  await prisma.waitlistEntry.updateMany({
+    where: {
+      restaurantId,
+      date: { lt: parsedDate },
+      status: { in: ['WAITING', 'NOTIFIED'] },
+    },
+    data: { status: 'ARCHIVED' },
+  });
+
   const [entries, floorTables, restaurant] = await Promise.all([
     prisma.waitlistEntry.findMany({
       where: { restaurantId, date: parsedDate, status: { in: ['WAITING', 'NOTIFIED'] } },

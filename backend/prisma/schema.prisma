@@ -506,6 +506,7 @@ enum WaitlistStatus {
   SEATED
   LEFT       // chose to leave
   REMOVED    // host removed
+  ARCHIVED   // auto-closed at end of operational day
 }
 
 enum WaitlistSource {
