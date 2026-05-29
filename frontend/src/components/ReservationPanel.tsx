@@ -400,8 +400,8 @@ export default function ReservationPanel({
                     .sort((a, b) => a.time.localeCompare(b.time)); // earliest = most overdue first
                   const remaining = notArrived.filter(r => !isPastDue(r));
                   return [
-                    ...lateBucket,
                     ...arrivedBucket,
+                    ...lateBucket,
                     ...remaining.filter(r => isImminent(r)),
                     ...remaining.filter(r => !isImminent(r)),
                   ];
