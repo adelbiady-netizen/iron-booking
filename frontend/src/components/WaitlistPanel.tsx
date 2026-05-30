@@ -21,20 +21,27 @@ interface EditData {
   notes?: string;
 }
 
-// ── Edit drawer ─────────────────────────────────────────────────────────────
+// ── Inline accordion details panel ──────────────────────────────────────────
 
-interface DrawerProps {
+interface DetailsProps {
   entry: WaitlistEntry;
   todayStr: string;
+  operationalNow: number;
+  isToday: boolean;
+  onUpdate?: (entry: WaitlistEntry, data: EditData) => Promise<void>;
+  onCancel: (entry: WaitlistEntry) => void;
+  onNoShow: (entry: WaitlistEntry) => void;
+  onNotify?: (entry: WaitlistEntry) => Promise<void>;
+  onSeatAtTable?: (tableId: string, entry: WaitlistEntry) => void;
+  entrySuggestions?: Map<string, TableSuggestion[]>;
   onClose: () => void;
-  onSave: (data: EditData) => Promise<void>;
-  onSeat: () => void;
-  onCancel: () => void;
-  onNoShow: () => void;
-  onNotify?: () => Promise<void>;
 }
 
-function WaitlistEditDrawer({ entry, todayStr, onClose, onSave, onSeat, onCancel, onNoShow, onNotify }: DrawerProps) {
+function WaitlistEntryDetails({
+  entry, todayStr, operationalNow, isToday,
+  onUpdate, onCancel, onNoShow, onNotify,
+  onSeatAtTable, entrySuggestions, onClose,
+}: DetailsProps) {
   const T = useT();
   const [localName,  setLocalName]  = useState(entry.guestName);
   const [localParty, setLocalParty] = useState(String(entry.partySize));
@@ -42,6 +49,9 @@ function WaitlistEditDrawer({ entry, todayStr, onClose, onSave, onSeat, onCancel
   const [saving,     setSaving]     = useState(false);
   const [saveError,  setSaveError]  = useState<string | null>(null);
   const [notifyBusy, setNotifyBusy] = useState(false);
+  const [pendingConflict, setPendingConflict] = useState<{
+    tableId: string; tableName: string; conflictMin: number;
+  } | null>(null);
 
   const isDirty =
     localName.trim() !== entry.guestName ||
@@ -58,7 +68,7 @@ function WaitlistEditDrawer({ entry, todayStr, onClose, onSave, onSeat, onCancel
       if (localName.trim() !== entry.guestName) data.guestName = localName.trim();
       if (n !== entry.partySize) data.partySize = n;
       if (localNotes !== (entry.notes ?? '')) data.notes = localNotes;
-      await onSave(data);
+      await onUpdate?.(entry, data);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : T.waitlistPanel.drawerSaveError);
     } finally {
@@ -66,67 +76,50 @@ function WaitlistEditDrawer({ entry, todayStr, onClose, onSave, onSeat, onCancel
     }
   }
 
-  const isSeatDisabled = entry.date.slice(0, 10) > todayStr;
+  const mins = waitMins(entry.addedAt, operationalNow);
+  const sugs = (entry.date.slice(0, 10) <= todayStr ? entrySuggestions?.get(entry.id) : null) ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div
-        className="relative w-full sm:max-w-sm bg-iron-card border-t border-iron-border rounded-t-xl shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-iron-border">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-iron-text text-sm font-semibold truncate">{entry.guestName}</p>
-            {entry.source === 'PUBLIC_ONLINE' && (
-              <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-400 shrink-0">
-                {T.waitlistPanel.sourceOnline}
-              </span>
-            )}
-          </div>
-          <button onClick={onClose} className="text-iron-muted hover:text-iron-text text-xl leading-none px-1 shrink-0">×</button>
-        </div>
+    <div className="bg-iron-bg/40 border-b border-iron-border/40 px-3 pt-2 pb-3 space-y-2.5">
 
-        {/* Meta row */}
-        <div className="px-4 pt-3 pb-0 flex items-center gap-2 flex-wrap text-[10px]">
-          <span className={`px-1.5 py-0.5 rounded border ${
-            entry.status === 'NOTIFIED'
-              ? 'border-blue-500/30 text-blue-400 bg-blue-500/10'
-              : 'border-iron-border text-iron-muted'
-          }`}>
-            {entry.status === 'NOTIFIED' ? T.waitlistPanel.statusNotified : T.waitlistPanel.statusWaiting}
-          </span>
-          <span className="text-iron-muted">
-            {T.waitlistPanel.labelAddedAt}: {new Date(entry.addedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {entry.guestPhone && (
-            <span className="text-iron-muted font-mono">{entry.guestPhone}</span>
-          )}
-        </div>
+      {/* Meta strip */}
+      <div className="pl-6 flex items-center gap-2 flex-wrap text-[10px] text-iron-muted">
+        <span className={`px-1.5 py-0.5 rounded border ${
+          entry.status === 'NOTIFIED'
+            ? 'border-blue-500/30 text-blue-400 bg-blue-500/10'
+            : 'border-iron-border/60 text-iron-muted'
+        }`}>
+          {entry.status === 'NOTIFIED' ? T.waitlistPanel.statusNotified : T.waitlistPanel.statusWaiting}
+        </span>
+        <span>{T.waitlistPanel.labelAddedAt} {new Date(entry.addedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        {isToday && <span>{mins < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(mins)}</span>}
+        {entry.preferredTime && (
+          <span>pref {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}</span>
+        )}
+      </div>
 
-        {/* Editable fields */}
-        <div className="px-4 pt-3 pb-1 space-y-3 max-h-[45vh] overflow-y-auto">
-          <div className="flex gap-3">
+      {/* Edit fields */}
+      {onUpdate && (
+        <div className="pl-6 space-y-2">
+          <div className="flex gap-2">
             <div className="flex-1">
               <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.labelName}</label>
               <input
                 value={localName}
                 onChange={e => setLocalName(e.target.value)}
-                className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs focus:outline-none focus:border-iron-green transition-colors"
+                className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-iron-text text-xs focus:outline-none focus:border-iron-green transition-colors"
               />
             </div>
-            <div>
+            <div className="w-14">
               <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.labelParty}</label>
               <input
                 type="number" min={1} max={30}
                 value={localParty}
                 onChange={e => setLocalParty(e.target.value)}
-                className="w-16 bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-xs text-center focus:outline-none focus:border-iron-green transition-colors"
+                className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-iron-text text-xs text-center focus:outline-none focus:border-iron-green transition-colors"
               />
             </div>
           </div>
-
           <div>
             <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.labelNotes}</label>
             <textarea
@@ -134,63 +127,126 @@ function WaitlistEditDrawer({ entry, todayStr, onClose, onSave, onSeat, onCancel
               onChange={e => setLocalNotes(e.target.value)}
               rows={2}
               placeholder={T.waitlistPanel.notesPlaceholder}
-              className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none"
+              className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none"
             />
           </div>
-
-          {entry.preferredTime && (
-            <p className="text-iron-muted text-[10px]">
-              {T.waitlistPanel.labelPreferredTime}: {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}
-            </p>
-          )}
-
           {saveError && <p className="text-red-400 text-[11px]">{saveError}</p>}
-        </div>
-
-        {/* Actions */}
-        <div className="px-4 pt-2 pb-4 border-t border-iron-border mt-2 space-y-2">
           {isDirty && (
             <button
               disabled={saving || !localName.trim()}
               onClick={handleSave}
-              className="w-full text-xs font-medium py-2 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-colors disabled:opacity-40"
+              className="text-xs font-medium px-3 py-1 rounded bg-iron-green hover:bg-iron-green-light text-white transition-colors disabled:opacity-40"
             >
               {saving ? '…' : T.waitlistPanel.saveButton}
             </button>
           )}
-          <div className="flex gap-2">
-            <button
-              disabled={isSeatDisabled}
-              title={isSeatDisabled ? T.waitlistPanel.seatFutureDisabled : undefined}
-              onClick={onSeat}
-              className="flex-1 text-[11px] font-medium py-1.5 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {T.waitlistPanel.seatButton}
-            </button>
-            {onNotify && !entry.notifiedAt && (
+        </div>
+      )}
+
+      {/* Secondary actions */}
+      <div className="pl-6 flex flex-wrap gap-1.5">
+        {(() => {
+          if (entry.notifiedAt) {
+            const m = Math.floor((Date.now() - new Date(entry.notifiedAt).getTime()) / 60_000);
+            return (
+              <span className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 bg-blue-500/10">
+                {m < 1 ? T.waitlistPanel.notifiedJustNow : T.waitlistPanel.notifiedAgo(m)}
+              </span>
+            );
+          }
+          if (entry.guestPhone && onNotify) {
+            return (
               <button
                 disabled={notifyBusy}
-                onClick={async () => { setNotifyBusy(true); try { await onNotify(); } finally { setNotifyBusy(false); } }}
-                className="flex-1 text-[11px] py-1.5 rounded-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+                onClick={async () => {
+                  setNotifyBusy(true);
+                  try { await onNotify(entry); } finally { setNotifyBusy(false); }
+                }}
+                className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
               >
                 {notifyBusy ? '…' : T.waitlistPanel.notifyButton}
               </button>
-            )}
-            <button
-              onClick={onNoShow}
-              className="text-[11px] px-2.5 py-1.5 rounded-md border border-orange-900/20 text-orange-400 hover:bg-orange-900/10 transition-colors"
-            >
-              {T.waitlistPanel.noShow}
-            </button>
-            <button
-              onClick={onCancel}
-              className="text-[11px] px-2.5 py-1.5 rounded-md border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
-            >
-              {T.waitlistPanel.cancelButton}
-            </button>
-          </div>
-        </div>
+            );
+          }
+          return null;
+        })()}
+        <button
+          onClick={() => { onNoShow(entry); onClose(); }}
+          className="text-[11px] px-2.5 py-1 rounded-md border border-orange-900/20 text-orange-400 hover:bg-orange-900/10 transition-colors"
+        >
+          {T.waitlistPanel.noShow}
+        </button>
+        <button
+          onClick={() => { onCancel(entry); onClose(); }}
+          className="text-[11px] px-2.5 py-1 rounded-md border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+        >
+          {T.waitlistPanel.cancelButton}
+        </button>
       </div>
+
+      {/* Table suggestions */}
+      {sugs.length > 0 && (
+        <div className="pl-6">
+          {pendingConflict ? (
+            <div className="rounded-md bg-amber-900/15 border border-amber-500/30 px-2 py-1.5">
+              <p className="text-amber-400 text-[10px] font-medium mb-1.5">
+                {T.smartSeat.conflictWarn(pendingConflict.conflictMin)}
+              </p>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => { onSeatAtTable?.(pendingConflict.tableId, entry); setPendingConflict(null); onClose(); }}
+                  className="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                >
+                  {T.smartSeat.seatAnyway}
+                </button>
+                <button
+                  onClick={() => setPendingConflict(null)}
+                  className="text-[10px] px-2 py-0.5 rounded border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+                >
+                  {T.common.cancel}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {sugs.map(sug => {
+                if (sug.minutesUntilFree !== 0) {
+                  return (
+                    <span
+                      key={sug.tableId}
+                      className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border/40 bg-iron-bg text-iron-muted/50 cursor-default select-none"
+                      title={sug.minutesUntilFree != null ? `Frees in ~${sug.minutesUntilFree}m` : 'Not available'}
+                    >
+                      <span>{sug.tableName}</span>
+                      <span className="opacity-60">
+                        {sug.minutesUntilFree != null ? `~${sug.minutesUntilFree}m` : sug.label}
+                      </span>
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={sug.tableId}
+                    onClick={() => {
+                      if (sug.hasConflict && sug.conflictMin !== null) {
+                        setPendingConflict({ tableId: sug.tableId, tableName: sug.tableName, conflictMin: sug.conflictMin });
+                      } else {
+                        onSeatAtTable?.(sug.tableId, entry);
+                        onClose();
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border hover:border-iron-text/30 bg-iron-bg text-iron-muted hover:text-iron-text transition-colors"
+                  >
+                    <span>→ {sug.tableName}</span>
+                    <span style={{ color: sug.labelColor }}>· {sug.label}</span>
+                    {sug.hasConflict && <span className="text-amber-400 ml-0.5">⚠</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -214,33 +270,40 @@ interface Props {
   isToday?: boolean;
 }
 
-export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onUpdate, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow, isToday = true }: Props) {
+export default function WaitlistPanel({
+  entries, loading, onAdd, onSeat, onNotify, onUpdate, onCancel, onNoShow,
+  nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue,
+  operationalNow, isToday = true,
+}: Props) {
   const T = useT();
   const todayStr = new Date().toISOString().slice(0, 10);
-  const [showForm,       setShowForm]       = useState(false);
-  const [name,           setName]           = useState('');
-  const [partySize,      setPartySize]      = useState('2');
-  const [phone,          setPhone]          = useState('');
-  const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
-  const [hintDismissed,  setHintDismissed]  = useState(false);
-  const [busyNotify,     setBusyNotify]     = useState<string | null>(null);
-  const [busy,           setBusy]           = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
-  const [editDrawerEntry, setEditDrawerEntry] = useState<WaitlistEntry | null>(null);
-  const [pendingConflict, setPendingConflict] = useState<{
-    entryId: string; tableId: string; tableName: string; conflictMin: number;
-  } | null>(null);
+  const [showForm,      setShowForm]      = useState(false);
+  const [name,          setName]          = useState('');
+  const [partySize,     setPartySize]     = useState('2');
+  const [phone,         setPhone]         = useState('');
+  const [guestHint,     setGuestHint]     = useState<GuestLookupResult | null>(null);
+  const [hintDismissed, setHintDismissed] = useState(false);
+  const [busySeat,      setBusySeat]      = useState<string | null>(null);
+  const [busy,          setBusy]          = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [expandedId,    setExpandedId]    = useState<string | null>(null);
 
-  // Build lookup maps for rank and urgency from priorityQueue
   const rankMap    = useMemo(() => new Map(priorityQueue?.map(pe => [pe.entry.id, pe.rank])    ?? []), [priorityQueue]);
   const urgencyMap = useMemo(() => new Map(priorityQueue?.map(pe => [pe.entry.id, pe.urgency]) ?? []), [priorityQueue]);
+
+  // Close expanded panel if that entry leaves the active list
+  const active = entries.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED');
+  useEffect(() => {
+    if (expandedId && !active.some(e => e.id === expandedId)) {
+      setExpandedId(null);
+    }
+  }, [active, expandedId]);
 
   function resetForm() {
     setName(''); setPartySize('2'); setPhone(''); setError(null);
     setGuestHint(null); setHintDismissed(false);
   }
 
-  // Debounced guest lookup by phone
   useEffect(() => {
     if (!phone.trim()) { setGuestHint(null); setHintDismissed(false); return; }
     const t = setTimeout(async () => {
@@ -248,9 +311,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
         const { guest } = await api.guests.lookupByPhone(phone);
         setGuestHint(guest);
         setHintDismissed(false);
-        if (guest) {
-          setName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
-        }
+        if (guest) setName(prev => prev === '' ? `${guest.firstName} ${guest.lastName}` : prev);
       } catch { /* non-fatal */ }
     }, 400);
     return () => clearTimeout(t);
@@ -275,10 +336,6 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
     }
   }
 
-  const activeRaw = entries.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED');
-  // Preserve backend addedAt ASC order; priorityQueue is used only for urgency/rank badges
-  const active = activeRaw;
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
 
@@ -292,9 +349,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
             const readyNow = entry.estimatedWaitMin === 0;
             return (
               <div key={entry.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-2 border ${
-                readyNow
-                  ? 'bg-iron-green/15 border-iron-green/40'
-                  : 'bg-iron-card border-iron-green/20'
+                readyNow ? 'bg-iron-green/15 border-iron-green/40' : 'bg-iron-card border-iron-green/20'
               }`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
@@ -412,24 +467,38 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
         {!loading && active.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center gap-2">
             <p className="text-iron-muted text-sm">{T.waitlistPanel.emptyTitle}</p>
-            <p className="text-iron-muted text-xs opacity-60">
-              {T.waitlistPanel.emptyHint}
-            </p>
+            <p className="text-iron-muted text-xs opacity-60">{T.waitlistPanel.emptyHint}</p>
           </div>
         )}
 
         {!loading && active.map((entry, i) => {
-          const mins    = waitMins(entry.addedAt, operationalNow ?? Date.now());
-          const eta     = entry.estimatedWaitMin;
-          const etaColor = eta === null ? '' : eta < 10 ? 'text-iron-muted' : eta <= 20 ? 'text-amber-400' : 'text-red-400';
-          const urgency = urgencyMap.get(entry.id) ?? 'normal';
-          const rank    = rankMap.get(entry.id) ?? (i + 1);
+          const eta      = entry.estimatedWaitMin;
+          const etaColor = eta === null ? '' : eta <= 20 ? 'text-amber-400' : 'text-red-400';
+          const urgency  = urgencyMap.get(entry.id) ?? 'normal';
+          const rank     = rankMap.get(entry.id) ?? (i + 1);
+          const isOpen   = expandedId === entry.id;
+          const isFuture = entry.date.slice(0, 10) > todayStr;
+
           return (
-            <div key={entry.id} className={`px-3 py-2.5 border-b border-iron-border/40 ${urgency === 'critical' ? 'bg-red-900/5' : urgency === 'high' ? 'bg-amber-900/5' : ''}`}>
-              <div className="flex items-start gap-2 mb-1.5">
-                <span className={`text-[10px] font-mono w-4 shrink-0 mt-0.5 text-right font-semibold ${urgency === 'critical' ? 'text-red-400' : urgency === 'high' ? 'text-amber-400' : 'text-iron-muted'}`}>
+            <div
+              key={entry.id}
+              className={`${urgency === 'critical' ? 'bg-red-900/5' : urgency === 'high' ? 'bg-amber-900/5' : ''}`}
+            >
+              {/* ── Card row ── */}
+              <div
+                className={`px-3 py-2.5 flex items-center gap-2 cursor-pointer select-none transition-colors border-b border-iron-border/40 ${
+                  isOpen ? 'bg-iron-card/60' : 'hover:bg-iron-card/30'
+                }`}
+                onClick={() => setExpandedId(isOpen ? null : entry.id)}
+              >
+                {/* Rank */}
+                <span className={`text-[10px] font-mono w-4 shrink-0 text-right font-semibold ${
+                  urgency === 'critical' ? 'text-red-400' : urgency === 'high' ? 'text-amber-400' : 'text-iron-muted'
+                }`}>
                   #{rank}
                 </span>
+
+                {/* Name + info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0 mb-0.5">
                     <p className="text-iron-text text-xs font-semibold truncate">{entry.guestName}</p>
@@ -449,21 +518,18 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                       </span>
                     )}
                   </div>
-                  <p className="text-iron-muted text-[10px]">
-                    {T.waitlistPanel.guests(entry.partySize)}
-                    {entry.guestPhone && (
-                      <span className="text-iron-muted/70"> · {entry.guestPhone}</span>
-                    )}
-                    {entry.preferredTime && (
-                      <span className="text-iron-muted/70">
-                        {' · '}pref {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}
-                      </span>
-                    )}
-                    {isToday && <>{' · '}{mins < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(mins)}</>}
+                  <p className="text-iron-muted text-[10px] truncate">
+                    {entry.partySize}p
+                    {entry.guestPhone && <span className="text-iron-muted/70"> · {entry.guestPhone}</span>}
+                    {isToday && <> · {
+                      (() => {
+                        const m = waitMins(entry.addedAt, operationalNow ?? Date.now());
+                        return m < 1 ? T.waitlistPanel.justAdded : T.waitlistPanel.waitingMin(m);
+                      })()
+                    }</>}
                     {eta !== null && (
                       <span className={etaColor}>
-                        {' · '}
-                        {eta === 0
+                        {' · '}{eta === 0
                           ? <span className="text-iron-green-light">{T.waitlistPanel.etaReady}</span>
                           : T.waitlistPanel.etaMin(eta)
                         }
@@ -471,137 +537,42 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                     )}
                   </p>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5 pl-6">
-                <button
-                  onClick={() => onSeat(entry)}
-                  disabled={entry.date.slice(0, 10) > todayStr}
-                  title={entry.date.slice(0, 10) > todayStr ? T.waitlistPanel.seatFutureDisabled : undefined}
-                  className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors active:scale-[0.96] touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {T.waitlistPanel.seatButton}
-                </button>
-                {(() => {
-                  if (entry.notifiedAt) {
-                    const m = Math.floor((Date.now() - new Date(entry.notifiedAt).getTime()) / 60_000);
-                    return (
-                      <span className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 bg-blue-500/10">
-                        {m < 1 ? T.waitlistPanel.notifiedJustNow : T.waitlistPanel.notifiedAgo(m)}
-                      </span>
-                    );
-                  }
-                  if (entry.guestPhone && onNotify) {
-                    return (
-                      <button
-                        disabled={busyNotify === entry.id}
-                        onClick={async () => {
-                          setBusyNotify(entry.id);
-                          try { await onNotify(entry); } finally { setBusyNotify(null); }
-                        }}
-                        className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
-                      >
-                        {busyNotify === entry.id ? '…' : T.waitlistPanel.notifyButton}
-                      </button>
-                    );
-                  }
-                  return null;
-                })()}
-                <button
-                  onClick={() => onNoShow(entry)}
-                  className="text-[11px] px-2.5 py-1 rounded-md border border-orange-900/20 text-orange-400 hover:bg-orange-900/10 transition-colors"
-                >
-                  {T.waitlistPanel.noShow}
-                </button>
-                <button
-                  onClick={() => onCancel(entry)}
-                  className="text-[11px] px-2.5 py-1 rounded-md border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
-                >
-                  {T.waitlistPanel.cancelButton}
-                </button>
-                {onUpdate && (
+
+                {/* Seat + chevron */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    onClick={() => setEditDrawerEntry(entry)}
-                    className="text-[11px] px-2.5 py-1 rounded-md border border-iron-border text-iron-muted hover:text-iron-text hover:border-iron-text/30 transition-colors"
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (busySeat === entry.id) return;
+                      setBusySeat(entry.id);
+                      Promise.resolve(onSeat(entry)).finally(() => setBusySeat(null));
+                    }}
+                    disabled={isFuture || busySeat === entry.id}
+                    title={isFuture ? T.waitlistPanel.seatFutureDisabled : undefined}
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors active:scale-[0.96] touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {T.waitlistPanel.editButton}
+                    {busySeat === entry.id ? '…' : T.waitlistPanel.seatButton}
                   </button>
-                )}
+                  <span className={`text-iron-muted/40 text-[11px] transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}>›</span>
+                </div>
               </div>
 
-              {/* Smart seat suggestion chips */}
-              {(() => {
-                if (entry.date.slice(0, 10) > todayStr) return null;
-                const sugs = entrySuggestions?.get(entry.id) ?? [];
-                if (sugs.length === 0) return null;
-
-                if (pendingConflict?.entryId === entry.id) {
-                  return (
-                    <div className="mt-1.5 pl-6">
-                      <div className="rounded-md bg-amber-900/15 border border-amber-500/30 px-2 py-1.5">
-                        <p className="text-amber-400 text-[10px] font-medium mb-1.5">
-                          {T.smartSeat.conflictWarn(pendingConflict.conflictMin)}
-                        </p>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => {
-                              onSeatAtTable?.(pendingConflict.tableId, entry);
-                              setPendingConflict(null);
-                            }}
-                            className="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-colors"
-                          >
-                            {T.smartSeat.seatAnyway}
-                          </button>
-                          <button
-                            onClick={() => setPendingConflict(null)}
-                            className="text-[10px] px-2 py-0.5 rounded border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
-                          >
-                            {T.common.cancel}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="mt-1.5 pl-6 flex flex-wrap gap-1">
-                    {sugs.map(sug => {
-                      const isAvailableNow = sug.minutesUntilFree === 0;
-                      if (!isAvailableNow) {
-                        return (
-                          <span
-                            key={sug.tableId}
-                            className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border/40 bg-iron-bg text-iron-muted/50 cursor-default select-none"
-                            title={sug.minutesUntilFree != null ? `Frees in ~${sug.minutesUntilFree}m` : 'Not available'}
-                          >
-                            <span>{sug.tableName}</span>
-                            <span className="opacity-60">
-                              {sug.minutesUntilFree != null ? `~${sug.minutesUntilFree}m` : sug.label}
-                            </span>
-                          </span>
-                        );
-                      }
-                      return (
-                        <button
-                          key={sug.tableId}
-                          onClick={() => {
-                            if (sug.hasConflict && sug.conflictMin !== null) {
-                              setPendingConflict({ entryId: entry.id, tableId: sug.tableId, tableName: sug.tableName, conflictMin: sug.conflictMin });
-                            } else {
-                              onSeatAtTable?.(sug.tableId, entry);
-                            }
-                          }}
-                          className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-iron-border hover:border-iron-text/30 bg-iron-bg text-iron-muted hover:text-iron-text transition-colors"
-                        >
-                          <span>→ {sug.tableName}</span>
-                          <span style={{ color: sug.labelColor }}>· {sug.label}</span>
-                          {sug.hasConflict && <span className="text-amber-400 ml-0.5">⚠</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              {/* ── Inline details (accordion) ── */}
+              {isOpen && (
+                <WaitlistEntryDetails
+                  entry={entry}
+                  todayStr={todayStr}
+                  operationalNow={operationalNow ?? Date.now()}
+                  isToday={isToday}
+                  onUpdate={onUpdate}
+                  onCancel={onCancel}
+                  onNoShow={onNoShow}
+                  onNotify={onNotify}
+                  onSeatAtTable={onSeatAtTable}
+                  entrySuggestions={entrySuggestions}
+                  onClose={() => setExpandedId(null)}
+                />
+              )}
             </div>
           );
         })}
@@ -611,25 +582,6 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
       <div className="px-3 py-2 border-t border-iron-border text-iron-muted text-[11px] text-center">
         {active.length === 0 ? T.waitlistPanel.footerEmpty : T.waitlistPanel.footerCount(active.length)}
       </div>
-
-      {/* Edit drawer */}
-      {editDrawerEntry && (
-        <WaitlistEditDrawer
-          entry={editDrawerEntry}
-          todayStr={todayStr}
-          onClose={() => setEditDrawerEntry(null)}
-          onSave={async (data) => {
-            await onUpdate?.(editDrawerEntry, data);
-            setEditDrawerEntry(null);
-          }}
-          onSeat={() => { onSeat(editDrawerEntry); setEditDrawerEntry(null); }}
-          onCancel={() => { onCancel(editDrawerEntry); setEditDrawerEntry(null); }}
-          onNoShow={() => { onNoShow(editDrawerEntry); setEditDrawerEntry(null); }}
-          onNotify={editDrawerEntry.guestPhone && onNotify
-            ? async () => { await onNotify(editDrawerEntry); }
-            : undefined}
-        />
-      )}
     </div>
   );
 }
