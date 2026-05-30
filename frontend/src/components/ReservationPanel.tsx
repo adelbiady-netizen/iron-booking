@@ -51,7 +51,7 @@ interface Props {
   onWaitlistAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
   onWaitlistSeat: (entry: WaitlistEntry) => void;
   onWaitlistNotify: (entry: WaitlistEntry) => Promise<void>;
-  onWaitlistUpdate?: (entry: WaitlistEntry, partySize: number) => Promise<void>;
+  onWaitlistUpdate?: (entry: WaitlistEntry, data: { partySize?: number; guestName?: string; notes?: string }) => Promise<void>;
   onWaitlistCancel: (entry: WaitlistEntry) => void;
   onWaitlistNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];

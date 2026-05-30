@@ -15,13 +15,195 @@ export interface NextInLineItem {
   tableName: string;
 }
 
+interface EditData {
+  partySize?: number;
+  guestName?: string;
+  notes?: string;
+}
+
+// ── Edit drawer ─────────────────────────────────────────────────────────────
+
+interface DrawerProps {
+  entry: WaitlistEntry;
+  todayStr: string;
+  onClose: () => void;
+  onSave: (data: EditData) => Promise<void>;
+  onSeat: () => void;
+  onCancel: () => void;
+  onNoShow: () => void;
+  onNotify?: () => Promise<void>;
+}
+
+function WaitlistEditDrawer({ entry, todayStr, onClose, onSave, onSeat, onCancel, onNoShow, onNotify }: DrawerProps) {
+  const T = useT();
+  const [localName,  setLocalName]  = useState(entry.guestName);
+  const [localParty, setLocalParty] = useState(String(entry.partySize));
+  const [localNotes, setLocalNotes] = useState(entry.notes ?? '');
+  const [saving,     setSaving]     = useState(false);
+  const [saveError,  setSaveError]  = useState<string | null>(null);
+  const [notifyBusy, setNotifyBusy] = useState(false);
+
+  const isDirty =
+    localName.trim() !== entry.guestName ||
+    parseInt(localParty, 10) !== entry.partySize ||
+    localNotes !== (entry.notes ?? '');
+
+  async function handleSave() {
+    const n = parseInt(localParty, 10);
+    if (!localName.trim() || !n || n < 1 || n > 30) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const data: EditData = {};
+      if (localName.trim() !== entry.guestName) data.guestName = localName.trim();
+      if (n !== entry.partySize) data.partySize = n;
+      if (localNotes !== (entry.notes ?? '')) data.notes = localNotes;
+      await onSave(data);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : T.waitlistPanel.drawerSaveError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const isSeatDisabled = entry.date.slice(0, 10) > todayStr;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="relative w-full sm:max-w-sm bg-iron-card border-t border-iron-border rounded-t-xl shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-iron-border">
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-iron-text text-sm font-semibold truncate">{entry.guestName}</p>
+            {entry.source === 'PUBLIC_ONLINE' && (
+              <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-400 shrink-0">
+                {T.waitlistPanel.sourceOnline}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="text-iron-muted hover:text-iron-text text-xl leading-none px-1 shrink-0">×</button>
+        </div>
+
+        {/* Meta row */}
+        <div className="px-4 pt-3 pb-0 flex items-center gap-2 flex-wrap text-[10px]">
+          <span className={`px-1.5 py-0.5 rounded border ${
+            entry.status === 'NOTIFIED'
+              ? 'border-blue-500/30 text-blue-400 bg-blue-500/10'
+              : 'border-iron-border text-iron-muted'
+          }`}>
+            {entry.status === 'NOTIFIED' ? T.waitlistPanel.statusNotified : T.waitlistPanel.statusWaiting}
+          </span>
+          <span className="text-iron-muted">
+            {T.waitlistPanel.labelAddedAt}: {new Date(entry.addedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {entry.guestPhone && (
+            <span className="text-iron-muted font-mono">{entry.guestPhone}</span>
+          )}
+        </div>
+
+        {/* Editable fields */}
+        <div className="px-4 pt-3 pb-1 space-y-3 max-h-[45vh] overflow-y-auto">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.labelName}</label>
+              <input
+                value={localName}
+                onChange={e => setLocalName(e.target.value)}
+                className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs focus:outline-none focus:border-iron-green transition-colors"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.labelParty}</label>
+              <input
+                type="number" min={1} max={30}
+                value={localParty}
+                onChange={e => setLocalParty(e.target.value)}
+                className="w-16 bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-xs text-center focus:outline-none focus:border-iron-green transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.labelNotes}</label>
+            <textarea
+              value={localNotes}
+              onChange={e => setLocalNotes(e.target.value)}
+              rows={2}
+              placeholder={T.waitlistPanel.notesPlaceholder}
+              className="w-full bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none"
+            />
+          </div>
+
+          {entry.preferredTime && (
+            <p className="text-iron-muted text-[10px]">
+              {T.waitlistPanel.labelPreferredTime}: {entry.preferredTime}{entry.flexibleTime ? ' ±1h' : ''}
+            </p>
+          )}
+
+          {saveError && <p className="text-red-400 text-[11px]">{saveError}</p>}
+        </div>
+
+        {/* Actions */}
+        <div className="px-4 pt-2 pb-4 border-t border-iron-border mt-2 space-y-2">
+          {isDirty && (
+            <button
+              disabled={saving || !localName.trim()}
+              onClick={handleSave}
+              className="w-full text-xs font-medium py-2 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-colors disabled:opacity-40"
+            >
+              {saving ? '…' : T.waitlistPanel.saveButton}
+            </button>
+          )}
+          <div className="flex gap-2">
+            <button
+              disabled={isSeatDisabled}
+              title={isSeatDisabled ? T.waitlistPanel.seatFutureDisabled : undefined}
+              onClick={onSeat}
+              className="flex-1 text-[11px] font-medium py-1.5 rounded-md bg-iron-green/15 border border-iron-green/30 text-iron-green-light hover:bg-iron-green/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {T.waitlistPanel.seatButton}
+            </button>
+            {onNotify && !entry.notifiedAt && (
+              <button
+                disabled={notifyBusy}
+                onClick={async () => { setNotifyBusy(true); try { await onNotify(); } finally { setNotifyBusy(false); } }}
+                className="flex-1 text-[11px] py-1.5 rounded-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+              >
+                {notifyBusy ? '…' : T.waitlistPanel.notifyButton}
+              </button>
+            )}
+            <button
+              onClick={onNoShow}
+              className="text-[11px] px-2.5 py-1.5 rounded-md border border-orange-900/20 text-orange-400 hover:bg-orange-900/10 transition-colors"
+            >
+              {T.waitlistPanel.noShow}
+            </button>
+            <button
+              onClick={onCancel}
+              className="text-[11px] px-2.5 py-1.5 rounded-md border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+            >
+              {T.waitlistPanel.cancelButton}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main panel ───────────────────────────────────────────────────────────────
+
 interface Props {
   entries: WaitlistEntry[];
   loading: boolean;
   onAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
   onSeat: (entry: WaitlistEntry) => void;
   onNotify?: (entry: WaitlistEntry) => Promise<void>;
-  onUpdate?: (entry: WaitlistEntry, partySize: number) => Promise<void>;
+  onUpdate?: (entry: WaitlistEntry, data: EditData) => Promise<void>;
   onCancel: (entry: WaitlistEntry) => void;
   onNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];
@@ -35,18 +217,16 @@ interface Props {
 export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotify, onUpdate, onCancel, onNoShow, nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue, operationalNow, isToday = true }: Props) {
   const T = useT();
   const todayStr = new Date().toISOString().slice(0, 10);
-  const [showForm, setShowForm] = useState(false);
-  const [name,      setName]      = useState('');
-  const [partySize, setPartySize] = useState('2');
-  const [phone,     setPhone]     = useState('');
-  const [guestHint,     setGuestHint]     = useState<GuestLookupResult | null>(null);
-  const [hintDismissed, setHintDismissed] = useState(false);
-  const [busyNotify, setBusyNotify] = useState<string | null>(null);
-  const [busy,      setBusy]      = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
-  const [editingId,  setEditingId]  = useState<string | null>(null);
-  const [editValue,  setEditValue]  = useState('');
-  const [editBusy,   setEditBusy]   = useState(false);
+  const [showForm,       setShowForm]       = useState(false);
+  const [name,           setName]           = useState('');
+  const [partySize,      setPartySize]      = useState('2');
+  const [phone,          setPhone]          = useState('');
+  const [guestHint,      setGuestHint]      = useState<GuestLookupResult | null>(null);
+  const [hintDismissed,  setHintDismissed]  = useState(false);
+  const [busyNotify,     setBusyNotify]     = useState<string | null>(null);
+  const [busy,           setBusy]           = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [editDrawerEntry, setEditDrawerEntry] = useState<WaitlistEntry | null>(null);
   const [pendingConflict, setPendingConflict] = useState<{
     entryId: string; tableId: string; tableName: string; conflictMin: number;
   } | null>(null);
@@ -58,21 +238,6 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
   function resetForm() {
     setName(''); setPartySize('2'); setPhone(''); setError(null);
     setGuestHint(null); setHintDismissed(false);
-  }
-
-  async function handleSaveParty(entry: WaitlistEntry) {
-    const n = parseInt(editValue, 10);
-    if (!n || n < 1 || n > 30) return;
-    setEditBusy(true);
-    try {
-      await onUpdate?.(entry, n);
-      setEditingId(null);
-      setEditValue('');
-    } catch {
-      // keep edit open so host can retry
-    } finally {
-      setEditBusy(false);
-    }
   }
 
   // Debounced guest lookup by phone
@@ -270,7 +435,7 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                     <p className="text-iron-text text-xs font-semibold truncate">{entry.guestName}</p>
                     {entry.source === 'PUBLIC_ONLINE' && (
                       <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-sky-900/30 border border-sky-500/30 text-sky-400 shrink-0">
-                        Online
+                        {T.waitlistPanel.sourceOnline}
                       </span>
                     )}
                     {urgency === 'critical' && (
@@ -285,49 +450,9 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                     )}
                   </div>
                   <p className="text-iron-muted text-[10px]">
-                    {editingId === entry.id ? (
-                      <span className="inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="number" min={1} max={30}
-                          value={editValue}
-                          autoFocus
-                          onChange={e => setEditValue(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleSaveParty(entry);
-                            if (e.key === 'Escape') { setEditingId(null); setEditValue(''); }
-                          }}
-                          className="w-10 bg-iron-bg border border-iron-green/50 rounded px-1 text-iron-text text-[10px] text-center focus:outline-none focus:border-iron-green"
-                        />
-                        <button
-                          type="button"
-                          disabled={editBusy}
-                          onClick={() => handleSaveParty(entry)}
-                          className="text-iron-green-light text-[10px] hover:text-iron-green disabled:opacity-40 transition-colors"
-                        >
-                          {editBusy ? '…' : T.waitlistPanel.editPartySave}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setEditingId(null); setEditValue(''); }}
-                          className="text-iron-muted text-[10px] hover:text-iron-text transition-colors"
-                        >
-                          {T.common.cancel}
-                        </button>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1">
-                        {T.waitlistPanel.guests(entry.partySize)}
-                        {onUpdate && (
-                          <button
-                            type="button"
-                            title={T.waitlistPanel.editPartyTitle}
-                            onClick={e => { e.stopPropagation(); setEditingId(entry.id); setEditValue(String(entry.partySize)); }}
-                            className="text-iron-muted/40 hover:text-iron-muted text-[9px] leading-none transition-colors touch-manipulation"
-                          >
-                            ✎
-                          </button>
-                        )}
-                      </span>
+                    {T.waitlistPanel.guests(entry.partySize)}
+                    {entry.guestPhone && (
+                      <span className="text-iron-muted/70"> · {entry.guestPhone}</span>
                     )}
                     {entry.preferredTime && (
                       <span className="text-iron-muted/70">
@@ -393,6 +518,14 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                 >
                   {T.waitlistPanel.cancelButton}
                 </button>
+                {onUpdate && (
+                  <button
+                    onClick={() => setEditDrawerEntry(entry)}
+                    className="text-[11px] px-2.5 py-1 rounded-md border border-iron-border text-iron-muted hover:text-iron-text hover:border-iron-text/30 transition-colors"
+                  >
+                    {T.waitlistPanel.editButton}
+                  </button>
+                )}
               </div>
 
               {/* Smart seat suggestion chips */}
@@ -435,7 +568,6 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
                     {sugs.map(sug => {
                       const isAvailableNow = sug.minutesUntilFree === 0;
                       if (!isAvailableNow) {
-                        // Table not yet free — show as informational only, not clickable
                         return (
                           <span
                             key={sug.tableId}
@@ -479,6 +611,25 @@ export default function WaitlistPanel({ entries, loading, onAdd, onSeat, onNotif
       <div className="px-3 py-2 border-t border-iron-border text-iron-muted text-[11px] text-center">
         {active.length === 0 ? T.waitlistPanel.footerEmpty : T.waitlistPanel.footerCount(active.length)}
       </div>
+
+      {/* Edit drawer */}
+      {editDrawerEntry && (
+        <WaitlistEditDrawer
+          entry={editDrawerEntry}
+          todayStr={todayStr}
+          onClose={() => setEditDrawerEntry(null)}
+          onSave={async (data) => {
+            await onUpdate?.(editDrawerEntry, data);
+            setEditDrawerEntry(null);
+          }}
+          onSeat={() => { onSeat(editDrawerEntry); setEditDrawerEntry(null); }}
+          onCancel={() => { onCancel(editDrawerEntry); setEditDrawerEntry(null); }}
+          onNoShow={() => { onNoShow(editDrawerEntry); setEditDrawerEntry(null); }}
+          onNotify={editDrawerEntry.guestPhone && onNotify
+            ? async () => { await onNotify(editDrawerEntry); }
+            : undefined}
+        />
+      )}
     </div>
   );
 }

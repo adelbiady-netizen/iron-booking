@@ -1171,8 +1171,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [showToast]);
 
-  const handleWaitlistUpdate = useCallback(async (entry: WaitlistEntry, partySize: number) => {
-    const updated = await api.waitlist.update(entry.id, { partySize });
+  const handleWaitlistUpdate = useCallback(async (entry: WaitlistEntry, data: { partySize?: number; guestName?: string; notes?: string }) => {
+    const updated = await api.waitlist.update(entry.id, data);
     setWaitlist(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e));
     setWaitlistRefreshKey(k => k + 1);
   }, []);
