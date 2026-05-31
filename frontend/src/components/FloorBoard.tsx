@@ -3228,8 +3228,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   }
 
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
-  // and the table number becomes a secondary label
-  const hasGuest = ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes;
+  // and the table number becomes a secondary label.
+  // Far-future reservations (60+ min) are suppressed — table renders as available.
+  const hasGuest = ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes && !isFarFutureReserved;
 
   // Multi-turn stack — turns to show below the table boundary.
   // Uses `turns` prop (PENDING+CONFIRMED from full reservations list) — not table.upcomingReservations,
@@ -3240,7 +3241,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? (table.liveStatus === 'OCCUPIED' || isStaleOccupied)
       ? turns.slice(0, 4)
       : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
-      ? isDormantReserved ? [] : turns.slice(1, 5)
+      ? isFarFutureReserved ? [] : turns.slice(1, 5)
       : table.liveStatus === 'AVAILABLE'
       ? turns.slice(0, 4)
       : []
@@ -3482,8 +3483,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* RESERVED / RESERVED_SOON — suppressed for DORMANT (120+ min): table renders as available */}
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && !isDormantReserved && (() => {
+      {/* RESERVED / RESERVED_SOON — suppressed for FAR-FUTURE (60+ min): table renders as available */}
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && !isFarFutureReserved && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = displayStatus === 'RESERVED_SOON';
