@@ -61,31 +61,13 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
-  // ── DIAGNOSTIC (remove after root cause confirmed) ────────────────────────
-  const _floorDebug = import.meta.env.DEV || (typeof localStorage !== 'undefined' && localStorage.getItem('floor_debug') === '1');
-  if (_floorDebug && (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes) {
-    const boardMinutes = (nextRes?.time && nowTime)
-      ? minutesUntilRes(nextRes.time, nowTime)
-      : (nextRes?.minutesUntil ?? null);
-    const isSuppressed = boardMinutes !== null && boardMinutes >= 60;
-    const source = currentRes ? 'currentReservation' : nextRes ? 'nextReservation' : 'none';
-    console.log('[TableCard:label]', {
-      component: 'TableCard',
-      tableId: table.id,
-      tableName: table.name,
-      liveStatus: table.liveStatus,
-      boardTime: nowTime ?? '(none)',
-      displayResId: displayRes.id,
-      displayResTime: displayRes.time,
-      nextResTime: nextRes?.time ?? null,
-      nextResMinutesUntil: nextRes?.minutesUntil ?? null,
-      boardMinutesFromBoardTime: boardMinutes,
-      isSuppressedByFutureThreshold: isSuppressed,
-      PROBLEM: !isSuppressed ? 'LABEL WILL RENDER — NO SUPPRESSION IN TableCard' : 'would suppress if guard existed',
-      source,
-    });
-  }
-  // ─────────────────────────────────────────────────────────────────────────
+  // Far-future suppression — mirrors MapTable threshold (60+ min = invisible on card).
+  const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
+  const boardMinutesUntilNext = (nextRes?.time && nowTime)
+    ? minutesUntilRes(nextRes.time, nowTime)
+    : (nextRes?.minutesUntil ?? 0);
+  const isFarFutureReserved = isReservedOrSoon && boardMinutesUntilNext >= 60;
+
   const isOverdue = isToday
     && table.liveStatus === 'OCCUPIED'
     && currentRes != null
@@ -204,7 +186,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         );
       })()}
 
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && !isFarFutureReserved && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         return (
