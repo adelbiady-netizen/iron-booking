@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import type { AuthState, BackendTableSuggestion, CallLogItem, FloorInsight, FloorObjectData, FloorTable, Reservation, Table, TableFirstGuest, WaitlistEntry } from '../types';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
@@ -2366,7 +2367,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         />
       )}
 
-      {reorganizeConflict && (
+      {/* Portaled to document.body to escape App.tsx's transform:scale stacking context */}
+      {reorganizeConflict && createPortal(
         <ReorganizeConflictModal
           key={reorganizeConflict._key}
           conflicts={reorganizeConflict.conflicts}
@@ -2400,7 +2402,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
             }
           }}
-        />
+        />,
+        document.body
       )}
 
       {/* Move-table confirmation — lightweight bottom-sheet style, no heavy modal */}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal from './ReorganizeConflictModal';
@@ -584,9 +585,20 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     } catch (err: unknown) {
       // Restore floor/reservation to pre-optimistic state before showing error or conflict modal.
       onOptimisticSeatRollback?.(res.id);
+      const _isApiErr = err instanceof ApiError;
+      const _errCode  = _isApiErr ? (err as ApiError).code : 'n/a';
+      const _det      = _isApiErr ? ((err as ApiError).details as { code?: string; conflicts?: unknown[] } | null) : null;
+      console.log('[seat:conflict]', {
+        isApiError: _isApiErr,
+        errCode:    _errCode,
+        detCode:    _det?.code ?? null,
+        conflictsLen: Array.isArray(_det?.conflicts) ? _det.conflicts.length : null,
+        message:    err instanceof Error ? err.message : String(err),
+      });
       if (err instanceof ApiError && err.code === 'CONFLICT') {
         const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }> } | null;
         if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+          console.log('[seat:conflict] opening reorganize modal', { tableId, conflictCount: det.conflicts.length });
           setReorganizeModal({ conflicts: det.conflicts, pendingTableId: tableId, pendingCombinedIds: combinedIds, pendingToast: toastMsg, _key: ++reorganizeKeyRef.current });
           return;
         }
@@ -984,8 +996,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         />
       )}
 
-      {/* Reorganize confirmation modal — seat flow */}
-      {reorganizeModal && (
+      {/* Reorganize confirmation modal — seat flow
+          Portaled to document.body to escape App.tsx's transform:scale stacking context,
+          which would otherwise make position:fixed children unable to cover the drawer. */}
+      {reorganizeModal && createPortal(
         <ReorganizeConflictModal
           key={reorganizeModal._key}
           conflicts={reorganizeModal.conflicts}
@@ -1006,11 +1020,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               setBusy(false);
             }
           }}
-        />
+        />,
+        document.body
       )}
 
       {/* Reorganize confirmation modal — edit flow */}
-      {editConflictModal && (
+      {editConflictModal && createPortal(
         <ReorganizeConflictModal
           key={editConflictModal._key}
           conflicts={editConflictModal.conflicts}
@@ -1040,7 +1055,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               inflightRef.current = false;
             }
           }}
-        />
+        />,
+        document.body
       )}
 
       {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}

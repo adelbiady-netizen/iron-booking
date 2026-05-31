@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useT } from '../i18n/useT';
 
 export interface ReorganizeConflict {
@@ -19,6 +19,12 @@ interface Props {
 export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm, busy }: Props) {
   const T = useT();
   const [selectedIds, setSelectedIds] = useState<string[]>(() => conflicts.map(c => c.id));
+
+  useEffect(() => {
+    console.log('[reorganize-modal] mounted', { conflictCount: conflicts.length });
+    return () => { console.log('[reorganize-modal] unmounted'); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync selection state when the conflict list is replaced without a remount.
   // Serialise IDs so the effect only fires when the actual conflict set changes.
