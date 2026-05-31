@@ -9,7 +9,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd, fmtHostTime, normalizeTime } from '../utils/time';
-import { isLiveServiceView } from '../utils/arrival';
+import { isLiveServiceView, minutesUntilRes } from '../utils/arrival';
 import { useAtmosphere } from '../hooks/useTimeWarmth';
 import { OBJECT_REGISTRY, resolveObjectVariant } from '../mapEngine';
 
@@ -2918,8 +2918,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
   const minutesUntilNext   = nextRes?.minutesUntil ?? 0;
   const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0;
-  const isUpcomingReserved = table.liveStatus === 'RESERVED' && minutesUntilNext >= 60 && minutesUntilNext < 120;
-  const isDormantReserved  = table.liveStatus === 'RESERVED' && minutesUntilNext >= 120;
+  // API minutesUntil is wall-clock-relative; re-derive from board time so that a 19:00
+  // reservation viewed at board time 11:30 reads as 450 min away (dormant), not ~30 min.
+  const boardMinutesUntilNext = (nextRes?.time && _nowTime)
+    ? minutesUntilRes(nextRes.time, _nowTime)
+    : minutesUntilNext;
+  const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
+  const isUpcomingReserved = isReservedOrSoon && boardMinutesUntilNext >= 60 && boardMinutesUntilNext < 120;
+  const isDormantReserved  = isReservedOrSoon && boardMinutesUntilNext >= 120;
   const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
