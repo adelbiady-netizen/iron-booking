@@ -149,14 +149,12 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
                 <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
               )}
             </div>
-            {!isSecondary && (
-              <p className="text-iron-muted text-xs font-medium">
-                {T.common.guests(currentRes.partySize)}
-                {isToday && mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
-                {isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
-                {isToday && mr < -5 && <span className="text-orange-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
-              </p>
-            )}
+            <p className="text-iron-muted text-xs font-medium">
+              {T.common.guests(currentRes.partySize)}
+              {!isSecondary && isToday && mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
+              {!isSecondary && isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
+              {!isSecondary && isToday && mr < -5 && <span className="text-orange-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+            </p>
           </div>
         );
       })()}
@@ -172,11 +170,10 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
                 <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-amber-500/10 border-amber-500/20 text-amber-600/60">⊞</span>
               )}
             </div>
-            {!isSecondary && (
-              <p className="text-amber-600/50 text-xs font-medium">
-                {T.common.guests(currentRes.partySize)} · {T.tableStatus.STALE_OCCUPIED}
-              </p>
-            )}
+            <p className="text-amber-600/50 text-xs font-medium">
+              {T.common.guests(currentRes.partySize)}
+              {!isSecondary && <span> · {T.tableStatus.STALE_OCCUPIED}</span>}
+            </p>
           </div>
         );
       })()}
@@ -198,14 +195,14 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
                 <span className="shrink-0 text-[10px] px-1 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-semibold">SMS</span>
               )}
             </div>
-            {!isSecondary && (
-              <p className="text-iron-muted text-[11px] font-medium">
-                {T.common.guests(displayRes.partySize)} · {displayRes.time}
+            <p className="text-iron-muted text-[11px] font-medium">
+              {T.common.guests(displayRes.partySize)}
+              {!isSecondary && <> · {displayRes.time}
                 {isToday && nextRes && nextRes.minutesUntil > 0 && (
                   <span> · {T.tableCard.inNMin(nextRes.minutesUntil)}</span>
                 )}
-              </p>
-            )}
+              </>}
+            </p>
           </div>
         );
       })()}
