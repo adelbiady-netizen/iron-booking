@@ -2657,8 +2657,8 @@ function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, i
         const isChairUpcoming = table.liveStatus === 'RESERVED' && chairNextMin >= 60 && chairNextMin < 120;
         const isChairCombined = (table.upcomingReservations[0]?.combinedTableIds?.length ?? 0) > 0;
         const isChairDormant  = table.liveStatus === 'RESERVED' && chairNextMin >= 120 && !isChairCombined;
-        // DORMANT: chairs rendered empty — table reads as fully available on the floor.
-        const filledCount     = isActive && !isChairDormant ? displayCount : 0;
+        // FAR-FUTURE (60+ min): chairs rendered empty — table reads as fully available on the floor.
+        const filledCount     = isActive && !isChairDormant && !isChairUpcoming ? displayCount : 0;
 
         // Chair fill/stroke scale with reservation proximity.
         // UPCOMING (60–120 min): subtle blue — informative but not dominant.
@@ -3007,10 +3007,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (displayStatus === 'RESERVED_SOON') {
       borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
-    } else if (displayStatus === 'RESERVED' && !isDormantReserved) {
-      borderColor = isUpcomingReserved
-        ? 'rgba(59,130,246,0.14)'    // UPCOMING 60–120 min: subtle awareness edge
-        : 'rgba(59,130,246,0.34)';   // ACTIVE <60 min: committed signal
+    } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
+      borderColor = 'rgba(59,130,246,0.34)';   // ACTIVE <60 min: committed signal
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
     } else if (table.liveStatus === 'BLOCKED') {
@@ -3028,8 +3026,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : sectionColor;
   }
 
-  // DORMANT (120+ min): near-neutral border. Combined keeps a faint blue so hosts see table is committed.
-  if (isDormantReserved && !selected && !combinedSelected && !softHold) {
+  // FAR-FUTURE (60+ min): near-neutral border. Combined keeps a faint blue so hosts see table is committed.
+  if (isFarFutureReserved && !selected && !combinedSelected && !softHold) {
     borderWidth = cls === 'communal' ? 1.5 : 1;
     borderColor = isNextResCombined
       ? 'rgba(59,130,246,0.13)'   // combined dormant: faint blue — distinct from AVAILABLE, calm
@@ -3271,10 +3269,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : displayStatus === 'RESERVED_SOON'
     // Arriving soon: stronger presence — host needs to prepare the table
     ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.66)) drop-shadow(0 1px 6px rgba(0,0,0,0.34))'
-    : displayStatus === 'RESERVED' && !isDormantReserved
-    ? isUpcomingReserved
-      ? 'drop-shadow(0 2px 14px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'  // UPCOMING: recede
-      : 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'  // ACTIVE: maintain
+    : displayStatus === 'RESERVED' && !isFarFutureReserved
+    ? 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'  // ACTIVE: maintain
     : table.liveStatus === 'BLOCKED'
     ? undefined
     // VIP tables cast a deeper shadow footprint even when empty — premium floor presence
