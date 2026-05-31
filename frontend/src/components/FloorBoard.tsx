@@ -3135,6 +3135,32 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const currentRes = table.currentReservation;
   const displayRes = currentRes ?? nextRes ?? null;
 
+  // ── DIAGNOSTIC (remove after root cause confirmed) ────────────────────────
+  if ((import.meta.env.DEV || (typeof localStorage !== 'undefined' && localStorage.getItem('floor_debug') === '1'))
+      && isReservedOrSoon && displayRes) {
+    const source = currentRes ? 'currentReservation' : nextRes ? 'nextReservation' : 'none';
+    console.log('[MapTable:label]', {
+      component: 'MapTable',
+      tableId: table.id,
+      tableName: table.name,
+      liveStatus: table.liveStatus,
+      boardTime: _nowTime ?? '(none)',
+      displayResId: displayRes.id,
+      displayResTime: (displayRes as { time?: string }).time,
+      nextResTime: nextRes?.time ?? null,
+      nextResMinutesUntil: nextRes?.minutesUntil ?? null,
+      boardMinutesUntilNext,
+      minutesUntilNext,
+      isUpcomingReserved,
+      isDormantReserved,
+      isFarFutureReserved,
+      isSuppressedByFutureThreshold: isFarFutureReserved,
+      labelWillRender: !isFarFutureReserved,
+      source,
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Queue→floor hover: soft emphasis when mouse is over the matching queue row
   const isQueueHovered = !pickMode && !selected && !combinedSelected && !!hoveredResId && (
     currentRes?.id === hoveredResId ||
