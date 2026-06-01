@@ -66,8 +66,8 @@
       "completeReservation": "Complete reservation",
       "requiredHint": "Enter your name and phone number to continue.",
       "preferencesHint": "Any preferences?",
-      "additionalRequests": "Anything else?",
-      "additionalRequestsPlaceholder": "Additional notes…"
+      "additionalRequests": "Special requests",
+      "additionalRequestsPlaceholder": "Allergies, accessibility needs, seating preferences…"
     },
     "occasions": {
       "birthday": "Birthday",
@@ -83,6 +83,19 @@
       "accessibility": "Accessibility needs",
       "highChair": "High chair",
       "celebration": "Celebrating"
+    },
+    "guestClub": {
+      "title": "Join our Club",
+      "description": "Join our guest club and receive:",
+      "benefitBirthday": "Birthday benefits",
+      "benefitAnniversary": "Anniversary surprises",
+      "benefitEvents": "Special events, seasonal menus and exclusive offers",
+      "checkboxLabel": "I agree to receive marketing messages, updates and special offers from the restaurant",
+      "birthdayLabel": "Birthday",
+      "anniversaryLabel": "Anniversary",
+      "dayPlaceholder": "Day",
+      "monthPlaceholder": "Month",
+      "unsubscribeHint": "You can unsubscribe anytime."
     },
     "trust": {
       "strip": "Instant confirmation · No account needed · Free to cancel"
@@ -114,8 +127,7 @@
       "confirmedSub": "Your table is confirmed.",
       "pendingSub": "We'll confirm your reservation shortly.",
       "pendingBadge": "Pending confirmation",
-      "phoneSent": "A confirmation has been sent to your phone.",
-      "whatsapp": "Message us on WhatsApp",
+      "phoneSent": "We'll send you a booking confirmation right after it's received.",
       "parking": "Parking"
     }
   },

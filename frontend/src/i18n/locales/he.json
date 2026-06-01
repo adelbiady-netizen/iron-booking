@@ -68,8 +68,8 @@
       "completeReservation": "השלם הזמנה",
       "requiredHint": "נא להזין שם ומספר טלפון להמשך.",
       "preferencesHint": "יש העדפות?",
-      "additionalRequests": "עוד משהו?",
-      "additionalRequestsPlaceholder": "הערות נוספות…"
+      "additionalRequests": "בקשות מיוחדות",
+      "additionalRequestsPlaceholder": "אלרגיות, צרכי נגישות, העדפות ישיבה…"
     },
     "occasions": {
       "birthday": "יום הולדת",
@@ -85,6 +85,19 @@
       "accessibility": "צרכי נגישות",
       "highChair": "כיסא גבוה",
       "celebration": "חגיגה"
+    },
+    "guestClub": {
+      "title": "הצטרפו למועדון שלנו",
+      "description": "הצטרפו למועדון האורחים וקבלו:",
+      "benefitBirthday": "הטבות יום הולדת",
+      "benefitAnniversary": "הפתעות ליום נישואין",
+      "benefitEvents": "אירועים מיוחדים, תפריטים עונתיים והצעות בלעדיות",
+      "checkboxLabel": "אני מסכים/ה לקבל הודעות שיווקיות, עדכונים והצעות מיוחדות מהמסעדה",
+      "birthdayLabel": "יום הולדת",
+      "anniversaryLabel": "יום נישואין",
+      "dayPlaceholder": "יום",
+      "monthPlaceholder": "חודש",
+      "unsubscribeHint": "ניתן לבטל את המנוי בכל עת."
     },
     "trust": {
       "strip": "אישור מיידי · ללא חשבון · ביטול חינם"
@@ -116,8 +129,7 @@
       "confirmedSub": "השולחן שלך מאושר.",
       "pendingSub": "נאשר את ההזמנה שלך בקרוב.",
       "pendingBadge": "ממתין לאישור",
-      "phoneSent": "אישור נשלח לטלפון שלך.",
-      "whatsapp": "שלחו לנו הודעה בוואטסאפ",
+      "phoneSent": "נשלח אליכם אישור הזמנה מיד לאחר קליטת ההזמנה",
       "parking": "חניה"
     }
   },

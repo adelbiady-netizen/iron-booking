@@ -35,12 +35,14 @@ interface WaitlistFormState {
 }
 
 interface FormState {
-  guestName:   string;
-  guestPhone:  string;
-  guestEmail:  string;
-  occasion:    string;
-  preferences: string[];
-  guestNotes:  string;
+  guestName:      string;
+  guestPhone:     string;
+  guestEmail:     string;
+  occasion:       string;
+  guestNotes:     string;
+  marketingOptIn: boolean;
+  birthday:       string;
+  anniversary:    string;
 }
 
 // API value stays English (sent to backend); tKey is the i18n translation key
@@ -53,13 +55,6 @@ const OCCASIONS = [
   { value: 'Other',         tKey: 'booking.occasions.other'        },
 ];
 
-const PREFERENCES = [
-  { value: 'Quiet table',         tKey: 'booking.preferences.quietTable'   },
-  { value: 'Outdoor seating',     tKey: 'booking.preferences.outdoor'      },
-  { value: 'Accessibility needs', tKey: 'booking.preferences.accessibility' },
-  { value: 'High chair',          tKey: 'booking.preferences.highChair'    },
-  { value: 'Celebrating',         tKey: 'booking.preferences.celebration'  },
-];
 
 // ─── Formatting helpers ────────────────────────────────────────────────────────
 
@@ -107,7 +102,8 @@ export default function BookingPage({ slug }: Props) {
   const [partySize, setPartySize]     = useState(2);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [form,     setForm]           = useState<FormState>({
-    guestName: '', guestPhone: '', guestEmail: '', occasion: '', preferences: [], guestNotes: '',
+    guestName: '', guestPhone: '', guestEmail: '', occasion: '', guestNotes: '',
+    marketingOptIn: false, birthday: '', anniversary: '',
   });
 
   useEffect(() => {
@@ -178,15 +174,18 @@ export default function BookingPage({ slug }: Props) {
     setState({ phase: 'submitting' });
     try {
       const result = await api.public.book.reserve(slug, {
-        date:       s.date,
-        time:       s.slot,
-        partySize:  s.partySize,
-        guestName:  form.guestName.trim(),
-        guestPhone: form.guestPhone.trim(),
-        guestEmail: form.guestEmail.trim() || undefined,
-        occasion:   form.occasion || undefined,
-        guestNotes: [form.preferences.join(', '), form.guestNotes.trim()].filter(Boolean).join('. ') || undefined,
-        lang:       locale,
+        date:           s.date,
+        time:           s.slot,
+        partySize:      s.partySize,
+        guestName:      form.guestName.trim(),
+        guestPhone:     form.guestPhone.trim(),
+        guestEmail:     form.guestEmail.trim() || undefined,
+        occasion:       form.occasion || undefined,
+        guestNotes:     form.guestNotes.trim() || undefined,
+        lang:           locale,
+        marketingOptIn: form.marketingOptIn || undefined,
+        birthday:       form.marketingOptIn && form.birthday ? form.birthday : undefined,
+        anniversary:    form.marketingOptIn && form.anniversary ? form.anniversary : undefined,
       });
       setState({ phase: 'confirmed', result, occasion: form.occasion });
     } catch (err) {
@@ -1005,18 +1004,13 @@ function GuestForm({ form, onChange, onSubmit }: {
   const { t } = useTranslation();
   const [formTouched, setFormTouched] = useState(false);
 
-  function field(key: Exclude<keyof FormState, 'preferences'>, value: string) {
+  function field(key: Exclude<keyof FormState, 'marketingOptIn'>, value: string) {
     setFormTouched(true);
     onChange({ ...form, [key]: value });
   }
 
-  function togglePref(value: string) {
-    onChange({
-      ...form,
-      preferences: form.preferences.includes(value)
-        ? form.preferences.filter(p => p !== value)
-        : [...form.preferences, value],
-    });
+  function toggleMarketing() {
+    onChange({ ...form, marketingOptIn: !form.marketingOptIn });
   }
 
   const isValid = form.guestName.trim().length > 0 && form.guestPhone.trim().length >= 3;
@@ -1059,6 +1053,75 @@ function GuestForm({ form, onChange, onSubmit }: {
         />
       </div>
 
+      {/* Guest Club — optional marketing opt-in */}
+      <div
+        className="rounded-xl p-4 space-y-3"
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.10)',
+        }}
+      >
+        <div className="flex items-start gap-2.5">
+          <span className="text-[18px] leading-none mt-0.5">🎁</span>
+          <div>
+            <p className="text-[13px] font-semibold leading-snug" style={{ color: 'var(--pub-text-primary)' }}>
+              {t('booking.guestClub.title')}
+            </p>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--pub-text-muted)' }}>
+              {t('booking.guestClub.description')}
+            </p>
+          </div>
+        </div>
+
+        <ul className="space-y-1" style={{ paddingInlineStart: '0.25rem' }}>
+          {[
+            { icon: '🎂', key: 'benefitBirthday' },
+            { icon: '🥂', key: 'benefitAnniversary' },
+            { icon: '✨', key: 'benefitEvents' },
+          ].map(({ icon, key }) => (
+            <li key={key} className="flex items-start gap-2 text-[12px]" style={{ color: 'var(--pub-text-secondary)' }}>
+              <span>{icon}</span>
+              <span>{t(`booking.guestClub.${key}`)}</span>
+            </li>
+          ))}
+        </ul>
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.marketingOptIn}
+            onChange={toggleMarketing}
+            className="mt-0.5 shrink-0 w-4 h-4 cursor-pointer"
+            style={{ accentColor: 'var(--pub-brand-color, #4ade80)' }}
+          />
+          <span className="text-[12px] leading-relaxed select-none" style={{ color: 'var(--pub-text-secondary)' }}>
+            {t('booking.guestClub.checkboxLabel')}
+          </span>
+        </label>
+
+        {form.marketingOptIn && (
+          <div className="space-y-3 pt-1">
+            <div>
+              <FieldLabel>
+                {t('booking.guestClub.birthdayLabel')}{' '}
+                <span style={{ color: 'var(--pub-text-muted)', fontWeight: 400 }}>({t('booking.form.optional')})</span>
+              </FieldLabel>
+              <MonthDayPicker value={form.birthday} onChange={v => field('birthday', v)} />
+            </div>
+            <div>
+              <FieldLabel>
+                {t('booking.guestClub.anniversaryLabel')}{' '}
+                <span style={{ color: 'var(--pub-text-muted)', fontWeight: 400 }}>({t('booking.form.optional')})</span>
+              </FieldLabel>
+              <MonthDayPicker value={form.anniversary} onChange={v => field('anniversary', v)} />
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--pub-text-muted)' }}>
+              {t('booking.guestClub.unsubscribeHint')}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Occasion — single select, optional */}
       <div>
         <FieldLabel>{t('booking.form.occasion')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
@@ -1077,27 +1140,7 @@ function GuestForm({ form, onChange, onSubmit }: {
         </div>
       </div>
 
-      {/* Preferences — multi-select, feels like a light touch not a form field */}
-      <div>
-        <p style={{ fontSize: 11, color: 'var(--pub-text-muted)', marginBottom: 10, letterSpacing: 0 }}>
-          {t('booking.form.preferencesHint')}
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          {PREFERENCES.map(({ value, tKey }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={form.preferences.includes(value)}
-              onClick={() => togglePref(value)}
-              className="pub-chip transition-all"
-            >
-              {t(tKey)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Additional requests — secondary, open-ended */}
+      {/* Special requests */}
       <div>
         <FieldLabel>{t('booking.form.additionalRequests')} <span style={{ color: 'var(--pub-text-muted)' }}>({t('booking.form.optional')})</span></FieldLabel>
         <textarea
@@ -1260,6 +1303,51 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
   );
 }
 
+// ─── Month/Day picker (DD/MM order, stores MM-DD) ─────────────────────────────
+
+function MonthDayPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t }          = useTranslation();
+  const { intlLocale } = useLocale();
+
+  const mm = value.length === 5 ? value.slice(0, 2) : '';
+  const dd = value.length === 5 ? value.slice(3, 5) : '';
+
+  function update(newMm: string, newDd: string) {
+    onChange(newMm && newDd ? `${newMm}-${newDd}` : '');
+  }
+
+  const days   = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1).padStart(2, '0'),
+    label: new Date(2000, i, 1).toLocaleDateString(intlLocale, { month: 'long' }),
+  }));
+
+  const selectStyle: React.CSSProperties = { colorScheme: 'dark' };
+
+  return (
+    <div className="flex gap-2" dir="ltr">
+      <select
+        value={dd}
+        onChange={e => update(mm, e.target.value)}
+        className="pub-input flex-1"
+        style={selectStyle}
+      >
+        <option value="">{t('booking.guestClub.dayPlaceholder')}</option>
+        {days.map(d => <option key={d} value={d}>{parseInt(d)}</option>)}
+      </select>
+      <select
+        value={mm}
+        onChange={e => update(e.target.value, dd)}
+        className="pub-input flex-1"
+        style={selectStyle}
+      >
+        <option value="">{t('booking.guestClub.monthPlaceholder')}</option>
+        {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label className="pub-field-label">
@@ -1280,10 +1368,6 @@ function ConfirmedCard({ result, profile, occasion }: {
 
   const occasionLabel = occasion
     ? (OCCASIONS.find(o => o.value === occasion)?.tKey ?? null)
-    : null;
-
-  const waUrl = profile?.phone
-    ? `https://wa.me/${profile.phone.replace(/\D/g, '')}`
     : null;
 
   return (
@@ -1369,30 +1453,6 @@ function ConfirmedCard({ result, profile, occasion }: {
           <p className="text-[12px] leading-relaxed" style={{ color: 'var(--pub-text-tertiary)' }}>
             {profile.parkingNotes}
           </p>
-        </div>
-      )}
-
-      {/* WhatsApp CTA — shown only when restaurant has a phone number */}
-      {waUrl && (
-        <div className="mt-2 mb-4">
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              width: '100%', padding: '12px 20px',
-              borderRadius: 'var(--pub-radius-lg)',
-              background: 'rgba(37,211,102,0.065)',
-              border: '1px solid rgba(37,211,102,0.18)',
-              color: 'rgba(37,211,102,0.72)',
-              fontSize: 14, fontWeight: 400,
-              textDecoration: 'none',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {t('booking.confirmed.whatsapp')}
-          </a>
         </div>
       )}
 
