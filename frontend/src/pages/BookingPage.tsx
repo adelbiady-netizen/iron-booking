@@ -1304,6 +1304,7 @@ function WaitlistSuccessCard({ result }: { result: PublicWaitlistResult }) {
 }
 
 // ─── Month/Day picker (DD/MM order, stores MM-DD) ─────────────────────────────
+// Custom listbox — no native <select>; options are real <button> elements.
 
 function MonthDayPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const { t }          = useTranslation();
@@ -1316,41 +1317,149 @@ function MonthDayPicker({ value, onChange }: { value: string; onChange: (v: stri
     onChange(newMm && newDd ? `${newMm}-${newDd}` : '');
   }
 
-  const days   = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const months = Array.from({ length: 12 }, (_, i) => ({
+  const dayOpts = Array.from({ length: 31 }, (_, i) => {
+    const v = String(i + 1).padStart(2, '0');
+    return { value: v, label: String(i + 1) };
+  });
+
+  const monthOpts = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, '0'),
     label: new Date(2000, i, 1).toLocaleDateString(intlLocale, { month: 'long' }),
   }));
 
-  // colorScheme:'light' forces the native popup to use OS light rendering
-  // (white bg, dark system text) so option labels are always readable.
-  // We avoid pub-input here because it carries -webkit-appearance:none which
-  // strips native option rendering and causes invisible text in the dropdown.
-  const selectStyle: React.CSSProperties = {
-    flex: 1,
+  return (
+    <div className="flex gap-2" dir="ltr">
+      <DropPicker
+        value={dd}
+        placeholder={t('booking.guestClub.dayPlaceholder')}
+        options={dayOpts}
+        onChange={v => update(mm, v)}
+      />
+      <DropPicker
+        value={mm}
+        placeholder={t('booking.guestClub.monthPlaceholder')}
+        options={monthOpts}
+        onChange={v => update(v, dd)}
+      />
+    </div>
+  );
+}
+
+function DropPicker({ value, placeholder, options, onChange }: {
+  value: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen]     = useState(false);
+  const containerRef        = useRef<HTMLDivElement>(null);
+  const selectedRef         = useRef<HTMLButtonElement>(null);
+  const selectedLabel       = options.find(o => o.value === value)?.label;
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  // Scroll selected option into view when the list opens
+  useEffect(() => {
+    if (open) selectedRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [open]);
+
+  const triggerStyle: React.CSSProperties = {
     width: '100%',
-    borderRadius: 'var(--pub-radius-md)',
-    padding: '14px 16px',
-    background: 'var(--pub-surface-input)',
-    border: '1px solid var(--pub-border-2)',
-    color: 'var(--pub-text-primary)',
+    padding: '12px 14px',
+    background: open ? 'rgba(255,255,255,0.07)' : 'var(--pub-surface-input)',
+    border: `1px solid ${open ? 'var(--pub-brand-border)' : 'var(--pub-border-2)'}`,
+    borderRadius: open ? 'var(--pub-radius-md) var(--pub-radius-md) 0 0' : 'var(--pub-radius-md)',
+    color: value ? 'var(--pub-text-primary)' : 'var(--pub-text-disabled)',
     fontFamily: 'inherit',
     fontSize: 'var(--pub-size-md)',
-    lineHeight: '1.4',
-    outline: 'none',
-    colorScheme: 'light',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  };
+
+  const listStyle: React.CSSProperties = {
+    background: 'rgba(12,16,28,0.98)',
+    border: '1px solid var(--pub-brand-border)',
+    borderTop: 'none',
+    borderRadius: '0 0 var(--pub-radius-md) var(--pub-radius-md)',
+    maxHeight: 184,
+    overflowY: 'auto',
+    boxShadow: '0 6px 20px rgba(0,0,0,0.55)',
+  };
+
+  const optBase: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    padding: '9px 14px',
+    background: 'transparent',
+    border: 'none',
+    fontFamily: 'inherit',
+    fontSize: 14,
+    cursor: 'pointer',
+    textAlign: 'left',
   };
 
   return (
-    <div className="flex gap-2" dir="ltr">
-      <select value={dd} onChange={e => update(mm, e.target.value)} style={selectStyle}>
-        <option value="">{t('booking.guestClub.dayPlaceholder')}</option>
-        {days.map(d => <option key={d} value={d}>{parseInt(d)}</option>)}
-      </select>
-      <select value={mm} onChange={e => update(e.target.value, dd)} style={selectStyle}>
-        <option value="">{t('booking.guestClub.monthPlaceholder')}</option>
-        {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-      </select>
+    <div ref={containerRef} style={{ flex: 1, minWidth: 0 }}>
+      <button type="button" onClick={() => setOpen(v => !v)} style={triggerStyle}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedLabel ?? placeholder}
+        </span>
+        <span aria-hidden="true" style={{ fontSize: 9, opacity: 0.40, flexShrink: 0 }}>
+          {open ? '▴' : '▾'}
+        </span>
+      </button>
+
+      {open && (
+        <div style={listStyle}>
+          {/* Clear / deselect */}
+          <button
+            type="button"
+            onClick={() => { onChange(''); setOpen(false); }}
+            style={{ ...optBase, color: 'rgba(255,255,255,0.28)', fontSize: 12 }}
+          >
+            —
+          </button>
+          {options.map(opt => {
+            const sel = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                ref={sel ? selectedRef : undefined}
+                type="button"
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                style={{
+                  ...optBase,
+                  background: sel ? 'rgba(255,255,255,0.09)' : 'transparent',
+                  color:      sel ? '#f2ece0' : 'rgba(255,255,255,0.82)',
+                  fontWeight: sel ? 500 : 400,
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
