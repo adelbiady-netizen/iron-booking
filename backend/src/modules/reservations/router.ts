@@ -118,6 +118,7 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
         date:          dateStr,
         time:          r.time,
         partySize:     r.partySize,
+        duration:      r.duration ?? undefined,
         lang,
       }).catch((err: unknown) => {
         console.error(

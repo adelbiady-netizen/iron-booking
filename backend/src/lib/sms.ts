@@ -235,6 +235,7 @@ export interface ReservationReceivedPayload {
   time:           string;  // HH:MM 24h
   partySize:      number;
   status:         string;  // 'PENDING' | 'CONFIRMED'
+  duration?:      number;  // minutes
 }
 
 function formatDayOfWeekHe(date: Date): string {
@@ -259,12 +260,14 @@ export function buildReservationReceivedMessage(
     const statusLine = p.status === 'CONFIRMED'
       ? 'ההזמנה שלך מאושרת.'
       : 'נשלח אישור סופי בקרוב.';
+    const durationLine = p.duration ? `\nהשולחן יעמוד לרשותכם למשך ${formatDurationHe(p.duration)}.` : '';
     return (
       `שלום ${firstName} 👋\n` +
       `ההזמנה שלך התקבלה ב־${p.restaurantName}\n\n` +
       `${day} • ${p.time}\n` +
       `${p.partySize} ${guestsWord}\n\n` +
-      statusLine
+      statusLine +
+      durationLine
     );
   }
 
@@ -273,12 +276,14 @@ export function buildReservationReceivedMessage(
   const statusLine = p.status === 'CONFIRMED'
     ? 'Your reservation is confirmed.'
     : 'A final confirmation will be sent soon.';
+  const durationLine = p.duration ? `\nYour table is reserved for ${formatDurationEn(p.duration)}.` : '';
   return (
     `Hi ${firstName} 👋\n` +
     `Your reservation request was received by ${p.restaurantName}.\n\n` +
     `${day} • ${p.time}\n` +
     `${p.partySize} ${guestsWord}\n\n` +
-    statusLine
+    statusLine +
+    durationLine
   );
 }
 
