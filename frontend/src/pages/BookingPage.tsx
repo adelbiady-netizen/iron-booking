@@ -1322,25 +1322,32 @@ function MonthDayPicker({ value, onChange }: { value: string; onChange: (v: stri
     label: new Date(2000, i, 1).toLocaleDateString(intlLocale, { month: 'long' }),
   }));
 
-  const selectStyle: React.CSSProperties = { colorScheme: 'dark' };
+  // colorScheme:'light' forces the native popup to use OS light rendering
+  // (white bg, dark system text) so option labels are always readable.
+  // We avoid pub-input here because it carries -webkit-appearance:none which
+  // strips native option rendering and causes invisible text in the dropdown.
+  const selectStyle: React.CSSProperties = {
+    flex: 1,
+    width: '100%',
+    borderRadius: 'var(--pub-radius-md)',
+    padding: '14px 16px',
+    background: 'var(--pub-surface-input)',
+    border: '1px solid var(--pub-border-2)',
+    color: 'var(--pub-text-primary)',
+    fontFamily: 'inherit',
+    fontSize: 'var(--pub-size-md)',
+    lineHeight: '1.4',
+    outline: 'none',
+    colorScheme: 'light',
+  };
 
   return (
     <div className="flex gap-2" dir="ltr">
-      <select
-        value={dd}
-        onChange={e => update(mm, e.target.value)}
-        className="pub-input flex-1"
-        style={selectStyle}
-      >
+      <select value={dd} onChange={e => update(mm, e.target.value)} style={selectStyle}>
         <option value="">{t('booking.guestClub.dayPlaceholder')}</option>
         {days.map(d => <option key={d} value={d}>{parseInt(d)}</option>)}
       </select>
-      <select
-        value={mm}
-        onChange={e => update(e.target.value, dd)}
-        className="pub-input flex-1"
-        style={selectStyle}
-      >
+      <select value={mm} onChange={e => update(e.target.value, dd)} style={selectStyle}>
         <option value="">{t('booking.guestClub.monthPlaceholder')}</option>
         {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
       </select>
