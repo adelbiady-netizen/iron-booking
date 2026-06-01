@@ -588,6 +588,34 @@ export default function BookingPage({ slug }: Props) {
   );
 }
 
+// ─── Duration formatter (mirrors backend duration.ts) ────────────────────────
+
+function formatDuration(minutes: number, locale: string): string {
+  if (locale === 'he') {
+    if (minutes === 45)  return 'כ-45 דקות';
+    if (minutes === 60)  return 'כשעה';
+    if (minutes === 90)  return 'כשעה וחצי';
+    if (minutes === 120) return 'כשעתיים';
+    if (minutes === 150) return 'כשעתיים וחצי';
+    if (minutes === 180) return 'כשלוש שעות';
+    if (minutes === 210) return 'כשלוש שעות וחצי';
+    if (minutes === 240) return 'כארבע שעות';
+    if (minutes < 60)   return `כ-${minutes} דקות`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (m === 0)  return `כ-${h} שעות`;
+    if (m === 30) return `כ-${h} שעות וחצי`;
+    return `כ-${minutes} דקות`;
+  }
+  if (minutes < 60)       return `about ${minutes} minutes`;
+  if (minutes === 60)     return 'about 1 hour';
+  if (minutes % 60 === 0) return `about ${minutes / 60} hours`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (m === 30) return `about ${h} and a half hours`;
+  return `about ${h}h ${m}m`;
+}
+
 // ─── Atmospheric background ────────────────────────────────────────────────────
 
 function AtmosphericBg() {
@@ -1489,8 +1517,8 @@ function ConfirmedCard({ result, profile, occasion }: {
   profile: PublicRestaurantProfile | null;
   occasion: string;
 }) {
-  const { t }                  = useTranslation();
-  const { isRTL, intlLocale }  = useLocale();
+  const { t }                        = useTranslation();
+  const { isRTL, intlLocale, locale } = useLocale();
 
   const occasionLabel = occasion
     ? (OCCASIONS.find(o => o.value === occasion)?.tKey ?? null)
@@ -1582,7 +1610,13 @@ function ConfirmedCard({ result, profile, occasion }: {
         </div>
       )}
 
-      <p className="text-center text-[12px] mt-3" style={{ color: 'var(--pub-text-micro)' }}>
+      {result.duration && (
+        <p className="text-center text-[12px] mt-3" style={{ color: 'var(--pub-text-tertiary)' }}>
+          {t('booking.confirmed.tableDuration', { duration: formatDuration(result.duration, locale) })}
+        </p>
+      )}
+
+      <p className="text-center text-[12px] mt-2" style={{ color: 'var(--pub-text-micro)' }}>
         {t('booking.confirmed.phoneSent')}
       </p>
     </GlassCard>

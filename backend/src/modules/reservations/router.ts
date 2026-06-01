@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { formatDurationHe, formatDurationEn } from '../../lib/duration';
 import {
   CreateReservationSchema,
   UpdateReservationSchema,
@@ -29,40 +30,46 @@ function notifyFloorUpdated(restaurantId: string): void {
 }
 
 function buildConfirmationSmsText(
-  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null },
+  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null; duration?: number | null },
   restaurantName: string,
 ): string {
   const lang = r.guestLang ?? 'he';
   const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
   if (lang === 'he') {
-    return `שלום ${r.guestName}, הזמנתך ב${restaurantName} לתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים אושרה. תודה!`;
+    const durationLine = r.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(r.duration)}.` : '';
+    return `שלום ${r.guestName}, הזמנתך ב${restaurantName} לתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים אושרה.${durationLine} תודה!`;
   }
-  return `Hi ${r.guestName}, your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests has been confirmed. Thank you!`;
+  const durationLine = r.duration ? ` Your table will be held for ${formatDurationEn(r.duration)}.` : '';
+  return `Hi ${r.guestName}, your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests has been confirmed.${durationLine} Thank you!`;
 }
 
 function buildReminderSmsText(
-  r: { guestName: string; time: string; guestLang?: string | null },
+  r: { guestName: string; time: string; guestLang?: string | null; duration?: number | null },
   restaurantName: string,
   confirmUrl: string,
 ): string {
   const lang = r.guestLang ?? 'he';
   if (lang === 'he') {
-    return `היי ${r.guestName}, תזכורת להזמנה שלך ב${restaurantName} היום בשעה ${r.time}. לאישור: ${confirmUrl}`;
+    const durationLine = r.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(r.duration)}.` : '';
+    return `היי ${r.guestName}, תזכורת להזמנה שלך ב${restaurantName} היום בשעה ${r.time}.${durationLine} לאישור: ${confirmUrl}`;
   }
-  return `Hi ${r.guestName}, reminder for your reservation at ${restaurantName} today at ${r.time}. Confirm: ${confirmUrl}`;
+  const durationLine = r.duration ? ` Your table is held for ${formatDurationEn(r.duration)}.` : '';
+  return `Hi ${r.guestName}, reminder for your reservation at ${restaurantName} today at ${r.time}.${durationLine} Confirm: ${confirmUrl}`;
 }
 
 function buildConfirmationRequestSmsText(
-  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null },
+  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null; duration?: number | null },
   restaurantName: string,
   confirmUrl: string,
 ): string {
   const lang = r.guestLang ?? 'he';
   const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
   if (lang === 'he') {
-    return `שלום ${r.guestName}, אנא אשר/י את הגעתך ל${restaurantName} בתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים. לאישור: ${confirmUrl}`;
+    const durationLine = r.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(r.duration)}.` : '';
+    return `שלום ${r.guestName}, אנא אשר/י את הגעתך ל${restaurantName} בתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים.${durationLine} לאישור: ${confirmUrl}`;
   }
-  return `Hi ${r.guestName}, please confirm your arrival at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests. Confirm here: ${confirmUrl}`;
+  const durationLine = r.duration ? ` Your table will be held for ${formatDurationEn(r.duration)}.` : '';
+  return `Hi ${r.guestName}, please confirm your arrival at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests.${durationLine} Confirm here: ${confirmUrl}`;
 }
 
 const router = Router();

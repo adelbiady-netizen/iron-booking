@@ -328,6 +328,11 @@ async function executeBookingTransaction(
     occasion?:  string;
     guestNotes?: string;
     guestLang?: string;
+    marketingOptIn?: boolean;
+    birthday?: string;
+    anniversary?: string;
+    marketingConsentAt?: Date;
+    marketingConsentSource?: string;
   }
 ): Promise<{ id: string; tableId: string | null }> {
   const slotStart  = parseTimeOnDate(date, time);
@@ -407,13 +412,18 @@ async function executeBookingTransaction(
         duration:          durationMinutes,
         status:            'PENDING',
         source:            'ONLINE',
-        guestName:         guest.guestName,
-        guestPhone:        guest.guestPhone,
-        guestEmail:        guest.guestEmail  || null,
-        occasion:          guest.occasion    || null,
-        guestNotes:        guest.guestNotes  || null,
-        guestLang:         guest.guestLang   ?? 'en',
-        confirmationToken: token,
+        guestName:             guest.guestName,
+        guestPhone:            guest.guestPhone,
+        guestEmail:            guest.guestEmail  || null,
+        occasion:              guest.occasion    || null,
+        guestNotes:            guest.guestNotes  || null,
+        guestLang:             guest.guestLang   ?? 'en',
+        confirmationToken:     token,
+        marketingOptIn:        guest.marketingOptIn         ?? false,
+        birthday:              guest.birthday               ?? null,
+        anniversary:           guest.anniversary            ?? null,
+        marketingConsentAt:    guest.marketingConsentAt     ?? null,
+        marketingConsentSource: guest.marketingConsentSource ?? null,
       },
       select: { id: true, tableId: true },
     });
@@ -459,6 +469,9 @@ const ReserveSchema = z.object({
   occasion:   z.string().max(100).optional(),
   guestNotes: z.string().max(1000).optional(),
   lang:       z.enum(['en', 'he']).optional(),
+  marketingOptIn: z.boolean().optional(),
+  birthday:       z.string().regex(/^\d{2}-\d{2}$/).optional(),
+  anniversary:    z.string().regex(/^\d{2}-\d{2}$/).optional(),
 });
 
 // ─── GET /api/public/book/:slug ───────────────────────────────────────────────
@@ -674,12 +687,17 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
         restaurant.id, dateObj, body.time, body.partySize,
         s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
         token, {
-          guestName:  body.guestName.trim(),
-          guestPhone: body.guestPhone.trim(),
-          guestEmail: body.guestEmail,
-          occasion:   body.occasion,
-          guestNotes: body.guestNotes,
-          guestLang:  body.lang ?? 'en',
+          guestName:             body.guestName.trim(),
+          guestPhone:            body.guestPhone.trim(),
+          guestEmail:            body.guestEmail,
+          occasion:              body.occasion,
+          guestNotes:            body.guestNotes,
+          guestLang:             body.lang ?? 'en',
+          marketingOptIn:        body.marketingOptIn === true,
+          birthday:              body.marketingOptIn ? body.birthday : undefined,
+          anniversary:           body.marketingOptIn ? body.anniversary : undefined,
+          marketingConsentAt:    body.marketingOptIn ? new Date() : undefined,
+          marketingConsentSource: body.marketingOptIn ? 'PUBLIC_BOOKING' : undefined,
         }
       );
     } catch (err) {
@@ -724,6 +742,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       time:          body.time,
       partySize:     body.partySize,
       lang:          body.lang === 'he' ? 'he' : 'en',
+      duration:      s.defaultTurnMinutes,
     }).catch((e: unknown) => {
       console.error('[booking] Reservation received SMS failed:', e instanceof Error ? e.message : e);
     });
@@ -743,7 +762,8 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           body.time,
           body.partySize,
           confirmUrl,
-          lang
+          lang,
+          s.defaultTurnMinutes,
         );
         await prisma.reservation.update({
           where: { id: reservation.id },
@@ -761,6 +781,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       date:              body.date,
       time:              body.time,
       partySize:         body.partySize,
+      duration:          s.defaultTurnMinutes,
       restaurantName:    restaurant.name,
       restaurantLogoUrl: restaurant.logoUrl,
     });

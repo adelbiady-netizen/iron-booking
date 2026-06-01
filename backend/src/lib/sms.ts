@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { formatDurationHe, formatDurationEn } from './duration';
 
 export interface SmsResult {
   success: boolean;
@@ -82,6 +83,7 @@ export interface ConfirmationMessagePayload {
   time:            string;   // HH:MM (24 h)
   partySize:       number;
   confirmationUrl: string;
+  duration?:       number;   // minutes
 }
 
 function fmtDateHe(iso: string): string {
@@ -94,22 +96,26 @@ export function buildReservationConfirmationWhatsAppMessage(
   p: ConfirmationMessagePayload
 ): string {
   if (lang === 'he') {
+    const durationLine = p.duration ? `השולחן יעמוד לרשותכם למשך ${formatDurationHe(p.duration)}\n` : '';
     return (
       `היי ${p.guestName},\n\n` +
       `נשמח לאשר את ההזמנה שלך ב־${p.restaurantName}\n\n` +
       `תאריך: ${fmtDateHe(p.date)}\n` +
       `שעה: ${p.time}\n` +
-      `מספר אורחים: ${p.partySize}\n\n` +
-      `לאישור הגעה או ביטול:\n${p.confirmationUrl}`
+      `מספר אורחים: ${p.partySize}\n` +
+      durationLine +
+      `\nלאישור הגעה או ביטול:\n${p.confirmationUrl}`
     );
   }
+  const durationLine = p.duration ? `Table held for: ${formatDurationEn(p.duration)}\n` : '';
   return (
     `Hi ${p.guestName},\n\n` +
     `Please confirm your reservation at ${p.restaurantName}\n\n` +
     `Date: ${p.date}\n` +
     `Time: ${p.time}\n` +
-    `Guests: ${p.partySize}\n\n` +
-    `Confirm or cancel here:\n${p.confirmationUrl}`
+    `Guests: ${p.partySize}\n` +
+    durationLine +
+    `\nConfirm or cancel here:\n${p.confirmationUrl}`
   );
 }
 
@@ -122,7 +128,8 @@ export async function sendConfirmationSms(
   time: string,
   partySize: number,
   confirmUrl: string,
-  lang: 'en' | 'he' = 'en'
+  lang: 'en' | 'he' = 'en',
+  duration?: number,
 ): Promise<SmsResult> {
   const message = buildReservationConfirmationWhatsAppMessage(lang, {
     guestName,
@@ -131,6 +138,7 @@ export async function sendConfirmationSms(
     time,
     partySize,
     confirmationUrl: confirmUrl,
+    duration,
   });
   return sendWhatsApp(restaurantId, phone, message);
 }
@@ -181,18 +189,23 @@ function buildReminderBody(
   guestName: string,
   restaurantName: string,
   time: string,
-  confirmUrl: string
+  confirmUrl: string,
+  duration?: number,
 ): string {
   if (lang === 'he') {
+    const durationLine = duration ? `השולחן יעמוד לרשותכם למשך ${formatDurationHe(duration)}.\n\n` : '\n';
     return (
       `היי ${guestName},\n\n` +
-      `תזכורת להזמנה שלך ב־${restaurantName} היום בשעה ${time}.\n\n` +
+      `תזכורת להזמנה שלך ב־${restaurantName} היום בשעה ${time}.\n` +
+      durationLine +
       `לאישור הגעה או ביטול:\n${confirmUrl}`
     );
   }
+  const durationLine = duration ? `Your table will be held for ${formatDurationEn(duration)}.\n\n` : '\n';
   return (
     `Hi ${guestName},\n\n` +
-    `Just a quick reminder about your reservation at ${restaurantName} today at ${time}.\n\n` +
+    `Just a quick reminder about your reservation at ${restaurantName} today at ${time}.\n` +
+    durationLine +
     `Please confirm your arrival here:\n${confirmUrl}`
   );
 }
@@ -204,9 +217,10 @@ export async function sendReminderSms(
   restaurantName: string,
   time: string,
   confirmUrl: string,
-  lang: 'en' | 'he' = 'en'
+  lang: 'en' | 'he' = 'en',
+  duration?: number,
 ): Promise<SmsResult> {
-  const body = buildReminderBody(lang, guestName, restaurantName, time, confirmUrl);
+  const body = buildReminderBody(lang, guestName, restaurantName, time, confirmUrl, duration);
   return sendWhatsApp(restaurantId, phone, body);
 }
 

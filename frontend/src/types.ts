@@ -85,6 +85,11 @@ export interface Reservation {
   reorganizeAt: string | null;
   reorganizeFromTableId: string | null;
   reorganizeBySeatingId: string | null;
+  marketingOptIn: boolean;
+  birthday: string | null;
+  anniversary: string | null;
+  marketingConsentAt: string | null;
+  marketingConsentSource: string | null;
   createdByName: string | null;
   updatedByName: string | null;
   seatedByName: string | null;
@@ -541,6 +546,7 @@ export interface BookingResult {
   date: string;
   time: string;
   partySize: number;
+  duration?: number;
   restaurantName: string;
   restaurantLogoUrl: string | null;
 }
