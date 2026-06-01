@@ -1310,11 +1310,21 @@ function MonthDayPicker({ value, onChange }: { value: string; onChange: (v: stri
   const { t }          = useTranslation();
   const { intlLocale } = useLocale();
 
-  const mm = value.length === 5 ? value.slice(0, 2) : '';
-  const dd = value.length === 5 ? value.slice(3, 5) : '';
+  // Local state so each picker retains its selection independently.
+  // Deriving mm/dd directly from `value` caused partial selections to be
+  // silently discarded: update('', '12') → onChange('') → value stays ''
+  // → on re-render dd derived as '' → picker always showed placeholder.
+  const [mm, setMm] = useState(() => value.length === 5 ? value.slice(0, 2) : '');
+  const [dd, setDd] = useState(() => value.length === 5 ? value.slice(3, 5) : '');
 
-  function update(newMm: string, newDd: string) {
-    onChange(newMm && newDd ? `${newMm}-${newDd}` : '');
+  function handleDd(newDd: string) {
+    setDd(newDd);
+    onChange(mm && newDd ? `${mm}-${newDd}` : '');
+  }
+
+  function handleMm(newMm: string) {
+    setMm(newMm);
+    onChange(newMm && dd ? `${newMm}-${dd}` : '');
   }
 
   const dayOpts = Array.from({ length: 31 }, (_, i) => {
@@ -1333,13 +1343,13 @@ function MonthDayPicker({ value, onChange }: { value: string; onChange: (v: stri
         value={dd}
         placeholder={t('booking.guestClub.dayPlaceholder')}
         options={dayOpts}
-        onChange={v => update(mm, v)}
+        onChange={handleDd}
       />
       <DropPicker
         value={mm}
         placeholder={t('booking.guestClub.monthPlaceholder')}
         options={monthOpts}
-        onChange={v => update(v, dd)}
+        onChange={handleMm}
       />
     </div>
   );
