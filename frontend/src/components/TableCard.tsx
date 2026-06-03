@@ -4,7 +4,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd } from '../utils/time';
-import { isLiveServiceView, minutesUntilRes } from '../utils/arrival';
+import { isLiveServiceView } from '../utils/arrival';
 
 function waitMins(addedAt: string, opNow: number): number {
   return Math.floor((opNow - new Date(addedAt).getTime()) / 60_000);
@@ -60,13 +60,6 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
-
-  // Far-future suppression — mirrors MapTable threshold (60+ min = invisible on card).
-  const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
-  const boardMinutesUntilNext = (nextRes?.time && nowTime)
-    ? minutesUntilRes(nextRes.time, nowTime)
-    : (nextRes?.minutesUntil ?? 0);
-  const isFarFutureReserved = isReservedOrSoon && boardMinutesUntilNext >= 60;
 
   const isOverdue = isToday
     && table.liveStatus === 'OCCUPIED'
@@ -186,7 +179,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         );
       })()}
 
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && !isFarFutureReserved && (() => {
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         return (
