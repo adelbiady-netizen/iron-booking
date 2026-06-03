@@ -362,6 +362,13 @@ model Reservation {
   hostNotes    String?           // internal host notes
   guestLang    String?           // "en" | "he" — captured at booking; used for WhatsApp
 
+  // Guest club / marketing consent (explicit opt-in from public booking form)
+  marketingOptIn         Boolean   @default(false)
+  birthday               String?   // "MM-DD" — annual; year not stored
+  anniversary            String?   // "MM-DD" — annual; year not stored
+  marketingConsentAt     DateTime?
+  marketingConsentSource String?   // "PUBLIC_BOOKING"
+
   // Tags for filtering/reporting
   tags         String[]          @default([])
 

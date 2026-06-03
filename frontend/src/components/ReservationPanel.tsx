@@ -549,8 +549,13 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 4 — optional signal chips */}
-                    {(r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
+                    {(r.hostNotes || r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {r.hostNotes && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 font-medium max-w-[180px] truncate leading-none">
+                            {r.hostNotes}
+                          </span>
+                        )}
                         {r.occasion && (
                           <span className="text-[11px] text-iron-green-light/80 font-medium">{r.occasion}</span>
                         )}
