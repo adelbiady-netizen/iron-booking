@@ -916,6 +916,17 @@ export default function FloorBoard({
   }
   for (const arr of turnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
 
+  // Daily schedule strip — all PENDING/CONFIRMED reservations for the selected day,
+  // no time-horizon cap. Used for the compact pill row under each table on the canvas.
+  const allDayTurnData = new Map<string, Reservation[]>();
+  for (const r of reservations) {
+    if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
+    const arr = allDayTurnData.get(r.tableId) ?? [];
+    arr.push(r);
+    allDayTurnData.set(r.tableId, arr);
+  }
+  for (const arr of allDayTurnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
+
   // ── Stats (derived from deduplicated set for accurate counters) ──────────────
   // "Seated" counts SEATED RESERVATIONS (parties), not occupied tables.
   // A combined-table booking occupies 2 tables but is 1 party — counting by
@@ -1274,7 +1285,7 @@ export default function FloorBoard({
                 ineligibleForAssign
               );
               const wMatch     = waitlistMatches[t.id];
-              const turns      = turnData.get(t.id) ?? [];
+              const turns      = allDayTurnData.get(t.id) ?? [];
               const extraTurns = Math.max(0, turns.length - 1);
               const turnTooltip = turns.length > 0
                 ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
@@ -1376,7 +1387,7 @@ export default function FloorBoard({
                 {group.tables.map(t => {
                   const insight    = insights.find(i => i.tableId === t.id);
                   const wMatch     = waitlistMatches[t.id];
-                  const turns      = turnData.get(t.id) ?? [];
+                  const turns      = allDayTurnData.get(t.id) ?? [];
                   const extraTurns = Math.max(0, turns.length - 1);
                   const turnTooltip = turns.length > 0
                     ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
@@ -3228,22 +3239,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Far-future reservations (60+ min) are suppressed — table renders as available.
   const hasGuest = ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes && !isFarFutureReserved;
 
-  // Multi-turn stack — turns to show below the table boundary.
-  // Uses `turns` prop (PENDING+CONFIRMED from full reservations list) — not table.upcomingReservations,
-  // which is empty for OCCUPIED and AVAILABLE tables (backend only populates it for RESERVED/SOON).
-  // OCCUPIED: all `turns` (current is SEATED and not in the list). RESERVED/SOON: skip index 0
-  // (it's the primary turn already shown inside). FAR-FUTURE (isFarFutureReserved): nothing shown
-  // inside the table body, so start from index 0 to show all upcoming reservations as mini
-  // indicators below the table. AVAILABLE: all `turns`. Cap at 4.
-  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
-    ? (table.liveStatus === 'OCCUPIED' || isStaleOccupied)
-      ? turns.slice(0, 4)
-      : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
-      ? isFarFutureReserved ? turns.slice(0, 4) : turns.slice(1, 5)
-      : table.liveStatus === 'AVAILABLE'
-      ? turns.slice(0, 4)
-      : []
-    : [];
+  // Daily schedule strip — all of this table's PENDING/CONFIRMED reservations for the
+  // selected day, already sorted by time. Suppressed only in pick/warn/dimmed modes.
+  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed) ? turns.slice(0, 6) : [];
 
   // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
   // Negative value means the animation has already been running for that duration.
@@ -3632,58 +3630,48 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       )}
     </button>
 
-    {/* Multi-turn stack — operational timeline anchored below table boundary.
-        Reservation schedule always visible. Operational truth > geometric purity. */}
+    {/* Daily schedule strip — compact horizontal pills anchored below each table.
+        Shows all PENDING/CONFIRMED reservations for the selected day ordered by time.
+        Table state (active/dormant) is determined by the board time; this strip is
+        the day-view snapshot regardless of how far away each reservation is. */}
     {turnsToShow.length > 0 && (
       <div
         style={{
           position: 'absolute',
           left: table.posX,
-          top: table.posY + table.height + 4,
-          minWidth: table.width,
-          maxWidth: table.width + 52,
+          top: table.posY + table.height + 5,
+          width: Math.max(table.width, 72),
           zIndex: 6,
           pointerEvents: 'none',
           display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: 3,
           opacity,
+          direction: isRTL ? 'rtl' : 'ltr',
         }}
       >
-        {/* Connector — hairline anchoring the stack to the table bottom edge */}
-        <div style={{
-          position: 'absolute',
-          top: -5,
-          left: 12,
-          width: 1,
-          height: 6,
-          background: isDark ? 'rgba(148,163,184,0.22)' : 'rgba(71,85,105,0.18)',
-        }} />
         {turnsToShow.map((r, i) => (
           <div
             key={r.id ?? i}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
-              padding: '3px 8px',
-              background: isDark ? 'rgba(15,17,22,0.94)' : 'rgba(248,250,252,0.96)',
-              borderRadius: 6,
-              border: `1px solid ${isDark ? 'rgba(148,163,184,0.10)' : 'rgba(100,116,139,0.14)'}`,
-              borderLeft: '2px solid rgba(96,165,250,0.55)',
+              gap: 3,
+              padding: '2px 5px',
+              background: isDark ? 'rgba(15,17,22,0.92)' : 'rgba(248,250,252,0.96)',
+              borderRadius: 4,
+              border: `1px solid ${isDark ? 'rgba(148,163,184,0.10)' : 'rgba(100,116,139,0.13)'}`,
+              borderLeft: isRTL ? undefined : '2px solid rgba(96,165,250,0.50)',
+              borderRight: isRTL ? '2px solid rgba(96,165,250,0.50)' : undefined,
+              direction: 'ltr',
             }}
           >
-            {/* Time — primary signal */}
-            <span style={{ fontSize: 11, color: '#60a5fa', fontWeight: 700, flexShrink: 0, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontSize: 10, color: '#60a5fa', fontWeight: 700, flexShrink: 0, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
               {normalizeTime(r.time)}
             </span>
-            {/* Name — secondary */}
-            <span style={{ fontSize: 10, color: isDark ? '#d4d4d8' : '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 10, color: isDark ? '#d1d5db' : '#374151', fontWeight: 500, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {r.guestName}
-            </span>
-            {/* Party size — tertiary */}
-            <span style={{ fontSize: 9, color: isDark ? '#71717a' : '#9ca3af', flexShrink: 0, fontWeight: 400 }}>
-              {r.partySize}p
             </span>
           </div>
         ))}
