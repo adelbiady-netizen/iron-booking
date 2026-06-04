@@ -571,6 +571,22 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       else setMode('seat');
       return;
     }
+    // Pre-flight: if the target table already has a seated guest, show the handoff
+    // modal before touching the API. Faster than waiting for a backend error and
+    // avoids any error-code routing ambiguity.
+    const seatedOccupant = allReservations?.find(r =>
+      r.tableId === tableId && r.status === 'SEATED' && r.id !== res.id
+    );
+    if (seatedOccupant) {
+      setOccupiedModal({
+        occupiedBy: { id: seatedOccupant.id, guestName: seatedOccupant.guestName, time: seatedOccupant.time, partySize: seatedOccupant.partySize },
+        pendingTableId: tableId,
+        pendingCombinedIds: combinedIds,
+        pendingToast: toastMsg,
+      });
+      return;
+    }
+
     setError(null);
     setBusy(true);
     // Optimistic update: floor board reflects OCCUPIED immediately at 0ms.

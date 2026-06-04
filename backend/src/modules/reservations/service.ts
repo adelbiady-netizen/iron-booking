@@ -710,10 +710,18 @@ export async function seatReservation(
         ...resolvedCombinedIds.map(cid => ({ tableId: cid })),
       ],
     },
-    select: { id: true },
+    select: { id: true, guestName: true, time: true, partySize: true },
   });
   if (occupiedCheck) {
-    throw new BusinessRuleError('Table is currently occupied — cannot seat another guest');
+    throw new ConflictError('Table is currently occupied', {
+      code: 'TABLE_IS_OCCUPIED',
+      occupiedBy: {
+        id:        occupiedCheck.id,
+        guestName: occupiedCheck.guestName,
+        time:      occupiedCheck.time,
+        partySize: occupiedCheck.partySize,
+      },
+    });
   }
 
   console.log(`[perf:seat] validation done ${Date.now() - t0}ms`);

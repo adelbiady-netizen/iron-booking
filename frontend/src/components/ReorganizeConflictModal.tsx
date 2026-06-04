@@ -21,8 +21,8 @@ export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm
   const [selectedIds, setSelectedIds] = useState<string[]>(() => conflicts.map(c => c.id));
 
   useEffect(() => {
-    console.log('[reorganize-modal] mounted', { conflictCount: conflicts.length });
-    return () => { console.log('[reorganize-modal] unmounted'); };
+    console.log('[modal]', { mounted: true, open: true, conflictCount: conflicts.length });
+    return () => { console.log('[modal]', { mounted: false, open: false }); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
