@@ -2922,11 +2922,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? minutesUntilRes(nextRes.time, _nowTime)
     : minutesUntilNext;
   const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
-  // Far-future suppression only applies on the live board. When browsing a future date
-  // the host is planning the whole day, so all reservations must be visible regardless
-  // of how many minutes away they are from the selected board time.
-  const isUpcomingReserved = isLiveView && isReservedOrSoon && boardMinutesUntilNext >= 60 && boardMinutesUntilNext < 120;
-  const isDormantReserved  = isLiveView && isReservedOrSoon && boardMinutesUntilNext >= 120;
+  const isUpcomingReserved = isReservedOrSoon && boardMinutesUntilNext >= 60 && boardMinutesUntilNext < 120;
+  const isDormantReserved  = isReservedOrSoon && boardMinutesUntilNext >= 120;
   const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
@@ -3235,12 +3232,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Uses `turns` prop (PENDING+CONFIRMED from full reservations list) — not table.upcomingReservations,
   // which is empty for OCCUPIED and AVAILABLE tables (backend only populates it for RESERVED/SOON).
   // OCCUPIED: all `turns` (current is SEATED and not in the list). RESERVED/SOON: skip index 0
-  // (it's the primary turn already shown inside). AVAILABLE: all `turns`. Cap at 4.
+  // (it's the primary turn already shown inside). FAR-FUTURE (isFarFutureReserved): nothing shown
+  // inside the table body, so start from index 0 to show all upcoming reservations as mini
+  // indicators below the table. AVAILABLE: all `turns`. Cap at 4.
   const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
     ? (table.liveStatus === 'OCCUPIED' || isStaleOccupied)
       ? turns.slice(0, 4)
       : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')
-      ? isFarFutureReserved ? [] : turns.slice(1, 5)
+      ? isFarFutureReserved ? turns.slice(0, 4) : turns.slice(1, 5)
       : table.liveStatus === 'AVAILABLE'
       ? turns.slice(0, 4)
       : []
