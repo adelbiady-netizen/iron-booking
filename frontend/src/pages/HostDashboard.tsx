@@ -162,6 +162,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     _key: number;
     pendingWaitlistEntry?: WaitlistEntry;
   } | null>(null);
+  const [occupiedConflict, setOccupiedConflict] = useState<{
+    occupiedBy: { id: string; guestName: string; time: string; partySize: number };
+    resume: () => void;
+  } | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     res: Reservation;
     sourceTableName: string;
@@ -1383,8 +1387,23 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handlePickTables, floorTables, allTables, showToast]);
 
   const handleContextMenuSeat = useCallback(async (res: Reservation) => {
-    async function executeSeat(primaryId: string, secondaryIds: string[]) {
+    async function executeSeat(primaryId: string, secondaryIds: string[], forceOverrideOccupied = false) {
       if (inFlightRef.current.has(res.id)) return;
+
+      // Pre-flight: if the target table has a SEATED guest, show handoff modal before
+      // touching the API — mirrors the same check in GuestDrawer.seatWithReorganizeCheck.
+      if (!forceOverrideOccupied) {
+        const seatedOccupant = reservations.find(r =>
+          r.tableId === primaryId && r.status === 'SEATED' && r.id !== res.id
+        );
+        if (seatedOccupant) {
+          setOccupiedConflict({
+            occupiedBy: { id: seatedOccupant.id, guestName: seatedOccupant.guestName, time: seatedOccupant.time, partySize: seatedOccupant.partySize },
+            resume: () => { void executeSeat(primaryId, secondaryIds, true); },
+          });
+          return;
+        }
+      }
 
       const now = Date.now();
       const seatedAt = new Date(now).toISOString();
@@ -1414,7 +1433,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       }));
 
       try {
-        const updated = await api.reservations.seat(res.id, primaryId, false, secondaryIds);
+        const updated = await api.reservations.seat(res.id, primaryId, false, secondaryIds, [], forceOverrideOccupied);
         setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
         setInsights(prev => prev.filter(i => i.tableId !== primaryId && i.reservationId !== res.id));
         const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
@@ -1442,7 +1461,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         setReservations(prev => prev.map(r => r.id === res.id ? res : r));
         if (snapshotFloorTable) { const snap = snapshotFloorTable; setFloorTables(prev => prev.map(t => t.id === primaryId ? snap : t)); }
         if (err instanceof ApiError && err.code === 'CONFLICT') {
-          const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+          const det = err.details as { code?: string; conflicts?: ReorganizeConflict[]; occupiedBy?: { id: string; guestName: string; time: string; partySize: number } } | null;
+          if (det?.code === 'TABLE_IS_OCCUPIED' && det.occupiedBy) {
+            setOccupiedConflict({
+              occupiedBy: det.occupiedBy,
+              resume: () => { void executeSeat(primaryId, secondaryIds, true); },
+            });
+            return;
+          }
           if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
             const tName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
             setReorganizeConflict({
@@ -1490,7 +1516,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       'seat',
       res.guestName,
     );
-  }, [handlePickTables, floorTables, showToast]);
+  }, [handlePickTables, floorTables, reservations, showToast]);
 
   // Table-first seating: host right-clicks an available table and picks a guest.
   // Reservation path reuses handleContextMenuSeat with tableId pre-injected (skips pick mode).
@@ -2403,6 +2429,36 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             }
           }}
         />,
+        document.body
+      )}
+
+      {/* Occupied-table handoff modal — shown when target table has a SEATED guest.
+          Same UX as GuestDrawer's occupiedModal but driven from the QuickPanel path. */}
+      {occupiedConflict && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOccupiedConflict(null)} />
+          <div className="relative z-10 bg-iron-card border border-iron-border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 text-right">
+            <h2 className="text-iron-text font-bold text-lg mb-2">{T.guestDrawer.occupiedModalTitle}</h2>
+            <p className="text-iron-muted text-sm mb-1">{T.guestDrawer.occupiedModalBody}</p>
+            <p className="text-iron-text text-sm font-semibold mb-5">
+              {occupiedConflict.occupiedBy.guestName} · {occupiedConflict.occupiedBy.time} · {T.common.guests(occupiedConflict.occupiedBy.partySize)}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setOccupiedConflict(null)}
+                className="px-4 py-2 rounded-lg border border-iron-border text-iron-muted text-sm hover:bg-iron-elevated transition-colors"
+              >
+                {T.guestDrawer.occupiedModalCancel}
+              </button>
+              <button
+                onClick={() => { const r = occupiedConflict.resume; setOccupiedConflict(null); r(); }}
+                className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 transition-colors"
+              >
+                {T.guestDrawer.occupiedModalConfirm}
+              </button>
+            </div>
+          </div>
+        </div>,
         document.body
       )}
 
