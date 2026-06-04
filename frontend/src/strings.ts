@@ -506,6 +506,10 @@ export const T = {
     reorganizeModalGuest: (name: string, time: string, party: number) => `${name} · ${time} · ${party}p`,
     reorganizeModalEta:   (n: number) => n <= 0 ? 'now' : `in ${n}m`,
     reorganizeConfirm:    'Seat & Reorganize',
+    occupiedModalTitle:   'Table is still marked as occupied',
+    occupiedModalBody:    'Close the current seating and seat the new guest?',
+    occupiedModalConfirm: 'Close & Seat',
+    occupiedModalCancel:  'Cancel',
     // Fallback error
     actionFailed:         'Action failed',
     // Confirmation section

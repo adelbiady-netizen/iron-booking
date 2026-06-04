@@ -297,7 +297,8 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
       actorName(req),
       req.body.overrideConflicts,
       req.body.combinedTableIds,
-      req.body.reorganizeIds
+      req.body.reorganizeIds,
+      req.body.forceOverrideOccupied,
     );
     console.log(`[perf:seat] router total ${Date.now() - t0}ms`);
     res.json(r);

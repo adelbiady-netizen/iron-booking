@@ -241,10 +241,10 @@ export const api = {
     },
     confirm: (id: string) =>
       request<Reservation & { _smsFailed?: boolean }>(`/reservations/${id}/confirm`, { method: 'POST' }),
-    seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = [], reorganizeIds: string[] = []) =>
+    seat: (id: string, tableId: string, overrideConflicts = false, combinedTableIds: string[] = [], reorganizeIds: string[] = [], forceOverrideOccupied = false) =>
       request<Reservation & { _advisory?: { shortWindow: boolean; minutesUntil: number; nextGuestName: string; minutesLate?: number } | null }>(`/reservations/${id}/seat`, {
         method: 'POST',
-        body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganizeIds }),
+        body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganizeIds, forceOverrideOccupied }),
       }),
     move: (id: string, tableId: string, reason?: string, combinedTableIds: string[] = []) =>
       request<Reservation>(`/reservations/${id}/move`, {

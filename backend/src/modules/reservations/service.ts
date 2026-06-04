@@ -466,7 +466,8 @@ export async function seatReservation(
   actorName: string,
   overrideConflicts = false,
   combinedTableIds?: string[],
-  reorganizeIds: string[] = []
+  reorganizeIds: string[] = [],
+  forceOverrideOccupied = false,
 ) {
   const t0 = Date.now();
   const [r, settings] = await Promise.all([
@@ -585,6 +586,37 @@ export async function seatReservation(
     });
   }
 
+  // Host confirmed "close and seat" — complete any seated reservation on the target
+  // table before validation so both validateTableAssignment and the hard guard pass.
+  if (forceOverrideOccupied) {
+    const todayDateObj = parseDateArg(todayLocal);
+    const currentOccupant = await prisma.reservation.findFirst({
+      where: {
+        restaurantId,
+        date: todayDateObj,
+        status: 'SEATED',
+        id: { not: id },
+        OR: [
+          { tableId },
+          ...resolvedCombinedIds.map(cid => ({ tableId: cid })),
+        ],
+      },
+      select: { id: true, guestName: true },
+    });
+    if (currentOccupant) {
+      await prisma.reservation.update({
+        where: { id: currentOccupant.id },
+        data: { status: 'COMPLETED' },
+      });
+      console.log('[seat:forceOverride] completed occupant', {
+        completedId:   currentOccupant.id,
+        completedName: currentOccupant.guestName,
+        seatingId:     id,
+        tableId,
+      });
+    }
+  }
+
   if (!overrideConflicts && !isSameTableReSeat) {
     console.log('[availability:block] seatReservation incoming', {
       reservationId: id,
@@ -625,9 +657,21 @@ export async function seatReservation(
           console.log('[SeatConflictTransform]', { reservationId: id, conflictingReservationId: det.conflictingReservationId, tableId });
           const conflictRes = await prisma.reservation.findUnique({
             where: { id: det.conflictingReservationId },
-            select: { id: true, guestName: true, time: true, partySize: true },
+            select: { id: true, guestName: true, time: true, partySize: true, status: true },
           });
           if (conflictRes) {
+            // Currently SEATED guest — different flow from a future reservation conflict.
+            if (conflictRes.status === 'SEATED') {
+              throw new ConflictError('Table is currently occupied', {
+                code: 'TABLE_IS_OCCUPIED',
+                occupiedBy: {
+                  id:        conflictRes.id,
+                  guestName: conflictRes.guestName,
+                  time:      conflictRes.time,
+                  partySize: conflictRes.partySize,
+                },
+              });
+            }
             const [cH, cM] = conflictRes.time.split(':').map(Number);
             const [nH, nM] = nowTimeStr.split(':').map(Number);
             throw new ConflictError('This table has upcoming reservations', {

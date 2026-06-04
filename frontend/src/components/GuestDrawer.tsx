@@ -245,6 +245,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     pendingToast: string;
     _key: number;
   } | null>(null);
+  const [occupiedModal, setOccupiedModal] = useState<{
+    occupiedBy: { id: string; guestName: string; time: string; partySize: number };
+    pendingTableId: string;
+    pendingCombinedIds: string[];
+    pendingToast: string;
+  } | null>(null);
   const [editConflictModal, setEditConflictModal] = useState<{
     conflicts: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>;
     pendingPayload: Parameters<typeof api.reservations.update>[1];
@@ -315,6 +321,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
     prevIsArrivedRef.current = res.isArrived;
   }, [res.isArrived]);
+
+  useEffect(() => {
+    console.log('[drawer]', { reorganizeOpen: !!reorganizeModal, conflictsLen: reorganizeModal?.conflicts?.length ?? 0 });
+  }, [reorganizeModal]);
 
   function enterEdit() {
     setEditName(res.guestName);
@@ -585,24 +595,45 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     } catch (err: unknown) {
       // Restore floor/reservation to pre-optimistic state before showing error or conflict modal.
       onOptimisticSeatRollback?.(res.id);
-      const _isApiErr = err instanceof ApiError;
-      const _errCode  = _isApiErr ? (err as ApiError).code : 'n/a';
-      const _det      = _isApiErr ? ((err as ApiError).details as { code?: string; conflicts?: unknown[] } | null) : null;
-      console.log('[seat:conflict]', {
-        isApiError: _isApiErr,
-        errCode:    _errCode,
-        detCode:    _det?.code ?? null,
-        conflictsLen: Array.isArray(_det?.conflicts) ? _det.conflicts.length : null,
-        message:    err instanceof Error ? err.message : String(err),
-      });
+      const _det = (err instanceof ApiError)
+        ? (err.details as { code?: string; conflicts?: unknown[] } | null)
+        : null;
+      const errCode    = (err instanceof ApiError) ? err.code : 'n/a';
+      const detCode    = _det?.code ?? null;
+      const conflictsLen = Array.isArray(_det?.conflicts) ? _det.conflicts.length : null;
+      console.log('[seat:conflict]', { errCode, detCode, conflictsLen, message: err instanceof Error ? err.message : String(err) });
       if (err instanceof ApiError && err.code === 'CONFLICT') {
-        const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }> } | null;
+        const det = err.details as { code?: string; conflicts?: Array<{ id: string; guestName: string; time: string; partySize: number; minutesUntil: number }>; occupiedBy?: { id: string; guestName: string; time: string; partySize: number } } | null;
+        if (det?.code === 'TABLE_IS_OCCUPIED' && det.occupiedBy) {
+          setOccupiedModal({ occupiedBy: det.occupiedBy, pendingTableId: tableId, pendingCombinedIds: combinedIds, pendingToast: toastMsg });
+          return;
+        }
         if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
-          console.log('[seat:conflict] opening reorganize modal', { tableId, conflictCount: det.conflicts.length });
+          console.log('[seat:conflict]', { errCode, detCode, conflictsLen: det.conflicts.length, willOpen: true });
           setReorganizeModal({ conflicts: det.conflicts, pendingTableId: tableId, pendingCombinedIds: combinedIds, pendingToast: toastMsg, _key: ++reorganizeKeyRef.current });
+          console.log('[seat:conflict]', { reorganizeState: 'setReorganizeModal called — waiting for React render' });
           return;
         }
       }
+      setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCloseAndSeat() {
+    if (!occupiedModal) return;
+    const { pendingTableId, pendingCombinedIds, pendingToast } = occupiedModal;
+    setOccupiedModal(null);
+    setBusy(true);
+    setError(null);
+    onOptimisticSeat?.(res, pendingTableId, pendingCombinedIds);
+    try {
+      const updated = await api.reservations.seat(res.id, pendingTableId, false, pendingCombinedIds, [], true);
+      setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
+      onSuccess?.(pendingToast);
+    } catch (err: unknown) {
+      onOptimisticSeatRollback?.(res.id);
       setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
     } finally {
       setBusy(false);
@@ -996,9 +1027,42 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         />
       )}
 
+      {/* Occupied-table handoff modal — shown when the selected table has a currently
+          SEATED guest who hasn't been formally closed out. Host chooses to close their
+          seating and seat the new arrival in one atomic operation. */}
+      {occupiedModal && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOccupiedModal(null)} />
+          <div className="relative z-10 bg-iron-card border border-iron-border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 text-right">
+            <h2 className="text-iron-text font-bold text-lg mb-2">{T.guestDrawer.occupiedModalTitle}</h2>
+            <p className="text-iron-muted text-sm mb-1">{T.guestDrawer.occupiedModalBody}</p>
+            <p className="text-iron-text text-sm font-semibold mb-5">
+              {occupiedModal.occupiedBy.guestName} · {occupiedModal.occupiedBy.time} · {T.common.guests(occupiedModal.occupiedBy.partySize)}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setOccupiedModal(null)}
+                className="px-4 py-2 rounded-lg border border-iron-border text-iron-muted text-sm hover:bg-iron-elevated transition-colors"
+              >
+                {T.guestDrawer.occupiedModalCancel}
+              </button>
+              <button
+                onClick={handleCloseAndSeat}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 disabled:opacity-50 transition-colors"
+              >
+                {T.guestDrawer.occupiedModalConfirm}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Reorganize confirmation modal — seat flow
           Portaled to document.body to escape App.tsx's transform:scale stacking context,
           which would otherwise make position:fixed children unable to cover the drawer. */}
+      {void console.log('[drawer:render]', { reorganizeOpen: !!reorganizeModal })}
       {reorganizeModal && createPortal(
         <ReorganizeConflictModal
           key={reorganizeModal._key}

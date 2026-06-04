@@ -493,6 +493,10 @@ export const THe = {
     reorganizeModalGuest: (name: string, time: string, party: number) => `${name} · ${time} · ${party} סועדים`,
     reorganizeModalEta:   (n: number) => n <= 0 ? 'עכשיו' : `בעוד ${n}ד׳`,
     reorganizeConfirm:    'הושב וסדר מחדש',
+    occupiedModalTitle:   'השולחן עדיין מסומן כתפוס',
+    occupiedModalBody:    'האם לסגור את הישיבה הנוכחית ולהושיב את האורח החדש?',
+    occupiedModalConfirm: 'סגור והושב',
+    occupiedModalCancel:  'ביטול',
     actionFailed:         'הפעולה נכשלה',
     // Confirmation section
     confirmationSection:  'אישור הגעה',
