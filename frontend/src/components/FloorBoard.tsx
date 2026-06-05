@@ -2894,15 +2894,24 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : cls === 'bar' ? '5px'
     : tableRadius(table.shape);
 
-  // Base (non-pick) colors
-  const isOverdue      = table.liveStatus === 'OCCUPIED' && (table.currentReservation?.isOverdue ?? false);
-  const overdueMinutes = isOverdue ? (table.currentReservation?.minutesOverdue ?? 0) : 0;
+  // Base (non-pick) colors — minutesRemaining computed first so both isOverdue and isEndingSoon can use it
+  const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
+    ? minutesUntilEnd(table.currentReservation.expectedEndTime, _operationalNow ?? Date.now()) : null;
+  const isOverdue = table.liveStatus === 'OCCUPIED' && (
+    (table.currentReservation?.isOverdue ?? false) ||
+    (minutesRemaining !== null && minutesRemaining < 0)
+  );
+  const overdueMinutes = isOverdue
+    ? Math.max(
+        table.currentReservation?.minutesOverdue ?? 0,
+        minutesRemaining !== null && minutesRemaining < 0 ? Math.round(-minutesRemaining) : 0
+      )
+    : 0;
   const overdueTier: 'mild' | 'warning' | 'critical' | null =
     overdueMinutes >= 45 ? 'critical' : overdueMinutes >= 15 ? 'warning' : overdueMinutes > 0 ? 'mild' : null;
   const isStaleOccupied = table.liveStatus === 'STALE_OCCUPIED';
-  const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
-    ? minutesUntilEnd(table.currentReservation.expectedEndTime, _operationalNow ?? Date.now()) : null;
-  const isEndingSoon = isToday && minutesRemaining !== null && minutesRemaining > 5 && minutesRemaining <= 20;
+  // endingSoon: last 10 minutes before expected release — calm amber warning, not yet critical
+  const isEndingSoon = isToday && !isOverdue && minutesRemaining !== null && minutesRemaining >= 0 && minutesRemaining <= 10;
   // Stable/recession states — reduce visual weight to let urgent tables surface
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
   const minutesUntilNext   = nextRes?.minutesUntil ?? 0;
@@ -2920,6 +2929,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,236,253,0.96)'   // soft lavender — held
     : isOverdue       ? (overdueTier === 'critical' ? 'rgba(248,113,113,0.97)' : overdueTier === 'warning' ? 'rgba(252,165,165,0.97)' : 'rgba(254,202,202,0.97)')  // severity-tiered: mild/warning/critical
+    : isEndingSoon    ? (isDark ? 'rgba(253,230,138,0.97)' : 'rgba(254,243,199,0.97)')  // warm amber — last 10 min, calmer than overdue
     : isStaleOccupied ? (isDark ? 'rgba(240,233,220,0.96)' : 'rgba(253,249,242,0.96)')  // warm muted — prev service
     : (STATUS_BG[displayStatus] ?? STATUS_BG['AVAILABLE']);
   if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
@@ -3201,6 +3211,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // This gives tactile status confirmation independent of the text layer.
   if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
     const leftEdgeColor = !isDark ? 'rgba(0,0,0,0)'
+      : isOverdue                                               ? 'rgba(185,28,28,0.35)'
+      : isEndingSoon                                            ? 'rgba(217,119,6,0.26)'
       : table.liveStatus === 'OCCUPIED'                          ? 'rgba(134,239,172,0.22)'
       : isStaleOccupied                                         ? 'rgba(217,119,6,0.14)'
       : displayStatus   === 'RESERVED_SOON'                    ? 'rgba(251,191,36,0.20)'
@@ -3271,7 +3283,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         // Material surface — gradient angle and shape vary by table type so overhead light
         // reads correctly: radial for round, top-down for booths, angled for rectangular.
         // Pick/warn states are neutral (clarity first — no decoration during selection).
-        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(table.shape, (isFarFutureReserved || isStaleOccupied) ? 'AVAILABLE' : displayStatus, cls, isDark) : undefined,
+        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(
+          table.shape,
+          (isFarFutureReserved || isStaleOccupied || isOverdue) ? 'AVAILABLE'
+          : isEndingSoon ? 'RESERVED_SOON'
+          : displayStatus,
+          cls, isDark
+        ) : undefined,
         boxShadow,
         // Physical depth — tables are objects on a floor, they cast shadows.
         // Occupied tables come forward (heavier shadow); available recede (lighter).
@@ -3291,7 +3309,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     >
       {/* ── Live presence overlays ──────────────────────────────────────────── */}
       {/* Alive — occupied non-overdue tables breathe with a faint green warmth */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && (
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
           background: 'radial-gradient(ellipse 90% 90% at 35% 35%, rgba(134,239,172,0.14) 0%, transparent 70%)',
@@ -3301,7 +3319,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       )}
       {/* Centerpiece warmth — static warm center simulating candle or floral catch.
           Not animated; occupies no layout space; barely visible, only felt. */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && (
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
           background: 'radial-gradient(ellipse 32% 28% at 50% 44%, rgba(255,205,85,0.10) 0%, transparent 100%)',

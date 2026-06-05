@@ -61,17 +61,19 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const displayRes = currentRes ?? nextRes ?? null;
   const isAvailable = table.liveStatus === 'AVAILABLE';
 
-  const isOverdue = isToday
-    && table.liveStatus === 'OCCUPIED'
-    && currentRes != null
-    && minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now()) < -5;
+  const mr_live = (isToday && table.liveStatus === 'OCCUPIED' && currentRes != null)
+    ? minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now())
+    : null;
+  const isOverdue    = mr_live !== null && mr_live < 0;
+  const isEndingSoon = mr_live !== null && mr_live >= 0 && mr_live <= 10;
 
   const style = STATUS_STYLE[displayStatus] ?? STATUS_STYLE['AVAILABLE'];
 
   const shadowStyle: React.CSSProperties = (() => {
     if (selected)             return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 0 1px rgba(111,138,60,0.24), 0 4px 18px rgba(0,0,0,0.52)' };
     if (table.locked)         return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 8px rgba(0,0,0,0.28)' };
-    if (isOverdue)            return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 0 1px rgba(249,115,22,0.18), 0 2px 16px rgba(0,0,0,0.46)' };
+    if (isOverdue)            return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 0 1px rgba(239,68,68,0.32), 0 2px 18px rgba(0,0,0,0.52)' };
+    if (isEndingSoon)         return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 0 1px rgba(251,191,36,0.22), 0 2px 14px rgba(0,0,0,0.46)' };
     switch (displayStatus) {
       case 'OCCUPIED':      return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 0 1px rgba(111,138,60,0.14), 0 2px 14px rgba(0,0,0,0.42)' };
       case 'RESERVED_SOON': return { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 0 1px rgba(245,158,11,0.12), 0 2px 12px rgba(0,0,0,0.36)' };
@@ -88,14 +90,14 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       style={shadowStyle}
       className={`
         group w-full text-left p-3 rounded-lg border transition-[background-color,border-color,box-shadow,opacity,transform] duration-150 active:scale-[0.97] touch-manipulation
-        ${table.locked ? 'bg-amber-500/5' : isOverdue ? 'bg-orange-900/12' : (style.bg || (isAvailable ? 'bg-iron-card hover:bg-iron-elevated/30' : 'bg-iron-card'))}
+        ${table.locked ? 'bg-amber-500/5' : isOverdue ? 'bg-red-500/20' : isEndingSoon ? 'bg-amber-400/16' : (style.bg || (isAvailable ? 'bg-iron-card hover:bg-iron-elevated/30' : 'bg-iron-card'))}
         ${selected
           ? 'border-iron-green ring-2 ring-iron-green-light/55 ring-offset-1 ring-offset-iron-bg'
           : softHold && table.liveStatus === 'AVAILABLE' && !table.locked
           ? 'border-indigo-500/60 ring-2 ring-indigo-500/20 ring-offset-1 ring-offset-iron-bg'
           : isBestSuggestion && !table.locked
           ? `${style.border} ring-2 ring-iron-green/20 ring-offset-1 ring-offset-iron-bg`
-          : table.locked ? LOCKED_STYLE : isOverdue ? 'border-orange-500/80' : style.border}
+          : table.locked ? LOCKED_STYLE : isOverdue ? 'border-red-500/85' : isEndingSoon ? 'border-amber-400/80' : style.border}
       `}
     >
       {/* Name + priority dot + turn badge + status label */}
@@ -152,9 +154,10 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             </div>
             <p className="text-iron-muted text-xs font-medium">
               {T.common.guests(currentRes.partySize)}
-              {!isSecondary && isToday && mr > 5 && <span> · {T.tableCard.endsIn(mr)}</span>}
+              {!isSecondary && isToday && mr > 10 && <span> · {T.tableCard.endsIn(mr)}</span>}
+              {!isSecondary && isToday && mr > 5 && mr <= 10 && <span className="text-amber-400 font-medium"> · {T.tableCard.endsIn(mr)}</span>}
               {!isSecondary && isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
-              {!isSecondary && isToday && mr < -5 && <span className="text-orange-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+              {!isSecondary && isToday && mr < -5 && <span className="text-red-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
             </p>
           </div>
         );
