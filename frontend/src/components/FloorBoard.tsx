@@ -951,10 +951,6 @@ export default function FloorBoard({
   const underPressure = waitlist.length > 0 && available <= 2;
   const quietIdle = underPressure && !pickMode && !waitlistAssignEntry && !combineMode && !reorganizeMode;
 
-  // Whether the board is in live-service view (today + within ±90 min of wall clock).
-  // Used to suppress RESERVED_SOON urgency styling for future planning boardTimes.
-  const isLiveView = nowTime && date ? isLiveServiceView(date, nowTime) : true;
-
   // ── Service pressure score ─────────────────────────────────────────────────
   // Continuous 0.0–1.0 signal from live data. Drives atmosphere only — no alerts.
   // Components: room occupancy (40%), waitlist depth (30%), overdue weight (20%), wave size (10%).
@@ -1260,22 +1256,6 @@ export default function FloorBoard({
               <SpatialEnergyField tables={canvasTables} pressureScore={pressureScore} timeWarmth={timeWarmth} serviceEnergy={serviceEnergy} operationalNow={operationalNow} />
             )}
 
-            {/* Chair silhouettes — semantic furniture geometry around table perimeters */}
-            <ChairLayer
-              tables={canvasTables}
-              floorObjs={floorObjs}
-              dimmedTableIds={new Set<string>(
-                canvasTables
-                  .filter(t => !pickMode && (
-                    (hoveredSectionId !== null && t.section?.id !== hoveredSectionId) ||
-                    (!!waitlistAssignEntry && (t.liveStatus !== 'AVAILABLE' || t.locked))
-                  ))
-                  .map(t => t.id)
-              )}
-              pickMode={pickMode}
-              timeWarmth={timeWarmth}
-              isLiveView={isLiveView}
-            />
 
             {canvasTables.map(t => {
               const insight    = insights.find(i => i.tableId === t.id);
@@ -2607,11 +2587,9 @@ function chairJitter(tableId: string, idx: number, slot: number): number {
 }
 
 // ── Chair layer ───────────────────────────────────────────────────────────────
-// Semantic chair silhouettes rendered as SVG around each table perimeter.
-// Lives below table buttons in DOM order so chairs peek around table edges
-// without interfering with hit targets or the button's overflow:hidden.
-// Detail tier (useDots vs full capsule) proxies for zoom via table pixel area.
-function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, isLiveView }: {
+// Decorative chair silhouettes for editor/layout mode — not used in operational view.
+// Exported so LayoutEditor can import and render it in the canvas overlay.
+export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, isLiveView }: {
   tables: FloorTable[];
   floorObjs: FloorObjectData[];
   dimmedTableIds: Set<string>;
@@ -3394,12 +3372,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         )}
       </div>
 
-      {/* Capacity — wayfinding for empty tables only; noise on active tables */}
-      {!hasGuest && (
-        <span style={{ fontSize: 10, color: '#3f3f46', opacity: 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: 600 }}>
-          {table.minCovers}–{table.maxCovers}p
-        </span>
-      )}
+      {/* Capacity — fixed table metadata, always visible */}
+      <span style={{ fontSize: 10, color: '#3f3f46', opacity: hasGuest ? 0.52 : 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: hasGuest ? 500 : 600 }}>
+        {table.maxCovers}p
+      </span>
 
       {/* Pick mode: current-table label */}
       {pickMode && pickStatus === 'current' && (
