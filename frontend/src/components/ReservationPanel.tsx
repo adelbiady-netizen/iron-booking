@@ -305,6 +305,15 @@ export default function ReservationPanel({
                             {r.table?.name} · {T.reservationPanel.overdueMinutes(minsLate)}
                           </p>
                         </div>
+                        {onMarkArrived && !r.isArrived && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
+                            className="text-xs font-medium px-2.5 py-1 rounded-md border border-teal-500/40 text-teal-400 hover:bg-teal-500/15 transition-colors shrink-0"
+                          >
+                            {T.reservationPanel.markArrivedBtn}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => onSelect(r)}
@@ -416,22 +425,6 @@ export default function ReservationPanel({
                 })()
               : visible
             ).map(r => {
-              // DIAGNOSTIC — remove after root cause confirmed
-              const _p1 = !r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && !!onChooseTable;
-              const _p2 = ['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && !!onMarkArrived;
-              const _p3 = r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status);
-              const _outer = _p1 || _p2 || _p3;
-              const _btn = !!onMarkArrived && !r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status);
-              console.log('[RP card]', {
-                time: r.time, name: r.guestName, id: r.id,
-                status: r.status, isArrived: r.isArrived,
-                hasTable: !!r.table, tableId: r.tableId,
-                onMarkArrivedDefined: !!onMarkArrived,
-                p1_chooseTable: _p1, p2_markArrived: _p2, p3_arrived: _p3,
-                outerShows: _outer, markArrivedBtnShows: _btn,
-                hiddenReason: !_outer ? 'outer=false' : !_btn ? (r.isArrived ? 'already-arrived→wait-time' : !['PENDING','CONFIRMED'].includes(r.status) ? `wrong-status:${r.status}` : !onMarkArrived ? 'no-prop' : 'unknown') : 'BUTTON VISIBLE',
-              });
-              // END DIAGNOSTIC
               const aState  = !!isLiveView && !!nowTime ? arrivalState(r.time, r.status, nowTime) : null;
               const isStale = !!isLiveView && !!nowTime && isStaleReservation(r.time, r.status, nowTime);
 
