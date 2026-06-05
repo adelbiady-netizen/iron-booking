@@ -209,6 +209,7 @@ export const THe = {
     confirmedTick:    '✓ אישר הגעה',
     runningLate:      'מאחר',
     arrivedBadge:     'הגיעו',
+    arrivedWaiting:   (n: number) => `ממתין ${n} דק׳`,
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
     ctxSeat:          'הושבה',

@@ -96,6 +96,13 @@ export default function ReservationPanel({
     return () => document.removeEventListener('mousedown', onDown);
   }, [ctxMenu]);
 
+  // Live clock for waiting-time labels on arrived guests — ticks every minute.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const todayStr     = new Date().toISOString().slice(0, 10);
   const isFutureDate = !!date && date > todayStr;
 
@@ -566,7 +573,11 @@ export default function ReservationPanel({
                           <span className="text-[11px] font-medium text-emerald-400/90">{T.reservationPanel.confirmedTick}</span>
                         )}
                         {r.isArrived && (
-                          <span className="text-[11px] font-medium text-teal-400/85">{T.reservationPanel.arrivedBadge}</span>
+                          <span className="text-[11px] font-medium text-teal-400/85">
+                            {r.arrivedAt
+                              ? T.reservationPanel.arrivedWaiting(Math.round((nowMs - new Date(r.arrivedAt).getTime()) / 60_000))
+                              : T.reservationPanel.arrivedBadge}
+                          </span>
                         )}
                         {r.isRunningLate && (
                           <span className="text-[11px] font-semibold text-orange-400">{T.reservationPanel.runningLate}</span>

@@ -208,6 +208,7 @@ export const T = {
     confirmedTick:    '✓ Arrival confirmed',
     runningLate:      'running late',
     arrivedBadge:     'arrived',
+    arrivedWaiting:   (n: number) => `waiting ${n}m`,
     reminded:         'reminded',
     smsSent:          'SMS sent',
     ctxSeat:          'Seat',
