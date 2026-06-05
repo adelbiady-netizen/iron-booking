@@ -66,6 +66,7 @@ interface Props {
   onReorganizeSelect?: (r: Reservation) => void;
   allTables?: { id: string; name: string }[];
   onChooseTable?: (r: Reservation) => void;
+  onMarkArrived?: (r: Reservation) => void;
   isLiveView?: boolean;
   onHoverRow?: (id: string | null) => void;
   onSmartAssign?: () => void;
@@ -77,7 +78,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onChooseTable, isLiveView, onHoverRow, onSmartAssign,
+  onChooseTable, onMarkArrived, isLiveView, onHoverRow, onSmartAssign,
 }: Props) {
   const T = useT();
   const { dir } = useLocale();
@@ -591,15 +592,26 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-                  {!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable && (
-                    <div className="flex items-center pe-3.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                        className="text-xs font-medium px-2.5 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
-                      >
-                        {T.reservationPanel.chooseTable}
-                      </button>
+                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived)) && (
+                    <div className="flex flex-col items-end gap-1.5 pe-3.5 shrink-0">
+                      {!r.table && onChooseTable && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                          className="text-xs font-medium px-2.5 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                        >
+                          {T.reservationPanel.chooseTable}
+                        </button>
+                      )}
+                      {!r.isArrived && onMarkArrived && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
+                          className="text-xs font-medium px-2.5 py-2 rounded-lg border border-teal-500/40 text-teal-400 hover:bg-teal-500/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                        >
+                          {T.reservationPanel.markArrivedBtn}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

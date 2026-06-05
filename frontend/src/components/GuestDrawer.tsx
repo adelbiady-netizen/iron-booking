@@ -207,9 +207,11 @@ interface Props {
   onOptimisticSeat?: (res: Reservation, tableId: string, combinedIds: string[]) => void;
   /** Restores floor/reservation state if the seat API rejects. */
   onOptimisticSeatRollback?: (resId: string) => void;
+  /** Optimistic mark-arrived: updates global state immediately so the panel card jumps to top. */
+  onMarkArrived?: (r: Reservation) => void;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -512,6 +514,15 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     } finally {
       setBusy(false);
       inflightRef.current = false;
+    }
+  }
+
+  function handleMarkArrived() {
+    if (onMarkArrived) {
+      setRes(prev => ({ ...prev, isArrived: true, arrivedAt: prev.arrivedAt ?? new Date().toISOString() }));
+      onMarkArrived(res);
+    } else {
+      void run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived);
     }
   }
 
@@ -884,7 +895,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <ActionBtn
               label={T.guestDrawer.actionMarkArrived}
               cls={btnNeutral}
-              onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+              onClick={handleMarkArrived}
               disabled={busy}
             />
           )}
@@ -956,7 +967,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <ActionBtn
               label={T.guestDrawer.actionMarkArrived}
               cls={btnNeutral}
-              onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+              onClick={handleMarkArrived}
               disabled={busy}
             />
           )}
@@ -1302,7 +1313,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 {/* LATE: guest might have just walked in — surface Arrived one tap away */}
                 {aState === 'LATE' && !res.isArrived && canAct && (
                   <button
-                    onClick={() => run(() => api.reservations.markArrived(res.id), T.guestDrawer.toastArrived)}
+                    onClick={handleMarkArrived}
                     disabled={busy}
                     className="text-xs font-medium text-orange-400/80 hover:text-orange-300 transition-colors shrink-0 disabled:opacity-40"
                   >

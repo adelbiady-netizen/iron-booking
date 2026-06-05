@@ -2171,6 +2171,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onReorganizeSelect={handleReorganizeSelect}
               allTables={allTables}
               onChooseTable={handleChooseTable}
+              onMarkArrived={handleContextMenuArrive}
               isLiveView={isLiveView}
               onHoverRow={handleHoverRow}
               onSmartAssign={() => setShowSmartAssign(true)}
@@ -2197,6 +2198,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onDateTimeChange={handleDrawerDateTimeChange}
             onOptimisticSeat={handleOptimisticSeat}
             onOptimisticSeatRollback={handleOptimisticSeatRollback}
+            onMarkArrived={handleContextMenuArrive}
           />
         </DrawerErrorBoundary>
       )}
