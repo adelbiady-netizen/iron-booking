@@ -210,7 +210,7 @@ export const THe = {
     runningLate:      'מאחר',
     arrivedBadge:     'הגיעו',
     arrivedWaiting:   (n: number) => `ממתין ${n} דק׳`,
-    markArrivedBtn:   'הגיע',
+    markArrivedBtn:   'סמן הגיע',
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
     ctxSeat:          'הושבה',

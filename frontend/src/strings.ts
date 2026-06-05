@@ -209,7 +209,7 @@ export const T = {
     runningLate:      'running late',
     arrivedBadge:     'arrived',
     arrivedWaiting:   (n: number) => `waiting ${n}m`,
-    markArrivedBtn:   'Arrived',
+    markArrivedBtn:   'Mark arrived',
     reminded:         'reminded',
     smsSent:          'SMS sent',
     ctxSeat:          'Seat',

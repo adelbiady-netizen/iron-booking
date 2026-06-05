@@ -557,7 +557,7 @@ export default function ReservationPanel({
                     </div>
 
                     {/* Row 4 — optional signal chips */}
-                    {(r.hostNotes || r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.isArrived || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
+                    {(r.hostNotes || r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {r.hostNotes && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 font-medium max-w-[180px] truncate leading-none">
@@ -573,13 +573,6 @@ export default function ReservationPanel({
                         {r.isConfirmedByGuest && (
                           <span className="text-[11px] font-medium text-emerald-400/90">{T.reservationPanel.confirmedTick}</span>
                         )}
-                        {r.isArrived && (
-                          <span className="text-[11px] font-medium text-teal-400/85">
-                            {r.arrivedAt
-                              ? T.reservationPanel.arrivedWaiting(Math.round((nowMs - new Date(r.arrivedAt).getTime()) / 60_000))
-                              : T.reservationPanel.arrivedBadge}
-                          </span>
-                        )}
                         {r.isRunningLate && (
                           <span className="text-[11px] font-semibold text-orange-400">{T.reservationPanel.runningLate}</span>
                         )}
@@ -592,25 +585,35 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived && !!nowTime && minutesUntilRes(r.time, nowTime) <= 30)) && (
-                    <div className="flex flex-col items-end gap-1.5 pe-3.5 shrink-0">
-                      {!r.table && onChooseTable && (
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                          className="text-xs font-medium px-2.5 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
-                        >
-                          {T.reservationPanel.chooseTable}
-                        </button>
-                      )}
-                      {!r.isArrived && onMarkArrived && !!nowTime && minutesUntilRes(r.time, nowTime) <= 30 && (
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                          className="text-xs font-medium px-2.5 py-2 rounded-lg border border-teal-500/40 text-teal-400 hover:bg-teal-500/15 transition-colors active:scale-[0.97] whitespace-nowrap"
-                        >
-                          {T.reservationPanel.markArrivedBtn}
-                        </button>
+                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived && !!nowTime && minutesUntilRes(r.time, nowTime) <= 30) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
+                    <div className="flex flex-col items-center justify-center gap-2 pe-3.5 ps-1 shrink-0">
+                      {r.isArrived ? (
+                        <span className="text-[11px] font-semibold text-teal-400 whitespace-nowrap text-center leading-tight">
+                          {r.arrivedAt
+                            ? T.reservationPanel.arrivedWaiting(Math.round((nowMs - new Date(r.arrivedAt).getTime()) / 60_000))
+                            : T.reservationPanel.arrivedBadge}
+                        </span>
+                      ) : (
+                        <>
+                          {!r.table && onChooseTable && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                              className="text-xs font-medium px-2.5 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                            >
+                              {T.reservationPanel.chooseTable}
+                            </button>
+                          )}
+                          {onMarkArrived && !!nowTime && minutesUntilRes(r.time, nowTime) <= 30 && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
+                              className="text-xs font-medium px-2.5 py-2 rounded-lg border border-teal-500/40 text-teal-400 hover:bg-teal-500/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                            >
+                              {T.reservationPanel.markArrivedBtn}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
