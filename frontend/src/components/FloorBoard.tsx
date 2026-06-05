@@ -3283,7 +3283,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         opacity,
         padding: '6px 8px',
         overflow: 'hidden',
-        display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+        display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center',
         textAlign: 'center',
         cursor,
         transition: `opacity var(--duration-fast) ease-out, transform var(--duration-fast) var(--ease-hospitality), filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
@@ -3395,7 +3395,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           : isDark ? '#15803d' : '#166534';
         const nameWeight = isOverdue ? 800 : 700;
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative', paddingBottom: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
             {/* Name zone — always centered */}
             <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {currentRes.guestName}
@@ -3440,7 +3440,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, position: 'relative', paddingBottom: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
             <p style={{ fontSize: 12, color: isDark ? 'rgba(146,100,40,0.80)' : 'rgba(120,72,20,0.72)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {currentRes.guestName}
             </p>
@@ -3476,7 +3476,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         const guestFontWeight = isReceded ? 500 : isUpcomingReserved ? 600 : 700;
         const metaOpacity     = isDormantReserved ? 0.60 : isUpcomingReserved ? 0.78 : 0.92;
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
             {/* Name zone — always centered; stable anchor regardless of badge presence */}
             <p style={{ fontSize: guestFontSize, color: guestColor, fontWeight: guestFontWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
