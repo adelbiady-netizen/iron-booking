@@ -107,15 +107,6 @@ export default function ReservationPanel({
   const todayStr     = new Date().toISOString().slice(0, 10);
   const isFutureDate = !!date && date > todayStr;
 
-  // Wall-clock HH:MM derived from the minute-resolution nowMs clock.
-  // Used for the arrived-button window check so the button appears based on
-  // real time, not the board's frozen operational time (which drifts when
-  // the host selects a reservation and liveMode is disabled).
-  const wallClockHHMM = (() => {
-    const d = new Date(nowMs);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  })();
-
   const STATUS_LABEL: Record<string, string> = {
     PENDING:   T.reservationStatus.PENDING,
     CONFIRMED: T.reservationStatus.CONFIRMED,
@@ -594,7 +585,7 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived && !isFutureDate && minutesUntilRes(r.time, wallClockHHMM) <= 30) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
+                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
                     <div className="flex flex-col items-center justify-center gap-2 pe-3.5 ps-1 shrink-0">
                       {r.isArrived ? (
                         <span className="text-[11px] font-semibold text-teal-400 whitespace-nowrap text-center leading-tight">
@@ -613,7 +604,7 @@ export default function ReservationPanel({
                               {T.reservationPanel.chooseTable}
                             </button>
                           )}
-                          {onMarkArrived && !isFutureDate && minutesUntilRes(r.time, wallClockHHMM) <= 30 && (
+                          {onMarkArrived && (
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
