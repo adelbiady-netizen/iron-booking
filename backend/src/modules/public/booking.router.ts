@@ -36,6 +36,10 @@ class SlotTakenError extends Error {
   constructor() { super('SLOT_TAKEN'); this.name = 'SlotTakenError'; }
 }
 
+class CapacityLimitError extends Error {
+  constructor() { super('CAPACITY_LIMIT'); this.name = 'CapacityLimitError'; }
+}
+
 // ─── Simple in-memory rate limiter ───────────────────────────────────────────
 
 function makeRateLimiter(max: number) {
@@ -67,6 +71,8 @@ function parseSettings(settings: unknown) {
     maxPartySize:              (s['maxPartySize']               as number) ?? 12,
     maxAdvanceBookingDays:     (s['maxAdvanceBookingDays']      as number) ?? 60,
     minAdvanceBookingHours:    (s['minAdvanceBookingHours']     as number) ?? 2,
+    maxOnlinePartySize:        (s['maxOnlinePartySize']         as number) ?? 5,
+    maxOnlineCoversPerWindow:  (s['maxOnlineCoversPerWindow']   as number) ?? 40,
   };
 }
 
@@ -333,7 +339,8 @@ async function executeBookingTransaction(
     anniversary?: string;
     marketingConsentAt?: Date;
     marketingConsentSource?: string;
-  }
+  },
+  maxOnlineCoversPerWindow?: number,
 ): Promise<{ id: string; tableId: string | null }> {
   const slotStart  = parseTimeOnDate(date, time);
   const slotEnd    = addMinutes(slotStart, durationMinutes);
@@ -400,6 +407,30 @@ async function executeBookingTransaction(
     });
 
     if (!bestTable) throw new SlotTakenError();
+
+    // Total-covers guard — prevents restaurant-level overbooking across all tables
+    if (maxOnlineCoversPerWindow !== undefined) {
+      const allWindowRes = await tx.reservation.findMany({
+        where: {
+          restaurantId,
+          date,
+          status: { in: ['CONFIRMED', 'SEATED', 'PENDING'] },
+        },
+        select: { time: true, duration: true, partySize: true },
+      });
+      const runningCovers = allWindowRes
+        .filter(r => {
+          const rStart = parseTimeOnDate(date, r.time);
+          const rEnd   = addMinutes(rStart, r.duration);
+          return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
+        })
+        .reduce((sum, r) => sum + r.partySize, 0);
+
+      if (runningCovers + partySize > maxOnlineCoversPerWindow) {
+        console.log('[ONLINE_BLOCKED_CAPACITY]', { time, partySize, runningCovers, limit: maxOnlineCoversPerWindow });
+        throw new CapacityLimitError();
+      }
+    }
 
     // Create the reservation — table is assigned atomically
     const reservation = await tx.reservation.create({
@@ -631,6 +662,12 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       return res.status(400).json({ error: { code: 'INVALID_PARTY_SIZE', message: `Party size must be between 1 and ${maxParty}.` } });
     }
 
+    // Online party size cap — large groups must call
+    if (body.partySize > s.maxOnlinePartySize) {
+      console.log('[ONLINE_BLOCKED_CAPACITY]', { time: body.time, partySize: body.partySize, limit: s.maxOnlinePartySize, reason: 'maxOnlinePartySize' });
+      return res.status(400).json({ error: { code: 'ONLINE_PARTY_SIZE_LIMIT', message: 'למספר סועדים גדול יותר, נא ליצור קשר עם המסעדה' } });
+    }
+
     // Date validity
     const dateObj = new Date(body.date + 'T00:00:00.000Z');
     if (isNaN(dateObj.getTime())) {
@@ -698,9 +735,13 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           anniversary:           body.marketingOptIn ? body.anniversary : undefined,
           marketingConsentAt:    body.marketingOptIn ? new Date() : undefined,
           marketingConsentSource: body.marketingOptIn ? 'PUBLIC_BOOKING' : undefined,
-        }
+        },
+        s.maxOnlineCoversPerWindow,
       );
     } catch (err) {
+      if (err instanceof CapacityLimitError) {
+        return res.status(400).json({ error: { code: 'ONLINE_CAPACITY_LIMIT', message: 'למספר סועדים גדול יותר, נא ליצור קשר עם המסעדה' } });
+      }
       if (err instanceof SlotTakenError ||
           (err instanceof Error && (err.message.includes('40001') || err.message.includes('serialize')))) {
         const alternatives = await findAlternatives(restaurant, s, body.date, body.time, body.partySize, minBookingTime, maxDate);
