@@ -207,7 +207,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
   const [callHighlight,        setCallHighlight]        = useState(false);
   const [callPrefillPhone,     setCallPrefillPhone]     = useState('');
-  const lastCallRef            = useRef<{ phone: string; at: number; callid?: string | null; status?: string } | null>(null);
+  const lastCallRef            = useRef<{ phone: string; at: number; callid?: string | null; status?: string; dismissed?: boolean } | null>(null);
   const callHighlightTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Waitlist manual table assignment — two-step flow: select table then confirm seat
@@ -290,6 +290,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           callHighlightTimer.current = setTimeout(() => setCallHighlight(false), 1200);
           lastCallRef.current = { phone: d.phone, at: now, callid, status: d.status };
           console.log('[call:sse] ③ same callid — drawer updated (ring→answered)');
+          return;
+        }
+        // User already dismissed this call — suppress all subsequent lifecycle events
+        if (lastCallRef.current?.callid === callid && lastCallRef.current.dismissed) {
+          console.log('[call:sse] ③ dismissed callid — suppressed (ended/completed after close)');
           return;
         }
         // Duplicate event: same callid + same status (second ring from another extension)
@@ -2247,14 +2252,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onNewReservation={(phone) => {
             setCallPrefillPhone(phone);
             setCreateMode('reservation');
-            lastCallRef.current = null; setIncomingCall(null);
+            if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null);
           }}
           onOpenReservation={(resId) => {
             const res = reservations.find(r => r.id === resId);
             if (res) openReservationDetails(res);
-            lastCallRef.current = null; setIncomingCall(null);
+            if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null);
           }}
-          onClose={() => { lastCallRef.current = null; setIncomingCall(null); }}
+          onClose={() => { if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null); }}
         />
       )}
 
@@ -2273,9 +2278,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onNewReservation={(phone) => {
             setCallPrefillPhone(phone);
             setCreateMode('reservation');
-            lastCallRef.current = null; setIncomingCall(null);
+            if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null);
           }}
-          onDismiss={() => { lastCallRef.current = null; setIncomingCall(null); }}
+          onDismiss={() => { if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null); }}
         />
       )}
 
