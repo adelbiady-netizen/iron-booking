@@ -500,6 +500,7 @@ export interface PublicRestaurantProfile {
   backgroundColorHex: string | null;
   backgroundGradientHex: string | null;
   maxPartySize: number;
+  maxOnlinePartySize: number;
   slotIntervalMinutes: number;
   maxAdvanceBookingDays: number;
   operatingHours: Array<{

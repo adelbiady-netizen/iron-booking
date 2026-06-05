@@ -545,6 +545,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
       backgroundColorHex:    restaurant.backgroundColorHex,
       backgroundGradientHex: restaurant.backgroundGradientHex,
       maxPartySize:         Math.min(s.maxPartySize, config.maxPartySizeAbsolute),
+      maxOnlinePartySize:   Math.min(s.maxOnlinePartySize, s.maxPartySize, config.maxPartySizeAbsolute),
       slotIntervalMinutes:  s.slotIntervalMinutes,
       maxAdvanceBookingDays: s.maxAdvanceBookingDays,
       operatingHours: restaurant.operatingHours.map(h => ({

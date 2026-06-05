@@ -129,6 +129,8 @@ export default function BookingPage({ slug }: Props) {
           }
         } catch { /* sessionStorage unavailable or malformed JSON — ignore */ }
         setProfile(enriched);
+        // Clamp party size if it somehow exceeds the online limit (e.g. stale state)
+        setPartySize(prev => Math.min(prev, enriched.maxOnlinePartySize));
         const today = new Date();
         for (let i = 0; i < p.maxAdvanceBookingDays; i++) {
           const d = new Date(today);
@@ -192,7 +194,11 @@ export default function BookingPage({ slug }: Props) {
       if (err instanceof ApiError && err.code === 'SLOT_TAKEN') {
         const details = err.details as { alternatives?: BookingAlternative[] } | undefined;
         setState({ phase: 'slot-taken', alternatives: details?.alternatives ?? [] });
-      } else if (err instanceof ApiError && err.code === 'ONLINE_BOOKING_BLOCKED') {
+      } else if (err instanceof ApiError && (
+        err.code === 'ONLINE_BOOKING_BLOCKED' ||
+        err.code === 'ONLINE_PARTY_SIZE_LIMIT' ||
+        err.code === 'ONLINE_CAPACITY_LIMIT'
+      )) {
         setState({ phase: 'online-blocked', message: err.message });
       } else {
         setState({ phase: 'error', message: err instanceof ApiError ? err.message : 'Something went wrong. Please try again.' });
@@ -330,9 +336,14 @@ export default function BookingPage({ slug }: Props) {
             <SectionLabel>{t('booking.partySize')}</SectionLabel>
             <PartySelector
               value={partySize}
-              max={profile.maxPartySize}
+              max={profile.maxOnlinePartySize}
               onChange={setPartySize}
             />
+            {profile.maxOnlinePartySize < profile.maxPartySize && (
+              <p className="text-xs mt-2" style={{ color: 'var(--pub-text-tertiary)' }} dir="rtl">
+                להזמנות מעל {profile.maxOnlinePartySize} סועדים, נא ליצור קשר טלפוני עם המסעדה.
+              </p>
+            )}
 
             <hr className="pub-divider" />
 
