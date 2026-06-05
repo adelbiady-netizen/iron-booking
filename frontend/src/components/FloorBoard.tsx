@@ -3284,7 +3284,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         padding: '6px 8px',
         overflow: 'hidden',
         display: 'flex', flexDirection: 'column', alignItems: 'stretch',
-        textAlign: 'start',
+        textAlign: 'center',
         cursor,
         transition: `opacity var(--duration-fast) ease-out, transform var(--duration-fast) var(--ease-hospitality), filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
@@ -3348,13 +3348,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       )}
 
       {/* Table number — primary when empty, secondary label when a guest is present */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', minWidth: 0 }}>
         <span style={{
           fontSize: hasGuest ? 10 : 15,
           fontWeight: hasGuest ? 600 : 900,
           color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
           opacity: hasGuest ? 0.88 : table.liveStatus === 'BLOCKED' ? 0.75 : 1,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
           letterSpacing: hasGuest ? '0.04em' : '-0.02em',
         }}>
           {table.name}
@@ -3481,11 +3481,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             <p style={{ fontSize: guestFontSize, color: guestColor, fontWeight: guestFontWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
             </p>
-            {/* Metadata zone — time + partySize; chip always visible even on narrow cards */}
+            {/* Metadata zone — time + partySize; centered */}
             {!isSecondary && nextRes && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
-                {/* Text group — shrinks first; chip stays fixed */}
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
+                {/* Text group — centered; chip stays adjacent */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0, overflow: 'hidden' }}>
                   <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: metaOpacity, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
