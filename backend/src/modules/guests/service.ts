@@ -180,6 +180,9 @@ function israeliAlternate(normalized: string): string | null {
     return '0' + normalized.slice(4);
   if (/^0\d{8,9}$/.test(normalized))
     return '+972' + normalized.slice(1);
+  // Provider strips the + (e.g. Link sends 972521234567 instead of +972521234567)
+  if (/^972\d{9}$/.test(normalized))
+    return '0' + normalized.slice(3);
   return null;
 }
 
