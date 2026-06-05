@@ -592,7 +592,7 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived)) && (
+                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived && !!nowTime && minutesUntilRes(r.time, nowTime) <= 30)) && (
                     <div className="flex flex-col items-end gap-1.5 pe-3.5 shrink-0">
                       {!r.table && onChooseTable && (
                         <button
@@ -603,7 +603,7 @@ export default function ReservationPanel({
                           {T.reservationPanel.chooseTable}
                         </button>
                       )}
-                      {!r.isArrived && onMarkArrived && (
+                      {!r.isArrived && onMarkArrived && !!nowTime && minutesUntilRes(r.time, nowTime) <= 30 && (
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
