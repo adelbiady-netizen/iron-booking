@@ -3,7 +3,7 @@ import { Prisma, ReservationStatus } from '@prisma/client';
 import { addMinutes } from 'date-fns';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { suggestTables } from '../../engine/tableMatcher';
-import { parseTimeOnDate, ACTIVE_STATUSES, reservationIsUpcoming, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
+import { parseTimeOnDate, ACTIVE_STATUSES, RESERVED_SOON_MINUTES, NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 
 // ─── Floor State ─────────────────────────────────────────────────────────────
 // Returns all tables with their live status for a given date/time.
@@ -257,22 +257,25 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // correctly as RESERVED or RESERVED_SOON.
     }
 
-    // Find all non-SEATED reservations that should mark this table non-AVAILABLE.
-    // Use a full 24-hour planning horizon instead of defaultDuration so that ALL
-    // of today's future reservations are consistently visible at any board time.
-    // The old defaultDuration cap (e.g. 240 min) created a hard horizon: a 19:30
-    // reservation silently disappeared at board time 15:00 while a 19:00 one
-    // still showed — purely because it fell 15 minutes past the cutoff. Reservations
-    // are already date-scoped by the caller, so 1440 min covers any service day.
+    // Use realNowVirtual (wall-clock time) for the backward boundary and for
+    // minutesUntil so that scrubbing the board clock does not flip RESERVED tables
+    // to AVAILABLE. A reservation whose turn ends after (realNow − buffer) is
+    // still operationally live regardless of where the board is pointed.
+    // slotTime is kept only for planning metadata: gap analysis, canFitIncomingTurn,
+    // nextReservationStart — all of which the host uses when projecting future slots.
     const upcoming = tableReservations
-      .filter(r => r.status !== 'SEATED' && reservationIsUpcoming(r, date, slotTime, bufferMinutes, 24 * 60))
+      .filter(r => {
+        if (r.status === 'SEATED') return false;
+        const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
+        return resEnd > addMinutes(realNowVirtual, -bufferMinutes);
+      })
       .sort((a, b) => a.time.localeCompare(b.time));
 
     const nextRes = upcoming[0];
     if (nextRes) {
       const nextTime = parseTimeOnDate(date, nextRes.time);
       const minutesUntil = Math.round(
-        (nextTime.getTime() - slotTime.getTime()) / 60000
+        (nextTime.getTime() - realNowVirtual.getTime()) / 60000
       );
       return {
         ...table,
@@ -282,7 +285,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
           minutesUntil: Math.round(
-            (parseTimeOnDate(date, r.time).getTime() - slotTime.getTime()) / 60000
+            (parseTimeOnDate(date, r.time).getTime() - realNowVirtual.getTime()) / 60000
           ),
         })),
         nextReservationStart,
