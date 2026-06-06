@@ -9,7 +9,6 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd, fmtHostTime, normalizeTime } from '../utils/time';
-import { isLiveServiceView, minutesUntilRes } from '../utils/arrival';
 import { useAtmosphere } from '../hooks/useTimeWarmth';
 import { OBJECT_REGISTRY, resolveObjectVariant } from '../mapEngine';
 
@@ -2863,16 +2862,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : true;
   const STATUS_BG = isDark ? STATUS_BG_DARK : STATUS_BG_LIGHT;
   const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
-  // Suppress urgency styling for future-planning boardTimes. Visual amber urgency
-  // (background, border, halo, seats, glow) is replaced with neutral blue RESERVED.
-  // Data logic (hasGuest, turnsToShow, seatCount) keeps table.liveStatus unchanged.
-  const isLiveView = isLiveServiceView(
-    date ?? new Date().toISOString().slice(0, 10),
-    _nowTime ?? '00:00',
-  );
-  const displayStatus = (isLiveView || table.liveStatus !== 'RESERVED_SOON')
-    ? table.liveStatus
-    : 'RESERVED';
+  // displayStatus = liveStatus anchored to wall-clock time on the backend.
+  // No board-time override: RESERVED_SOON fires only when real time is within
+  // RESERVED_SOON_MINUTES of the reservation, so suppression is never needed here.
+  const displayStatus = table.liveStatus;
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
 
   const sectionColor = table.section?.color ?? '#3f3f46';
@@ -2918,14 +2911,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isEndingSoon = isToday && !isOverdue && minutesRemaining !== null && minutesRemaining >= 0 && minutesRemaining <= 10;
   // Stable/recession states — reduce visual weight to let urgent tables surface
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
-  const minutesUntilNext   = nextRes?.minutesUntil ?? 0;
+  const minutesUntilNext   = nextRes?.minutesUntil ?? 0;  // real-time-based from backend
   const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0;
-  const boardMinutesUntilNext = (nextRes?.time && _nowTime)
-    ? minutesUntilRes(nextRes.time, _nowTime)
-    : minutesUntilNext;
   const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
-  const isUpcomingReserved = isReservedOrSoon && boardMinutesUntilNext >= 60 && boardMinutesUntilNext < 120;
-  const isDormantReserved  = isReservedOrSoon && boardMinutesUntilNext >= 120;
+  const isUpcomingReserved = isReservedOrSoon && minutesUntilNext >= 60 && minutesUntilNext < 120;
+  const isDormantReserved  = isReservedOrSoon && minutesUntilNext >= 120;
   const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
