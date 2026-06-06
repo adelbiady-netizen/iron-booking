@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, Table } from '../types';
 import { api, ApiError } from '../api';
-import { type ReorganizeConflict } from './ReorganizeConflictModal';
+import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeConflictModal';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
@@ -182,6 +182,12 @@ export default function CreateDrawer({
     combinedTableIds: string[];
     conflictTime: string;
     tableName: string;
+  } | null>(null);
+  const [resConflictWarning, setResConflictWarning] = useState<{
+    conflicts: ReorganizeConflict[];
+    tableId: string;
+    combinedTableIds: string[];
+    busy: boolean;
   } | null>(null);
   const [seatAnywayBusy, setSeatAnywayBusy] = useState(false);
   const [phoneWarning, setPhoneWarning] = useState(false);
@@ -381,7 +387,7 @@ export default function CreateDrawer({
     );
   }
 
-  async function doSubmitReservation() {
+  async function doSubmitReservation(overrideConflicts = false, reorganizeIds: string[] = []) {
     setError(null);
     setBusy(true);
     try {
@@ -398,9 +404,23 @@ export default function CreateDrawer({
         combinedTableIds: resCombinedTableIds.length > 0 ? resCombinedTableIds : undefined,
         source:           resSource,
         lang:             locale,
+        overrideConflicts: overrideConflicts || undefined,
+        reorganizeIds:     reorganizeIds.length > 0 ? reorganizeIds : undefined,
       });
       onCreated(r);
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'CONFLICT' && resTable) {
+        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+          setResConflictWarning({
+            conflicts:        det.conflicts,
+            tableId:          resTable,
+            combinedTableIds: resCombinedTableIds,
+            busy:             false,
+          });
+          return;
+        }
+      }
       setError(err instanceof Error ? err.message : 'Failed to create reservation');
     } finally {
       setBusy(false);
@@ -1404,6 +1424,19 @@ export default function CreateDrawer({
             </div>
           </div>
         </div>
+      )}
+
+      {resConflictWarning && (
+        <ReorganizeConflictModal
+          conflicts={resConflictWarning.conflicts}
+          busy={resConflictWarning.busy}
+          onCancel={() => setResConflictWarning(null)}
+          onConfirm={async (selectedIds) => {
+            setResConflictWarning(prev => prev ? { ...prev, busy: true } : null);
+            await doSubmitReservation(true, selectedIds);
+            setResConflictWarning(null);
+          }}
+        />
       )}
     </>
   );

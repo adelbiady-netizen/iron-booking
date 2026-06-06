@@ -168,18 +168,45 @@ export async function createReservation(
   const duration = input.duration ?? (input.partySize >= 3 ? 120 : 90);
   const date = parseDateArg(input.date);
 
-  if (input.tableId) {
-    await validateTableAssignment(
-      restaurantId,
-      input.tableId,
-      date,
-      input.time,
-      duration,
-      settings.bufferBetweenTurnsMinutes,
-      input.partySize,
-      [],
-      input.combinedTableIds
-    );
+  if (input.tableId && !input.overrideConflicts) {
+    try {
+      await validateTableAssignment(
+        restaurantId,
+        input.tableId,
+        date,
+        input.time,
+        duration,
+        settings.bufferBetweenTurnsMinutes,
+        input.partySize,
+        [],
+        input.combinedTableIds
+      );
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
+        if (det?.conflictingReservationId) {
+          const conflictRes = await prisma.reservation.findUnique({
+            where: { id: det.conflictingReservationId },
+            select: { id: true, guestName: true, time: true, partySize: true },
+          });
+          if (conflictRes) {
+            const [resH, resM] = input.time.split(':').map(Number);
+            const [fH, fM]     = conflictRes.time.split(':').map(Number);
+            throw new ConflictError('This table has upcoming reservations', {
+              code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+              conflicts: [{
+                id:           conflictRes.id,
+                guestName:    conflictRes.guestName,
+                time:         conflictRes.time,
+                partySize:    conflictRes.partySize,
+                minutesUntil: (fH * 60 + fM) - (resH * 60 + resM),
+              }],
+            });
+          }
+        }
+      }
+      throw err;
+    }
   }
 
   const status: ReservationStatus = settings.autoConfirm ? 'CONFIRMED' : 'PENDING';
@@ -202,6 +229,36 @@ export async function createReservation(
   }
 
   return prisma.$transaction(async (tx) => {
+    // Displace host-selected conflicting future reservations before creating the new one.
+    if (input.reorganizeIds.length > 0 && input.tableId) {
+      const toDisplace = await tx.reservation.findMany({
+        where: {
+          id:           { in: input.reorganizeIds },
+          restaurantId,
+          tableId:      input.tableId,
+          date,
+          status:       { in: ['CONFIRMED', 'PENDING'] },
+        },
+        select: { id: true, guestName: true },
+      });
+      for (const displaced of toDisplace) {
+        await tx.reservation.update({
+          where: { id: displaced.id },
+          data: {
+            tableId:               null,
+            combinedTableIds:      [],
+            reorganizeAt:          new Date(),
+            reorganizeFromTableId: input.tableId,
+            reorganizedByName:     actorName,
+          },
+        });
+        await logActivity(tx, displaced.id, 'REORGANIZE_TRIGGERED', actorName, {
+          displacedFrom:  input.tableId,
+          byGuestName:    input.guestName,
+        });
+      }
+    }
+
     const reservation = await tx.reservation.create({
       data: {
         restaurantId,
@@ -905,11 +962,28 @@ export async function moveReservation(
     } catch (err) {
       if (err instanceof ConflictError) {
         const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
-        if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
-        // soft pressure: reservation time overlap — move proceeds
-      } else {
-        throw err;
+        if (det?.conflictingReservationId) {
+          const conflictRes = await prisma.reservation.findUnique({
+            where: { id: det.conflictingReservationId },
+            select: { id: true, guestName: true, time: true, partySize: true },
+          });
+          if (conflictRes) {
+            const [nowH, nowM] = nowTimeStrMove.split(':').map(Number);
+            const [fH, fM]     = conflictRes.time.split(':').map(Number);
+            throw new ConflictError('This table has upcoming reservations', {
+              code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+              conflicts: [{
+                id:           conflictRes.id,
+                guestName:    conflictRes.guestName,
+                time:         conflictRes.time,
+                partySize:    conflictRes.partySize,
+                minutesUntil: (fH * 60 + fM) - (nowH * 60 + nowM),
+              }],
+            });
+          }
+        }
       }
+      throw err;
     }
   }
 
@@ -971,6 +1045,38 @@ export async function moveReservation(
           releasedForReservationId: id,
           reservationStatus: candidate.status,
           overdueMinutes: nowMoveMins - (cH * 60 + cM),
+        });
+      }
+    }
+
+    // Displace host-selected conflicting future reservations on the target table.
+    if ((input.reorganizeIds ?? []).length > 0) {
+      const toDisplace = await tx.reservation.findMany({
+        where: {
+          id:          { in: input.reorganizeIds },
+          restaurantId,
+          tableId:     input.tableId,
+          date:        r.date,
+          status:      { in: ['CONFIRMED', 'PENDING'] },
+        },
+        select: { id: true, guestName: true },
+      });
+      for (const displaced of toDisplace) {
+        await tx.reservation.update({
+          where: { id: displaced.id },
+          data: {
+            tableId:               null,
+            combinedTableIds:      [],
+            reorganizeAt:          new Date(),
+            reorganizeFromTableId: input.tableId,
+            reorganizeBySeatingId: id,
+            reorganizedByName:     actorName,
+          },
+        });
+        await logActivity(tx, displaced.id, 'REORGANIZE_TRIGGERED', actorName, {
+          displacedFrom: input.tableId,
+          byReservation: id,
+          byGuestName:   r.guestName,
         });
       }
     }

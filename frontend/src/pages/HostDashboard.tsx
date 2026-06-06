@@ -161,6 +161,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     busy: boolean;
     _key: number;
     pendingWaitlistEntry?: WaitlistEntry;
+    pendingMoveResId?: string;
   } | null>(null);
   const [occupiedConflict, setOccupiedConflict] = useState<{
     occupiedBy: { id: string; guestName: string; time: string; partySize: number };
@@ -1719,10 +1720,28 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       showToast(T.guestDrawer.toastMoved(pendingMove.targetTableName));
       setQuickTable(null);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
-    } finally {
       setPendingMove(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'CONFLICT') {
+        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+          const { res, targetTableId, targetCombinedIds, targetTableName } = pendingMove;
+          setPendingMove(null);
+          setReorganizeConflict({
+            conflicts: det.conflicts,
+            pendingReservationId: res.id,
+            pendingTableId: targetTableId,
+            pendingCombinedIds: targetCombinedIds,
+            tableName: targetTableName,
+            busy: false,
+            _key: ++reorganizeKeyRef.current,
+            pendingMoveResId: res.id,
+          });
+          return;
+        }
+      }
+      setPendingMove(p => p ? { ...p, busy: false } : null);
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
     }
   }, [pendingMove, showToast]);
 
@@ -2408,7 +2427,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           busy={reorganizeConflict.busy}
           onCancel={() => setReorganizeConflict(null)}
           onConfirm={async (selectedIds) => {
-            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry } = reorganizeConflict;
+            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry, pendingMoveResId } = reorganizeConflict;
             setReorganizeConflict(prev => prev ? { ...prev, busy: true } : null);
             try {
               if (pendingWaitlistEntry) {
@@ -2422,6 +2441,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 setWaitlistRefreshKey(k => k + 1);
                 setReorganizeConflict(null);
                 showToast(T.hostDashboard.toastSeatAt(pendingWaitlistEntry.guestName, tableName));
+              } else if (pendingMoveResId) {
+                // Move path: re-issue move with overrideConflicts + selectedIds to displace
+                const updated = await api.reservations.move(pendingMoveResId, pendingTableId, undefined, pendingCombinedIds, true, selectedIds);
+                setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+                setRefreshKey(k => k + 1);
+                setReorganizeConflict(null);
+                showToast(T.guestDrawer.toastMoved(tableName), 'success');
               } else {
                 const updated = await api.reservations.seat(pendingReservationId, pendingTableId, true, pendingCombinedIds, selectedIds);
                 setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));

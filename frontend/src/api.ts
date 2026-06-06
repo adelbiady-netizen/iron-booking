@@ -246,10 +246,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ tableId, overrideConflicts, combinedTableIds, reorganizeIds, forceOverrideOccupied }),
       }),
-    move: (id: string, tableId: string, reason?: string, combinedTableIds: string[] = []) =>
+    move: (id: string, tableId: string, reason?: string, combinedTableIds: string[] = [], overrideConflicts = false, reorganizeIds: string[] = []) =>
       request<Reservation>(`/reservations/${id}/move`, {
         method: 'POST',
-        body: JSON.stringify({ tableId, reason: reason || undefined, overrideConflicts: false, combinedTableIds }),
+        body: JSON.stringify({ tableId, reason: reason || undefined, overrideConflicts, reorganizeIds, combinedTableIds }),
       }),
     swap: (aId: string, bId: string) =>
       request<{ reservationA: Reservation; reservationB: Reservation }>('/reservations/swap', {

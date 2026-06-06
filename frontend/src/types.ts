@@ -577,6 +577,8 @@ export interface CreateReservationBody {
   lang?: 'en' | 'he';
   tags?: string[];
   depositRequired?: boolean;
+  overrideConflicts?: boolean;
+  reorganizeIds?: string[];
 }
 
 export interface ActivityLogEntry {

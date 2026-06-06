@@ -24,6 +24,8 @@ export const CreateReservationSchema = z.object({
   tags: z.array(z.string()).default([]),
   depositRequired: z.boolean().default(false),
   depositAmountCents: z.number().int().optional(),
+  overrideConflicts: z.boolean().default(false),
+  reorganizeIds: z.array(z.string().uuid()).default([]),
 });
 
 export const UpdateReservationSchema = z.object({
@@ -56,6 +58,7 @@ export const MoveTableSchema = z.object({
   tableId: z.string().uuid(),
   reason: z.string().optional(),
   overrideConflicts: z.boolean().default(false),
+  reorganizeIds: z.array(z.string().uuid()).default([]),
   combinedTableIds: z.array(z.string().uuid()).default([]),
 });
 
