@@ -1130,7 +1130,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       if (insight.type === 'ENDING_SOON') {
         const table = floorTables.find(t => t.id === insight.tableId);
         if (table?.currentReservation) {
-          const mr = Math.round((new Date(table.currentReservation.expectedEndTime).getTime() - operationalNow) / 60_000);
+          // Use Date.now() — ENDING_SOON message must reflect real wall-clock remaining time,
+          // not operationalNow (board-navigation time) which changes when the host browses forward.
+          const mr = Math.round((new Date(table.currentReservation.expectedEndTime).getTime() - Date.now()) / 60_000);
           return { ...insight, message: mr > 0 ? `${table.name} · ${T.tableCard.endsIn(mr)}` : `${table.name} · ${T.tableCard.overBy(Math.abs(mr))}` };
         }
       }

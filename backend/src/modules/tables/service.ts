@@ -218,8 +218,12 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // Uses operationalEnd (not seatedScheduledEnd alone) so planning-mode release agrees
       // with live occupancy timing for extremely-late guests seated past their scheduled end.
       const seatedClearedBuffer = operationalEnd <= addMinutes(slotTime, -bufferMinutes);
+      // Real-time guard: the turn must have ended in real wall-clock time before planning-release
+      // can fire. Without this, advancing the board clock forward prematurely releases tables that
+      // still have guests seated — removing their OCCUPIED/ENDING-SOON state from the live floor.
+      const realtimeCleared     = operationalEnd <= realNowVirtual;
       // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.
-      const releasedForPlanning = seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
+      const releasedForPlanning = realtimeCleared && seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
 
       if (!releasedForPlanning) {
         // Use realNowVirtual (restaurant-local "now" in virtual-local coordinates) so the
