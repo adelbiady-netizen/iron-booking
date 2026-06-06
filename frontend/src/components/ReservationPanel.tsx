@@ -8,6 +8,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { arrivalState, minutesUntilRes, isStaleReservation, isFloorReleased } from '../utils/arrival';
 import { normalizeTime } from '../utils/time';
+import { formatReservationSource } from '../utils/displayHelpers';
 
 // Unified name + phone search — works for "052", "1234", "Yossi", "lev".
 // Phone match strips all non-digits from both sides so formatting never matters.
@@ -81,7 +82,7 @@ export default function ReservationPanel({
   onChooseTable, onMarkArrived, isLiveView, onHoverRow, onSmartAssign,
 }: Props) {
   const T = useT();
-  const { dir } = useLocale();
+  const { dir, locale } = useLocale();
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ACTIVE');
   const [search, setSearch] = useState('');
@@ -509,7 +510,7 @@ export default function ReservationPanel({
                     className="flex-1 text-start px-3 py-[18px] min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
-                    {/* Row 1 — name + VIP + status badge */}
+                    {/* Row 1 — name + VIP + source badge + status badge */}
                     <div className="flex items-center gap-2 mb-1">
                       <span className="flex-1 min-w-0 flex items-center gap-1.5">
                         <span className="text-iron-text text-[18px] font-bold tracking-tight truncate leading-snug min-w-0">
@@ -518,6 +519,25 @@ export default function ReservationPanel({
                         {r.guest?.isVip && (
                           <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400">
                             VIP
+                          </span>
+                        )}
+                        {r.source === 'WALK_IN' && (
+                          <span
+                            className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-orange-500/12 border-orange-500/35 text-orange-400 leading-none"
+                            title={formatReservationSource(r.source, locale)}
+                          >
+                            W
+                          </span>
+                        )}
+                        {(r.source === 'ONLINE' || r.source === 'OPENTABLE' || r.source === 'RESY') && (
+                          <span
+                            className="shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded border bg-blue-500/10 border-blue-500/28 text-blue-400"
+                            title={formatReservationSource(r.source, locale)}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <circle cx="12" cy="12" r="9"/>
+                              <path d="M12 3c-3.5 4.5-3.5 13.5 0 18M12 3c3.5 4.5 3.5 13.5 0 18M3.5 12h17"/>
+                            </svg>
                           </span>
                         )}
                       </span>
