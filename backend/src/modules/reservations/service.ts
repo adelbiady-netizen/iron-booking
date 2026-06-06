@@ -1144,8 +1144,21 @@ export async function swapReservations(
     if (err instanceof ConflictError) {
       const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
       if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
-      // soft pressure: reservation time overlap — swap proceeds
-    } else { throw err; }
+      // A third reservation (not A or B) conflicts at tableB — swap would double-book it.
+      const conflictRes = await prisma.reservation.findUnique({
+        where: { id: det.conflictingReservationId },
+        select: { id: true, guestName: true, time: true, partySize: true },
+      });
+      if (conflictRes) {
+        const [nowH, nowM] = nowTimeStr.split(':').map(Number);
+        const [fH, fM]     = conflictRes.time.split(':').map(Number);
+        throw new ConflictError('This table has upcoming reservations', {
+          code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+          conflicts: [{ id: conflictRes.id, guestName: conflictRes.guestName, time: conflictRes.time, partySize: conflictRes.partySize, minutesUntil: (fH * 60 + fM) - (nowH * 60 + nowM) }],
+        });
+      }
+    }
+    throw err;
   }
   console.log('[swap:validation] validating B→tableA', { reservationId: bId, targetTableId: resA.tableId, excludedIds: swapExclude });
   try {
@@ -1154,8 +1167,21 @@ export async function swapReservations(
     if (err instanceof ConflictError) {
       const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
       if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
-      // soft pressure: reservation time overlap — swap proceeds
-    } else { throw err; }
+      // A third reservation (not A or B) conflicts at tableA — swap would double-book it.
+      const conflictRes = await prisma.reservation.findUnique({
+        where: { id: det.conflictingReservationId },
+        select: { id: true, guestName: true, time: true, partySize: true },
+      });
+      if (conflictRes) {
+        const [nowH, nowM] = nowTimeStr.split(':').map(Number);
+        const [fH, fM]     = conflictRes.time.split(':').map(Number);
+        throw new ConflictError('This table has upcoming reservations', {
+          code: 'TABLE_HAS_FUTURE_RESERVATIONS',
+          conflicts: [{ id: conflictRes.id, guestName: conflictRes.guestName, time: conflictRes.time, partySize: conflictRes.partySize, minutesUntil: (fH * 60 + fM) - (nowH * 60 + nowM) }],
+        });
+      }
+    }
+    throw err;
   }
   console.log('[swap:validation] both validations passed');
 

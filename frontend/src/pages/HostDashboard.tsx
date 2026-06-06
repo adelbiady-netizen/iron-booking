@@ -1701,7 +1701,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setRefreshKey(k => k + 1);
       showToast(T.floorBoard.swapConfirmTitle(pendingSwap.resA.guestName, pendingSwap.resB.guestName).replace('?', ''));
     } catch (err) {
-      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+      let toastMsg = err instanceof Error ? err.message : T.guestDrawer.actionFailed;
+      if (err instanceof ApiError && err.code === 'CONFLICT') {
+        const det = err.details as { code?: string; conflicts?: Array<{ guestName: string; time: string }> } | null;
+        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.[0]) {
+          const c = det.conflicts[0];
+          toastMsg = `Swap blocked — table already reserved for ${c.guestName} at ${c.time}`;
+        }
+      }
+      showToast(toastMsg, 'error');
     } finally {
       setPendingSwap(null);
     }

@@ -27,8 +27,9 @@ export type ArrivalState = 'ARRIVING_SOON' | 'DUE_NOW' | 'LATE' | 'NO_SHOW_RISK'
 //   0 → LATE_WARN_MINUTES   : LATE badge (keep on floor, mark late/מאחר)
 //   LATE_WARN_MINUTES → FLOOR_RELEASE_MINUTES : NO_SHOW_RISK (stronger warning)
 //   beyond FLOOR_RELEASE_MINUTES : floor released → sidebar "needs action" only
+// FLOOR_RELEASE_MINUTES must match backend engine/occupancy.ts NO_SHOW_AFTER_MINUTES = 30.
 export const LATE_WARN_MINUTES     = 20;
-export const FLOOR_RELEASE_MINUTES = 50;
+export const FLOOR_RELEASE_MINUTES = 30;
 
 // Kept for backward compatibility — matches the floor-release threshold.
 export const NO_SHOW_AFTER_MINUTES = FLOOR_RELEASE_MINUTES;

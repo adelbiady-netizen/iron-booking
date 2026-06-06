@@ -222,7 +222,11 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       const releasedForPlanning = seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
 
       if (!releasedForPlanning) {
-        const minutesRemaining = Math.round((operationalEndMs - Date.now()) / 60_000);
+        // Use realNowVirtual (restaurant-local "now" in virtual-local coordinates) so the
+        // subtraction stays within the same coordinate space as operationalEndMs.
+        // Date.now() is real UTC; operationalEndMs is virtual-local (local hours stored as
+        // UTC on the Render server), so (operationalEndMs - Date.now()) is off by the TZ offset.
+        const minutesRemaining = Math.round((operationalEndMs - realNowVirtual.getTime()) / 60_000);
         const isOverdue = minutesRemaining < 0;
         const minutesOverdue = isOverdue ? -minutesRemaining : 0;
         return {
@@ -820,8 +824,10 @@ export async function getFloorInsights(
 
     // ── ENDING_SOON: occupied table where turn is nearly up ──────────────────
     if (isToday && table.liveStatus === 'OCCUPIED' && table.currentReservation) {
-      const expectedEnd = (table.currentReservation as { expectedEndTime: string }).expectedEndTime;
-      const mr = Math.round((new Date(expectedEnd).getTime() - Date.now()) / 60_000);
+      // minutesRemaining is already computed in the correct virtual-local coordinate space
+      // by getFloorState. Re-parsing expectedEndTime here with new Date() treats the
+      // TZ-naive string as UTC on the Render server, producing a value off by the TZ offset.
+      const mr = (table.currentReservation as { minutesRemaining: number }).minutesRemaining;
       if (mr < 10) {
         insights.push({
           type: 'ENDING_SOON',
