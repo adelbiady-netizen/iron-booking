@@ -277,10 +277,11 @@ export default function ReservationPanel({
                 host must manually mark no-show or recover. */}
             {(() => {
               if (!isLiveView || !nowTime) return null;
-              const safeNow = nowTime;
+              const _realNowDate = new Date();
+              const realNow = `${String(_realNowDate.getHours()).padStart(2, '0')}:${String(_realNowDate.getMinutes()).padStart(2, '0')}`;
               const items = reservations
                 .filter(r => ['PENDING', 'CONFIRMED'].includes(r.status) && r.table)
-                .filter(r => isFloorReleased(r.time, r.status, safeNow))
+                .filter(r => isFloorReleased(r.time, r.status, realNow))
                 .sort((a, b) => a.time.localeCompare(b.time));
               if (items.length === 0) return null;
               return (
@@ -292,7 +293,7 @@ export default function ReservationPanel({
                     </span>
                   </div>
                   {items.map(r => {
-                    const minsLate = Math.abs(minutesUntilRes(r.time, safeNow));
+                    const minsLate = Math.abs(minutesUntilRes(r.time, realNow));
                     return (
                       <div key={r.id} className="px-3.5 py-2.5 border-t border-red-500/10 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
