@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type React from 'react';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
 import type { SseStatus } from '../hooks/useServerEvents';
 import LanguageSwitcher from './LanguageSwitcher';
-import LocalizedDateInput from './LocalizedDateInput';
+import MiniCalendar from './MiniCalendar';
+import { useLocale } from '../i18n/useLocale';
 
 // 30-minute time slots covering the full day — guarantees 24h display regardless of browser locale
 const TIME_SLOTS_24H: string[] = Array.from({ length: 48 }, (_, i) => {
@@ -88,6 +89,9 @@ export default function TopBar({
   sseStatus,
 }: Props) {
   const T = useT();
+  const { intlLocale } = useLocale();
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   function readClock(): string {
     const d = new Date();
@@ -98,6 +102,34 @@ export default function TopBar({
     const id = setInterval(() => setRealClock(readClock()), 15_000);
     return () => clearInterval(id);
   }, []);
+
+  function fmtDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    if (!y || !mo || !d) return dateStr;
+    return new Intl.DateTimeFormat(intlLocale, {
+      weekday: intlLocale === 'he-IL' ? 'long' : 'short',
+      day: 'numeric', month: 'long', year: 'numeric',
+    }).format(new Date(y, mo - 1, d));
+  }
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setCalendarOpen(false); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [calendarOpen]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    function onPointer(e: MouseEvent) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setCalendarOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onPointer);
+    return () => document.removeEventListener('mousedown', onPointer);
+  }, [calendarOpen]);
 
   const atMin  = zoom <= 75;
   const atMax  = zoom >= 150;
@@ -122,16 +154,20 @@ export default function TopBar({
       <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
 
       {/* ── Date / Time Command Cluster ──────────────────────────────── */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      <div ref={calendarRef} className="relative flex items-center gap-2.5 shrink-0">
         <div className="flex items-stretch rounded-2xl border border-white/[0.08] bg-iron-bg overflow-hidden" style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)' }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
           <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/35">
-            <LocalizedDateInput
-              value={date}
-              onValueChange={onDateChange}
-              className="text-iron-text/85 text-[12px] font-semibold cursor-pointer whitespace-nowrap tracking-tight"
-            />
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(o => !o)}
+              aria-expanded={calendarOpen}
+              aria-haspopup="dialog"
+              className="text-iron-text/85 text-[12px] font-semibold whitespace-nowrap tracking-tight hover:text-iron-text transition-colors"
+            >
+              {fmtDate(date)}
+            </button>
             {!isToday && (
               <button
                 onClick={onNow}
@@ -172,6 +208,21 @@ export default function TopBar({
           </div>
           <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
         </div>
+
+        {/* Calendar popover — outside the overflow-hidden pill to avoid clipping */}
+        {calendarOpen && (
+          <div
+            className="absolute left-0 z-50"
+            style={{ top: 'calc(100% + 4px)' }}
+            role="dialog"
+            aria-label={T.topBar.prevDay}
+          >
+            <MiniCalendar
+              value={date}
+              onValueChange={v => { onDateChange(v); setCalendarOpen(false); }}
+            />
+          </div>
+        )}
 
         {/* Real clock — exact current time, passive read-only display */}
         <div
