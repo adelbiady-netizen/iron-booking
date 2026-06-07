@@ -3223,7 +3223,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Daily schedule strip — all of this table's PENDING/CONFIRMED reservations for the
   // selected day, already sorted by time. Suppressed only in pick/warn/dimmed modes.
-  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed) ? turns.slice(0, 6) : [];
+  // Exclude the reservation already shown as the primary guest label (displayRes) so
+  // RESERVED/RESERVED_SOON tables don't render the same guest name twice — once in the
+  // card body and again as the first pill in the turn strip.
+  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
+    ? turns.filter(r => !displayRes || r.id !== displayRes.id).slice(0, 6)
+    : [];
 
   // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
   // Negative value means the animation has already been running for that duration.
