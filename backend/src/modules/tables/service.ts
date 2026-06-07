@@ -218,19 +218,18 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // Uses operationalEnd (not seatedScheduledEnd alone) so planning-mode release agrees
       // with live occupancy timing for extremely-late guests seated past their scheduled end.
       const seatedClearedBuffer = operationalEnd <= addMinutes(slotTime, -bufferMinutes);
-      // Real-time guard: the turn must have ended in real wall-clock time before planning-release
-      // can fire. Without this, advancing the board clock forward prematurely releases tables that
-      // still have guests seated — removing their OCCUPIED/ENDING-SOON state from the live floor.
-      const realtimeCleared     = operationalEnd <= realNowVirtual;
+      // Board-time release: anchor to slotTime (boardTime) so that scrubbing the board forward
+      // past a turn's end correctly releases the table. The slotTime ≥ realNow + 5 guard below
+      // still prevents live-board jitter from releasing tables with guests still seated.
+      const realtimeCleared     = operationalEnd <= slotTime;
       // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.
       const releasedForPlanning = realtimeCleared && seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
 
       if (!releasedForPlanning) {
-        // Use realNowVirtual (restaurant-local "now" in virtual-local coordinates) so the
-        // subtraction stays within the same coordinate space as operationalEndMs.
-        // Date.now() is real UTC; operationalEndMs is virtual-local (local hours stored as
-        // UTC on the Render server), so (operationalEndMs - Date.now()) is off by the TZ offset.
-        const minutesRemaining = Math.round((operationalEndMs - realNowVirtual.getTime()) / 60_000);
+        // Use slotTime (boardTime) so minutesRemaining reflects the host's navigated time.
+        // In live service slotTime ≈ realNowVirtual (same result); in planning mode this shows
+        // correct remaining/overdue time relative to the board position.
+        const minutesRemaining = Math.round((operationalEndMs - slotTime.getTime()) / 60_000);
         const isOverdue = minutesRemaining < 0;
         const minutesOverdue = isOverdue ? -minutesRemaining : 0;
         return {
@@ -257,17 +256,14 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       // correctly as RESERVED or RESERVED_SOON.
     }
 
-    // Use realNowVirtual (wall-clock time) for the backward boundary and for
-    // minutesUntil so that scrubbing the board clock does not flip RESERVED tables
-    // to AVAILABLE. A reservation whose turn ends after (realNow − buffer) is
-    // still operationally live regardless of where the board is pointed.
-    // slotTime is kept only for planning metadata: gap analysis, canFitIncomingTurn,
-    // nextReservationStart — all of which the host uses when projecting future slots.
+    // Use slotTime (boardTime) for the backward boundary and for minutesUntil so that
+    // navigating the board forward correctly hides turns whose end + buffer is past
+    // boardTime and shows RESERVED_SOON relative to the host's navigated time.
     const upcoming = tableReservations
       .filter(r => {
         if (r.status === 'SEATED') return false;
         const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
-        return resEnd > addMinutes(realNowVirtual, -bufferMinutes);
+        return resEnd > addMinutes(slotTime, -bufferMinutes);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -275,7 +271,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     if (nextRes) {
       const nextTime = parseTimeOnDate(date, nextRes.time);
       const minutesUntil = Math.round(
-        (nextTime.getTime() - realNowVirtual.getTime()) / 60000
+        (nextTime.getTime() - slotTime.getTime()) / 60000
       );
       return {
         ...table,
@@ -285,7 +281,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
           minutesUntil: Math.round(
-            (parseTimeOnDate(date, r.time).getTime() - realNowVirtual.getTime()) / 60000
+            (parseTimeOnDate(date, r.time).getTime() - slotTime.getTime()) / 60000
           ),
         })),
         nextReservationStart,

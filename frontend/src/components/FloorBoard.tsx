@@ -941,8 +941,7 @@ export default function FloorBoard({
   const isToday    = !date || date === todayStr;
   const freeingSoon = isToday ? dedupedTables.filter(t => {
     if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation) return false;
-    // Use Date.now() — operational urgency must reflect real wall-clock, not board-navigation time.
-    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, Date.now());
+    const mr = t.currentReservation.minutesRemaining;
     return mr > 0 && mr <= 15;
   }).length : 0;
 
@@ -2403,8 +2402,7 @@ function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }
   // A different color (warm gold) from overdue (red): this is momentum, not alarm.
   const readying = tables.filter(t => {
     if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation || t.currentReservation.isOverdue) return false;
-    // Use Date.now() — urgency glows must reflect real wall-clock, not board-navigation time.
-    const mr = minutesUntilEnd(t.currentReservation.expectedEndTime, Date.now());
+    const mr = t.currentReservation.minutesRemaining;
     return mr > 0 && mr <= 20;
   });
 
@@ -2826,7 +2824,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2889,11 +2887,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : tableRadius(table.shape);
 
   // Base (non-pick) colors — minutesRemaining computed first so both isOverdue and isEndingSoon can use it.
-  // Always use Date.now() (real wall-clock) — urgency colors must never change because the host
-  // moved the board clock forward for planning. Board-navigation time (operationalNow) is for
-  // reservation visibility and availability projection, not for operational urgency states.
+  // Use operationalNow (boardTime) so urgency colors reflect the host's navigated time.
+  // In live service operationalNow ≈ Date.now() (same result); in planning mode this
+  // correctly shows remaining/overdue time relative to the board position.
   const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
-    ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
+    ? minutesUntilEnd(table.currentReservation.expectedEndTime, operationalNow ?? Date.now()) : null;
   const isOverdue = table.liveStatus === 'OCCUPIED' && (
     (table.currentReservation?.isOverdue ?? false) ||
     (minutesRemaining !== null && minutesRemaining < 0)
