@@ -1540,7 +1540,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               {res.guest.noShowCount != null && res.guest.noShowCount > 0 && (
                 <Row label={T.guestDrawer.rowNoShows} value={String(res.guest.noShowCount)} warn />
               )}
-              {res.guest.tags.length > 0 && (
+              {(res.guest.tags?.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1 pt-1">
                   {res.guest.tags.map(tag => (
                     <span
