@@ -313,7 +313,7 @@ const STATUS_BG_DARK: Record<string, string> = {
   OCCUPIED:      'rgba(208,244,216,0.97)',   // green — active presence, reads <0.5s
   RESERVED_SOON: 'rgba(247,230,188,0.97)',   // amber — imminent arrival, reads <0.5s
   RESERVED:      'rgba(203,220,248,0.97)',   // blue — committed calm, reads <0.5s
-  BLOCKED:       'rgba(30,32,36,0.22)',      // near-invisible — withdrawn
+  BLOCKED:       'rgba(220,38,38,0.14)',     // red tint — not in service, conflict
 };
 // Light canvas (#EAEDE6) needs more saturation so status tables read off the pale surface
 const STATUS_BG_LIGHT: Record<string, string> = {
@@ -321,7 +321,7 @@ const STATUS_BG_LIGHT: Record<string, string> = {
   OCCUPIED:      'rgba(209,250,229,0.97)',   // green-100 — clearly active
   RESERVED_SOON: 'rgba(254,243,199,0.97)',   // amber-100 — clearly imminent
   RESERVED:      'rgba(219,234,254,0.97)',   // blue-100 — clearly committed
-  BLOCKED:       'rgba(0,0,0,0.06)',         // subtle tint — withdrawn
+  BLOCKED:       'rgba(254,226,226,0.92)',   // red-100 — not in service, conflict
 };
 
 interface Props {
@@ -2824,7 +2824,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2912,7 +2912,22 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
   const isUpcomingReserved = isReservedOrSoon && minutesUntilNext >= 60 && minutesUntilNext < 120;
   const isDormantReserved  = isReservedOrSoon && minutesUntilNext >= 120;
-  const isFarFutureReserved = isUpcomingReserved || isDormantReserved;
+  // boardMinutes: board-selected time as minutes-since-midnight
+  const boardMinutes: number | null = nowTime
+    ? (() => { const [h, m] = nowTime.split(':').map(Number); return h * 60 + m; })()
+    : null;
+  // boardActiveRes: the turn whose window covers boardTime (start ≤ boardTime < start+duration)
+  const boardActiveRes = boardMinutes !== null
+    ? turns.find(r => {
+        if (!r.time) return false;
+        const [rh, rm] = r.time.split(':').map(Number);
+        const resStart = rh * 60 + rm;
+        return boardMinutes >= resStart && boardMinutes < resStart + (r.duration ?? 90);
+      })
+    : undefined;
+  const isBoardTimeActive = boardActiveRes !== undefined;
+  // Suppress RESERVED/RESERVED_SOON styling only when boardTime is outside the reservation window
+  const isFarFutureReserved = isReservedOrSoon && !isBoardTimeActive;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
@@ -2936,7 +2951,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   }
   // UPCOMING/DORMANT: restore clean neutral surface — same as an empty table.
   // Only the blue border (UPCOMING) or nothing (DORMANT) carries the reservation signal.
-  if ((isUpcomingReserved || isDormantReserved) && !softHold && !isOverdue) {
+  if (isFarFutureReserved && !softHold && !isOverdue) {
     bg = STATUS_BG['AVAILABLE'];
   }
 
@@ -2983,7 +2998,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         : isLongStable
         ? '0 1px 5px rgba(34,197,94,0.05)'        // long stable — very subtle, recedes
         : '0 2px 8px rgba(34,197,94,0.08)';       // active occupancy — warm green presence
-    } else if (displayStatus === 'RESERVED_SOON') {
+    } else if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
       boxShadow = '0 2px 8px rgba(217,119,6,0.08)';    // amber urgency bloom
     } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
       boxShadow = '0 2px 10px rgba(59,130,246,0.09)';  // NEAR: faint blue bloom — operational signal
@@ -2992,15 +3007,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   // Status-driven border refinements
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
-    if (displayStatus === 'RESERVED_SOON') {
+    if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
       borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
     } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
       borderColor = 'rgba(59,130,246,0.34)';   // ACTIVE <60 min: committed signal
     } else if (isEndingSoon) {
       borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
     } else if (table.liveStatus === 'BLOCKED') {
-      borderColor = 'rgba(82,82,91,0.40)';
-      borderWidth = 1;
+      borderColor = 'rgba(220,38,38,0.55)';
+      borderWidth = 1.5;
     }
   }
 
@@ -3040,6 +3055,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Active zones emerge without any explicit signal — the room does the talking.
   if (quietFade > 0 && table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && !selected) {
     opacity = Math.min(opacity, 0.88 - quietFade * 0.38);
+  }
+
+  // Board-time blue: when boardTime falls inside a reservation window, force RESERVED (blue) surface.
+  // Runs after all class/status overrides so it wins cleanly; pick/swap/waitlist modes take over after.
+  if (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' && table.liveStatus !== 'BLOCKED' && !isOverdue && !softHold && !table.locked) {
+    bg = STATUS_BG['RESERVED'];
+    if (!selected && !combinedSelected) {
+      borderColor = 'rgba(59,130,246,0.34)';
+      borderWidth = Math.max(borderWidth, 1.5);
+      if (!boxShadow) boxShadow = '0 2px 10px rgba(59,130,246,0.09)';
+    }
   }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
@@ -3120,7 +3146,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   }
 
   const currentRes = table.currentReservation;
-  const displayRes = currentRes ?? nextRes ?? null;
+  // For boardTime planning, prefer the reservation that owns this slot over real-time first-upcoming
+  const displayRes = (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' ? boardActiveRes ?? currentRes : currentRes) ?? nextRes ?? null;
 
   // Queue→floor hover: soft emphasis when mouse is over the matching queue row
   const isQueueHovered = !pickMode && !selected && !combinedSelected && !!hoveredResId && (
@@ -3167,7 +3194,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
           ? '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)'
           : '0 0 0 1px rgba(22,163,74,0.42), 0 0 40px rgba(22,163,74,0.16)';
       }
-    } else if (displayStatus === 'RESERVED_SOON') {
+    } else if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
       // Arriving very soon: strongest non-overdue halo — host needs to prepare
       halo = isDark
         ? '0 0 0 1px rgba(251,191,36,0.44), 0 0 48px rgba(251,191,36,0.24)'
@@ -3205,8 +3232,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : isEndingSoon                                            ? 'rgba(217,119,6,0.26)'
       : table.liveStatus === 'OCCUPIED'                          ? 'rgba(134,239,172,0.22)'
       : isStaleOccupied                                         ? 'rgba(217,119,6,0.14)'
-      : displayStatus   === 'RESERVED_SOON'                    ? 'rgba(251,191,36,0.20)'
-      : displayStatus   === 'RESERVED' && !isFarFutureReserved  ? 'rgba(147,197,253,0.18)'
+      : displayStatus   === 'RESERVED_SOON' && !isFarFutureReserved ? 'rgba(251,191,36,0.20)'
+      : displayStatus   === 'RESERVED' && !isFarFutureReserved      ? 'rgba(147,197,253,0.18)'
       :                                                            'rgba(255,255,255,0.28)';
     const depthShadow = isDark
       ? `inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 ${leftEdgeColor}, inset -1px 0 0 rgba(0,0,0,0.13), inset 0 -2px 10px rgba(0,0,0,0.19)`
@@ -3217,7 +3244,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
   // and the table number becomes a secondary label.
   // Far-future reservations (60+ min) are suppressed — table renders as available.
-  const hasGuest = ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) && !!displayRes && !isFarFutureReserved;
+  const hasGuest = (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus)) && !!displayRes && !isFarFutureReserved;
 
   // Daily schedule strip — all of this table's PENDING/CONFIRMED reservations for the
   // selected day, already sorted by time. Suppressed only in pick/warn/dimmed modes.
@@ -3249,7 +3276,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       : isLongStable
       ? 'drop-shadow(0 2px 13px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'
       : 'drop-shadow(0 4px 22px rgba(0,0,0,0.72)) drop-shadow(0 1px 6px rgba(0,0,0,0.42))'
-    : displayStatus === 'RESERVED_SOON'
+    : displayStatus === 'RESERVED_SOON' && !isFarFutureReserved
     // Arriving soon: stronger presence — host needs to prepare the table
     ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.66)) drop-shadow(0 1px 6px rgba(0,0,0,0.34))'
     : displayStatus === 'RESERVED' && !isFarFutureReserved
@@ -3330,7 +3357,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         }} />
       )}
       {/* Incoming — RESERVED_SOON tables glow from the top edge in anticipation */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && displayStatus === 'RESERVED_SOON' && (
+      {!pickMode && !wlPickWarn && !waitlistAssignTarget && displayStatus === 'RESERVED_SOON' && !isFarFutureReserved && (
         <span style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
           background: 'radial-gradient(ellipse 80% 80% at 50% 12%, rgba(251,191,36,0.07) 0%, transparent 70%)',
@@ -3467,8 +3494,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         );
       })()}
 
-      {/* RESERVED / RESERVED_SOON — suppressed for FAR-FUTURE (60+ min): table renders as available */}
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && !isFarFutureReserved && (() => {
+      {/* RESERVED / RESERVED_SOON / boardTimeActive — suppressed when boardTime is outside reservation window */}
+      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON' || isBoardTimeActive) && displayRes && !isFarFutureReserved && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         const isSoon = displayStatus === 'RESERVED_SOON';
