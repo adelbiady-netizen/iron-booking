@@ -931,6 +931,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const matches: Record<string, WaitlistEntry> = {};
     for (const table of floorTables) {
       if (table.liveStatus !== 'AVAILABLE' || table.locked) continue;
+      if (reservations.some(r => r.tableId === table.id && r.status === 'SEATED')) continue;
       const candidates = active.filter(e => e.partySize <= table.maxCovers);
       if (candidates.length === 0) continue;
       const best = candidates.reduce((a, b) =>
@@ -939,7 +940,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       matches[table.id] = best;
     }
     return matches;
-  }, [floorTables, waitlist, operationalNow]);
+  }, [floorTables, waitlist, operationalNow, reservations]);
 
   // Deduped list: each guest appears once with their best table.
   // Sorted: ready now (ETA 0) first, then shortest ETA, then longest wait.
@@ -1008,11 +1009,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const active = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED');
     const map = new Map<string, TableSuggestion[]>();
     for (const entry of active) {
-      const sugs = getTopSuggestions(entry, floorTables, operationalNow);
+      const sugs = getTopSuggestions(
+        entry,
+        floorTables.filter(t => !reservations.some(r => r.tableId === t.id && r.status === 'SEATED')),
+        operationalNow
+      );
       if (sugs.length > 0) map.set(entry.id, sugs);
     }
     return map;
-  }, [waitlist, floorTables, operationalNow]);
+  }, [waitlist, floorTables, operationalNow, reservations]);
 
   // Priority-sorted waitlist queue with urgency + best suggestion per entry
   const priorityQueue = useMemo<PriorityEntry[]>(() =>
@@ -1111,10 +1116,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // In browse/preview mode suppress time-derived late alerts from the backend.
     // LATE_GUEST is computed by the backend using the board's time param, not the
     // real wall-clock, so it fires false positives whenever the host previews a
-    // future hour on today's date. ENDING_SOON and SEAT_NOW are unaffected.
+    // future hour on today's date. ENDING_SOON is also suppressed: its minutesRemaining
+    // is boardTime-based, so it would show a false "ending soon" badge in planning view.
     const liveInsights = isLiveView
       ? insights
-      : insights.filter(i => i.type !== 'LATE_GUEST');
+      : insights.filter(i => i.type !== 'LATE_GUEST' && i.type !== 'ENDING_SOON');
 
     const backendResIds = new Set(liveInsights.map(i => i.reservationId).filter(Boolean));
     const extra = arrivalInsights.filter(i => i.reservationId && !backendResIds.has(i.reservationId));

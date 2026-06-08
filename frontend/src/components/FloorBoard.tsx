@@ -2824,7 +2824,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime: _nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2887,11 +2887,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : tableRadius(table.shape);
 
   // Base (non-pick) colors — minutesRemaining computed first so both isOverdue and isEndingSoon can use it.
-  // Use operationalNow (boardTime) so urgency colors reflect the host's navigated time.
-  // In live service operationalNow ≈ Date.now() (same result); in planning mode this
-  // correctly shows remaining/overdue time relative to the board position.
+  // Use real wall-clock (Date.now()) so urgency reflects genuine operational time, not board navigation.
   const minutesRemaining = (table.liveStatus === 'OCCUPIED' && table.currentReservation)
-    ? minutesUntilEnd(table.currentReservation.expectedEndTime, operationalNow ?? Date.now()) : null;
+    ? minutesUntilEnd(table.currentReservation.expectedEndTime, Date.now()) : null;
   const isOverdue = table.liveStatus === 'OCCUPIED' && (
     (table.currentReservation?.isOverdue ?? false) ||
     (minutesRemaining !== null && minutesRemaining < 0)
@@ -3227,7 +3225,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // RESERVED/RESERVED_SOON tables don't render the same guest name twice — once in the
   // card body and again as the first pill in the turn strip.
   const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
-    ? turns.filter(r => !displayRes || r.id !== displayRes.id).slice(0, 6)
+    ? turns.filter(r => !hasGuest || !displayRes || r.id !== displayRes.id).slice(0, 6)
     : [];
 
   // Position-seeded animation delay — each table starts mid-cycle at a unique offset.

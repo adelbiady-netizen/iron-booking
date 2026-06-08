@@ -214,56 +214,38 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
           canFitIncomingTurn,
         };
       }
-      // Mirror reservationConflicts() backward boundary: resEnd ≤ slotTime − buffer → no conflict.
-      // Uses operationalEnd (not seatedScheduledEnd alone) so planning-mode release agrees
-      // with live occupancy timing for extremely-late guests seated past their scheduled end.
-      const seatedClearedBuffer = operationalEnd <= addMinutes(slotTime, -bufferMinutes);
-      // Board-time release: anchor to slotTime (boardTime) so that scrubbing the board forward
-      // past a turn's end correctly releases the table. The slotTime ≥ realNow + 5 guard below
-      // still prevents live-board jitter from releasing tables with guests still seated.
-      const realtimeCleared     = operationalEnd <= slotTime;
-      // Require slotTime ≥ realNow + 5 min to enter planning mode — prevents live-board jitter.
-      const releasedForPlanning = realtimeCleared && seatedClearedBuffer && slotTime >= addMinutes(realNowVirtual, 5);
-
-      if (!releasedForPlanning) {
-        // Use slotTime (boardTime) so minutesRemaining reflects the host's navigated time.
-        // In live service slotTime ≈ realNowVirtual (same result); in planning mode this shows
-        // correct remaining/overdue time relative to the board position.
-        const minutesRemaining = Math.round((operationalEndMs - slotTime.getTime()) / 60_000);
-        const isOverdue = minutesRemaining < 0;
-        const minutesOverdue = isOverdue ? -minutesRemaining : 0;
-        return {
-          ...table,
-          locked: effectiveLocked,
-          liveStatus: 'OCCUPIED' as const,
-          currentReservation: {
-            ...seated,
-            minutesRemaining,
-            expectedEndTime: fmtVirtualLocal(operationalEnd),
-            isOverdue,
-            minutesOverdue,
-          },
-          upcomingReservations: [],
-          nextReservationStart,
-          effectiveGapMinutes,
-          requiredGapMinutes,
-          canFitIncomingTurn,
-        };
-      }
-      // releasedForPlanning=true: fall through to upcoming / AVAILABLE logic.
-      // The upcoming filter below excludes SEATED status, so this turn won't
-      // reappear there; the next PENDING/CONFIRMED reservation (if any) surfaces
-      // correctly as RESERVED or RESERVED_SOON.
+      // SEATED = OCCUPIED until the host manually completes the reservation.
+      // BoardTime never releases an occupied table — only a real host action does.
+      const minutesRemaining = Math.round((operationalEndMs - realNowVirtual.getTime()) / 60_000);
+      const isOverdue = minutesRemaining < 0;
+      const minutesOverdue = isOverdue ? -minutesRemaining : 0;
+      return {
+        ...table,
+        locked: effectiveLocked,
+        liveStatus: 'OCCUPIED' as const,
+        currentReservation: {
+          ...seated,
+          minutesRemaining,
+          expectedEndTime: fmtVirtualLocal(operationalEnd),
+          isOverdue,
+          minutesOverdue,
+        },
+        upcomingReservations: [],
+        nextReservationStart,
+        effectiveGapMinutes,
+        requiredGapMinutes,
+        canFitIncomingTurn,
+      };
     }
 
-    // Use slotTime (boardTime) for the backward boundary and for minutesUntil so that
-    // navigating the board forward correctly hides turns whose end + buffer is past
-    // boardTime and shows RESERVED_SOON relative to the host's navigated time.
+    // Upcoming filter uses real wall-clock so RESERVED_SOON fires only on genuine
+    // arrival proximity, not board-time scrubbing. BoardTime affects planning helpers
+    // (gap analysis, block overlap) but not the operational status label or color.
     const upcoming = tableReservations
       .filter(r => {
         if (r.status === 'SEATED') return false;
         const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
-        return resEnd > addMinutes(slotTime, -bufferMinutes);
+        return resEnd > addMinutes(realNowVirtual, -bufferMinutes);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -271,7 +253,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     if (nextRes) {
       const nextTime = parseTimeOnDate(date, nextRes.time);
       const minutesUntil = Math.round(
-        (nextTime.getTime() - slotTime.getTime()) / 60000
+        (nextTime.getTime() - realNowVirtual.getTime()) / 60000
       );
       return {
         ...table,
@@ -281,7 +263,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
           minutesUntil: Math.round(
-            (parseTimeOnDate(date, r.time).getTime() - slotTime.getTime()) / 60000
+            (parseTimeOnDate(date, r.time).getTime() - realNowVirtual.getTime()) / 60000
           ),
         })),
         nextReservationStart,
