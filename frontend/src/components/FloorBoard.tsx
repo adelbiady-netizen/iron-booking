@@ -137,7 +137,40 @@ interface ObjAppearance {
   labelTransform: React.CSSProperties['textTransform'];
 }
 
-function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: number): ObjAppearance {
+function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: number, light: boolean): ObjAppearance {
+  // Light theme — soften the architectural partitions (wall/divider/zone) so they
+  // read as mid-grey surfaces on the daylight floor instead of heavy black bars.
+  // Furniture (bar/entrance/host-stand) keeps its material identity.
+  if (light && o.kind !== 'BAR' && o.kind !== 'ENTRANCE' && o.kind !== 'HOST_STAND') {
+    if (o.kind === 'ZONE') return {
+      bg: 'rgba(0,0,0,0.035)', backgroundImage: undefined,
+      border: '1px solid rgba(0,0,0,0.06)', borderRadius: 12, boxShadow: undefined,
+      labelColor: 'rgb(var(--iron-text))', labelSize: 10, labelWeight: 400, labelOpacity: 0.45,
+      labelLetterSpacing: '0.10em', labelTransform: 'uppercase',
+    };
+    if (o.kind === 'DIVIDER') {
+      const v = inferObjVariant(o);
+      const tint = v === 'GLASS' ? '120,150,210' : v === 'GREENERY' ? '90,140,70' : '128,134,128';
+      return {
+        bg: `rgba(${tint},0.32)`,
+        backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(0,0,0,0.05) 100%)',
+        border: `1px solid rgba(${tint},0.55)`,
+        borderRadius: v === 'GREENERY' ? 4 : v === 'LOW' ? 2 : 3,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 5px rgba(0,0,0,0.12)',
+        labelColor: 'rgb(var(--iron-text))', labelSize: 10, labelWeight: 400, labelOpacity: 0.72,
+        labelLetterSpacing: undefined, labelTransform: undefined,
+      };
+    }
+    // WALL + any unrecognised kind — solid mid-grey partition
+    return {
+      bg: 'rgba(150,156,150,0.95)',
+      backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(0,0,0,0.10) 100%)',
+      border: '1.5px solid rgba(116,122,116,0.62)', borderRadius: 3,
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 7px rgba(0,0,0,0.14)',
+      labelColor: 'rgb(var(--iron-text))', labelSize: 10, labelWeight: 400, labelOpacity: 0.8,
+      labelLetterSpacing: undefined, labelTransform: undefined,
+    };
+  }
   switch (o.kind) {
     case 'BAR': {
       const variant = inferObjVariant(o);
@@ -1280,7 +1313,7 @@ export default function FloorBoard({
             {/* Floor objects — SVG-rendered kinds (PLANTER / SERVICE_LANE / LOUNGE_BOUNDARY / VIP_ENCLOSURE)
                 are handled inside ArchLayer. Only HTML-renderable kinds appear here. */}
             {floorObjs.filter(o => !SVG_RENDERED_KINDS.has(o.kind)).map(o => {
-              const a = getObjAppearance(o, timeWarmth, brightness);
+              const a = getObjAppearance(o, timeWarmth, brightness, document.documentElement.getAttribute('data-theme') === 'light');
               return (
                 <div
                   key={o.id}

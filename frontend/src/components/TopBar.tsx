@@ -165,8 +165,16 @@ export default function TopBar({
   const todayStr = new Date().toISOString().slice(0, 10);
   const isToday  = date === todayStr;
 
+  // Light theme needs lighter wells/insets than the dark-tuned defaults.
+  const light = theme === 'light';
+  const wellBg     = light ? 'rgba(0,0,0,0.035)' : 'rgba(0,0,0,0.14)';
+  const wellBgDeep = light ? 'rgba(0,0,0,0.05)'  : 'rgba(0,0,0,0.20)';
+  const insetShadow = light
+    ? 'inset 0 1px 3px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.6)'
+    : 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)';
+
   return (
-    <header dir="ltr" className="ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: '1px solid rgba(255,215,130,0.30)' }}>
+    <header dir="ltr" className="ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
@@ -182,7 +190,7 @@ export default function TopBar({
 
       {/* ── Date / Time Command Cluster ──────────────────────────────── */}
       <div ref={calendarRef} className="relative flex items-center gap-2.5 shrink-0">
-        <div className="flex items-stretch rounded-2xl border border-white/[0.08] bg-iron-bg overflow-hidden" style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)' }}>
+        <div className={`flex items-stretch rounded-2xl border ${light ? 'border-iron-border/70' : 'border-white/[0.08]'} bg-iron-bg overflow-hidden`} style={{ boxShadow: insetShadow }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
           <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/35">
@@ -213,7 +221,7 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className={`relative flex items-center justify-center ${isLive ? 'px-4 py-2' : 'px-3 py-1.5'}`} style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className={`relative flex items-center justify-center ${isLive ? 'px-4 py-2' : 'px-3 py-1.5'}`} style={{ background: wellBg, borderLeft: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}`, borderRight: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}` }}>
             <span
               dir="ltr"
               className={`ib-clock font-bold tabular-nums leading-none pointer-events-none select-none ${isLive ? 'text-iron-text' : 'text-iron-text/85'}`}
@@ -256,7 +264,7 @@ export default function TopBar({
           <div
             dir="ltr"
             className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
-            style={{ background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
+            style={{ background: wellBgDeep, border: `1px solid ${light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}`, boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
           >
             <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
             <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
@@ -287,7 +295,7 @@ export default function TopBar({
       <div className="flex items-center gap-1.5 shrink-0">
         <div
           className="flex items-center bg-iron-bg/60 rounded-xl overflow-hidden divide-x divide-iron-border/25"
-          style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(255,255,255,0.03)' }}
+          style={{ boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.04)' : 'inset 0 1px 4px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(255,255,255,0.03)' }}
           title={T.topBar.zoomTitle}
         >
           <button

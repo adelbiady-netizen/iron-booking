@@ -57,7 +57,7 @@
   --status-info:       79 70 229;      /* indigo-600  */
 
   /* Canvas map */
-  --canvas-bg:              #EAEDE6;
+  --canvas-bg:              #DCE1D6;   /* darker sage so white table cards read clearly in daylight */
   --canvas-dot:             #C8CCC4;
   --canvas-grid:            rgba(0,0,0,0.055); /* architectural cross-grid lines */
   --canvas-ambient:         rgba(255,240,200,0.075); /* warm daylight chandelier — more opaque than dark, less contrast to overcome */
