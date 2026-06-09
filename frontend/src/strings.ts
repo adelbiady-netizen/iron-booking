@@ -48,6 +48,8 @@ export const T = {
     resetZoom:      'Reset to 100%',
     switchToLight:  'Switch to light mode',
     switchToDark:   'Switch to dark mode',
+    settings:       'Settings',
+    language:       'Language',
     signOut:        'Sign out',
     prevDay:        'Previous day',
     nextDay:        'Next day',
@@ -1008,6 +1010,7 @@ export const T = {
     serviceReportBtn:    'Service Report',
     hostsBtn:            'Hosts',
     activityLogBtn:      'Activity Log',
+    moreMenu:            'More',
   },
 
   // ── Call Log ────────────────────────────────────────────────────────────────

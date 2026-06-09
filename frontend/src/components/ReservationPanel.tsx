@@ -68,6 +68,7 @@ interface Props {
   allTables?: { id: string; name: string }[];
   onChooseTable?: (r: Reservation) => void;
   onMarkArrived?: (r: Reservation) => void;
+  onSendSms?: (r: Reservation) => void;
   isLiveView?: boolean;
   onHoverRow?: (id: string | null) => void;
   onSmartAssign?: () => void;
@@ -79,7 +80,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onChooseTable, onMarkArrived, isLiveView, onHoverRow, onSmartAssign,
+  onChooseTable, onMarkArrived, onSendSms, isLiveView, onHoverRow, onSmartAssign,
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
@@ -311,7 +312,7 @@ export default function ReservationPanel({
                           <button
                             type="button"
                             onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                            className="text-xs font-semibold px-1.5 py-1 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap shrink-0"
+                            className="text-[10px] font-semibold px-1 py-0.5 rounded bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap shrink-0"
                             style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
                           >
                             {T.reservationPanel.markArrivedBtn}
@@ -502,16 +503,38 @@ export default function ReservationPanel({
                     <span className="text-iron-text text-[17px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
                     <span className="text-iron-muted/65 text-[12px] tabular-nums leading-none font-semibold">{r.partySize}p</span>
                   </div>
-                  {onMarkArrived && !r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status) && (
-                    <div className="shrink-0 flex items-center ps-2">
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                        className="text-xs font-semibold px-1.5 py-1 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                        style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                      >
-                        {T.reservationPanel.markArrivedBtn}
-                      </button>
+                  {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
+                    <div className="shrink-0 flex items-center gap-0.5 ps-2">
+                      {onChooseTable && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                          className="text-[10px] font-semibold px-1 py-0.5 rounded bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                        >
+                          {r.table ? T.guestDrawer.actionChangeTable : T.guestDrawer.actionChooseTable}
+                        </button>
+                      )}
+                      {onSendSms && r.guestPhone && !r.isConfirmedByGuest && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onSendSms(r); }}
+                          className="text-[10px] font-semibold px-1 py-0.5 rounded bg-status-reserved text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                        >
+                          {T.guestDrawer.actionSendSms}
+                        </button>
+                      )}
+                      {onMarkArrived && !r.isArrived && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
+                          className="text-[10px] font-semibold px-1 py-0.5 rounded bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                        >
+                          {T.reservationPanel.markArrivedBtn}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -628,27 +651,13 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
+                  {r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status) && (
                     <div className="flex flex-col items-center justify-center gap-2 pe-3.5 ps-1 shrink-0">
-                      {r.isArrived ? (
-                        <span className="text-[11px] font-semibold text-status-arrived whitespace-nowrap text-center leading-tight">
-                          {r.arrivedAt
-                            ? T.reservationPanel.arrivedWaiting(Math.round((nowMs - new Date(r.arrivedAt).getTime()) / 60_000))
-                            : T.reservationPanel.arrivedBadge}
-                        </span>
-                      ) : (
-                        <>
-                          {!r.table && onChooseTable && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                              className="text-xs font-semibold px-3 py-2 rounded-lg bg-iron-green-light text-white shadow-sm hover:brightness-110 transition-[filter,transform] active:scale-[0.97] whitespace-nowrap"
-                            >
-                              {T.reservationPanel.chooseTable}
-                            </button>
-                          )}
-                        </>
-                      )}
+                      <span className="text-[11px] font-semibold text-status-arrived whitespace-nowrap text-center leading-tight">
+                        {r.arrivedAt
+                          ? T.reservationPanel.arrivedWaiting(Math.round((nowMs - new Date(r.arrivedAt).getTime()) / 60_000))
+                          : T.reservationPanel.arrivedBadge}
+                      </span>
                     </div>
                   )}
                 </div>

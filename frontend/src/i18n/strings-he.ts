@@ -49,6 +49,8 @@ export const THe = {
     resetZoom:      'איפוס ל-100%',
     switchToLight:  'מעבר למצב בהיר',
     switchToDark:   'מעבר למצב כהה',
+    settings:       'הגדרות',
+    language:       'שפה',
     signOut:        'יציאה',
     prevDay:        'יום קודם',
     nextDay:        'יום הבא',
@@ -979,6 +981,7 @@ export const THe = {
     serviceReportBtn:    'דוח משמרת',
     hostsBtn:            'מארחים',
     activityLogBtn:      'יומן פעילות',
+    moreMenu:            'עוד',
   },
 
   // ── Call Log ────────────────────────────────────────────────────────────────

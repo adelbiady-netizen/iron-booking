@@ -218,6 +218,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [showServiceReport,   setShowServiceReport]   = useState(false);
   const [showBulkConfirm,    setShowBulkConfirm]    = useState(false);
   const [showCallLog,        setShowCallLog]        = useState(false);
+  const [showMoreMenu,       setShowMoreMenu]       = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showMoreMenu]);
   const [showSmartAssign,    setShowSmartAssign]    = useState(false);
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
   const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
@@ -1642,6 +1652,29 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [showToast]);
 
+  const handleSendSms = useCallback(async (res: Reservation) => {
+    if (inFlightRef.current.has(res.id)) return;
+    inFlightRef.current.add(res.id);
+    setInFlightIds(new Set(inFlightRef.current));
+    try {
+      const response = await api.reservations.sendConfirmation(res.id);
+      const { whatsappFailed, smsFailed, ...updated } = response;
+      setReservations(prev => prev.map(r => r.id === (updated as Reservation).id ? { ...r, ...(updated as Reservation) } : r));
+      if (whatsappFailed && smsFailed) {
+        showToast(T.guestDrawer.toastConfirmationBothFailed, 'error');
+      } else if (whatsappFailed) {
+        showToast(T.guestDrawer.toastConfirmationWhatsappFailed, 'success');
+      } else {
+        showToast(res.confirmationSentAt ? T.guestDrawer.confirmationResent : T.guestDrawer.confirmationSent, 'success');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      inFlightRef.current.delete(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
+    }
+  }, [showToast]);
+
   const handleContextMenuMove = useCallback(async (res: Reservation) => {
     let sug: BackendTableSuggestion[] = [];
     try {
@@ -1926,6 +1959,111 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Compact card when the host is mid-flow so their context is not hidden.
   const callWorkflowActive = !!(selectedRes || createMode || tablePickMode || waitlistAssignEntry);
 
+  const toolbarActions = (
+    <>
+      <button
+        onClick={() => {
+          if (combineMode) {
+            setCombineMode(false);
+            setCombinedSelection([]);
+          } else {
+            setSelectedRes(null);
+            setCreateMode(null);
+            setCombineMode(true);
+          }
+        }}
+        className={`text-[11px] font-semibold border rounded-lg px-2.5 py-1.5 transition-colors ${
+          combineMode
+            ? 'bg-blue-600/20 border-status-reserved/40 text-status-reserved hover:bg-blue-600/28'
+            : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
+        }`}
+      >
+        {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
+      </button>
+      <button
+        onClick={() => {
+          if (reorganizeMode) {
+            setReorganizeMode(false);
+            setRebuildDayTarget(null);
+          } else {
+            setSelectedRes(null);
+            setCreateMode(null);
+            setCombineMode(false);
+            setCombinedSelection([]);
+            setReorganizeMode(true);
+            rebuildSessionIdRef.current = crypto.randomUUID();
+          }
+        }}
+        className={`text-[11px] font-semibold border rounded-lg px-2.5 py-1.5 transition-colors ${
+          reorganizeMode
+            ? 'bg-status-warning/20 border-status-warning/40 text-status-warning hover:bg-status-warning/28'
+            : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
+        }`}
+      >
+        {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor}
+      </button>
+      <div className="w-px h-5 bg-iron-border/30 shrink-0" />
+      <button
+        onClick={() => setShowCallLog(v => !v)}
+        className={`text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
+          showCallLog
+            ? 'bg-iron-green/15 border-iron-green/35 text-iron-green-light'
+            : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
+        }`}
+      >
+        {T.callLog.btn}
+      </button>
+      <div className="relative" ref={moreMenuRef}>
+        <button
+          onClick={() => setShowMoreMenu(v => !v)}
+          className={`flex items-center gap-1 text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
+            showMoreMenu
+              ? 'bg-iron-elevated/40 border-iron-border/65 text-iron-text/90'
+              : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
+          }`}
+        >
+          {T.hostDashboard.moreMenu}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`}>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        {showMoreMenu && (
+          <div
+            className="absolute end-0 top-full mt-1.5 z-50 min-w-[176px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
+            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          >
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowServiceReport(true); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.serviceReportBtn}
+            </button>
+            <button
+              onClick={() => { setShowMoreMenu(false); setActivePage('activity'); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.activityLogBtn}
+            </button>
+            {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
+              <button
+                onClick={() => { setShowMoreMenu(false); setActivePage('hosts'); }}
+                className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+              >
+                {T.hostDashboard.hostsBtn}
+              </button>
+            )}
+            <button
+              onClick={() => { setShowMoreMenu(false); setLayoutMode(true); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.editLayout}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="h-full flex flex-col bg-iron-bg overflow-hidden">
       <TopBar
@@ -1952,92 +2090,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onSwitchHost={onSwitchHost}
         onBulkConfirm={() => setShowBulkConfirm(true)}
         sseStatus={sseStatus}
+        toolbarSlot={toolbarActions}
       />
-
-      {/* Secondary toolbar */}
-      <div className="ib-bar flex items-center justify-between px-4 py-2 border-b border-iron-border/30 bg-iron-bg shrink-0" style={{ boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.10)' }}>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (combineMode) {
-                setCombineMode(false);
-                setCombinedSelection([]);
-              } else {
-                setSelectedRes(null);
-                setCreateMode(null);
-                setCombineMode(true);
-              }
-            }}
-            className={`text-xs font-semibold border rounded-lg px-3.5 py-2 min-h-[34px] transition-colors ${
-              combineMode
-                ? 'bg-blue-600/20 border-status-reserved/40 text-status-reserved hover:bg-blue-600/28'
-                : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-            }`}
-          >
-            {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
-          </button>
-          <button
-            onClick={() => {
-              if (reorganizeMode) {
-                setReorganizeMode(false);
-                setRebuildDayTarget(null);
-              } else {
-                setSelectedRes(null);
-                setCreateMode(null);
-                setCombineMode(false);
-                setCombinedSelection([]);
-                setReorganizeMode(true);
-                rebuildSessionIdRef.current = crypto.randomUUID();
-              }
-            }}
-            className={`text-xs font-semibold border rounded-lg px-3.5 py-2 min-h-[34px] transition-colors ${
-              reorganizeMode
-                ? 'bg-status-warning/20 border-status-warning/40 text-status-warning hover:bg-status-warning/28'
-                : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-            }`}
-          >
-            {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor}
-          </button>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setShowServiceReport(true)}
-            className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
-          >
-            {T.hostDashboard.serviceReportBtn}
-          </button>
-          <button
-            onClick={() => setActivePage('activity')}
-            className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
-          >
-            {T.hostDashboard.activityLogBtn}
-          </button>
-          <button
-            onClick={() => setShowCallLog(v => !v)}
-            className={`text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
-              showCallLog
-                ? 'bg-iron-green/15 border-iron-green/35 text-iron-green-light'
-                : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-            }`}
-          >
-            {T.callLog.btn}
-          </button>
-          {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
-            <button
-              onClick={() => setActivePage('hosts')}
-              className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
-            >
-              {T.hostDashboard.hostsBtn}
-            </button>
-          )}
-          <button
-            onClick={() => setLayoutMode(true)}
-            className="text-[11px] font-medium text-iron-muted/70 hover:text-iron-text/90 border border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30 rounded-lg px-2.5 py-1.5 transition-colors"
-          >
-            {T.hostDashboard.editLayout}
-          </button>
-        </div>
-      </div>
 
       <ActionBar insights={allInsights} onItemClick={handleActionBarClick} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
 
@@ -2210,6 +2264,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               allTables={allTables}
               onChooseTable={handleChooseTable}
               onMarkArrived={handleContextMenuArrive}
+              onSendSms={handleSendSms}
               isLiveView={isLiveView}
               onHoverRow={handleHoverRow}
               onSmartAssign={() => setShowSmartAssign(true)}

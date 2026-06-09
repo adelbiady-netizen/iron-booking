@@ -38,6 +38,8 @@ interface Props {
   onSwitchHost?: () => void;
   onBulkConfirm?: () => void;
   sseStatus?: SseStatus;
+  /** Board tools (combine/reorganize/call-log/more) hoisted up from the old secondary bar. */
+  toolbarSlot?: React.ReactNode;
 }
 
 function SunIcon() {
@@ -60,6 +62,15 @@ function MoonIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   );
 }
@@ -87,11 +98,16 @@ export default function TopBar({
   onSwitchHost,
   onBulkConfirm,
   sseStatus,
+  toolbarSlot,
 }: Props) {
   const T = useT();
   const { intlLocale } = useLocale();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   function readClock(): string {
     const d = new Date();
@@ -130,6 +146,17 @@ export default function TopBar({
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
   }, [calendarOpen]);
+
+  useEffect(() => {
+    if (!settingsOpen && !userMenuOpen) return;
+    function onPointer(e: MouseEvent) {
+      const t = e.target as Node;
+      if (settingsRef.current && !settingsRef.current.contains(t)) setSettingsOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(t)) setUserMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onPointer);
+    return () => document.removeEventListener('mousedown', onPointer);
+  }, [settingsOpen, userMenuOpen]);
 
   const atMin  = zoom <= 75;
   const atMax  = zoom >= 150;
@@ -186,11 +213,11 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className="relative flex items-center justify-center px-4 py-2" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className="relative flex items-center justify-center px-3 py-1.5" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
               dir="ltr"
-              className="ib-clock text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
-              style={{ fontSize: '40px', letterSpacing: '-0.045em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
+              className="ib-clock-sm text-iron-text/85 font-bold tabular-nums leading-none pointer-events-none select-none"
+              style={{ fontSize: '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
             </span>
@@ -224,15 +251,17 @@ export default function TopBar({
           </div>
         )}
 
-        {/* Real clock — exact current time, passive read-only display */}
-        <div
-          dir="ltr"
-          className="flex flex-col items-center px-2.5 py-1 rounded-lg shrink-0 select-none pointer-events-none"
-          style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
-        >
-          <span className="text-iron-muted/45 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
-          <span className="text-iron-text/62 text-[13px] font-semibold tabular-nums leading-none">{realClock}</span>
-        </div>
+        {/* Real ("wall") clock — primary at-a-glance time; only meaningful while time-travelling */}
+        {!isLive && (
+          <div
+            dir="ltr"
+            className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
+            style={{ background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
+          >
+            <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
+            <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
+          </div>
+        )}
 
         {/* ── Service State — adjacent to time ─────────────────── */}
         {isLive ? (
@@ -314,19 +343,47 @@ export default function TopBar({
 
       <div className="flex-1" />
 
+      {/* Board tools hoisted up from the old secondary bar */}
+      {toolbarSlot && (
+        <>
+          <div className="flex items-center gap-1.5 shrink-0">{toolbarSlot}</div>
+          <div className="w-px h-5 bg-iron-border/35 shrink-0" />
+        </>
+      )}
+
       {/* Zone separator: operational ← → preference + session */}
       <div className="w-px h-5 bg-iron-border/35 shrink-0" />
 
-      {/* ── Preference group: language + theme ──────────────────────── */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        <LanguageSwitcher />
+      {/* ── Settings menu: language + theme ──────────────────────── */}
+      <div className="relative shrink-0" ref={settingsRef}>
         <button
-          onClick={onThemeChange}
-          title={theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}
-          className="text-iron-text/45 hover:text-iron-text/85 rounded-lg p-1.5 hover:bg-iron-bg/60 transition-colors"
+          onClick={() => { setSettingsOpen(o => !o); setUserMenuOpen(false); }}
+          title={T.topBar.settings}
+          aria-haspopup="menu"
+          aria-expanded={settingsOpen}
+          className={`rounded-lg p-1.5 transition-colors ${settingsOpen ? 'text-iron-text/85 bg-iron-bg/60' : 'text-iron-text/45 hover:text-iron-text/85 hover:bg-iron-bg/60'}`}
         >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          <GearIcon />
         </button>
+        {settingsOpen && (
+          <div
+            dir="rtl"
+            className="absolute end-0 top-full mt-2 z-50 min-w-[200px] rounded-xl border border-iron-border/50 bg-iron-elevated p-2"
+            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          >
+            <div className="flex items-center justify-between gap-2 px-1.5 py-1.5">
+              <span className="text-iron-muted/70 text-[11px] font-medium">{T.topBar.language}</span>
+              <LanguageSwitcher />
+            </div>
+            <button
+              onClick={onThemeChange}
+              className="w-full flex items-center justify-between px-1.5 py-1.5 rounded-lg text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              <span className="text-[11px] font-medium">{theme === 'dark' ? T.topBar.switchToLight : T.topBar.switchToDark}</span>
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Zone separator: preferences → session */}
@@ -351,41 +408,52 @@ export default function TopBar({
           </button>
         )}
 
-        {/* Active host badge (host-selection-aware sessions) */}
-        {onSwitchHost ? (
-          <div className="hidden lg:flex items-center gap-1.5 rounded-md px-2 py-0.5">
-            <span className="text-iron-muted/75 text-xs leading-tight">{T.topBar.activeHost(userName)}</span>
-            <span className="text-iron-border/60 text-xs">·</span>
-            <button
-              onClick={onSwitchHost}
-              className="text-iron-green-light text-xs font-semibold hover:text-iron-green transition-colors leading-tight whitespace-nowrap"
-            >
-              {T.topBar.switchHost}
-            </button>
-          </div>
-        ) : (
-          <div className="text-right hidden lg:block">
-            <p className="text-iron-text/85 text-xs font-medium leading-tight">{userName}</p>
-            <p className="text-iron-muted/65 text-xs leading-tight">{restaurantName}</p>
-          </div>
-        )}
-
-        {/* On small screens, show a compact Switch Host button instead of badge */}
-        {onSwitchHost && (
+        {/* ── User menu: identity + switch host + logout ──────────── */}
+        <div className="relative shrink-0" ref={userMenuRef}>
           <button
-            onClick={onSwitchHost}
-            className="lg:hidden text-iron-green-light hover:text-iron-green text-xs px-2 py-1 rounded-md hover:bg-iron-bg/50 transition-colors font-medium"
+            onClick={() => { setUserMenuOpen(o => !o); setSettingsOpen(false); }}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            className={`flex items-center gap-2 rounded-lg ps-1.5 pe-2 py-1 border transition-colors ${userMenuOpen ? 'bg-iron-bg/60 border-iron-border/45' : 'border-transparent hover:bg-iron-bg/60 hover:border-iron-border/35'}`}
           >
-            {T.topBar.switchHost}
+            <span className="w-7 h-7 rounded-full bg-iron-green/20 border border-iron-green/35 flex items-center justify-center text-iron-green-light text-[12px] font-bold shrink-0 uppercase">
+              {userName.slice(0, 1)}
+            </span>
+            <span className="hidden lg:flex flex-col items-start leading-tight">
+              <span className="text-iron-text/85 text-xs font-semibold whitespace-nowrap">{userName}</span>
+              <span className="text-iron-muted/55 text-[10px] whitespace-nowrap">{restaurantName}</span>
+            </span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`text-iron-muted/55 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
           </button>
-        )}
-
-        <button
-          onClick={onLogout}
-          className="text-iron-muted/45 hover:text-iron-muted/80 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/30 transition-colors duration-100"
-        >
-          {T.topBar.signOut}
-        </button>
+          {userMenuOpen && (
+            <div
+              dir="rtl"
+              className="absolute end-0 top-full mt-2 z-50 min-w-[200px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
+              style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+            >
+              <div className="px-3.5 py-2 mb-1 border-b border-iron-border/30 lg:hidden">
+                <p className="text-iron-text/85 text-xs font-semibold">{userName}</p>
+                <p className="text-iron-muted/55 text-[10px]">{restaurantName}</p>
+              </div>
+              {onSwitchHost && (
+                <button
+                  onClick={() => { setUserMenuOpen(false); onSwitchHost(); }}
+                  className="w-full text-start px-3.5 py-2 text-xs font-semibold text-iron-green-light hover:bg-iron-border/20 transition-colors"
+                >
+                  {T.topBar.switchHost}
+                </button>
+              )}
+              <button
+                onClick={() => { setUserMenuOpen(false); onLogout(); }}
+                className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-status-danger hover:bg-iron-border/20 transition-colors"
+              >
+                {T.topBar.signOut}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
