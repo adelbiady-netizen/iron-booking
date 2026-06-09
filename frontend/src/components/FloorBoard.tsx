@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import type React from 'react';
 import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, TableFirstGuest, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
@@ -512,8 +512,17 @@ export default function FloorBoard({
   const dragStartRef   = useRef<{ cx: number; cy: number } | null>(null);
   const isDraggingRef  = useRef(false);
   const [dragRect,      setDragRect]          = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const canvasScrollRef = useRef<HTMLDivElement>(null);
+  const canvasScrollRef = useRef<HTMLDivElement | null>(null);
   const baseInitRef = useRef(false); // prevents re-calibration after first fit
+
+  // Map-only zoom — scales just the floor canvas (independent of the global UI zoom).
+  const MAP_ZOOM_MIN = 0.6, MAP_ZOOM_MAX = 1.4, MAP_ZOOM_STEP = 0.1;
+  const [mapZoom, setMapZoom] = useState(1);
+  const mapZoomRef = useRef(1);
+  mapZoomRef.current = mapZoom;
+  const clampZoom = (z: number) => Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, +z.toFixed(3)));
+  const zoomMap = (dir: -1 | 0 | 1) =>
+    setMapZoom(z => dir === 0 ? 1 : clampZoom(z + dir * MAP_ZOOM_STEP));
 
   // Spatial calibration — one-shot on first load with positioned tables.
   // Scrolls to center the table cluster. Canvas is always at 100% scale.
@@ -557,6 +566,57 @@ export default function FloorBoard({
     });
     ro.observe(container);
     return () => ro.disconnect();
+  }, []);
+
+  // Pinch / wheel zoom — scales ONLY the floor map (not the whole app).
+  // Attached via a callback ref so the listeners bind every time the canvas
+  // mounts (the canvas only renders after table data loads / on view switch).
+  // Non-passive listeners so preventDefault stops the browser's own page zoom.
+  const detachCanvasZoom = useRef<(() => void) | null>(null);
+  const canvasRefCb = useCallback((el: HTMLDivElement | null) => {
+    detachCanvasZoom.current?.();
+    detachCanvasZoom.current = null;
+    canvasScrollRef.current = el;
+    if (!el) return;
+
+    const distance = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    let startDist = 0, startZoom = 1, pinching = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinching = true;
+        startDist = distance(e.touches);
+        startZoom = mapZoomRef.current;
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (pinching && e.touches.length === 2) {
+        e.preventDefault();
+        const ratio = distance(e.touches) / (startDist || 1);
+        setMapZoom(clampZoom(startZoom * ratio));
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => { if (e.touches.length < 2) pinching = false; };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const dir = e.deltaY < 0 ? 1 : -1; // wheel up → zoom in
+      setMapZoom(clampZoom(mapZoomRef.current + dir * MAP_ZOOM_STEP));
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('touchcancel', onTouchEnd);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    detachCanvasZoom.current = () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+      el.removeEventListener('wheel', onWheel);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -710,9 +770,9 @@ export default function FloorBoard({
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-2 text-iron-muted">
         <div className="w-10 h-10 rounded-lg border-2 border-dashed border-red-900/40 flex items-center justify-center mb-1">
-          <span className="text-lg opacity-60 text-red-400">!</span>
+          <span className="text-lg opacity-60 text-status-danger">!</span>
         </div>
-        <p className="text-sm text-red-400">{T.floorBoard.errorTitle}</p>
+        <p className="text-sm text-status-danger">{T.floorBoard.errorTitle}</p>
         <p className="text-xs opacity-60">{T.floorBoard.errorHint}</p>
       </div>
     );
@@ -995,15 +1055,15 @@ export default function FloorBoard({
 
       {/* Pick mode banner */}
       {pickMode && (
-        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-blue-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-          <span className="text-blue-300 text-xs font-medium flex-1">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-status-reserved/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+          <span className="text-status-reserved text-xs font-medium flex-1">
             {pickAction === 'move' && pickGuestName
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
               : T.floorBoard.pickModeHint}
           </span>
           {pickAction === 'seat' && (
-            <button type="button" onClick={onPickCancel} className="text-blue-300/70 text-xs hover:text-blue-200 transition-colors shrink-0 touch-manipulation px-1 py-1">
+            <button type="button" onClick={onPickCancel} className="text-status-reserved/70 text-xs hover:text-blue-200 transition-colors shrink-0 touch-manipulation px-1 py-1">
               {T.floorBoard.pickModeCancel}
             </button>
           )}
@@ -1012,9 +1072,9 @@ export default function FloorBoard({
 
       {/* Reorganize mode banner */}
       {reorganizeMode && !pickMode && (
-        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-amber-900/20 border-b border-amber-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-          <span className="text-amber-300 text-xs font-medium flex-1">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-amber-900/20 border-b border-status-warning/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-warning animate-pulse shrink-0" />
+          <span className="text-status-warning text-xs font-medium flex-1">
             {T.floorBoard.reorganizeBanner}
           </span>
         </div>
@@ -1022,14 +1082,14 @@ export default function FloorBoard({
 
       {/* Waitlist assignment mode banner */}
       {waitlistAssignEntry && !pickMode && (
-        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-indigo-900/20 border-b border-indigo-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shrink-0" />
-          <span className="text-indigo-300 text-xs font-medium flex-1">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-indigo-900/20 border-b border-status-info/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-info animate-pulse shrink-0" />
+          <span className="text-status-info text-xs font-medium flex-1">
             {T.waitlistAssign.chooseBanner(waitlistAssignEntry.guestName, waitlistAssignEntry.partySize)}
           </span>
           <button
             onClick={onWaitlistAssignCancel}
-            className="text-indigo-400/60 hover:text-indigo-300 text-xs transition-colors shrink-0"
+            className="text-status-info/60 hover:text-status-info text-xs transition-colors shrink-0"
           >
             {T.waitlistAssign.cancelAssign}
           </button>
@@ -1037,11 +1097,11 @@ export default function FloorBoard({
       )}
 
       {/* Stats + section legend */}
-      <div className="flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.15), 0 6px 24px rgba(0,0,0,0.44)' }}>
+      <div className="ib-bar flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.15), 0 6px 24px rgba(0,0,0,0.44)' }}>
         {/* Live service cluster */}
         <div className="flex items-center gap-1.5">
           <Stat label={T.floorBoard.statSeated} value={seatedParties} color="text-iron-green-light" live />
-          {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-amber-400" live />}
+          {reservedSoon > 0 && <Stat label={T.floorBoard.statArriving} value={reservedSoon} color="text-status-warning" live />}
           {freeingSoon > 0 && available <= 1 && <Stat label={T.floorBoard.statFreeing} value={freeingSoon} color="text-iron-green-light/50" />}
         </div>
 
@@ -1049,7 +1109,7 @@ export default function FloorBoard({
 
         {/* Capacity cluster */}
         <div className="flex items-center gap-1.5">
-          <Stat label={T.floorBoard.statReserved}  value={reserved}  color="text-blue-400" />
+          <Stat label={T.floorBoard.statReserved}  value={reserved}  color="text-status-reserved" />
           <Stat label={T.floorBoard.statAvailable} value={available} color="text-iron-muted" />
         </div>
 
@@ -1074,10 +1134,10 @@ export default function FloorBoard({
         {pressureInfo && pressureInfo.level !== 'LOW' && (
           <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${
             pressureInfo.level === 'HIGH'
-              ? 'bg-red-900/20 border-red-500/25 text-red-400'
-              : 'bg-amber-900/20 border-amber-500/25 text-amber-400'
+              ? 'bg-red-900/20 border-status-danger/25 text-status-danger'
+              : 'bg-amber-900/20 border-status-warning/25 text-status-warning'
           }`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pressureInfo.level === 'HIGH' ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pressureInfo.level === 'HIGH' ? 'bg-status-danger animate-pulse' : 'bg-status-warning'}`} />
             {pressureInfo.level === 'HIGH' ? T.flowControl.pressureHigh : T.flowControl.pressureMed}
             {pressureInfo.label && <span className="opacity-70"> · {pressureInfo.label}</span>}
           </div>
@@ -1122,51 +1182,60 @@ export default function FloorBoard({
         // ── Visual floor map ──────────────────────────────────────────────────
         (() => {
           // ── Adaptive Day/Night canvas values ─────────────────────────────
-          // Signals derived from { timeWarmth, brightness } — room responds to service.
-          const isDark = typeof document !== 'undefined'
-            ? document.documentElement.getAttribute('data-theme') !== 'light'
-            : true;
-
-          // Ambient bloom — warm candlelight white; no blue channel drift.
-          const ambW = Math.round(72 + brightness * 14); // 86% morning → 72% dinner
-          const ambH = Math.round(58 + brightness * 12); // 70% morning → 58% dinner
-          const ambA = isDark
-            ? (0.004 + brightness * 0.002 + timeWarmth * 0.002).toFixed(4)
-            : '0.000';
           // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
           const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
 
           return (
         <div className="flex-1 relative overflow-hidden">
-        <div ref={canvasScrollRef} className="absolute inset-0 overflow-auto" style={{ backgroundColor: 'var(--canvas-bg)' }}>
+        {/* Map-only zoom controls — floating, bottom-right of the floor */}
+        {!pickMode && (
+          <div
+            dir="ltr"
+            className="absolute bottom-4 right-4 z-30 flex flex-col items-stretch w-12 rounded-xl overflow-hidden bg-iron-elevated/95 border border-iron-border/60"
+            style={{ boxShadow: '0 6px 22px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)' }}
+          >
+            <button
+              onClick={() => zoomMap(1)}
+              disabled={mapZoom >= MAP_ZOOM_MAX}
+              title="Zoom in"
+              className="py-2.5 text-2xl font-semibold text-iron-text/85 hover:text-iron-text hover:bg-iron-bg/70 disabled:opacity-30 disabled:hover:bg-transparent leading-none select-none transition-colors"
+            >
+              +
+            </button>
+            <button
+              onClick={() => zoomMap(0)}
+              title="Reset map zoom"
+              className="py-1.5 text-[11px] font-bold tabular-nums text-iron-muted hover:text-iron-text hover:bg-iron-bg/70 border-y border-iron-border/50 select-none transition-colors"
+            >
+              {Math.round(mapZoom * 100)}%
+            </button>
+            <button
+              onClick={() => zoomMap(-1)}
+              disabled={mapZoom <= MAP_ZOOM_MIN}
+              title="Zoom out"
+              className="py-2.5 text-2xl font-semibold text-iron-text/85 hover:text-iron-text hover:bg-iron-bg/70 disabled:opacity-30 disabled:hover:bg-transparent leading-none select-none transition-colors"
+            >
+              −
+            </button>
+          </div>
+        )}
+        <div ref={canvasRefCb} className="absolute inset-0 overflow-auto" style={{ backgroundColor: 'var(--canvas-bg)', touchAction: 'pan-x pan-y' }}>
           <div
             onMouseDown={pickMode ? handleCanvasMouseDown : undefined}
             style={{
               position: 'relative',
               width: CANVAS_W,
               height: CANVAS_H,
-              zoom: 1,
+              zoom: mapZoom,
               backgroundColor: 'var(--canvas-bg)',
-              backgroundImage: [
-                // Chandelier bloom — continuous warmth across the full canvas surface.
-                // Wider + taller than before so the lower floor zones stay grounded.
-                'radial-gradient(ellipse 110% 88% at 50% 32%, var(--canvas-ambient) 0%, transparent 72%)',
-                // Ceiling catch — diffuse overhead light on the upper floor zone.
-                isDark
-                  ? 'linear-gradient(180deg, rgba(220,210,196,0.016) 0%, transparent 24%)'
-                  : 'linear-gradient(180deg, rgba(255,252,248,0.12) 0%, transparent 30%)',
-                // Peripheral depth — room walls absorb light; floor edges recede naturally.
-                `radial-gradient(ellipse 106% 100% at 50% 50%, transparent 48%, ${isDark ? 'rgba(0,0,0,0.14)' : 'rgba(0,0,0,0.06)'} 100%)`,
-                // Secondary ambient pool — off-axis warmth for naturalism (second fixture / window).
-                isDark
-                  ? 'radial-gradient(ellipse 55% 40% at 68% 62%, rgba(200,175,130,0.006) 0%, transparent 70%)'
-                  : 'radial-gradient(ellipse 55% 40% at 68% 62%, rgba(255,240,200,0.022) 0%, transparent 70%)',
-              ].join(', '),
+              // Flat minimal floor — uniform dark surface, no ambient gradients/texture.
+              backgroundImage: 'none',
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
-            {/* Architectural environment — walls, floor materials, booth backings, VIP enclosures */}
-            {positioned && (
+            {/* Architectural environment — walls, floor materials, booth backings, VIP enclosures.
+                Suppressed for the flat-minimal floor look. */}
+            {false && positioned && (
               <ArchLayer
                 tables={canvasTables}
                 floorObjs={floorObjs}
@@ -1183,7 +1252,7 @@ export default function FloorBoard({
               className="animate-ambient-breathe"
               style={{
                 position: 'absolute', inset: 0,
-                background: `radial-gradient(ellipse ${ambW}% ${ambH}% at 50% 36%, rgba(255,244,230,${ambA}) 0%, transparent 65%)`,
+                background: 'none',
                 animationDuration: `${ambDuration}s`,
                 pointerEvents: 'none',
                 zIndex: 0,
@@ -1201,8 +1270,8 @@ export default function FloorBoard({
                   width:  z.maxX - z.minX + PAD * 2,
                   height: z.maxY - z.minY + PAD * 2,
                   borderRadius: 24,
-                  border: `1px solid ${z.color}14`,
-                  background: `radial-gradient(ellipse 80% 75% at 50% 48%, ${z.color}08 0%, ${z.color}03 60%, transparent 85%)`,
+                  border: 'none',
+                  background: 'none',
                   pointerEvents: 'none',
                 }}
               />
@@ -1391,13 +1460,13 @@ export default function FloorBoard({
                       key={t.id}
                       className={
                         isWLTarget
-                          ? 'ring-2 ring-indigo-500/60 rounded-lg'
+                          ? 'ring-2 ring-status-info/60 rounded-lg'
                           : wlPickWarn === t.id
-                          ? 'ring-2 ring-red-500/60 rounded-lg'
+                          ? 'ring-2 ring-status-danger/60 rounded-lg'
                           : isSwapSrc
                           ? 'ring-2 ring-violet-500/60 rounded-lg'
                           : isPickSelected || combinedSelection.includes(t.id)
-                          ? 'ring-2 ring-blue-500/50 rounded-lg'
+                          ? 'ring-2 ring-status-reserved/50 rounded-lg'
                           : ''
                       }
                       style={ineligibleForAssign || gridSwapDimmed ? { opacity: 0.3 } : undefined}
@@ -1490,7 +1559,7 @@ export default function FloorBoard({
               {canRecover && (
                 <button
                   onClick={() => { onContextMenuSeat!({ ...activeDrawerRes!, tableId: t.id }); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxReassign}
                 </button>
@@ -1506,7 +1575,7 @@ export default function FloorBoard({
               {canArrive && (
                 <button
                   onClick={() => { onContextMenuArrive!(seatableRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-reserved hover:bg-status-reserved/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMarkArrived}
                 </button>
@@ -1531,10 +1600,10 @@ export default function FloorBoard({
                         ? T.floorBoard.ctxGuestArrived
                         : T.floorBoard.ctxGuestConfirmed;
                     const labelCls = guest.kind === 'waitlist'
-                      ? 'text-indigo-400'
+                      ? 'text-status-info'
                       : guest.data.isArrived
                         ? 'text-iron-green-light'
-                        : 'text-blue-400';
+                        : 'text-status-reserved';
                     return (
                       <button
                         key={guestId}
@@ -1562,7 +1631,7 @@ export default function FloorBoard({
               {canMove && (
                 <button
                   onClick={() => { onContextMenuMove!(currentRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMove}
                 </button>
@@ -1634,7 +1703,7 @@ export default function FloorBoard({
               </button>
               <button
                 onClick={() => { const t = lockedWarning; setLockedWarning(null); onAvailableClick?.(t); }}
-                className="w-full text-left text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                className="w-full text-left text-xs px-3 py-2 rounded-lg bg-status-warning/10 border border-status-warning/25 text-status-warning hover:bg-status-warning/20 transition-colors"
               >
                 {T.floorBoard.seatAnyway}
               </button>
@@ -1700,18 +1769,18 @@ export default function FloorBoard({
 
       {/* Pick mode action bar — not shown for seat: tap-table IS the confirmation */}
       {pickMode && pickAction !== 'seat' && (
-        <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
+        <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {pickCurrentWarn ? (
-              <span className="text-amber-400 text-xs font-medium">{T.floorBoard.pickModeCurrentTableWarn}</span>
+              <span className="text-status-warning text-xs font-medium">{T.floorBoard.pickModeCurrentTableWarn}</span>
             ) : pickWarn ? (
               (() => {
                 const wt = tables.find(t => t.id === pickWarn);
                 const reason = wt ? ` — ${T.tableStatus[wt.liveStatus] ?? ''}` : '';
-                return <span className="text-red-400 text-xs font-medium">{T.floorBoard.pickModeUnavailable(wt?.name ?? pickWarn)}{reason}</span>;
+                return <span className="text-status-danger text-xs font-medium">{T.floorBoard.pickModeUnavailable(wt?.name ?? pickWarn)}{reason}</span>;
               })()
             ) : pickSelection.length === 0 ? (
-              <span className="text-blue-400 text-sm">
+              <span className="text-status-reserved text-sm">
                 {pickAction === 'move' && pickGuestName
                   ? T.floorBoard.pickModeMoveHint(pickGuestName)
                   : T.floorBoard.pickModeHint}
@@ -1735,7 +1804,7 @@ export default function FloorBoard({
           <button
             type="button"
             onClick={() => onPickDone?.(pickSelection)}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+            className="bg-blue-600 hover:bg-status-reserved text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
           >
             {T.floorBoard.pickModeConfirm}
           </button>
@@ -1744,12 +1813,12 @@ export default function FloorBoard({
 
       {/* Waitlist assign confirmation bar */}
       {waitlistAssignEntry && !pickMode && (
-        <div className="shrink-0 border-t border-indigo-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
+        <div className="shrink-0 border-t border-status-info/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {wlPickWarn ? (
               // Rejection state: amber warning + current selection shown below so host can't confuse them
               <div className="flex flex-col gap-0.5">
-                <span className="text-amber-400 text-sm font-semibold">
+                <span className="text-status-warning text-sm font-semibold">
                   ⚠ {T.waitlistAssign.tableNotAvailable(tables.find(t => t.id === wlPickWarn)?.name ?? wlPickWarn)}
                 </span>
                 <span className="text-iron-text/70 text-xs">
@@ -1767,7 +1836,7 @@ export default function FloorBoard({
                 )}
               </span>
             ) : (
-              <span className="text-indigo-300 text-sm">
+              <span className="text-status-info text-sm">
                 {T.waitlistAssign.chooseBanner(waitlistAssignEntry.guestName, waitlistAssignEntry.partySize)}
               </span>
             )}
@@ -1792,9 +1861,9 @@ export default function FloorBoard({
 
       {/* Combine-tables action bar */}
       {!pickMode && combineMode && (
-        <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
+        <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           {combinedSelection.length === 0 ? (
-            <span className="text-blue-400 text-sm flex-1">{T.floorBoard.combineHint}</span>
+            <span className="text-status-reserved text-sm flex-1">{T.floorBoard.combineHint}</span>
           ) : (
             <>
               <span className="text-iron-text text-sm font-semibold flex-1 truncate">
@@ -1806,7 +1875,7 @@ export default function FloorBoard({
                 type="button"
                 onClick={onCombineCreate}
                 disabled={combinedSelection.length < 1}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+                className="bg-blue-600 hover:bg-status-reserved disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
               >
                 {T.floorBoard.combineCreate}
               </button>
