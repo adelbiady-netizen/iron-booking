@@ -213,11 +213,11 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className="relative flex items-center justify-center px-3 py-1.5" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className={`relative flex items-center justify-center ${isLive ? 'px-4 py-2' : 'px-3 py-1.5'}`} style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
               dir="ltr"
-              className="ib-clock-sm text-iron-text/85 font-bold tabular-nums leading-none pointer-events-none select-none"
-              style={{ fontSize: '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
+              className={`ib-clock font-bold tabular-nums leading-none pointer-events-none select-none ${isLive ? 'text-iron-text' : 'text-iron-text/85'}`}
+              style={{ fontSize: isLive ? '40px' : '24px', letterSpacing: '-0.04em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
             </span>
