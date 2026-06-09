@@ -221,11 +221,11 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className={`relative flex items-center justify-center ${isLive ? 'px-4 py-2' : 'px-3 py-1.5'}`} style={{ background: wellBg, borderLeft: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}`, borderRight: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}` }}>
+          <div className="relative flex items-center justify-center px-3 py-1.5" style={{ background: wellBg, borderLeft: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}`, borderRight: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}` }}>
             <span
               dir="ltr"
-              className={`ib-clock font-bold tabular-nums leading-none pointer-events-none select-none ${isLive ? 'text-iron-text' : 'text-iron-text/85'}`}
-              style={{ fontSize: isLive ? '40px' : '24px', letterSpacing: '-0.04em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
+              className="ib-clock font-bold tabular-nums leading-none pointer-events-none select-none text-iron-text/85"
+              style={{ fontSize: '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
             </span>
@@ -259,17 +259,15 @@ export default function TopBar({
           </div>
         )}
 
-        {/* Real ("wall") clock — primary at-a-glance time; only meaningful while time-travelling */}
-        {!isLive && (
-          <div
-            dir="ltr"
-            className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
-            style={{ background: wellBgDeep, border: `1px solid ${light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}`, boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
-          >
-            <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
-            <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
-          </div>
-        )}
+        {/* Real ("wall") clock — the live current time; ALWAYS visible so it never pops in/out */}
+        <div
+          dir="ltr"
+          className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
+          style={{ background: wellBgDeep, border: `1px solid ${light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}`, boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
+        >
+          <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
+          <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
+        </div>
 
         {/* ── Service State — adjacent to time ─────────────────── */}
         {isLive ? (
