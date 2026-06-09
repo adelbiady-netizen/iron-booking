@@ -84,6 +84,7 @@ export default function ReservationPanel({
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
+  const light = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ACTIVE');
   const [search, setSearch] = useState('');
@@ -490,7 +491,7 @@ export default function ReservationPanel({
               return (
                 <div
                   key={r.id}
-                  className={`w-full flex items-stretch border-b border-iron-border/[0.26] transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.58]' : ''}`}
+                  className={`w-full flex items-stretch border-b ${light ? 'border-black/[0.09]' : 'border-iron-border/[0.26]'} transition-[background-color,box-shadow] duration-150 ${rowBg} ${priorityBorder}${isFarFuture ? ' opacity-[0.58]' : ''}`}
                   style={{ boxShadow: selectedId === r.id
                     ? 'inset 0 0 0 1px rgba(111,138,60,0.28), 0 4px 18px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08)'
                     : 'inset 0 1px 0 rgba(255,255,255,0.020)'
