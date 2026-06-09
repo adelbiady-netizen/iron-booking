@@ -3107,6 +3107,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     }
   }
 
+  // Day mode: give every table a real drop shadow so the cards lift off the
+  // light floor with clear depth. Layers under any status glow; priority ring
+  // states (selected/combined/overdue/locked) keep their own emphasis.
+  if (!isDark && !selected && !combinedSelected && !isOverdue && !table.locked) {
+    const depth = '0 2px 5px rgba(0,0,0,0.17), 0 7px 18px rgba(0,0,0,0.11)';
+    boxShadow = boxShadow ? `${boxShadow}, ${depth}` : depth;
+  }
+
   // Status-driven border refinements
   if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
     if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
