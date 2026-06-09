@@ -56,7 +56,7 @@ function Field({ label, children, error }: { label: string; children: React.Reac
     <div>
       <label className="block text-xs text-iron-muted mb-1">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+      {error && <p className="text-xs text-status-danger mt-1">{error}</p>}
     </div>
   );
 }
@@ -238,8 +238,8 @@ class PanelErrorBoundary extends React.Component<{ children: ReactNode; resetKey
       return (
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-sm w-full text-center space-y-4">
-            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-red-500/30 flex items-center justify-center mx-auto">
-              <span className="text-red-400 text-lg font-bold">!</span>
+            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-status-danger/30 flex items-center justify-center mx-auto">
+              <span className="text-status-danger text-lg font-bold">!</span>
             </div>
             <p className="text-iron-text font-semibold text-sm">Panel error</p>
             <p className="text-iron-muted text-xs font-mono break-all leading-relaxed">{this.state.message}</p>
@@ -932,7 +932,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   // ── Render helpers ────────────────────────────────────────────────────────────
 
   const inputCls = 'w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green';
-  const btnPrimary = 'px-4 py-2 bg-iron-green text-black font-semibold rounded text-sm disabled:opacity-50';
+  const btnPrimary = 'px-4 py-2 bg-iron-green-light hover:bg-iron-green text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50';
   const btnSecondary = 'px-4 py-2 bg-iron-surface border border-iron-border text-iron-text rounded text-sm hover:bg-iron-bg';
 
   // ── Wizard panels ─────────────────────────────────────────────────────────────
@@ -1038,7 +1038,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     return (
       <div className="space-y-4">
         {wizardRestaurantId && (
-          <p className="text-xs text-amber-400 bg-amber-400/10 rounded px-3 py-2">
+          <p className="text-xs text-status-warning bg-status-warning/10 rounded px-3 py-2">
             Location added — fix the errors below to add the first user, or skip.
           </p>
         )}
@@ -1101,7 +1101,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {wizardStep === 3 && renderWizardStep3()}
 
         {wizardError && (
-          <p className="mt-4 text-xs text-red-400 bg-red-400/10 rounded px-3 py-2">{wizardError}</p>
+          <p className="mt-4 text-xs text-status-danger bg-status-danger/10 rounded px-3 py-2">{wizardError}</p>
         )}
 
         <div className="flex items-center justify-between mt-8">
@@ -1169,7 +1169,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <Field label={T.admin.fieldEmail}><Input type="email" value={infoForm.email} onChange={e => setInfoForm(f => ({ ...f, email: e.target.value }))} /></Field>
             </div>
             <Field label={T.admin.fieldAddress}><Input value={infoForm.address} onChange={e => setInfoForm(f => ({ ...f, address: e.target.value }))} /></Field>
-            {infoError && <p className="text-xs text-red-400">{infoError}</p>}
+            {infoError && <p className="text-xs text-status-danger">{infoError}</p>}
             <div className="flex gap-3 pt-1">
               <button onClick={handleSaveInfo} disabled={infoBusy} className={btnPrimary}>{infoBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button onClick={() => { setEditInfo(false); setInfoError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
@@ -1229,7 +1229,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
             {renderWizardStep2()}
             {settingsError && (
-              <p className="text-red-400 text-xs">{settingsError}</p>
+              <p className="text-status-danger text-xs">{settingsError}</p>
             )}
             <div className="flex gap-3 pt-1">
               <button onClick={handleSaveSettings} disabled={settingsBusy} className={btnPrimary}>{settingsBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
@@ -1322,7 +1322,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </table>
             </div>
             <p className="text-[11px] text-iron-muted">Service starts = first booking slot on the public page. Last seating = last reservation allowed.</p>
-            {scheduleError && <p className="text-xs text-red-400">{scheduleError}</p>}
+            {scheduleError && <p className="text-xs text-status-danger">{scheduleError}</p>}
             <div className="flex gap-3 pt-1">
               <button onClick={handleSaveSchedule} disabled={scheduleBusy} className={btnPrimary}>{scheduleBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button onClick={() => { setEditSchedule(false); setScheduleError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
@@ -1385,7 +1385,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   </div>
                   <button
                     onClick={() => handleDeleteRestriction(r.id)}
-                    className="shrink-0 text-xs text-iron-muted hover:text-red-400 px-1.5 py-1 rounded hover:bg-iron-bg transition-colors"
+                    className="shrink-0 text-xs text-iron-muted hover:text-status-danger px-1.5 py-1 rounded hover:bg-iron-bg transition-colors"
                     title="Delete restriction"
                   >✕</button>
                 </div>
@@ -1447,7 +1447,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   placeholder="Online booking unavailable for this date. Please call us to reserve."
                 />
               </Field>
-              {restrictionError && <p className="text-xs text-red-400">{restrictionError}</p>}
+              {restrictionError && <p className="text-xs text-status-danger">{restrictionError}</p>}
               <div className="flex gap-3 pt-1">
                 <button onClick={handleCreateRestriction} disabled={restrictionCreateBusy} className={btnPrimary}>
                   {restrictionCreateBusy ? 'Adding…' : 'Add rule'}
@@ -1487,7 +1487,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 placeholder="+972501234567"
               />
             </Field>
-            {whatsappError && <p className="text-xs text-red-400">{whatsappError}</p>}
+            {whatsappError && <p className="text-xs text-status-danger">{whatsappError}</p>}
             <div className="flex gap-3 pt-1">
               <button onClick={handleSaveWhatsapp} disabled={whatsappBusy} className={btnPrimary}>{whatsappBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button onClick={() => { setEditWhatsapp(false); setWhatsappError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
@@ -1520,13 +1520,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <dd>
                   {detail?.ultramsgInstanceId && detail?.tokenSet
                     ? <span className="text-iron-green text-xs font-medium">Configured</span>
-                    : <span className="text-amber-400 text-xs font-medium">Not configured — messages will not send</span>}
+                    : <span className="text-status-warning text-xs font-medium">Not configured — messages will not send</span>}
                 </dd>
               </div>
             </dl>
             {detail?.ultramsgInstanceId && detail?.tokenSet && detail?.whatsappPhone && (
               <div>
-                {whatsappError && <p className="text-xs text-red-400 mb-2">{whatsappError}</p>}
+                {whatsappError && <p className="text-xs text-status-danger mb-2">{whatsappError}</p>}
                 <button
                   onClick={handleTestWhatsapp}
                   disabled={whatsappTestBusy}
@@ -1608,11 +1608,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                           {logoUpload.progress !== null ? `${logoUpload.progress}%` : '↑ Upload'}
                         </label>
                         {brandingForm.logoUrl && (
-                          <button type="button" onClick={() => { setBrandingForm(f => ({ ...f, logoUrl: '' })); setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); }} className="text-[11px] text-iron-muted hover:text-red-400 transition-colors">Remove</button>
+                          <button type="button" onClick={() => { setBrandingForm(f => ({ ...f, logoUrl: '' })); setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); }} className="text-[11px] text-iron-muted hover:text-status-danger transition-colors">Remove</button>
                         )}
                       </div>
                       {logoUpload.progress !== null && <div className="h-1 bg-iron-border rounded-full overflow-hidden mt-2"><div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${logoUpload.progress}%` }} /></div>}
-                      {logoUpload.error && <p className="text-[11px] text-red-400 mt-1">{logoUpload.error}</p>}
+                      {logoUpload.error && <p className="text-[11px] text-status-danger mt-1">{logoUpload.error}</p>}
                       <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">Or paste a public URL:</p>
                       <Input value={brandingForm.logoUrl} onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))} placeholder="https://…" />
                     </div>
@@ -1642,9 +1642,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Hero Media</p>
 
                   {!cloudinaryConfigured() && (
-                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-300/80 mb-5 space-y-1">
-                      <p className="font-medium text-amber-300">Image upload not configured</p>
-                      <p className="text-amber-400/70">Add <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_CLOUD_NAME</code> and <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_UPLOAD_PRESET</code> to Vercel and redeploy. Until then, paste URLs directly.</p>
+                    <div className="rounded-xl border border-status-warning/20 bg-status-warning/5 px-4 py-3 text-xs text-status-warning/80 mb-5 space-y-1">
+                      <p className="font-medium text-status-warning">Image upload not configured</p>
+                      <p className="text-status-warning/70">Add <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_CLOUD_NAME</code> and <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_UPLOAD_PRESET</code> to Vercel and redeploy. Until then, paste URLs directly.</p>
                     </div>
                   )}
 
@@ -1692,7 +1692,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                         </div>
                       )}
                     </div>
-                  {coverUpload.error && <p className="text-[11px] text-red-400 mt-2">{coverUpload.error}</p>}
+                  {coverUpload.error && <p className="text-[11px] text-status-danger mt-2">{coverUpload.error}</p>}
                     <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">Or paste a public URL:</p>
                     <Input value={brandingForm.coverImageUrl} onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))} placeholder="https://…" className="text-xs" />
                   </div>
@@ -1794,7 +1794,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             const v = parseInt(c, 16) / 255;
                             return acc + (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i];
                           }, 0);
-                          return lum > 0.12 ? <p className="text-[11px] text-amber-400 mt-1">⚠ Too light — white text may be unreadable</p> : null;
+                          return lum > 0.12 ? <p className="text-[11px] text-status-warning mt-1">⚠ Too light — white text may be unreadable</p> : null;
                         })()}
                       </div>
                       <div>
@@ -1823,7 +1823,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                         { value: 'rounded', label: 'Rounded', preview: <div className="w-full h-5 rounded-lg border border-current opacity-60" /> },
                         { value: 'pill',    label: 'Pill',    preview: <div className="w-full h-5 rounded-full border border-current opacity-60" /> },
                         { value: 'sharp',   label: 'Sharp',   preview: <div className="w-full h-5 rounded-sm border border-current opacity-60" /> },
-                        { value: 'luxury',  label: 'Luxury',  preview: <div className="w-full h-5 rounded border border-amber-400/50 opacity-60 tracking-widest text-amber-400 text-[8px] flex items-center justify-center">RSRV</div> },
+                        { value: 'luxury',  label: 'Luxury',  preview: <div className="w-full h-5 rounded border border-status-warning/50 opacity-60 tracking-widest text-status-warning text-[8px] flex items-center justify-center">RSRV</div> },
                       ]}
                     />
                     <StyleTileGroup
@@ -1903,7 +1903,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </div>{/* /two-column */}
 
             {/* Action bar */}
-            {brandingError && <p className="text-xs text-red-400 mt-2">{brandingError}</p>}
+            {brandingError && <p className="text-xs text-status-danger mt-2">{brandingError}</p>}
             <div className="flex flex-wrap gap-3 pt-6 border-t border-white/5 mt-2">
               <button onClick={handleSaveBranding} disabled={brandingBusy} className={btnPrimary}>{brandingBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button
@@ -1977,19 +1977,19 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Website</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.websiteUrl ? <a href={detail.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.websiteUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.websiteUrl ? <a href={detail.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.websiteUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Instagram</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.instagramUrl ? <a href={detail.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.instagramUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.instagramUrl ? <a href={detail.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.instagramUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Google Maps</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.googleMapsUrl ? <a href={detail.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.googleMapsUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.googleMapsUrl ? <a href={detail.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.googleMapsUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Waze</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.wazeUrl ? <a href={detail.wazeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{detail.wazeUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.wazeUrl ? <a href={detail.wazeUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.wazeUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
             </dl>
           </div>
@@ -2023,7 +2023,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               );
             })}
           </div>
-          {portalPermError && <p className="text-xs text-red-400 mt-3">{portalPermError}</p>}
+          {portalPermError && <p className="text-xs text-status-danger mt-3">{portalPermError}</p>}
         </div>
       </div>
     );
@@ -2108,7 +2108,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 {['ADMIN', 'MANAGER', 'HOST', 'SERVER'].map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </Field>
-            {userError && <p className="text-xs text-red-400">{userError}</p>}
+            {userError && <p className="text-xs text-status-danger">{userError}</p>}
             <div className="flex gap-3">
               <button onClick={handleAddUser} disabled={userBusy} className={btnPrimary}>{userBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
               <button onClick={() => { setShowAddUser(false); setUserError(null); setUserFieldErrors({}); setUserForm(DEFAULT_USER); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
@@ -2200,7 +2200,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               pattern="[a-z0-9-]+"
             />
           </Field>
-          {groupError && <p className="text-sm text-red-400">{groupError}</p>}
+          {groupError && <p className="text-sm text-status-danger">{groupError}</p>}
           <div className="flex gap-3 pt-2">
             <button
               onClick={handleCreateGroup}
@@ -2267,10 +2267,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <span className="text-sm font-semibold">{totalBooked} <span className="font-normal text-iron-muted text-xs">booked</span></span>
               <span className="text-sm font-semibold text-iron-green">{totalSeated} <span className="font-normal text-iron-muted text-xs">seated</span></span>
               {totalUpcoming > 0 && (
-                <span className="text-sm font-semibold text-blue-400">{totalUpcoming} <span className="font-normal text-iron-muted text-xs">arriving soon</span></span>
+                <span className="text-sm font-semibold text-status-reserved">{totalUpcoming} <span className="font-normal text-iron-muted text-xs">arriving soon</span></span>
               )}
               {totalLate > 0 && (
-                <span className="text-sm font-semibold text-amber-400">{totalLate} <span className="font-normal text-iron-muted text-xs">late</span></span>
+                <span className="text-sm font-semibold text-status-warning">{totalLate} <span className="font-normal text-iron-muted text-xs">late</span></span>
               )}
             </div>
           )}
@@ -2314,12 +2314,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             </span>
                           )}
                           {s.upcoming > 0 && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            <span className="text-xs px-2 py-0.5 rounded bg-status-reserved/10 text-status-reserved border border-status-reserved/20">
                               +{s.upcoming}
                             </span>
                           )}
                           {s.late > 0 && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <span className="text-xs px-2 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/20">
                               {s.late}⚠
                             </span>
                           )}
@@ -2379,7 +2379,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     {isSuperAdmin && (
                       <button
                         onClick={() => handleRemoveFromGroup(r.id)}
-                        className="text-xs text-red-400 hover:text-red-300 flex-shrink-0"
+                        className="text-xs text-status-danger hover:text-status-danger flex-shrink-0"
                       >{T.admin.removeFromGroup}</button>
                     )}
                   </div>
@@ -2431,7 +2431,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     <span className="text-sm font-medium">{u.firstName} {u.lastName}</span>
                     <span className="text-xs text-iron-muted ml-2">{u.email}</span>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded ${u.isActive ? 'bg-iron-green/20 text-iron-green' : 'bg-red-900/20 text-red-400'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded ${u.isActive ? 'bg-iron-green/20 text-iron-green' : 'bg-red-900/20 text-status-danger'}`}>
                     {u.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -2454,7 +2454,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <Field label={T.admin.fieldPassword}>
                 <Input type="password" value={hqUserForm.password} onChange={e => setHqUserForm(f => ({ ...f, password: e.target.value }))} />
               </Field>
-              {hqUserError && <p className="text-xs text-red-400">{hqUserError}</p>}
+              {hqUserError && <p className="text-xs text-status-danger">{hqUserError}</p>}
               <div className="flex gap-2">
                 <button onClick={handleCreateHqUser} disabled={hqUserBusy} className={btnPrimary}>
                   {hqUserBusy ? T.admin.wizardCreateBusy : T.admin.createHqUser}

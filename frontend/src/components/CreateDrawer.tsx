@@ -588,13 +588,13 @@ export default function CreateDrawer({
 
               {/* Gap suggestion banner */}
               {gapHint && (
-                <div className="flex items-start gap-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-lg px-3 py-2.5">
-                  <span className="text-indigo-400 mt-0.5 shrink-0" style={{ fontSize: 13 }}>◈</span>
+                <div className="flex items-start gap-2.5 bg-indigo-950/40 border border-status-info/30 rounded-lg px-3 py-2.5">
+                  <span className="text-status-info mt-0.5 shrink-0" style={{ fontSize: 13 }}>◈</span>
                   <div className="min-w-0">
-                    <p className="text-indigo-300 text-xs font-semibold">
+                    <p className="text-status-info text-xs font-semibold">
                       Available slot: {gapHint.startTime}–{gapHint.endTime}
                     </p>
-                    <p className="text-indigo-400/70 text-[10px] mt-0.5">
+                    <p className="text-status-info/70 text-[10px] mt-0.5">
                       {gapHint.tableName} · seats {gapHint.minCovers}–{gapHint.maxCovers} · {gapHint.durationMins}m window
                     </p>
                   </div>
@@ -630,7 +630,7 @@ export default function CreateDrawer({
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
                           <span className="text-iron-green-light text-xs font-medium">{guestHint.firstName} {guestHint.lastName}</span>
-                          {guestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
+                          {guestHint.isVip && <span className="text-[10px] font-semibold text-status-warning">VIP</span>}
                         </div>
                         <button type="button" onClick={() => setHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
                       </div>
@@ -640,7 +640,7 @@ export default function CreateDrawer({
                           {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
                           {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
                         </div>
-                        {guestHint.allergies.length > 0 && <div className="text-red-400">⚠ {guestHint.allergies.join(', ')}</div>}
+                        {guestHint.allergies.length > 0 && <div className="text-status-danger">⚠ {guestHint.allergies.join(', ')}</div>}
                         {guestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{guestHint.internalNotes}</div>}
                       </div>
                     </div>
@@ -670,8 +670,8 @@ export default function CreateDrawer({
                           onClick={() => setResParty(n)}
                           className={`text-[10px] w-6 h-6 rounded border font-semibold transition-colors ${
                             resParty === n
-                              ? 'bg-indigo-500/25 border-indigo-400/60 text-indigo-300'
-                              : 'border-iron-border text-iron-muted hover:border-indigo-400/50 hover:text-indigo-300'
+                              ? 'bg-status-info/25 border-status-info/60 text-status-info'
+                              : 'border-iron-border text-iron-muted hover:border-status-info/50 hover:text-status-info'
                           }`}
                         >
                           {n}
@@ -796,9 +796,9 @@ export default function CreateDrawer({
 
                 {/* Picking on map banner */}
                 {pickingOnMap && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-blue-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-                    <span className="text-blue-300 text-xs flex-1">{T.createDrawer.tablePickingOnMap}</span>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-status-reserved/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+                    <span className="text-status-reserved text-xs flex-1">{T.createDrawer.tablePickingOnMap}</span>
                     <button
                       type="button"
                       onClick={() => { setPickingOnMap(false); onPickTablesCancel?.(); }}
@@ -841,7 +841,7 @@ export default function CreateDrawer({
                       <button
                         type="button"
                         onClick={openMapPicker}
-                        className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                        className="text-xs px-2.5 py-2 rounded-lg border border-status-reserved/40 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                       >
                         {T.createDrawer.tableSelectOnMap}
                       </button>
@@ -873,7 +873,7 @@ export default function CreateDrawer({
                         <button
                           type="button"
                           onClick={openMapPicker}
-                          className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                          className="text-xs px-2.5 py-2 rounded-lg border border-status-reserved/40 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                         >
                           {T.createDrawer.tableSelectOnMap}
                         </button>
@@ -898,12 +898,12 @@ export default function CreateDrawer({
 
                 {/* No table available, no picker */}
                 {!pickingOnMap && !suggestBusy && !autoResult && !manualOverride && !showPicker && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/20">
-                    <span className="text-amber-400 text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
+                    <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                     <button
                       type="button"
                       onClick={() => { setShowPicker(true); setManualOverride(true); }}
-                      className="text-xs px-2 py-1 rounded border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0"
+                      className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
                     >
                       {T.createDrawer.tableShowAll}
                     </button>
@@ -911,7 +911,7 @@ export default function CreateDrawer({
                       <button
                         type="button"
                         onClick={openMapPicker}
-                        className="text-xs px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                        className="text-xs px-2 py-1 rounded border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                       >
                         {T.createDrawer.tableSelectOnMap}
                       </button>
@@ -945,7 +945,7 @@ export default function CreateDrawer({
                         <button
                           type="button"
                           onClick={() => { setResTable(''); setResCombinedTableIds([]); }}
-                          className="text-xs text-iron-muted hover:text-red-400 transition-colors"
+                          className="text-xs text-iron-muted hover:text-status-danger transition-colors"
                         >
                           {T.createDrawer.tableClearSelection}
                         </button>
@@ -965,15 +965,15 @@ export default function CreateDrawer({
                 }, 0);
                 if (totalMax >= resParty) return null;
                 return (
-                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/25">
-                    <span className="text-amber-400 shrink-0 mt-0.5">⚠</span>
-                    <p className="text-amber-400 text-xs">{T.createDrawer.tableCapacityWarn(totalMax, resParty)}</p>
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/25">
+                    <span className="text-status-warning shrink-0 mt-0.5">⚠</span>
+                    <p className="text-status-warning text-xs">{T.createDrawer.tableCapacityWarn(totalMax, resParty)}</p>
                   </div>
                 );
               })()}
 
               {error && (
-                <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
+                <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
                   {error}
                 </p>
               )}
@@ -985,15 +985,15 @@ export default function CreateDrawer({
                 <button
                   type="button"
                   onClick={openMapPicker}
-                  className="w-full mb-2 py-2 text-sm font-medium rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors"
+                  className="w-full mb-2 py-2 text-sm font-medium rounded-lg border border-status-reserved/50 text-status-reserved hover:bg-status-reserved/10 transition-colors"
                 >
                   {resTable ? T.createDrawer.tableChangeFromMap : T.createDrawer.tableSelectFromMap}
                 </button>
               )}
               {phoneWarning ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-900/10 p-3 space-y-2.5">
+                <div className="rounded-lg border border-status-warning/30 bg-amber-900/10 p-3 space-y-2.5">
                   <div>
-                    <p className="text-amber-400 text-xs font-semibold">{T.createDrawer.phoneWarnTitle}</p>
+                    <p className="text-status-warning text-xs font-semibold">{T.createDrawer.phoneWarnTitle}</p>
                     <p className="text-iron-muted text-[11px] mt-1 leading-relaxed">{T.createDrawer.phoneWarnBody}</p>
                   </div>
                   <div className="flex gap-2">
@@ -1061,7 +1061,7 @@ export default function CreateDrawer({
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-iron-green-light text-xs font-medium">{wiGuestHint.firstName} {wiGuestHint.lastName}</span>
-                        {wiGuestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
+                        {wiGuestHint.isVip && <span className="text-[10px] font-semibold text-status-warning">VIP</span>}
                       </div>
                       <button type="button" onClick={() => setWiHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
                     </div>
@@ -1071,7 +1071,7 @@ export default function CreateDrawer({
                         {wiGuestHint.noShowCount > 0 && <span className="text-orange-400"> · {wiGuestHint.noShowCount} no-show{wiGuestHint.noShowCount !== 1 ? 's' : ''}</span>}
                         {wiGuestHint.lastVisitAt && <span> · last {new Date(wiGuestHint.lastVisitAt).toLocaleDateString()}</span>}
                       </div>
-                      {wiGuestHint.allergies.length > 0 && <div className="text-red-400">⚠ {wiGuestHint.allergies.join(', ')}</div>}
+                      {wiGuestHint.allergies.length > 0 && <div className="text-status-danger">⚠ {wiGuestHint.allergies.join(', ')}</div>}
                       {wiGuestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{wiGuestHint.internalNotes}</div>}
                     </div>
                   </div>
@@ -1146,9 +1146,9 @@ export default function CreateDrawer({
 
               {/* Picking on map banner */}
               {wiPickingOnMap && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-blue-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-                  <span className="text-blue-300 text-xs flex-1">{T.createDrawer.tablePickingOnMap}</span>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-status-reserved/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+                  <span className="text-status-reserved text-xs flex-1">{T.createDrawer.tablePickingOnMap}</span>
                   <button
                     type="button"
                     onClick={() => { setWiPickingOnMap(false); onPickTablesCancel?.(); }}
@@ -1191,7 +1191,7 @@ export default function CreateDrawer({
                     <button
                       type="button"
                       onClick={openWiMapPicker}
-                      className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                      className="text-xs px-2.5 py-2 rounded-lg border border-status-reserved/40 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                     >
                       {T.createDrawer.tableSelectOnMap}
                     </button>
@@ -1223,7 +1223,7 @@ export default function CreateDrawer({
                       <button
                         type="button"
                         onClick={openWiMapPicker}
-                        className="text-xs px-2.5 py-2 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                        className="text-xs px-2.5 py-2 rounded-lg border border-status-reserved/40 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                       >
                         {T.createDrawer.tableSelectOnMap}
                       </button>
@@ -1248,12 +1248,12 @@ export default function CreateDrawer({
 
               {/* No available table */}
               {!wiPickingOnMap && !wiSuggestBusy && !wiAutoResult && !wiManualOverride && !wiShowPicker && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-amber-500/20">
-                  <span className="text-amber-400 text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
+                  <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                   <button
                     type="button"
                     onClick={() => { setWiShowPicker(true); setWiManualOverride(true); }}
-                    className="text-xs px-2 py-1 rounded border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0"
+                    className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
                   >
                     {T.createDrawer.tableShowAll}
                   </button>
@@ -1261,7 +1261,7 @@ export default function CreateDrawer({
                     <button
                       type="button"
                       onClick={openWiMapPicker}
-                      className="text-xs px-2 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                      className="text-xs px-2 py-1 rounded border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                     >
                       {T.createDrawer.tableSelectOnMap}
                     </button>
@@ -1296,7 +1296,7 @@ export default function CreateDrawer({
                       <button
                         type="button"
                         onClick={() => { setWiTable(''); setWiCombinedTableIds([]); }}
-                        className="text-xs text-iron-muted hover:text-red-400 transition-colors"
+                        className="text-xs text-iron-muted hover:text-status-danger transition-colors"
                       >
                         {T.createDrawer.tableClearSelection}
                       </button>
@@ -1307,7 +1307,7 @@ export default function CreateDrawer({
             </div>
 
             {error && (
-              <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
+              <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -1317,15 +1317,15 @@ export default function CreateDrawer({
                 <button
                   type="button"
                   onClick={openWiMapPicker}
-                  className="w-full py-2 text-sm font-medium rounded-lg border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 transition-colors"
+                  className="w-full py-2 text-sm font-medium rounded-lg border border-status-reserved/50 text-status-reserved hover:bg-status-reserved/10 transition-colors"
                 >
                   {wiTable ? T.createDrawer.tableChangeFromMap : T.createDrawer.tableSelectFromMap}
                 </button>
               )}
               {phoneWarning ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-900/10 p-3 space-y-2.5">
+                <div className="rounded-lg border border-status-warning/30 bg-amber-900/10 p-3 space-y-2.5">
                   <div>
-                    <p className="text-amber-400 text-xs font-semibold">{T.createDrawer.phoneWarnTitle}</p>
+                    <p className="text-status-warning text-xs font-semibold">{T.createDrawer.phoneWarnTitle}</p>
                     <p className="text-iron-muted text-[11px] mt-1 leading-relaxed">{T.createDrawer.phoneWarnBody}</p>
                   </div>
                   <div className="flex gap-2">
@@ -1388,7 +1388,7 @@ export default function CreateDrawer({
             <div className="flex flex-col gap-1.5">
               <button
                 disabled={seatAnywayBusy}
-                className="w-full text-start text-xs px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                className="w-full text-start text-xs px-3 py-2 rounded-lg bg-status-warning/10 border border-status-warning/25 text-status-warning hover:bg-status-warning/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 onClick={async () => {
                   if (seatAnywayBusy) return;
                   setSeatAnywayBusy(true);
@@ -1406,7 +1406,7 @@ export default function CreateDrawer({
                 }}
               >
                 {seatAnywayBusy && (
-                  <span className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="w-3 h-3 border-2 border-status-warning border-t-transparent rounded-full animate-spin shrink-0" />
                 )}
                 {seatAnywayBusy ? T.createDrawer.conflictSeatAnywayBusy : T.createDrawer.conflictSeatAnyway}
               </button>

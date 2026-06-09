@@ -774,7 +774,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
 
   if (loadErr) return (
     <div className="fixed inset-0 z-50 bg-iron-bg flex flex-col items-center justify-center gap-3">
-      <p className="text-red-400 text-sm">{loadErr}</p>
+      <p className="text-status-danger text-sm">{loadErr}</p>
       <button onClick={onClose} className="text-iron-muted text-xs hover:text-iron-text">{T.layoutEditor.backGo}</button>
     </div>
   );
@@ -811,7 +811,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         >
           {snapLabel}
         </button>
-        {saveErr &&<span className="text-red-400 text-xs max-w-48 truncate">{saveErr}</span>}
+        {saveErr &&<span className="text-status-danger text-xs max-w-48 truncate">{saveErr}</span>}
         <button
           onClick={save} disabled={saving || savedOk}
           className={`text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all disabled:opacity-90 flex items-center gap-1.5 ${
@@ -1145,7 +1145,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     </span>
                   )}
                   {occupiedIds.has(t.id) && (
-                    <span className="absolute bottom-1 left-1 w-1.5 h-1.5 rounded-full bg-amber-400" title={T.layoutEditor.occupiedTitle} />
+                    <span className="absolute bottom-1 left-1 w-1.5 h-1.5 rounded-full bg-status-warning" title={T.layoutEditor.occupiedTitle} />
                   )}
                   <span className="text-iron-text text-[11px] font-semibold leading-none px-1 truncate max-w-full" style={{ textShadow: t.isActive ? '0 1px 2px rgba(0,0,0,0.40)' : undefined }}>{t.name}</span>
                   <span className="text-iron-muted text-[9px] mt-0.5">{t.minCovers}–{t.maxCovers}</span>
@@ -1189,8 +1189,8 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       {singleSel && (
         <div className="shrink-0 border-t border-iron-border bg-iron-card">
           {!singleSel.isActive && (
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20">
-              <span className="text-amber-400 text-xs font-semibold">INACTIVE TABLE</span>
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-status-warning/10 border-b border-status-warning/20">
+              <span className="text-status-warning text-xs font-semibold">INACTIVE TABLE</span>
               <span className="text-iron-muted text-[10px] font-mono">{singleSel.isNew ? '(new — not yet saved)' : singleSel.id}</span>
               <span className="text-iron-muted text-[10px]">· pos {singleSel.posX},{singleSel.posY} · size {singleSel.width}×{singleSel.height}</span>
             </div>
@@ -1244,7 +1244,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                 onClick={() => patchSelected({ locked: !singleSel.locked })}
                 className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
                   singleSel.locked
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                    ? 'bg-status-warning/15 border-status-warning/30 text-status-warning'
                     : 'bg-iron-border/20 border-iron-border/30 text-iron-muted hover:border-iron-text/30 hover:text-iron-text'
                 }`}
               >
@@ -1254,7 +1254,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
             <Field label={singleSel.isNew ? T.layoutEditor.removeField : T.layoutEditor.deleteField}>
               <button
                 onClick={removeSelected}
-                className="text-xs px-2.5 py-1 rounded-md border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors"
+                className="text-xs px-2.5 py-1 rounded-md border border-red-900/30 text-status-danger hover:bg-red-900/15 transition-colors"
               >
                 {singleSel.isNew ? T.layoutEditor.removeField : T.layoutEditor.deleteField}
               </button>
@@ -1366,7 +1366,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
           </Field>
           <button
             onClick={removeSelected}
-            className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors shrink-0"
+            className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-status-danger hover:bg-red-900/15 transition-colors shrink-0"
           >
             {T.layoutEditor.deleteSelected}
           </button>
@@ -1381,7 +1381,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
             <p className="text-iron-text text-sm font-medium">{confirmState.message}</p>
             {confirmState.suggestion && (
               <p className="text-iron-muted text-xs">
-                <span className="text-amber-400">{T.layoutEditor.confirmSuggestion}</span> {confirmState.suggestion}
+                <span className="text-status-warning">{T.layoutEditor.confirmSuggestion}</span> {confirmState.suggestion}
               </p>
             )}
             <div className="flex gap-2 justify-end pt-1">
@@ -1394,7 +1394,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               {confirmState.onConfirm && (
                 <button
                   onClick={() => { const c = confirmState; setConfirmState(null); c.onConfirm!(); }}
-                  className="text-xs px-3 py-1.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-md bg-status-warning/15 border border-status-warning/30 text-status-warning hover:bg-status-warning/25 transition-colors"
                 >
                   {T.layoutEditor.confirmContinue}
                 </button>
@@ -1476,7 +1476,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
               </button>
             )}
             {canDeleteObject(selObj.kind) && (
-              <button onClick={() => removeFloorObj(selObj.id)} className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-red-400 hover:bg-red-900/15 transition-colors shrink-0">
+              <button onClick={() => removeFloorObj(selObj.id)} className="ml-auto text-xs px-2.5 py-1 rounded border border-red-900/30 text-status-danger hover:bg-red-900/15 transition-colors shrink-0">
                 {T.layoutEditor.removeObject}
               </button>
             )}

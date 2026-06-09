@@ -21,8 +21,8 @@ function todayStr() {
 
 function statusBadgeClass(status: ReservationStatus): string {
   if (status === 'SEATED')    return 'bg-iron-green/20 border-iron-green/50 text-iron-green-light';
-  if (status === 'CONFIRMED') return 'bg-blue-500/15 border-blue-500/30 text-blue-300';
-  if (status === 'PENDING')   return 'bg-amber-500/15 border-amber-500/30 text-amber-300';
+  if (status === 'CONFIRMED') return 'bg-status-reserved/15 border-status-reserved/30 text-status-reserved';
+  if (status === 'PENDING')   return 'bg-status-warning/15 border-status-warning/30 text-status-warning';
   return 'bg-iron-border/30 border-iron-border/50 text-iron-muted';
 }
 
@@ -112,7 +112,7 @@ export default function CallDrawer({
                       {guest.firstName} {guest.lastName}
                     </span>
                     {guest.isVip && (
-                      <span className="text-xs px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-semibold">
+                      <span className="text-xs px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning font-semibold">
                         VIP
                       </span>
                     )}
@@ -144,7 +144,7 @@ export default function CallDrawer({
                   )}
 
                   {guest.internalNotes && (
-                    <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5">
+                    <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 rounded-lg px-2.5 py-1.5">
                       {guest.internalNotes}
                     </p>
                   )}
@@ -176,7 +176,7 @@ export default function CallDrawer({
                     {onOpenReservation && (
                       <button
                         onClick={() => onOpenReservation(todayRes.id)}
-                        className="w-full text-xs font-semibold py-1.5 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors"
+                        className="w-full text-xs font-semibold py-1.5 rounded-lg bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors"
                       >
                         {T.callDrawer.openReservation}
                       </button>
@@ -212,7 +212,7 @@ export default function CallDrawer({
         <div className="px-5 py-4 border-t border-iron-border/40 shrink-0 flex gap-2" style={{ boxShadow: '0 -1px 0 rgba(255,255,255,0.04)' }}>
           <button
             onClick={() => onNewReservation(phone)}
-            className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green/18 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/28 transition-colors min-h-[44px]"
+            className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors min-h-[44px]"
           >
             {T.callDrawer.newReservation}
           </button>

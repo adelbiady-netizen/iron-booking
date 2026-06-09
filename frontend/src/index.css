@@ -17,6 +17,15 @@
   --iron-green:        75 95 42;       /* #4B5F2A */
   --iron-green-light:  111 138 60;     /* #6F8A3C */
 
+  /* Semantic status palette — single source of truth across drawers/panels/modals.
+     One meaning → one colour everywhere. Tuned bright for the dark surface. */
+  --status-reserved:   96 165 250;     /* blue-400  — committed / reserved   */
+  --status-warning:    251 191 36;     /* amber-400 — imminent / caution     */
+  --status-danger:     248 113 113;    /* red-400   — overdue / error        */
+  --status-success:    52 211 153;     /* emerald-400 — confirmed / success  */
+  --status-arrived:    45 212 191;     /* teal-400  — guest arrived, waiting */
+  --status-info:       129 140 248;    /* indigo-400 — waitlist / hold       */
+
   /* Canvas map (hex — used in inline style backgroundColor) */
   --canvas-bg:              #141715;   /* lifted graphite — reduces "black void" in daylight */
   --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light       */
@@ -38,6 +47,14 @@
   --iron-muted:        107 116 128;    /* #6B7480 */
   --iron-green:        75 95 42;       /* #4B5F2A */
   --iron-green-light:  55 75 28;       /* #37481C */
+
+  /* Semantic status palette — darker variants for contrast on the light surface */
+  --status-reserved:   37 99 235;      /* blue-600    */
+  --status-warning:    217 119 6;      /* amber-600   */
+  --status-danger:     220 38 38;      /* red-600     */
+  --status-success:    5 150 105;      /* emerald-600 */
+  --status-arrived:    13 148 136;     /* teal-600    */
+  --status-info:       79 70 229;      /* indigo-600  */
 
   /* Canvas map */
   --canvas-bg:              #EAEDE6;
@@ -241,4 +258,18 @@ input[type="time"] {
   .animate-backdrop-in{ animation-duration: 1ms !important; }
   .animate-flash      { animation: none !important; }
   .animate-ctx-menu   { animation-duration: 1ms !important; }
+}
+
+/* ── Short-landscape compaction (phone landscape) ─────────────────────────── */
+/* When vertical space is tight, shrink the stacked chrome bars so the floor   */
+/* map and reservation panel get the room they need. Landscape phones / small  */
+/* tablets in landscape. Wide tablets/desktops are unaffected.                 */
+
+@media (max-height: 480px) {
+  .ib-compact-top { height: 50px !important; }
+  .ib-clock       { font-size: 28px !important; }
+  .ib-bar {
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
 }

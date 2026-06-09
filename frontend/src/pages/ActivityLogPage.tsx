@@ -95,20 +95,20 @@ function describe(entry: ActivityLogEntry, locale: 'en' | 'he'): string {
 }
 
 const ACTION_BADGE: Record<string, string> = {
-  CREATED:              'bg-blue-500/20 text-blue-300',
+  CREATED:              'bg-status-reserved/20 text-status-reserved',
   UPDATED:              'bg-iron-muted/20 text-iron-muted',
   CONFIRMED:            'bg-green-500/20 text-green-300',
-  REVERTED_TO_PENDING:  'bg-amber-500/20 text-amber-300',
-  SEATED:               'bg-emerald-500/20 text-emerald-300',
+  REVERTED_TO_PENDING:  'bg-status-warning/20 text-status-warning',
+  SEATED:               'bg-status-success/20 text-status-success',
   MOVED:                'bg-purple-500/20 text-purple-300',
-  TABLE_ASSIGNED:       'bg-indigo-500/20 text-indigo-300',
+  TABLE_ASSIGNED:       'bg-status-info/20 text-status-info',
   TABLE_MOVED:          'bg-purple-500/20 text-purple-300',
   COMPLETED:            'bg-iron-muted/20 text-iron-muted',
-  CANCELLED:            'bg-red-500/20 text-red-300',
-  NO_SHOW:              'bg-red-500/20 text-red-300',
-  RETURN_TO_LIST:       'bg-amber-500/20 text-amber-300',
+  CANCELLED:            'bg-status-danger/20 text-status-danger',
+  NO_SHOW:              'bg-status-danger/20 text-status-danger',
+  RETURN_TO_LIST:       'bg-status-warning/20 text-status-warning',
   REORGANIZE_TRIGGERED: 'bg-orange-500/20 text-orange-300',
-  REORGANIZE_RESOLVED:  'bg-teal-500/20 text-teal-300',
+  REORGANIZE_RESOLVED:  'bg-status-arrived/20 text-status-arrived',
 };
 
 export default function ActivityLogPage({ onBack, userRole }: Props) {
@@ -224,7 +224,7 @@ export default function ActivityLogPage({ onBack, userRole }: Props) {
           <p className="text-iron-muted text-sm text-center py-10">{T.activityLog.loading}</p>
         )}
         {error && (
-          <p className="text-red-400 text-sm text-center py-10">{error}</p>
+          <p className="text-status-danger text-sm text-center py-10">{error}</p>
         )}
         {!loading && !error && entries.length === 0 && (
           <p className="text-iron-muted text-sm text-center py-10">{T.activityLog.empty}</p>

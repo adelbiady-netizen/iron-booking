@@ -98,7 +98,7 @@ function Field({ label, hint, error, children }: {
       <label className="block text-xs text-iron-muted mb-1">{label}</label>
       {children}
       {hint  && !error && <p className="text-xs text-iron-muted/60 mt-1">{hint}</p>}
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+      {error && <p className="text-xs text-status-danger mt-1">{error}</p>}
     </div>
   );
 }
@@ -143,7 +143,7 @@ function Btn({
   const base = 'px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:opacity-50';
   const cls =
     variant === 'primary' ? `${base} bg-iron-green hover:bg-iron-green-light text-white` :
-    variant === 'danger'  ? `${base} bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30` :
+    variant === 'danger'  ? `${base} bg-red-600/20 hover:bg-red-600/30 text-status-danger border border-red-600/30` :
     `${base} border border-iron-border text-iron-muted hover:text-iron-text`;
   return (
     <button type="button" className={`${cls} ${className ?? ''}`} onClick={onClick} disabled={disabled || busy}>
@@ -389,7 +389,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
   if (loadError) {
     return (
       <div className="bg-iron-card border border-red-900/30 rounded-xl p-5">
-        <p className="text-red-400 text-sm">{loadError}</p>
+        <p className="text-status-danger text-sm">{loadError}</p>
       </div>
     );
   }
@@ -404,9 +404,9 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
     <div className="space-y-4">
 
       {/* Live indicator banner */}
-      <div className="flex items-center gap-2.5 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-4 py-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
-        <p className="text-xs text-emerald-400/90 leading-relaxed">
+      <div className="flex items-center gap-2.5 bg-status-success/20 border border-status-success/30 rounded-lg px-4 py-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-status-success flex-shrink-0 animate-pulse" />
+        <p className="text-xs text-status-success/90 leading-relaxed">
           Menu changes go <span className="font-semibold">live immediately</span> — no publish step required.
         </p>
       </div>
@@ -527,7 +527,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   placeholder="e.g. Starters"
                   maxLength={80}
                   dir="auto"
-                  className={fieldErrs.name ? 'border-red-500/60 focus:border-red-500/60' : ''}
+                  className={fieldErrs.name ? 'border-status-danger/60 focus:border-status-danger/60' : ''}
                 />
               </Field>
               <Field label="Description" error={fieldErrs.description}>
@@ -537,10 +537,10 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   placeholder="Optional short description"
                   maxLength={300}
                   dir="auto"
-                  className={fieldErrs.description ? 'border-red-500/60 focus:border-red-500/60' : ''}
+                  className={fieldErrs.description ? 'border-status-danger/60 focus:border-status-danger/60' : ''}
                 />
               </Field>
-              {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+              {saveError && <p className="text-sm text-status-danger">{saveError}</p>}
               <div className="flex gap-2 pt-1">
                 <Btn variant="primary" onClick={saveCategory} busy={busy}>Save</Btn>
                 <Btn variant="ghost" onClick={() => setView(view.kind === 'edit-cat' ? { kind: 'cat-dishes', catId: view.catId } : { kind: 'empty' })} disabled={busy}>
@@ -633,7 +633,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                     placeholder="e.g. Grilled Sea Bass"
                     maxLength={100}
                     dir="auto"
-                    className={fieldErrs.name ? 'border-red-500/60 focus:border-red-500/60' : ''}
+                    className={fieldErrs.name ? 'border-status-danger/60 focus:border-status-danger/60' : ''}
                   />
                 </Field>
                 <Field label="Price" error={fieldErrs.price}>
@@ -652,7 +652,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   placeholder="e.g. with lemon butter sauce"
                   maxLength={150}
                   dir="auto"
-                  className={fieldErrs.subtitle ? 'border-red-500/60 focus:border-red-500/60' : ''}
+                  className={fieldErrs.subtitle ? 'border-status-danger/60 focus:border-status-danger/60' : ''}
                 />
               </Field>
               <Field label="Description" error={fieldErrs.description}>
@@ -663,7 +663,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   maxLength={500}
                   rows={3}
                   dir="auto"
-                  className={fieldErrs.description ? 'border-red-500/60 focus:border-red-500/60' : ''}
+                  className={fieldErrs.description ? 'border-status-danger/60 focus:border-status-danger/60' : ''}
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
@@ -720,7 +720,7 @@ export default function GuestHubMenuPanel({ restaurantId }: { restaurantId: stri
                   Hidden
                 </label>
               </div>
-              {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+              {saveError && <p className="text-sm text-status-danger">{saveError}</p>}
               <div className="flex gap-2 pt-1">
                 <Btn variant="primary" onClick={saveDish} busy={busy}>Save</Btn>
                 <Btn
@@ -771,7 +771,7 @@ function DishRow({
             </span>
           )}
           {dish.availability !== 'AVAILABLE' && (
-            <span className={`text-xs flex-shrink-0 ${dish.availability === 'SOLD_OUT' ? 'text-iron-muted/60' : 'text-amber-400/80'}`}>
+            <span className={`text-xs flex-shrink-0 ${dish.availability === 'SOLD_OUT' ? 'text-iron-muted/60' : 'text-status-warning/80'}`}>
               {{ SOLD_OUT: 'Sold out', SEASONAL: 'Seasonal', BREAKFAST_ONLY: 'Breakfast only', DINNER_ONLY: 'Dinner only' }[dish.availability] ?? dish.availability}
             </span>
           )}

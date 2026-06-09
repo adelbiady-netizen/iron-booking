@@ -5,23 +5,23 @@ import { useT } from '../i18n/useT';
 
 const BADGE_CLS: Record<TablePickerStatus, string> = {
   recommended: 'bg-iron-green/20 border-iron-green/40 text-iron-green-light',
-  possible:    'bg-blue-500/15 border-blue-500/30 text-blue-400',
-  tight:       'bg-amber-500/15 border-amber-500/30 text-amber-400',
-  blocked:     'bg-red-900/15 border-red-900/25 text-red-400',
+  possible:    'bg-status-reserved/15 border-status-reserved/30 text-status-reserved',
+  tight:       'bg-status-warning/15 border-status-warning/30 text-status-warning',
+  blocked:     'bg-red-900/15 border-red-900/25 text-status-danger',
 };
 
 const BORDER_CLS: Record<TablePickerStatus, string> = {
   recommended: 'border-iron-green/30 hover:border-iron-green/60 hover:bg-iron-green/[0.10]',
-  possible:    'border-blue-500/25 hover:border-blue-500/50 hover:bg-blue-500/[0.06]',
-  tight:       'border-amber-500/25 hover:border-amber-500/40 hover:bg-amber-500/[0.06]',
+  possible:    'border-status-reserved/25 hover:border-status-reserved/50 hover:bg-status-reserved/[0.06]',
+  tight:       'border-status-warning/25 hover:border-status-warning/40 hover:bg-status-warning/[0.06]',
   blocked:     'border-iron-border/30 opacity-50 cursor-not-allowed',
 };
 
 const REASON_CLS: Record<TablePickerStatus, string> = {
   recommended: 'text-iron-muted',
-  possible:    'text-blue-400/80',
-  tight:       'text-amber-400',
-  blocked:     'text-red-400',
+  possible:    'text-status-reserved/80',
+  tight:       'text-status-warning',
+  blocked:     'text-status-danger',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

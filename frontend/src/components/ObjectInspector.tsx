@@ -52,8 +52,8 @@ function ModRow({ label, value }: { label: string; value: string }) {
 const CATEGORY_STYLE: Record<string, string> = {
   FURNITURE:    'text-sky-400 bg-sky-900/20 border-sky-800/30',
   ARCHITECTURE: 'text-zinc-400 bg-zinc-800/30 border-zinc-700/30',
-  OPERATIONAL:  'text-amber-400 bg-amber-900/15 border-amber-800/25',
-  ATMOSPHERE:   'text-emerald-400 bg-emerald-900/15 border-emerald-800/25',
+  OPERATIONAL:  'text-status-warning bg-amber-900/15 border-amber-800/25',
+  ATMOSPHERE:   'text-status-success bg-status-success/15 border-status-success/25',
   ZONING:       'text-violet-400 bg-violet-900/15 border-violet-800/25',
 };
 

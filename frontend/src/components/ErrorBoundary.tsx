@@ -26,8 +26,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       return (
         <div className="h-screen bg-iron-bg flex items-center justify-center p-6">
           <div className="max-w-sm w-full text-center space-y-4">
-            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-red-500/30 flex items-center justify-center mx-auto">
-              <span className="text-red-400 text-lg font-bold">!</span>
+            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-status-danger/30 flex items-center justify-center mx-auto">
+              <span className="text-status-danger text-lg font-bold">!</span>
             </div>
             <p className="text-iron-text font-semibold text-sm">Something went wrong</p>
             <p className="text-iron-muted text-xs font-mono break-all leading-relaxed">
@@ -83,7 +83,7 @@ export class DrawerErrorBoundary extends Component<DrawerBoundaryProps, DrawerSt
           <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
           <aside className="fixed right-0 top-0 h-full w-96 bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">
             <div className="p-4 border-b border-iron-border shrink-0 flex items-center justify-between">
-              <span className="text-red-400 text-sm font-semibold">Panel error</span>
+              <span className="text-status-danger text-sm font-semibold">Panel error</span>
               <button
                 onClick={onClose}
                 className="text-iron-muted hover:text-iron-text text-2xl leading-none"
@@ -136,8 +136,8 @@ export class BoardErrorBoundary extends Component<{ children: ReactNode }, Board
       return (
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-sm w-full text-center space-y-4">
-            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-red-500/30 flex items-center justify-center mx-auto">
-              <span className="text-red-400 text-lg font-bold">!</span>
+            <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-status-danger/30 flex items-center justify-center mx-auto">
+              <span className="text-status-danger text-lg font-bold">!</span>
             </div>
             <p className="text-iron-text font-semibold text-sm">Floor board error</p>
             <p className="text-iron-muted text-xs font-mono break-all leading-relaxed">

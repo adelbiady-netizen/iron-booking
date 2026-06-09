@@ -15,6 +15,15 @@ module.exports = {
           text:         'rgb(var(--iron-text) / <alpha-value>)',
           muted:        'rgb(var(--iron-muted) / <alpha-value>)',
         },
+        // Semantic status palette — one meaning, one colour, theme-aware.
+        status: {
+          reserved: 'rgb(var(--status-reserved) / <alpha-value>)',
+          warning:  'rgb(var(--status-warning) / <alpha-value>)',
+          danger:   'rgb(var(--status-danger) / <alpha-value>)',
+          success:  'rgb(var(--status-success) / <alpha-value>)',
+          arrived:  'rgb(var(--status-arrived) / <alpha-value>)',
+          info:     'rgb(var(--status-info) / <alpha-value>)',
+        },
       },
       fontFamily: {
         sans: [

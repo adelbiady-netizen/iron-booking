@@ -121,7 +121,7 @@ export default function ImageUploadField({ label, value, onChange, error, hint, 
             placeholder="https://..."
             maxLength={500}
             className={`w-full bg-iron-bg border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors ${
-              shownError ? 'border-red-500/60 focus:border-red-500/60' : 'border-iron-border'
+              shownError ? 'border-status-danger/60 focus:border-status-danger/60' : 'border-iron-border'
             }`}
           />
         </>
@@ -146,7 +146,7 @@ export default function ImageUploadField({ label, value, onChange, error, hint, 
           <button
             type="button"
             onClick={handleClear}
-            className="mt-1.5 flex items-center gap-1 text-xs text-iron-muted/40 hover:text-red-400 transition-colors"
+            className="mt-1.5 flex items-center gap-1 text-xs text-iron-muted/40 hover:text-status-danger transition-colors"
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18"/>
@@ -159,7 +159,7 @@ export default function ImageUploadField({ label, value, onChange, error, hint, 
 
       {/* ── Messages ── */}
       {effectiveHint && !shownError && <p className="text-xs text-iron-muted/60 mt-1">{effectiveHint}</p>}
-      {shownError                    && <p className="text-xs text-red-400 mt-1">{shownError}</p>}
+      {shownError                    && <p className="text-xs text-status-danger mt-1">{shownError}</p>}
     </div>
   );
 }

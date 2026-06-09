@@ -18,8 +18,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'text-amber-400', CONFIRMED: 'text-iron-green-light', SEATED: 'text-blue-400',
-  COMPLETED: 'text-iron-muted', CANCELLED: 'text-red-400', NO_SHOW: 'text-red-400',
+  PENDING: 'text-status-warning', CONFIRMED: 'text-iron-green-light', SEATED: 'text-status-reserved',
+  COMPLETED: 'text-iron-muted', CANCELLED: 'text-status-danger', NO_SHOW: 'text-status-danger',
 };
 
 export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
@@ -118,10 +118,10 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                 <td className="px-4 py-2.5 text-iron-text">
                   <span className="font-medium">{g.firstName} {g.lastName}</span>
                   {g.isVip && (
-                    <span className="ml-1.5 text-amber-400 text-xs font-semibold">VIP</span>
+                    <span className="ml-1.5 text-status-warning text-xs font-semibold">VIP</span>
                   )}
                   {g.isBlacklisted && (
-                    <span className="ml-1.5 text-red-400 text-xs font-semibold">BLOCKED</span>
+                    <span className="ml-1.5 text-status-danger text-xs font-semibold">BLOCKED</span>
                   )}
                 </td>
                 <td className="px-4 py-2.5 text-iron-muted hidden sm:table-cell">
@@ -134,7 +134,7 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                   {g.visitCount}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">
-                  <span className={g.noShowCount > 0 ? 'text-red-400' : 'text-iron-muted'}>
+                  <span className={g.noShowCount > 0 ? 'text-status-danger' : 'text-iron-muted'}>
                     {g.noShowCount}
                   </span>
                 </td>
@@ -189,10 +189,10 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                       {profile.firstName} {profile.lastName}
                     </h3>
                     {profile.isVip && (
-                      <span className="bg-amber-400/20 text-amber-400 text-xs font-semibold px-2 py-0.5 rounded-full">VIP</span>
+                      <span className="bg-status-warning/20 text-status-warning text-xs font-semibold px-2 py-0.5 rounded-full">VIP</span>
                     )}
                     {profile.isBlacklisted && (
-                      <span className="bg-red-400/20 text-red-400 text-xs font-semibold px-2 py-0.5 rounded-full">BLOCKED</span>
+                      <span className="bg-status-danger/20 text-status-danger text-xs font-semibold px-2 py-0.5 rounded-full">BLOCKED</span>
                     )}
                   </div>
                   <p className="text-iron-muted text-xs mt-0.5">
@@ -224,7 +224,7 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                       <p className="text-iron-muted text-xs">Visits</p>
                     </div>
                     <div className="bg-iron-bg rounded-lg px-3 py-2 text-center">
-                      <p className={`font-semibold text-lg tabular-nums ${profile.noShowCount > 0 ? 'text-red-400' : 'text-iron-text'}`}>
+                      <p className={`font-semibold text-lg tabular-nums ${profile.noShowCount > 0 ? 'text-status-danger' : 'text-iron-text'}`}>
                         {profile.noShowCount}
                       </p>
                       <p className="text-iron-muted text-xs">No-shows</p>
@@ -245,7 +245,7 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                     <h4 className="text-iron-muted text-xs uppercase tracking-wide font-medium mb-2">Allergies</h4>
                     <div className="flex flex-wrap gap-1.5">
                       {profile.allergies.map(a => (
-                        <span key={a} className="bg-red-400/15 text-red-400 text-xs px-2 py-0.5 rounded-full font-medium">
+                        <span key={a} className="bg-status-danger/15 text-status-danger text-xs px-2 py-0.5 rounded-full font-medium">
                           {a}
                         </span>
                       ))}

@@ -27,11 +27,11 @@ function matchesSearch(name: string, phone: string | null | undefined, q: string
 }
 
 const STATUS_BADGE: Record<ReservationStatus, string> = {
-  PENDING:   'bg-amber-500/14 text-amber-400 border-amber-500/35',
-  CONFIRMED: 'bg-blue-500/12 text-blue-300/90 border-blue-500/28',
+  PENDING:   'bg-status-warning/14 text-status-warning border-status-warning/35',
+  CONFIRMED: 'bg-status-reserved/12 text-status-reserved/90 border-status-reserved/28',
   SEATED:    'bg-iron-green/18 text-iron-green-light border-iron-green/35',
   COMPLETED: 'bg-iron-border/15 text-iron-muted/65 border-iron-border/18',
-  CANCELLED: 'bg-red-900/12 text-red-400/80 border-red-900/20',
+  CANCELLED: 'bg-red-900/12 text-status-danger/80 border-red-900/20',
   NO_SHOW:   'bg-orange-900/12 text-orange-400/80 border-orange-900/20',
 };
 
@@ -178,7 +178,7 @@ export default function ReservationPanel({
               {T.reservationPanel.tabWaitlist}
               {waitingCount > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                  tab === 'waitlist' ? 'bg-iron-green/20 text-iron-green-light' : 'bg-amber-500/20 text-amber-400'
+                  tab === 'waitlist' ? 'bg-iron-green/20 text-iron-green-light' : 'bg-status-warning/20 text-status-warning'
                 }`}>
                   {waitingCount}
                 </span>
@@ -231,7 +231,7 @@ export default function ReservationPanel({
                   >
                     {f.label}
                     {f.count !== undefined && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-amber-500/20 text-amber-400">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-status-warning/20 text-status-warning">
                         {f.count}
                       </span>
                     )}
@@ -286,24 +286,24 @@ export default function ReservationPanel({
                 .sort((a, b) => a.time.localeCompare(b.time));
               if (items.length === 0) return null;
               return (
-                <div className="border-b border-red-500/20 bg-red-900/[0.10]">
+                <div className="border-b border-status-danger/20 bg-red-900/[0.10]">
                   <div className="px-3.5 py-2 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse shrink-0" />
-                    <span className="text-red-400 text-xs font-semibold uppercase tracking-widest flex-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-status-danger animate-pulse shrink-0" />
+                    <span className="text-status-danger text-xs font-semibold uppercase tracking-widest flex-1">
                       {T.reservationPanel.overdueHeader(items.length)}
                     </span>
                   </div>
                   {items.map(r => {
                     const minsLate = Math.abs(minutesUntilRes(r.time, realNow));
                     return (
-                      <div key={r.id} className="px-3.5 py-2.5 border-t border-red-500/10 flex items-center gap-3">
+                      <div key={r.id} className="px-3.5 py-2.5 border-t border-status-danger/10 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-iron-text text-sm font-semibold truncate">{r.guestName}</span>
                             <span className="text-iron-muted text-xs shrink-0 tabular-nums">{r.time}</span>
                             <span className="text-iron-muted text-xs shrink-0">{T.common.guests(r.partySize)}</span>
                           </div>
-                          <p className="text-red-400/65 text-[10px] mt-0.5">
+                          <p className="text-status-danger/65 text-[10px] mt-0.5">
                             {r.table?.name} · {T.reservationPanel.overdueMinutes(minsLate)}
                           </p>
                         </div>
@@ -311,7 +311,7 @@ export default function ReservationPanel({
                           <button
                             type="button"
                             onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                            className="text-xs font-medium px-2.5 py-1 rounded-md border border-teal-500/40 text-teal-400 hover:bg-teal-500/15 transition-colors shrink-0"
+                            className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green text-white hover:bg-iron-green-light transition-colors shrink-0"
                           >
                             {T.reservationPanel.markArrivedBtn}
                           </button>
@@ -319,7 +319,7 @@ export default function ReservationPanel({
                         <button
                           type="button"
                           onClick={() => onSelect(r)}
-                          className="text-xs font-medium px-2.5 py-1 rounded-md border border-red-500/40 text-red-400 hover:bg-red-500/15 transition-colors shrink-0"
+                          className="text-xs font-medium px-2.5 py-1 rounded-md border border-status-danger/40 text-status-danger hover:bg-status-danger/15 transition-colors shrink-0"
                         >
                           {T.reservationPanel.overdueOpen}
                         </button>
@@ -332,9 +332,9 @@ export default function ReservationPanel({
 
             {/* Reorganize queue — work queue, only relevant on NO_TABLE tab */}
             {filter === 'NO_TABLE' && reorganizeQueue && reorganizeQueue.length > 0 && (
-              <div className="border-b border-amber-500/20 bg-amber-500/5">
+              <div className="border-b border-status-warning/20 bg-status-warning/5">
                 <div className="px-3.5 py-2 flex items-center gap-2">
-                  <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest flex-1">
+                  <span className="text-status-warning text-xs font-semibold uppercase tracking-widest flex-1">
                     {T.reservationPanel.reorganizeHeader(reorganizeQueue.length)}
                   </span>
                 </div>
@@ -348,7 +348,7 @@ export default function ReservationPanel({
                   return (
                     <div
                       key={r.id}
-                      className="px-3.5 py-2.5 border-t border-amber-500/15 flex items-center gap-3"
+                      className="px-3.5 py-2.5 border-t border-status-warning/15 flex items-center gap-3"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -357,12 +357,12 @@ export default function ReservationPanel({
                           <span className="text-iron-muted text-xs shrink-0">{T.common.guests(r.partySize)}</span>
                         </div>
                         {fromTable && (
-                          <p className="text-amber-400/70 text-[10px] mt-0.5">{fromTable}</p>
+                          <p className="text-status-warning/70 text-[10px] mt-0.5">{fromTable}</p>
                         )}
                       </div>
                       <button
                         onClick={() => onReorganizeSelect?.(r)}
-                        className="text-xs font-medium px-2.5 py-1 rounded-md border border-amber-500/40 text-amber-400 hover:bg-amber-500/15 transition-colors shrink-0"
+                        className="text-xs font-medium px-2.5 py-1 rounded-md border border-status-warning/40 text-status-warning hover:bg-status-warning/15 transition-colors shrink-0"
                       >
                         {T.reservationPanel.reorganizeOpen}
                       </button>
@@ -431,10 +431,10 @@ export default function ReservationPanel({
               const isStale = !!isLiveView && !!nowTime && isStaleReservation(r.time, r.status, nowTime);
 
               const arrivalBadge = aState ? {
-                ARRIVING_SOON: { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    label: T.arrival.arrivingSoon },
-                DUE_NOW:       { cls: 'bg-amber-500/25 text-amber-300 border-amber-400/40',    label: T.arrival.dueNow },
+                ARRIVING_SOON: { cls: 'bg-status-warning/15 text-status-warning border-status-warning/25',    label: T.arrival.arrivingSoon },
+                DUE_NOW:       { cls: 'bg-status-warning/25 text-status-warning border-status-warning/40',    label: T.arrival.dueNow },
                 LATE:          { cls: 'bg-orange-900/15 text-orange-400 border-orange-500/25', label: T.arrival.lateMin(Math.abs(minutesUntilRes(r.time, nowTime!))) },
-                NO_SHOW_RISK:  { cls: 'bg-red-900/20 text-red-400 border-red-500/30',          label: T.arrival.noShowRisk },
+                NO_SHOW_RISK:  { cls: 'bg-red-900/20 text-status-danger border-status-danger/30',          label: T.arrival.noShowRisk },
               }[aState] : null;
 
               const minsUntil = isLiveView && nowTime ? minutesUntilRes(r.time, nowTime) : null;
@@ -452,7 +452,7 @@ export default function ReservationPanel({
                 : null;
 
               const statusBadge = staleBadge ?? arrivalBadge ?? (needsReminder
-                ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25', label: T.reservationPanel.needsReminder }
+                ? { cls: 'bg-status-warning/15 text-status-warning border-status-warning/25', label: T.reservationPanel.needsReminder }
                 : r.status === 'PENDING' ? null
                 : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
 
@@ -467,13 +467,13 @@ export default function ReservationPanel({
                 : aState === 'LATE'
                 ? 'bg-orange-900/8 hover:bg-orange-900/14'
                 : aState === 'DUE_NOW'
-                ? 'bg-amber-500/13 hover:bg-amber-500/20'
+                ? 'bg-status-warning/13 hover:bg-status-warning/20'
                 : aState === 'ARRIVING_SOON'
-                ? 'bg-amber-500/8 hover:bg-amber-500/13'
+                ? 'bg-status-warning/8 hover:bg-status-warning/13'
                 : r.isArrived
                 ? 'bg-iron-green/8 hover:bg-iron-green/12'
                 : needsReminder
-                ? 'bg-amber-500/8 hover:bg-amber-500/13'
+                ? 'bg-status-warning/8 hover:bg-status-warning/13'
                 : 'hover:bg-iron-elevated/55';
 
               // Priority stripe — left edge signals urgency without adding noise
@@ -497,7 +497,7 @@ export default function ReservationPanel({
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
                   {/* Time anchor column — left rail for instant time scanning */}
-                  <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-[18px] gap-1.5">
+                  <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3 gap-1.5">
                     <span className="text-iron-text text-[17px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
                     <span className="text-iron-muted/65 text-[12px] tabular-nums leading-none font-semibold">{r.partySize}p</span>
                   </div>
@@ -507,7 +507,7 @@ export default function ReservationPanel({
                     onClick={() => onSelect(r)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     dir={dir}
-                    className="flex-1 text-start px-3 py-[18px] min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
+                    className="flex-1 text-start px-3 py-3 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
                     {/* Row 1 — name + VIP + source badge + status badge */}
@@ -517,7 +517,7 @@ export default function ReservationPanel({
                           {r.guestName}
                         </span>
                         {r.guest?.isVip && (
-                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400">
+                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
                             VIP
                           </span>
                         )}
@@ -531,7 +531,7 @@ export default function ReservationPanel({
                         )}
                         {(r.source === 'ONLINE' || r.source === 'OPENTABLE' || r.source === 'RESY') && (
                           <span
-                            className="shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded border bg-blue-500/10 border-blue-500/28 text-blue-400"
+                            className="shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded border bg-status-reserved/10 border-status-reserved/28 text-status-reserved"
                             title={formatReservationSource(r.source, locale)}
                           >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -558,7 +558,7 @@ export default function ReservationPanel({
                           return (
                             <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium leading-none ${
                               urgent
-                                ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
+                                ? 'bg-status-warning/15 border-status-warning/25 text-status-warning'
                                 : 'bg-iron-border/15 border-iron-border/30 text-iron-muted/75'
                             }`}>
                               {T.reservationPanel.noTableBadge}{urgent && minsUntil !== null && !arrivalBadge ? ` · ${minsUntil}m` : ''}
@@ -590,7 +590,7 @@ export default function ReservationPanel({
                     {(r.hostNotes || r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {r.hostNotes && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 font-medium max-w-[180px] truncate leading-none">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-status-warning/30 bg-status-warning/10 text-status-warning font-medium max-w-[180px] truncate leading-none">
                             {r.hostNotes}
                           </span>
                         )}
@@ -601,7 +601,7 @@ export default function ReservationPanel({
                           <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full border border-iron-border/35 text-iron-muted/65 font-medium">{tag}</span>
                         ))}
                         {r.isConfirmedByGuest && (
-                          <span className="text-[11px] font-medium text-emerald-400/90">{T.reservationPanel.confirmedTick}</span>
+                          <span className="text-[11px] font-medium text-status-success/90">{T.reservationPanel.confirmedTick}</span>
                         )}
                         {r.isRunningLate && (
                           <span className="text-[11px] font-semibold text-orange-400">{T.reservationPanel.runningLate}</span>
@@ -618,7 +618,7 @@ export default function ReservationPanel({
                   {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
                     <div className="flex flex-col items-center justify-center gap-2 pe-3.5 ps-1 shrink-0">
                       {r.isArrived ? (
-                        <span className="text-[11px] font-semibold text-teal-400 whitespace-nowrap text-center leading-tight">
+                        <span className="text-[11px] font-semibold text-status-arrived whitespace-nowrap text-center leading-tight">
                           {r.arrivedAt
                             ? T.reservationPanel.arrivedWaiting(Math.round((nowMs - new Date(r.arrivedAt).getTime()) / 60_000))
                             : T.reservationPanel.arrivedBadge}
@@ -629,7 +629,7 @@ export default function ReservationPanel({
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                              className="text-xs font-medium px-2.5 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                              className="text-xs font-semibold px-3 py-2 rounded-lg bg-iron-green-light text-white shadow-sm hover:brightness-110 transition-[filter,transform] active:scale-[0.97] whitespace-nowrap"
                             >
                               {T.reservationPanel.chooseTable}
                             </button>
@@ -638,7 +638,7 @@ export default function ReservationPanel({
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                              className="text-xs font-medium px-2.5 py-2 rounded-lg border border-teal-500/40 text-teal-400 hover:bg-teal-500/15 transition-colors active:scale-[0.97] whitespace-nowrap"
+                              className="text-xs font-semibold px-3 py-2 rounded-lg bg-iron-green text-white shadow-sm hover:bg-iron-green-light transition-colors active:scale-[0.97] whitespace-nowrap"
                             >
                               {T.reservationPanel.markArrivedBtn}
                             </button>

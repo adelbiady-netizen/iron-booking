@@ -63,7 +63,7 @@ export default function GuestHubPreviewPage({ slug }: { slug: string }) {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-status-warning border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -74,7 +74,7 @@ export default function GuestHubPreviewPage({ slug }: { slug: string }) {
         <div className="text-center">
           <p className="text-white font-semibold mb-2">Login required</p>
           <p className="text-stone-400 text-sm mb-4">You must be logged in to preview draft content.</p>
-          <a href="/hq" className="text-amber-400 text-sm hover:underline">Go to HQ Login →</a>
+          <a href="/hq" className="text-status-warning text-sm hover:underline">Go to HQ Login →</a>
         </div>
       </div>
     );
@@ -83,7 +83,7 @@ export default function GuestHubPreviewPage({ slug }: { slug: string }) {
   if (status === 'not_found') {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4">
-        <p className="text-stone-400 text-sm">Hub not found: <code className="text-amber-400">{slug}</code></p>
+        <p className="text-stone-400 text-sm">Hub not found: <code className="text-status-warning">{slug}</code></p>
       </div>
     );
   }
@@ -91,7 +91,7 @@ export default function GuestHubPreviewPage({ slug }: { slug: string }) {
   if (status === 'error' || !vm) {
     return (
       <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4">
-        <p className="text-red-400 text-sm">Failed to load preview. Try refreshing.</p>
+        <p className="text-status-danger text-sm">Failed to load preview. Try refreshing.</p>
       </div>
     );
   }
@@ -100,7 +100,7 @@ export default function GuestHubPreviewPage({ slug }: { slug: string }) {
     <div className="min-h-screen bg-stone-950 text-white">
 
       {/* Draft preview banner */}
-      <div className="sticky top-0 z-50 bg-amber-500 text-stone-900 px-4 py-2 flex items-center justify-between text-sm font-semibold">
+      <div className="sticky top-0 z-50 bg-status-warning text-stone-900 px-4 py-2 flex items-center justify-between text-sm font-semibold">
         <span>DRAFT PREVIEW — not yet published</span>
         <div className="flex items-center gap-4">
           <a

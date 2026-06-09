@@ -127,7 +127,7 @@ function HostForm({ host, onSave, onCancel, T }: HostFormProps) {
       </div>
 
       {error && (
-        <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded px-2 py-1">{error}</p>
+        <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded px-2 py-1">{error}</p>
       )}
 
       <div className="flex gap-2 pt-1">
@@ -219,7 +219,7 @@ function PinDialog({ host, onSave, onCancel, T }: PinDialogProps) {
           </div>
 
           {error && (
-            <p className="text-red-400 text-xs">{error}</p>
+            <p className="text-status-danger text-xs">{error}</p>
           )}
 
           <div className="flex gap-2 pt-1">
@@ -342,8 +342,8 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
           <h1 className="text-iron-text font-semibold flex-1">{T.hostsSettings.title}</h1>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-2">
-            <span className="text-amber-400 text-xl">🔒</span>
+          <div className="w-12 h-12 rounded-full bg-status-warning/10 border border-status-warning/30 flex items-center justify-center mb-2">
+            <span className="text-status-warning text-xl">🔒</span>
           </div>
           <p className="text-iron-text font-semibold text-sm">{T.hostsSettings.permissionDenied}</p>
           <p className="text-iron-muted text-xs">{T.hostsSettings.permissionHint}</p>
@@ -443,7 +443,7 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
                           {roleLabel(host.role, T)}
                         </span>
                       </div>
-                      <p className={`text-xs mt-0.5 ${host.hasPin ? 'text-iron-green-light' : 'text-amber-400'}`}>
+                      <p className={`text-xs mt-0.5 ${host.hasPin ? 'text-iron-green-light' : 'text-status-warning'}`}>
                         {host.hasPin ? T.hostsSettings.pinSet : T.hostsSettings.pinNotSet}
                       </p>
                     </div>
@@ -470,7 +470,7 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
                       </button>
                       <button
                         onClick={() => handleDelete(host)}
-                        className="text-xs text-red-400/70 hover:text-red-400 border border-iron-border hover:border-red-900/30 rounded px-2 py-1 transition-colors"
+                        className="text-xs text-status-danger/70 hover:text-status-danger border border-iron-border hover:border-red-900/30 rounded px-2 py-1 transition-colors"
                       >
                         {T.hostsSettings.deleteBtn}
                       </button>

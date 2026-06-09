@@ -86,7 +86,7 @@ export default function SetupPage({ onSetup }: Props) {
           </div>
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-400/10 rounded px-3 py-2">{error}</p>
+            <p className="text-xs text-status-danger bg-status-danger/10 rounded px-3 py-2">{error}</p>
           )}
 
           <button

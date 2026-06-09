@@ -54,7 +54,7 @@ export default function LockTableModal({ table, onClose, onLocked }: Props) {
                   onClick={() => setReason(prev => prev === r ? '' : r)}
                   className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
                     reason === r
-                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                      ? 'bg-status-warning/20 border-status-warning/40 text-status-warning'
                       : 'border-iron-border text-iron-muted hover:border-iron-text/30 hover:text-iron-text'
                   }`}
                 >
@@ -82,14 +82,14 @@ export default function LockTableModal({ table, onClose, onLocked }: Props) {
           </div>
 
           {error && (
-            <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded px-2.5 py-1.5">{error}</p>
+            <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded px-2.5 py-1.5">{error}</p>
           )}
 
           <div className="flex gap-2 pt-1">
             <button
               onClick={handleLock}
               disabled={busy}
-              className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40"
+              className="flex-1 text-xs font-semibold py-2 rounded-lg bg-status-warning border border-status-warning text-iron-bg hover:bg-status-warning/85 transition-colors disabled:opacity-40"
             >
               {busy ? T.lockModal.lockBusy : T.lockModal.lockButton}
             </button>

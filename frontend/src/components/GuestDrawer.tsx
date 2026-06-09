@@ -14,11 +14,11 @@ import { fmtHostTime, normalizeTime } from '../utils/time';
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
 
 const STATUS_PILL: Record<ReservationStatus, string> = {
-  PENDING:   'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-  CONFIRMED: 'bg-blue-500/12 text-blue-300/90 border border-blue-500/25',
+  PENDING:   'bg-status-warning/15 text-status-warning border border-status-warning/30',
+  CONFIRMED: 'bg-status-reserved/12 text-status-reserved/90 border border-status-reserved/25',
   SEATED:    'bg-iron-green/22 text-iron-green-light border border-iron-green/35',
   COMPLETED: 'bg-iron-border/18 text-iron-muted/75 border border-iron-border/25',
-  CANCELLED: 'bg-red-900/15 text-red-400 border border-red-900/25',
+  CANCELLED: 'bg-red-900/15 text-status-danger border border-red-900/25',
   NO_SHOW:   'bg-orange-900/15 text-orange-400 border border-orange-900/25',
 };
 
@@ -682,10 +682,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
   // ─── Action buttons per status ──────────────────────────────────────────────
 
-  const btnGreen  = 'bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30';
-  const btnBlue   = 'bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25';
-  const btnAmber  = 'bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25';
-  const btnRed    = 'bg-red-900/15 border-red-900/25 text-red-400 hover:bg-red-900/25';
+  const btnGreen  = 'bg-iron-green-light border-iron-green-light text-white hover:bg-iron-green hover:border-iron-green';
+  const btnBlue   = 'bg-status-reserved/15 border-status-reserved/30 text-status-reserved hover:bg-status-reserved/25';
+  const btnAmber  = 'bg-status-warning/15 border-status-warning/30 text-status-warning hover:bg-status-warning/25';
+  const btnRed    = 'bg-red-900/15 border-red-900/25 text-status-danger hover:bg-red-900/25';
   const btnNeutral= 'bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30';
 
   const assignedTable   = res.tableId ? tables.find(t => t.id === res.tableId) ?? null : null;
@@ -742,8 +742,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {/* Confirmation status */}
         {res.isArrived && (
           <div className="flex items-center gap-1.5 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-            <span className="text-teal-400 text-xs font-medium">{T.guestDrawer.guestArrived}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-status-arrived shrink-0" />
+            <span className="text-status-arrived text-xs font-medium">{T.guestDrawer.guestArrived}</span>
           </div>
         )}
         {res.isRunningLate && (
@@ -762,8 +762,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           </div>
         ) : res.confirmationSentAt ? (
           <div className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsReminder ? 'bg-amber-400' : 'bg-blue-400'}`} />
-            <span className={`text-xs ${needsReminder ? 'text-amber-400 font-medium' : 'text-blue-400'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${needsReminder ? 'bg-status-warning' : 'bg-status-reserved'}`} />
+            <span className={`text-xs ${needsReminder ? 'text-status-warning font-medium' : 'text-status-reserved'}`}>
               {needsReminder ? T.guestDrawer.needsReminder : T.guestDrawer.smsSentAwaiting(fmtTime(res.confirmationSentAt))}
             </span>
           </div>
@@ -1076,7 +1076,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               <button
                 onClick={handleCloseAndSeat}
                 disabled={busy}
-                className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 rounded-lg bg-iron-green-light border border-iron-green-light text-white text-sm font-semibold hover:bg-iron-green disabled:opacity-50 transition-colors"
               >
                 {T.guestDrawer.occupiedModalConfirm}
               </button>
@@ -1162,7 +1162,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1">
                 <h2 className="text-iron-text font-black text-[34px] tracking-tight leading-none truncate min-w-0">{res.guestName}</h2>
                 {res.guest?.isVip && (
-                  <span className="text-amber-400 text-xs font-semibold bg-amber-500/14 px-2 py-0.5 rounded-full border border-amber-500/28 shrink-0">
+                  <span className="text-status-warning text-xs font-semibold bg-status-warning/14 px-2 py-0.5 rounded-full border border-status-warning/28 shrink-0">
                     {T.common.vip}
                   </span>
                 )}
@@ -1230,10 +1230,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 if (!aState) return null;
                 const minsLate = Math.abs(minutesUntilRes(res.time, nowTime));
                 const cfg = {
-                  ARRIVING_SOON: { cls: 'bg-amber-500/12 border-amber-500/22 text-amber-400', label: T.arrival.arrivingSoon },
-                  DUE_NOW:       { cls: 'bg-amber-500/20 border-amber-400/38 text-amber-300', label: T.arrival.dueNow },
+                  ARRIVING_SOON: { cls: 'bg-status-warning/12 border-status-warning/22 text-status-warning', label: T.arrival.arrivingSoon },
+                  DUE_NOW:       { cls: 'bg-status-warning/20 border-status-warning/38 text-status-warning', label: T.arrival.dueNow },
                   LATE:          { cls: 'bg-orange-900/16 border-orange-500/30 text-orange-400', label: T.arrival.lateMin(minsLate) },
-                  NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-red-500/30 text-red-400',         label: T.arrival.noShowRisk },
+                  NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-status-danger/30 text-status-danger',         label: T.arrival.noShowRisk },
                 }[aState];
                 return (
                   <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border mb-2 ${cfg.cls}`}>
@@ -1252,7 +1252,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     </span>
                   )}
                   {res.reorganizeAt && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400 font-medium">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-status-warning/10 border-status-warning/30 text-status-warning font-medium">
                       {T.guestDrawer.reorganizeBadge}
                     </span>
                   )}
@@ -1300,10 +1300,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             if (!aState) return null;
             const minsLate = Math.abs(minutesUntilRes(res.time, nowTime));
             const config = {
-              ARRIVING_SOON: { cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400',    dot: 'bg-amber-400',  label: T.arrival.arrivingSoon },
-              DUE_NOW:       { cls: 'bg-amber-500/20 border-amber-400/40 text-amber-300',    dot: 'bg-amber-300',  label: T.arrival.dueNow },
+              ARRIVING_SOON: { cls: 'bg-status-warning/10 border-status-warning/30 text-status-warning',    dot: 'bg-status-warning',  label: T.arrival.arrivingSoon },
+              DUE_NOW:       { cls: 'bg-status-warning/20 border-status-warning/40 text-status-warning',    dot: 'bg-status-warning',  label: T.arrival.dueNow },
               LATE:          { cls: 'bg-orange-900/15 border-orange-500/30 text-orange-400', dot: 'bg-orange-500', label: T.arrival.lateMin(minsLate) },
-              NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-red-500/30 text-red-400',          dot: 'bg-red-500',    label: T.arrival.noShowRisk },
+              NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-status-danger/30 text-status-danger',          dot: 'bg-status-danger',    label: T.arrival.noShowRisk },
             }[aState];
             const canAct = ['PENDING', 'CONFIRMED'].includes(res.status) && !busy;
             return (
@@ -1325,7 +1325,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   <button
                     onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}
                     disabled={busy}
-                    className="text-xs font-medium px-2 py-0.5 rounded border border-red-500/35 text-red-400 hover:bg-red-900/20 transition-colors shrink-0 disabled:opacity-40"
+                    className="text-xs font-medium px-2 py-0.5 rounded border border-status-danger/35 text-status-danger hover:bg-red-900/20 transition-colors shrink-0 disabled:opacity-40"
                   >
                     {T.guestDrawer.actionNoShow}
                   </button>
@@ -1338,8 +1338,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {(res.hostNotes || res.guestNotes || res.occasion) && (
             <section className="space-y-2">
               {res.hostNotes && (
-                <div className="px-3 py-2.5 rounded-lg bg-amber-900/10 border border-amber-500/25" style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.78)' }}>
-                  <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
+                <div className="px-3 py-2.5 rounded-lg bg-amber-900/10 border border-status-warning/25" style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.78)' }}>
+                  <p className="text-[10px] text-status-warning/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
                   <p className="text-amber-100/85 text-[13px] leading-relaxed">{res.hostNotes}</p>
                 </div>
               )}
@@ -1361,7 +1361,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
             <section className={`rounded-xl border p-3.5 space-y-3 ${
               smartSuggestion?.mode === 'upgrade'
-                ? 'border-amber-500/30 bg-amber-500/5'
+                ? 'border-status-warning/30 bg-status-warning/5'
                 : 'border-iron-green/30 bg-iron-green/5'
             }`}>
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65">
@@ -1390,7 +1390,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     <button
                       onClick={() => seatWithReorganizeCheck(smartSuggestion.suggestion.tableId!, [], T.guestDrawer.toastSeated(res.guestName, smartSuggestion.suggestion.tableName))}
                       disabled={busy}
-                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green/25 border border-iron-green/50 text-iron-green-light hover:bg-iron-green/35 transition-colors disabled:opacity-40 active:scale-[0.97]"
+                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors disabled:opacity-40 active:scale-[0.97]"
                     >
                       {T.guestDrawer.suggestSeatNow}
                     </button>
@@ -1410,7 +1410,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     <span className="text-iron-text font-semibold">{smartSuggestion.current?.tableName ?? res.table?.name ?? '—'}</span>
                     <span className="text-iron-muted">→</span>
                     <span className="text-iron-muted shrink-0">{T.guestDrawer.suggestBetterLabel}:</span>
-                    <span className="text-amber-300 font-semibold">{smartSuggestion.suggestion.tableName}</span>
+                    <span className="text-status-warning font-semibold">{smartSuggestion.suggestion.tableName}</span>
                     <span className="text-iron-muted">
                       {T.guestDrawer.suggestCapacity(smartSuggestion.suggestion.minCovers, smartSuggestion.suggestion.maxCovers)}
                     </span>
@@ -1425,7 +1425,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         T.guestDrawer.toastTableReassigned(smartSuggestion.suggestion.tableName),
                       )}
                       disabled={busy}
-                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40 active:scale-[0.97]"
+                      className="flex-1 text-xs font-semibold py-2 rounded-lg bg-status-warning/15 border border-status-warning/35 text-status-warning hover:bg-status-warning/25 transition-colors disabled:opacity-40 active:scale-[0.97]"
                     >
                       {T.guestDrawer.suggestSwapTable}
                     </button>
@@ -1566,9 +1566,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
             {mode === 'view' && (
               pickingForAction ? (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-blue-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-                  <span className="text-blue-300 text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-status-reserved/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+                  <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
                   <button
                     type="button"
                     onClick={() => { setPickingForAction(null); onPickTablesCancel?.(); }}
@@ -1626,16 +1626,16 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   }, 0);
                   if (totalMax >= party) return null;
                   return (
-                    <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-amber-500/25">
-                      <span className="text-amber-400 shrink-0">⚠</span>
-                      <p className="text-amber-400 text-xs">{T.guestDrawer.tableCapacityWarn(totalMax, party)}</p>
+                    <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-status-warning/25">
+                      <span className="text-status-warning shrink-0">⚠</span>
+                      <p className="text-status-warning text-xs">{T.guestDrawer.tableCapacityWarn(totalMax, party)}</p>
                     </div>
                   );
                 })()}
 
                 {/* Date / time / table — locked while seated */}
                 {res.status === 'SEATED' ? (
-                  <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                  <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 rounded-lg px-3 py-2">
                     {T.guestDrawer.seatedEditNote}
                   </p>
                 ) : (
@@ -1673,9 +1673,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
                         {/* Picking on map banner */}
                         {pickingOnMap && (
-                          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-blue-500/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-                            <span className="text-blue-300 text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
+                          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-status-reserved/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+                            <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
                             <button
                               type="button"
                               onClick={() => { setPickingOnMap(false); onPickTablesCancel?.(); }}
@@ -1704,7 +1704,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                               <button
                                 type="button"
                                 onClick={() => { setEditTableId(null); setEditCombinedTableIds([]); }}
-                                className="text-xs text-iron-muted hover:text-red-400 border border-iron-border/50 hover:border-red-900/40 px-2 py-1 rounded-md transition-colors shrink-0"
+                                className="text-xs text-iron-muted hover:text-status-danger border border-iron-border/50 hover:border-red-900/40 px-2 py-1 rounded-md transition-colors shrink-0"
                               >
                                 {T.guestDrawer.clearTable}
                               </button>
@@ -1728,7 +1728,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                               <button
                                 type="button"
                                 onClick={openMapPicker}
-                                className="text-xs px-2.5 py-1 rounded-md border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-colors shrink-0"
+                                className="text-xs px-2.5 py-1 rounded-md border border-status-reserved/40 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
                               >
                                 {T.guestDrawer.selectOnMap}
                               </button>
@@ -1768,7 +1768,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         onClick={() => adjustDuration(delta)}
                         className={`flex-1 text-xs py-1.5 rounded-md border transition-colors disabled:opacity-40 ${
                           delta < 0
-                            ? 'border-red-900/30 text-red-400 hover:bg-red-900/15 active:bg-red-900/25'
+                            ? 'border-red-900/30 text-status-danger hover:bg-red-900/15 active:bg-red-900/25'
                             : 'border-iron-green/30 text-iron-green-light hover:bg-iron-green/10 active:bg-iron-green/20'
                         }`}
                       >
@@ -1786,7 +1786,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                       <div className="flex items-center gap-2">
                         <span className="text-iron-muted text-[11px]">{T.guestDrawer.wasNMin(originalDuration)}</span>
                         <span className={`text-xs font-semibold ${
-                          editDuration > originalDuration ? 'text-iron-green-light' : 'text-red-400'
+                          editDuration > originalDuration ? 'text-iron-green-light' : 'text-status-danger'
                         }`}>
                           {editDuration > originalDuration
                             ? `+${editDuration - originalDuration}m`
@@ -1842,8 +1842,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   <button
                     onClick={saveEdit}
                     disabled={busy}
-                    className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors disabled:opacity-40 active:scale-[0.97]"
-                    style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+                    className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors disabled:opacity-40 active:scale-[0.97]"
+                    style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.14)' }}
                   >
                     {T.guestDrawer.saveChanges}
                   </button>
@@ -1899,13 +1899,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   value={cancelReason}
                   onChange={e => setCancelReason(e.target.value)}
                   placeholder={T.guestDrawer.cancelReasonPh}
-                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-red-500 transition-colors"
+                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-status-danger transition-colors"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => run(() => api.reservations.cancel(res.id, cancelReason || undefined))}
                     disabled={busy}
-                    className="flex-1 text-xs py-1.5 rounded-lg bg-red-900/20 border border-red-900/30 text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-40"
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-red-900/20 border border-red-900/30 text-status-danger hover:bg-red-900/30 transition-colors disabled:opacity-40"
                   >
                     {T.guestDrawer.confirmCancel}
                   </button>
@@ -1921,7 +1921,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
             {/* Feedback */}
             {error && (
-              <p className="mt-3 text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
+              <p className="mt-3 text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -1940,7 +1940,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               {tableIsLocked ? (
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-medium px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400">
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
                       {T.tableCard.locked}{assignedTable.lockReason ? ` · ${assignedTable.lockReason}` : ''}
                     </span>
                   </div>
@@ -1962,7 +1962,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     onClick={() => setLockReason(prev => prev === r ? '' : r)}
                     className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                       lockReason === r
-                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                        ? 'bg-status-warning/20 border-status-warning/40 text-status-warning'
                         : 'border-iron-border text-iron-muted hover:text-iron-text'
                     }`}
                   >
@@ -1981,7 +1981,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 <button
                   onClick={handleLockTable}
                   disabled={busy}
-                  className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40"
+                  className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-status-warning/15 border border-status-warning/30 text-status-warning hover:bg-status-warning/25 transition-colors disabled:opacity-40"
                 >
                   {busy ? T.guestDrawer.lockTableBusy : T.guestDrawer.lockTableConfirm}
                 </button>

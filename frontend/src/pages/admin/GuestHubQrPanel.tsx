@@ -191,7 +191,7 @@ function TokenForm({
   return (
     <div className="space-y-4 p-5">
       {isEdit && (
-        <div className="text-[11px] text-amber-400/80 bg-amber-950/20 border border-amber-900/30 rounded-lg px-3 py-2 leading-relaxed">
+        <div className="text-[11px] text-status-warning/80 bg-amber-950/20 border border-amber-900/30 rounded-lg px-3 py-2 leading-relaxed">
           Changing the label does not affect printed QR codes — the token URL stays the same.
         </div>
       )}
@@ -275,7 +275,7 @@ function TokenForm({
         </p>
       )}
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-status-danger">{error}</p>}
 
       <div className="flex gap-2 pt-1">
         <button
@@ -302,9 +302,9 @@ function TokenForm({
 // ── Status meta ────────────────────────────────────────────────────────────────
 
 const STATUS_META = {
-  PUBLISHED: { dot: 'bg-emerald-400', text: 'text-emerald-400', label: 'Live',
+  PUBLISHED: { dot: 'bg-status-success', text: 'text-status-success', label: 'Live',
     guestAccess: 'QR scans reach the public menu page.' },
-  INACTIVE:  { dot: 'bg-amber-400',   text: 'text-amber-300',   label: 'Inactive',
+  INACTIVE:  { dot: 'bg-status-warning',   text: 'text-status-warning',   label: 'Inactive',
     guestAccess: 'Hub is offline. QR scans show an error page. Reactivate the hub to restore access.' },
   DRAFT:     { dot: 'bg-iron-muted',  text: 'text-iron-muted',  label: 'Draft',
     guestAccess: 'Hub is not yet live. QR scans show an error page. Publish and activate to enable QR access.' },
@@ -513,7 +513,7 @@ export default function GuestHubQrPanel({
         )}
 
         {loadError && (
-          <div className="px-5 py-4 text-sm text-red-400">{loadError}</div>
+          <div className="px-5 py-4 text-sm text-status-danger">{loadError}</div>
         )}
 
         {!loadingTokens && !loadError && tokens.length === 0 && !creating && (
@@ -575,7 +575,7 @@ export default function GuestHubQrPanel({
                       {/* Status dot */}
                       <span
                         className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${
-                          isLive ? 'bg-emerald-400' : t.isActive ? 'bg-amber-400' : 'bg-iron-muted/40'
+                          isLive ? 'bg-status-success' : t.isActive ? 'bg-status-warning' : 'bg-iron-muted/40'
                         }`}
                         title={isLive ? 'Live' : t.isActive ? 'Active — hub not published' : 'Inactive'}
                       />
@@ -587,8 +587,8 @@ export default function GuestHubQrPanel({
                             {t.label ?? 'Unlabeled'}
                           </span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            isLive      ? 'bg-emerald-900/40 text-emerald-400' :
-                            t.isActive  ? 'bg-amber-900/30 text-amber-400'    :
+                            isLive      ? 'bg-status-success/40 text-status-success' :
+                            t.isActive  ? 'bg-amber-900/30 text-status-warning'    :
                             'bg-iron-bg text-iron-muted'
                           }`}>
                             {isLive ? 'live' : t.isActive ? 'pending' : 'inactive'}
@@ -633,7 +633,7 @@ export default function GuestHubQrPanel({
                               type="button"
                               onClick={() => void handleDeactivate(t.id)}
                               disabled={isBusy}
-                              className="text-xs px-2 py-1 rounded border border-red-800/60 text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                              className="text-xs px-2 py-1 rounded border border-red-800/60 text-status-danger hover:bg-red-900/20 transition-colors disabled:opacity-50"
                             >
                               {isBusy ? '…' : 'Confirm stop'}
                             </button>
@@ -641,7 +641,7 @@ export default function GuestHubQrPanel({
                             <button
                               type="button"
                               onClick={() => setConfirmDeactivate(t.id)}
-                              className="text-xs px-2 py-1 rounded border border-iron-border text-iron-muted hover:text-amber-400 hover:border-amber-900/50 transition-colors"
+                              className="text-xs px-2 py-1 rounded border border-iron-border text-iron-muted hover:text-status-warning hover:border-amber-900/50 transition-colors"
                             >
                               Deactivate
                             </button>
@@ -651,7 +651,7 @@ export default function GuestHubQrPanel({
                             type="button"
                             onClick={() => void handleReactivate(t.id)}
                             disabled={isBusy}
-                            className="text-xs px-2 py-1 rounded border border-iron-border text-iron-muted hover:text-emerald-400 transition-colors disabled:opacity-50"
+                            className="text-xs px-2 py-1 rounded border border-iron-border text-iron-muted hover:text-status-success transition-colors disabled:opacity-50"
                           >
                             {isBusy ? '…' : 'Reactivate'}
                           </button>
@@ -662,7 +662,7 @@ export default function GuestHubQrPanel({
                     {/* Deactivation warning */}
                     {confirmDeactivate === t.id && (
                       <div className="ml-4 mt-2 flex items-center gap-2">
-                        <p className="text-[11px] text-amber-400 flex-1">
+                        <p className="text-[11px] text-status-warning flex-1">
                           Deactivating stops all printed QR codes for this token from working.
                         </p>
                         <button
@@ -744,12 +744,12 @@ export default function GuestHubQrPanel({
             </div>
 
             {!selectedToken.isActive && (
-              <p className="text-xs text-amber-400 text-center max-w-xs leading-relaxed">
+              <p className="text-xs text-status-warning text-center max-w-xs leading-relaxed">
                 This token is inactive. Printed cards will show an error page.
               </p>
             )}
             {selectedToken.isActive && publicStatus !== 'PUBLISHED' && (
-              <p className="text-xs text-amber-400 text-center max-w-xs leading-relaxed">
+              <p className="text-xs text-status-warning text-center max-w-xs leading-relaxed">
                 Hub is not live yet. QR codes will show an error page until activated.
               </p>
             )}

@@ -125,7 +125,7 @@ export default function HostSelectionScreen({ restaurantId, onLogin, onManagerLo
       {/* Error */}
       {!loading && loadErr && (
         <div className="text-center py-8">
-          <p className="text-red-400 text-sm">{T.hostSelection.loadError}</p>
+          <p className="text-status-danger text-sm">{T.hostSelection.loadError}</p>
         </div>
       )}
 
@@ -208,7 +208,7 @@ export default function HostSelectionScreen({ restaurantId, onLogin, onManagerLo
                 key={i}
                 className={`w-4 h-4 rounded-full border-2 transition-all ${
                   i < pin.length
-                    ? (pinError ? 'bg-red-500 border-red-500' : 'bg-iron-green border-iron-green')
+                    ? (pinError ? 'bg-status-danger border-status-danger' : 'bg-iron-green border-iron-green')
                     : 'border-iron-border bg-transparent'
                 }`}
               />
@@ -217,7 +217,7 @@ export default function HostSelectionScreen({ restaurantId, onLogin, onManagerLo
 
           {/* Error message */}
           {pinError && (
-            <p className="text-center text-red-400 text-xs mb-3">{T.hostSelection.pinError}</p>
+            <p className="text-center text-status-danger text-xs mb-3">{T.hostSelection.pinError}</p>
           )}
 
           {/* Busy state */}

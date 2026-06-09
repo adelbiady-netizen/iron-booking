@@ -120,7 +120,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
           <div className="flex items-center gap-2">
             <p className="text-iron-text font-semibold text-sm leading-tight">{T.callLog.title}</p>
             {missedCount > 0 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 tabular-nums leading-none">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-status-danger/15 border border-status-danger/30 text-status-danger tabular-nums leading-none">
                 {missedCount} {T.callLog.missed.toLowerCase()}
               </span>
             )}
@@ -235,9 +235,9 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
                     <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wide shrink-0 ${
                       isAnswered
                         ? 'bg-iron-green/12 border-iron-green/30 text-iron-green-light'
-                        : 'bg-red-500/12 border-red-500/30 text-red-400'
+                        : 'bg-status-danger/12 border-status-danger/30 text-status-danger'
                     }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAnswered ? 'bg-iron-green-light' : 'bg-red-400'}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAnswered ? 'bg-iron-green-light' : 'bg-status-danger'}`} />
                       {isAnswered ? T.callLog.answered : T.callLog.missed}
                     </div>
                     <span className="text-iron-muted/55 text-[11px] font-medium tabular-nums shrink-0">

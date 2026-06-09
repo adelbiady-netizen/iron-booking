@@ -139,7 +139,7 @@ export default function TopBar({
   const isToday  = date === todayStr;
 
   return (
-    <header dir="ltr" className="h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: '1px solid rgba(255,215,130,0.30)' }}>
+    <header dir="ltr" className="ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: '1px solid rgba(255,215,130,0.30)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
@@ -172,7 +172,7 @@ export default function TopBar({
               <button
                 onClick={onNow}
                 title={T.topBar.backToToday}
-                className="w-3.5 h-3.5 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500/35 transition-colors flex items-center justify-center text-[8px] font-bold leading-none shrink-0"
+                className="w-3.5 h-3.5 rounded-full bg-status-reserved/20 text-status-reserved hover:bg-status-reserved/35 transition-colors flex items-center justify-center text-[8px] font-bold leading-none shrink-0"
                 aria-label={T.topBar.backToToday}
               >
                 ×
@@ -189,7 +189,7 @@ export default function TopBar({
           <div className="relative flex items-center justify-center px-4 py-2" style={{ background: 'rgba(0,0,0,0.14)', borderLeft: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <span
               dir="ltr"
-              className="text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
+              className="ib-clock text-iron-text font-bold tabular-nums leading-none pointer-events-none select-none"
               style={{ fontSize: '40px', letterSpacing: '-0.045em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
@@ -291,7 +291,7 @@ export default function TopBar({
         {onBulkConfirm && (
           <button
             onClick={onBulkConfirm}
-            className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-iron-green/25 text-iron-green-light hover:bg-iron-green/10 transition-colors shrink-0"
+            className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors shrink-0"
           >
             {T.topBar.bulkConfirmButton}
           </button>
@@ -300,14 +300,14 @@ export default function TopBar({
 
       {/* SSE connection status — only shown when degraded */}
       {sseStatus === 'reconnecting' && (
-        <div className="flex items-center gap-1.5 text-amber-400 text-xs shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        <div className="flex items-center gap-1.5 text-status-warning text-xs shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-warning animate-pulse" />
           <span className="hidden sm:block">{T.topBar.sseReconnecting}</span>
         </div>
       )}
       {sseStatus === 'disconnected' && (
-        <div className="flex items-center gap-1.5 text-red-400 text-xs shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+        <div className="flex items-center gap-1.5 text-status-danger text-xs shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-danger" />
           <span className="hidden sm:block">{T.topBar.sseOffline}</span>
         </div>
       )}

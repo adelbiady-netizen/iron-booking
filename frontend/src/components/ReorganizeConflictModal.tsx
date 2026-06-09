@@ -44,9 +44,9 @@ export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm bg-iron-card border border-amber-500/30 rounded-2xl shadow-2xl p-5 space-y-4">
+      <div className="relative z-10 w-full max-w-sm bg-iron-card border border-status-warning/30 rounded-2xl shadow-2xl p-5 space-y-4">
         <div className="flex items-start gap-3">
-          <span className="text-amber-400 text-xl mt-0.5 shrink-0">⚠</span>
+          <span className="text-status-warning text-xl mt-0.5 shrink-0">⚠</span>
           <div>
             <h3 className="text-iron-text font-semibold text-sm">{T.guestDrawer.reorganizeModalTitle}</h3>
             <p className="text-iron-muted text-xs mt-1">
@@ -65,12 +65,12 @@ export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm
                 checked={selectedIds.includes(c.id)}
                 onChange={() => toggle(c.id)}
                 disabled={busy}
-                className="w-3.5 h-3.5 rounded border-iron-border accent-amber-400 shrink-0"
+                className="w-3.5 h-3.5 rounded border-iron-border accent-status-warning shrink-0"
               />
               <span className="flex-1 text-iron-text text-xs truncate group-has-[:checked]:text-iron-text text-iron-muted">
                 {T.guestDrawer.reorganizeModalGuest(c.guestName, c.time, c.partySize)}
               </span>
-              <span className="text-amber-400 text-xs shrink-0 tabular-nums">
+              <span className="text-status-warning text-xs shrink-0 tabular-nums">
                 {T.guestDrawer.reorganizeModalEta(c.minutesUntil)}
               </span>
             </label>
@@ -87,7 +87,7 @@ export default function ReorganizeConflictModal({ conflicts, onCancel, onConfirm
           <button
             onClick={() => onConfirm(selectedIds)}
             disabled={busy || selectedIds.length === 0}
-            className="flex-1 text-xs font-semibold py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-40"
+            className="flex-1 text-xs font-semibold py-2 rounded-lg bg-status-warning border border-status-warning text-iron-bg hover:bg-status-warning/85 transition-colors disabled:opacity-40"
           >
             {busy ? T.common.processing : T.guestDrawer.reorganizeConfirm}
           </button>

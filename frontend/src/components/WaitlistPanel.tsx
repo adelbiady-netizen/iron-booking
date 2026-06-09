@@ -86,7 +86,7 @@ function WaitlistEntryDetails({
       <div className="pl-6 flex items-center gap-2 flex-wrap text-[10px] text-iron-muted">
         <span className={`px-1.5 py-0.5 rounded border ${
           entry.status === 'NOTIFIED'
-            ? 'border-blue-500/30 text-blue-400 bg-blue-500/10'
+            ? 'border-status-reserved/30 text-status-reserved bg-status-reserved/10'
             : 'border-iron-border/60 text-iron-muted'
         }`}>
           {entry.status === 'NOTIFIED' ? T.waitlistPanel.statusNotified : T.waitlistPanel.statusWaiting}
@@ -130,7 +130,7 @@ function WaitlistEntryDetails({
               className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none"
             />
           </div>
-          {saveError && <p className="text-red-400 text-[11px]">{saveError}</p>}
+          {saveError && <p className="text-status-danger text-[11px]">{saveError}</p>}
           {isDirty && (
             <button
               disabled={saving || !localName.trim()}
@@ -149,7 +149,7 @@ function WaitlistEntryDetails({
           if (entry.notifiedAt) {
             const m = Math.floor((Date.now() - new Date(entry.notifiedAt).getTime()) / 60_000);
             return (
-              <span className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 bg-blue-500/10">
+              <span className="text-[11px] px-2.5 py-1 rounded-md border border-status-reserved/30 text-status-reserved bg-status-reserved/10">
                 {m < 1 ? T.waitlistPanel.notifiedJustNow : T.waitlistPanel.notifiedAgo(m)}
               </span>
             );
@@ -162,7 +162,7 @@ function WaitlistEntryDetails({
                   setNotifyBusy(true);
                   try { await onNotify(entry); } finally { setNotifyBusy(false); }
                 }}
-                className="text-[11px] px-2.5 py-1 rounded-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+                className="text-[11px] px-2.5 py-1 rounded-md border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors disabled:opacity-40"
               >
                 {notifyBusy ? '…' : T.waitlistPanel.notifyButton}
               </button>
@@ -188,14 +188,14 @@ function WaitlistEntryDetails({
       {sugs.length > 0 && (
         <div className="pl-6">
           {pendingConflict ? (
-            <div className="rounded-md bg-amber-900/15 border border-amber-500/30 px-2 py-1.5">
-              <p className="text-amber-400 text-[10px] font-medium mb-1.5">
+            <div className="rounded-md bg-amber-900/15 border border-status-warning/30 px-2 py-1.5">
+              <p className="text-status-warning text-[10px] font-medium mb-1.5">
                 {T.smartSeat.conflictWarn(pendingConflict.conflictMin)}
               </p>
               <div className="flex gap-1.5">
                 <button
                   onClick={() => { onSeatAtTable?.(pendingConflict.tableId, entry); setPendingConflict(null); onClose(); }}
-                  className="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                  className="text-[10px] font-medium px-2 py-0.5 rounded bg-status-warning/20 border border-status-warning/40 text-status-warning hover:bg-status-warning/30 transition-colors"
                 >
                   {T.smartSeat.seatAnyway}
                 </button>
@@ -239,7 +239,7 @@ function WaitlistEntryDetails({
                   >
                     <span>→ {sug.tableName}</span>
                     <span style={{ color: sug.labelColor }}>· {sug.label}</span>
-                    {sug.hasConflict && <span className="text-amber-400 ml-0.5">⚠</span>}
+                    {sug.hasConflict && <span className="text-status-warning ml-0.5">⚠</span>}
                   </button>
                 );
               })}
@@ -414,7 +414,7 @@ export default function WaitlistPanel({
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-iron-green-light text-xs font-medium">{guestHint.firstName} {guestHint.lastName}</span>
-                    {guestHint.isVip && <span className="text-[10px] font-semibold text-amber-400">VIP</span>}
+                    {guestHint.isVip && <span className="text-[10px] font-semibold text-status-warning">VIP</span>}
                   </div>
                   <button type="button" onClick={() => setHintDismissed(true)} className="text-iron-muted hover:text-iron-text text-base leading-none px-0.5">×</button>
                 </div>
@@ -424,12 +424,12 @@ export default function WaitlistPanel({
                     {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
                     {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
                   </div>
-                  {guestHint.allergies.length > 0 && <div className="text-red-400">⚠ {guestHint.allergies.join(', ')}</div>}
+                  {guestHint.allergies.length > 0 && <div className="text-status-danger">⚠ {guestHint.allergies.join(', ')}</div>}
                   {guestHint.internalNotes && <div className="text-iron-muted/70 italic truncate">{guestHint.internalNotes}</div>}
                 </div>
               </div>
             )}
-            {error && <p className="text-red-400 text-[11px]">{error}</p>}
+            {error && <p className="text-status-danger text-[11px]">{error}</p>}
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
@@ -473,7 +473,7 @@ export default function WaitlistPanel({
 
         {!loading && active.map((entry, i) => {
           const eta      = entry.estimatedWaitMin;
-          const etaColor = eta === null ? '' : eta <= 20 ? 'text-amber-400' : 'text-red-400';
+          const etaColor = eta === null ? '' : eta <= 20 ? 'text-status-warning' : 'text-status-danger';
           const urgency  = urgencyMap.get(entry.id) ?? 'normal';
           const rank     = rankMap.get(entry.id) ?? (i + 1);
           const isOpen   = expandedId === entry.id;
@@ -493,7 +493,7 @@ export default function WaitlistPanel({
               >
                 {/* Rank */}
                 <span className={`text-[10px] font-mono w-4 shrink-0 text-right font-semibold ${
-                  urgency === 'critical' ? 'text-red-400' : urgency === 'high' ? 'text-amber-400' : 'text-iron-muted'
+                  urgency === 'critical' ? 'text-status-danger' : urgency === 'high' ? 'text-status-warning' : 'text-iron-muted'
                 }`}>
                   #{rank}
                 </span>
@@ -508,12 +508,12 @@ export default function WaitlistPanel({
                       </span>
                     )}
                     {urgency === 'critical' && (
-                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-red-900/30 border border-red-500/30 text-red-400 shrink-0">
+                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-red-900/30 border border-status-danger/30 text-status-danger shrink-0">
                         {T.flowControl.urgencyCritical}
                       </span>
                     )}
                     {urgency === 'high' && (
-                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-amber-900/30 border border-amber-500/30 text-amber-400 shrink-0">
+                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-amber-900/30 border border-status-warning/30 text-status-warning shrink-0">
                         {T.flowControl.urgencyHigh}
                       </span>
                     )}

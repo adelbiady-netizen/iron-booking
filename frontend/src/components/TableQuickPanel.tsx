@@ -8,11 +8,11 @@ import { formatReservationSource } from '../utils/displayHelpers';
 import { fmtHostTime, normalizeTime } from '../utils/time';
 
 const STATUS_DOT: Record<ReservationStatus, string> = {
-  PENDING:   'bg-amber-400',
-  CONFIRMED: 'bg-blue-400',
-  SEATED:    'bg-emerald-400',
+  PENDING:   'bg-status-warning',
+  CONFIRMED: 'bg-status-reserved',
+  SEATED:    'bg-status-success',
   COMPLETED: 'bg-iron-muted/50',
-  CANCELLED: 'bg-red-400',
+  CANCELLED: 'bg-status-danger',
   NO_SHOW:   'bg-orange-400',
 };
 
@@ -203,9 +203,9 @@ export default function TableQuickPanel({
   const base        = 'text-xs font-semibold px-3.5 py-3 rounded-xl border transition-[background-color,border-color,color,transform] duration-100 disabled:opacity-40 active:scale-[0.97]';
   const basePrimary = 'text-sm font-semibold px-4 py-4 rounded-xl border transition-[background-color,border-color,transform,opacity] duration-150 disabled:opacity-40 min-h-[52px] flex items-center justify-center w-full active:scale-[0.97]';
   const btnGreen   = `${basePrimary} bg-iron-green/22 border-iron-green/45 text-iron-green-light hover:bg-iron-green/32`;
-  const btnBlue    = `${basePrimary} bg-blue-500/15 border-blue-500/32 text-blue-400 hover:bg-blue-500/26`;
-  const btnAmber   = `${base} bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25`;
-  const btnRed     = `${base} bg-red-900/15 border-red-900/25 text-red-400 hover:bg-red-900/25`;
+  const btnBlue    = `${basePrimary} bg-status-reserved/15 border-status-reserved/32 text-status-reserved hover:bg-status-reserved/26`;
+  const btnAmber   = `${base} bg-status-warning/15 border-status-warning/30 text-status-warning hover:bg-status-warning/25`;
+  const btnRed     = `${base} bg-red-900/15 border-red-900/25 text-status-danger hover:bg-red-900/25`;
   const btnNeutral = `${base} bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30`;
 
   function Btn({ label, cls, onClick, disabled, style }: { label: string; cls: string; onClick: () => void; disabled?: boolean; style?: React.CSSProperties }) {
@@ -221,14 +221,14 @@ export default function TableQuickPanel({
   // ── Status pill ────────────────────────────────────────────────────────────
   const statusConfig = (() => {
     if (floorTable.locked) {
-      return { cls: 'bg-amber-500/10 border-amber-500/25 text-amber-400', dot: 'bg-amber-400', label: T.tableQuickPanel.locked };
+      return { cls: 'bg-status-warning/10 border-status-warning/25 text-status-warning', dot: 'bg-status-warning', label: T.tableQuickPanel.locked };
     }
     if (floorTable.liveStatus === 'OCCUPIED') {
       const mr = floorTable.currentReservation?.minutesRemaining;
       const isOverdue = mr !== undefined && mr < 0;
       if (isOverdue) {
         const label = T.tableQuickPanel.minOver(Math.abs(mr!));
-        return { cls: 'bg-red-900/20 border-red-700/30 text-red-400', dot: 'bg-red-400', label };
+        return { cls: 'bg-red-900/20 border-red-700/30 text-status-danger', dot: 'bg-status-danger', label };
       }
       let label = T.tableQuickPanel.statusOccupied;
       if (mr !== undefined && isLiveView) {
@@ -238,13 +238,13 @@ export default function TableQuickPanel({
     }
     if (floorTable.liveStatus === 'RESERVED' && res && isLiveView) {
       const a = arrivalState(res.time, res.status, nowTime);
-      if (a === 'NO_SHOW_RISK')   return { cls: 'bg-red-900/15 border-red-900/25 text-red-400',         dot: 'bg-red-400',    label: T.tableQuickPanel.arrivalNoShowRisk };
+      if (a === 'NO_SHOW_RISK')   return { cls: 'bg-red-900/15 border-red-900/25 text-status-danger',         dot: 'bg-status-danger',    label: T.tableQuickPanel.arrivalNoShowRisk };
       if (a === 'LATE')           return { cls: 'bg-orange-500/15 border-orange-500/25 text-orange-400', dot: 'bg-orange-400', label: T.tableQuickPanel.arrivalLate };
-      if (a === 'DUE_NOW')        return { cls: 'bg-blue-500/15 border-blue-500/25 text-blue-300',       dot: 'bg-blue-300',   label: T.tableQuickPanel.arrivalDueNow };
-      if (a === 'ARRIVING_SOON')  return { cls: 'bg-blue-500/10 border-blue-500/20 text-blue-400',       dot: 'bg-blue-400',   label: T.tableQuickPanel.arrivalSoon };
+      if (a === 'DUE_NOW')        return { cls: 'bg-status-reserved/15 border-status-reserved/25 text-status-reserved',       dot: 'bg-status-reserved',   label: T.tableQuickPanel.arrivalDueNow };
+      if (a === 'ARRIVING_SOON')  return { cls: 'bg-status-reserved/10 border-status-reserved/20 text-status-reserved',       dot: 'bg-status-reserved',   label: T.tableQuickPanel.arrivalSoon };
     }
     if (floorTable.liveStatus === 'RESERVED') {
-      return { cls: 'bg-blue-500/10 border-blue-500/25 text-blue-400', dot: 'bg-blue-400', label: T.tableQuickPanel.statusReserved };
+      return { cls: 'bg-status-reserved/10 border-status-reserved/25 text-status-reserved', dot: 'bg-status-reserved', label: T.tableQuickPanel.statusReserved };
     }
     return { cls: 'bg-iron-bg border-iron-border text-iron-muted', dot: 'bg-iron-muted/50', label: T.tableQuickPanel.available };
   })();
@@ -262,7 +262,7 @@ export default function TableQuickPanel({
               <div className="flex items-center gap-2.5">
                 <span className="text-iron-text font-bold text-2xl tracking-tight">{floorTable.name}</span>
                 {floorTable.locked && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 font-semibold">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning font-semibold">
                     {T.tableQuickPanel.locked}
                   </span>
                 )}
@@ -300,7 +300,7 @@ export default function TableQuickPanel({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-iron-text font-bold text-[22px] leading-tight tracking-tight">{res.guestName}</span>
                   {res.guest?.isVip && (
-                    <span className="text-amber-400 text-[10px] font-semibold bg-amber-500/14 px-1.5 py-0.5 rounded border border-amber-500/28 shrink-0">
+                    <span className="text-status-warning text-[10px] font-semibold bg-status-warning/14 px-1.5 py-0.5 rounded border border-status-warning/28 shrink-0">
                       {T.common.vip}
                     </span>
                   )}
@@ -309,13 +309,13 @@ export default function TableQuickPanel({
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[res.status]}`} />
                   <span className="text-iron-muted/75 text-xs">{STATUS_LABEL[res.status]}</span>
                   {res.isConfirmedByGuest && (
-                    <span className="text-emerald-400 text-[10px]">· {T.guestDrawer.guestConfirmed}</span>
+                    <span className="text-status-success text-[10px]">· {T.guestDrawer.guestConfirmed}</span>
                   )}
                   {res.isRunningLate && (
                     <span className="text-orange-400 text-[10px]">· {T.guestDrawer.runningLate}</span>
                   )}
                   {minsUntil !== null && res.status === 'PENDING' && minsUntil > 0 && minsUntil <= 30 && (
-                    <span className="text-amber-400 text-[10px]">· in {minsUntil}m</span>
+                    <span className="text-status-warning text-[10px]">· in {minsUntil}m</span>
                   )}
                 </div>
               </div>
@@ -399,21 +399,21 @@ export default function TableQuickPanel({
                 const mr = cr.minutesRemaining;
                 const freeAt = fmtHostTime(cr.expectedEndTime);
                 const cardCls = cr.isOverdue
-                  ? 'rounded-xl bg-red-900/10 border border-red-500/20 px-3 py-2 flex justify-between text-[13px]'
+                  ? 'rounded-xl bg-red-900/10 border border-status-danger/20 px-3 py-2 flex justify-between text-[13px]'
                   : mr <= 20
-                  ? 'rounded-xl bg-amber-900/10 border border-amber-500/20 px-3 py-2 flex justify-between text-[13px]'
+                  ? 'rounded-xl bg-amber-900/10 border border-status-warning/20 px-3 py-2 flex justify-between text-[13px]'
                   : 'rounded-xl bg-iron-bg/50 border border-iron-border/30 px-3 py-2 flex justify-between text-[13px]';
                 return (
                   <div className={cardCls} style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.14)' }}>
                     {cr.isOverdue ? (
                       <>
-                        <span className="text-red-400/75">Turn</span>
-                        <span className="text-red-400/85 tabular-nums font-medium">~{Math.abs(mr)} min over · was {freeAt}</span>
+                        <span className="text-status-danger/75">Turn</span>
+                        <span className="text-status-danger/85 tabular-nums font-medium">~{Math.abs(mr)} min over · was {freeAt}</span>
                       </>
                     ) : mr <= 20 ? (
                       <>
-                        <span className="text-amber-400/75">Turn</span>
-                        <span className="text-amber-300/85 tabular-nums font-medium">Free in ~{mr} min · {freeAt}</span>
+                        <span className="text-status-warning/75">Turn</span>
+                        <span className="text-status-warning/85 tabular-nums font-medium">Free in ~{mr} min · {freeAt}</span>
                       </>
                     ) : (
                       <>
@@ -431,10 +431,10 @@ export default function TableQuickPanel({
                 {res.hostNotes && !editingNote && (
                   <button
                     onClick={() => { setEditingNote(true); setNoteDraft(res.hostNotes ?? ''); }}
-                    className="w-full text-left px-2.5 py-2 rounded-lg bg-amber-900/10 border border-amber-500/25 hover:border-amber-500/40 transition-colors"
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-amber-900/10 border border-status-warning/25 hover:border-status-warning/40 transition-colors"
                     style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.78)' }}
                   >
-                    <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.hostNote}</p>
+                    <p className="text-[10px] text-status-warning/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.hostNote}</p>
                     <p className="text-amber-100/85 text-xs">{res.hostNotes}</p>
                   </button>
                 )}
@@ -563,7 +563,7 @@ export default function TableQuickPanel({
                         </>
                       ) : (
                         <div className="w-full space-y-1.5">
-                          <p className="text-amber-400 text-xs font-medium">{T.tableQuickPanel.unseatConfirm}</p>
+                          <p className="text-status-warning text-xs font-medium">{T.tableQuickPanel.unseatConfirm}</p>
                           <div className="flex gap-2">
                             <Btn label={T.tableQuickPanel.unseatConfirmYes} cls={btnAmber} onClick={handleUnseat} />
                             <Btn label={T.tableQuickPanel.cancelEdit} cls={btnNeutral}
@@ -605,9 +605,9 @@ export default function TableQuickPanel({
           {!res && floorTable.locked && (
             <div className="space-y-2">
               {floorTable.lockReason && (
-                <div className="px-2.5 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25">
-                  <p className="text-[10px] text-amber-400/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.lockedTitle}</p>
-                  <p className="text-amber-300 text-xs">{floorTable.lockReason}</p>
+                <div className="px-2.5 py-2 rounded-lg bg-status-warning/10 border border-status-warning/25">
+                  <p className="text-[10px] text-status-warning/70 font-semibold uppercase tracking-wider mb-0.5">{T.tableQuickPanel.lockedTitle}</p>
+                  <p className="text-status-warning text-xs">{floorTable.lockReason}</p>
                 </div>
               )}
               <Btn label={T.guestDrawer.unlockButton} cls={btnNeutral}
@@ -617,7 +617,7 @@ export default function TableQuickPanel({
 
           {/* ── ERROR ───────────────────────────────────────────────────────── */}
           {error && (
-            <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">{error}</p>
+            <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">{error}</p>
           )}
 
           {/* ── SPINNER (delayed 300ms) ──────────────────────────────────────── */}

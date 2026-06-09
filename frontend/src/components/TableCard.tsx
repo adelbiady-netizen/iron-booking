@@ -18,7 +18,7 @@ interface StatusStyle {
   labelColor: string;
 }
 
-const LOCKED_STYLE = 'border-amber-500/40 bg-amber-500/5 opacity-60';
+const LOCKED_STYLE = 'border-status-warning/40 bg-status-warning/5 opacity-60';
 
 interface Props {
   table: FloorTable;
@@ -51,10 +51,10 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
   const STATUS_STYLE: Record<string, StatusStyle> = {
     AVAILABLE:      { border: 'border-iron-border/55 hover:border-iron-green/55',   bg: '',                   dot: 'bg-iron-border/75',    label: T.tableStatus.AVAILABLE,      labelColor: 'text-iron-muted/70' },
     OCCUPIED:       { border: 'border-iron-green/80',                               bg: 'bg-iron-green/14',   dot: 'bg-iron-green-light',  label: T.tableStatus.OCCUPIED,       labelColor: 'text-iron-green-light' },
-    RESERVED_SOON:  { border: 'border-amber-400/90',                                bg: 'bg-amber-500/12',    dot: 'bg-amber-400',         label: T.tableStatus.RESERVED_SOON,  labelColor: 'text-amber-400' },
-    RESERVED:       { border: 'border-blue-500/55',                                 bg: 'bg-blue-950/28',     dot: 'bg-blue-400',          label: T.tableStatus.RESERVED,       labelColor: 'text-blue-400/90' },
+    RESERVED_SOON:  { border: 'border-status-warning/90',                                bg: 'bg-status-warning/12',    dot: 'bg-status-warning',         label: T.tableStatus.RESERVED_SOON,  labelColor: 'text-status-warning' },
+    RESERVED:       { border: 'border-status-reserved/55',                                 bg: 'bg-blue-950/28',     dot: 'bg-status-reserved',          label: T.tableStatus.RESERVED,       labelColor: 'text-status-reserved/90' },
     BLOCKED:        { border: 'border-iron-border/40',                              bg: 'bg-iron-bg/55',      dot: 'bg-iron-muted/55',     label: T.tableStatus.BLOCKED,        labelColor: 'text-iron-muted/65' },
-    STALE_OCCUPIED: { border: 'border-amber-600/28',                                bg: 'bg-amber-500/5',     dot: 'bg-amber-500/60',      label: T.tableStatus.STALE_OCCUPIED, labelColor: 'text-amber-600/55' },
+    STALE_OCCUPIED: { border: 'border-amber-600/28',                                bg: 'bg-status-warning/5',     dot: 'bg-status-warning/60',      label: T.tableStatus.STALE_OCCUPIED, labelColor: 'text-amber-600/55' },
   };
   const currentRes = table.currentReservation;
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
@@ -90,24 +90,24 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       style={shadowStyle}
       className={`
         group w-full text-left p-3 rounded-lg border transition-[background-color,border-color,box-shadow,opacity,transform] duration-150 active:scale-[0.97] touch-manipulation
-        ${table.locked ? 'bg-amber-500/5' : isOverdue ? 'bg-red-500/20' : isEndingSoon ? 'bg-amber-400/16' : (style.bg || (isAvailable ? 'bg-iron-card hover:bg-iron-elevated/30' : 'bg-iron-card'))}
+        ${table.locked ? 'bg-status-warning/5' : isOverdue ? 'bg-status-danger/20' : isEndingSoon ? 'bg-status-warning/16' : (style.bg || (isAvailable ? 'bg-iron-card hover:bg-iron-elevated/30' : 'bg-iron-card'))}
         ${selected
           ? 'border-iron-green ring-2 ring-iron-green-light/55 ring-offset-1 ring-offset-iron-bg'
           : softHold && table.liveStatus === 'AVAILABLE' && !table.locked
-          ? 'border-indigo-500/60 ring-2 ring-indigo-500/20 ring-offset-1 ring-offset-iron-bg'
+          ? 'border-status-info/60 ring-2 ring-status-info/20 ring-offset-1 ring-offset-iron-bg'
           : isBestSuggestion && !table.locked
           ? `${style.border} ring-2 ring-iron-green/20 ring-offset-1 ring-offset-iron-bg`
-          : table.locked ? LOCKED_STYLE : isOverdue ? 'border-red-500/85' : isEndingSoon ? 'border-amber-400/80' : style.border}
+          : table.locked ? LOCKED_STYLE : isOverdue ? 'border-status-danger/85' : isEndingSoon ? 'border-status-warning/80' : style.border}
       `}
     >
       {/* Name + priority dot + turn badge + status label */}
       <div className="flex items-start justify-between gap-1 mb-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-iron-text font-semibold text-[15px] leading-tight truncate">{table.name}</span>
-          {insight?.priority === 'HIGH'   && <span className="w-2 h-2 rounded-full shrink-0 bg-red-500"   title={insight.message} />}
-          {insight?.priority === 'MEDIUM' && <span className="w-2 h-2 rounded-full shrink-0 bg-amber-400" title={insight.message} />}
+          {insight?.priority === 'HIGH'   && <span className="w-2 h-2 rounded-full shrink-0 bg-status-danger"   title={insight.message} />}
+          {insight?.priority === 'MEDIUM' && <span className="w-2 h-2 rounded-full shrink-0 bg-status-warning" title={insight.message} />}
           {extraTurns > 0 && !isAvailable && (
-            <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded bg-blue-500/15 border border-blue-500/25 text-blue-400 tabular-nums">
+            <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded bg-status-reserved/15 border border-status-reserved/25 text-status-reserved tabular-nums">
               +{extraTurns}
             </span>
           )}
@@ -121,7 +121,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       {/* Lock badge */}
       {table.locked && (
         <div className="flex items-center gap-1 mb-1.5">
-          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400">
+          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
             {T.tableCard.locked}{table.lockReason ? ` · ${table.lockReason}` : ''}
           </span>
         </div>
@@ -149,15 +149,15 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             <div className="flex items-center gap-1 min-w-0">
               <p className="text-iron-text text-[13px] font-semibold truncate flex-1">{currentRes.guestName}</p>
               {isCombined && (
-                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
+                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-status-reserved/15 border-status-reserved/30 text-status-reserved">⊞</span>
               )}
             </div>
             <p className="text-iron-muted text-xs font-medium">
               {T.common.guests(currentRes.partySize)}
               {!isSecondary && isToday && mr > 10 && <span> · {T.tableCard.endsIn(mr)}</span>}
-              {!isSecondary && isToday && mr > 5 && mr <= 10 && <span className="text-amber-400 font-medium"> · {T.tableCard.endsIn(mr)}</span>}
-              {!isSecondary && isToday && mr >= -5 && mr <= 5 && <span className="text-amber-400"> · {T.tableCard.endsNow}</span>}
-              {!isSecondary && isToday && mr < -5 && <span className="text-red-400 font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
+              {!isSecondary && isToday && mr > 5 && mr <= 10 && <span className="text-status-warning font-medium"> · {T.tableCard.endsIn(mr)}</span>}
+              {!isSecondary && isToday && mr >= -5 && mr <= 5 && <span className="text-status-warning"> · {T.tableCard.endsNow}</span>}
+              {!isSecondary && isToday && mr < -5 && <span className="text-status-danger font-semibold"> · {T.tableCard.overBy(Math.abs(mr))}</span>}
             </p>
           </div>
         );
@@ -171,7 +171,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             <div className="flex items-center gap-1 min-w-0">
               <p className="text-amber-800/70 text-[13px] font-medium truncate flex-1">{currentRes.guestName}</p>
               {isCombined && (
-                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-amber-500/10 border-amber-500/20 text-amber-600/60">⊞</span>
+                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-status-warning/10 border-status-warning/20 text-amber-600/60">⊞</span>
               )}
             </div>
             <p className="text-amber-600/50 text-xs font-medium">
@@ -190,13 +190,13 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
             <div className="flex items-center gap-1.5 min-w-0">
               <p className="text-iron-text text-[13px] font-semibold truncate flex-1">{displayRes.guestName}</p>
               {isCombined && (
-                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-blue-500/15 border-blue-500/30 text-blue-400">⊞</span>
+                <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-status-reserved/15 border-status-reserved/30 text-status-reserved">⊞</span>
               )}
               {displayRes.isConfirmedByGuest && (
-                <span className="shrink-0 text-[10px] px-1 py-0.5 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold">✓</span>
+                <span className="shrink-0 text-[10px] px-1 py-0.5 rounded border bg-status-success/10 border-status-success/30 text-status-success font-semibold">✓</span>
               )}
               {!displayRes.isConfirmedByGuest && displayRes.confirmationSentAt && (
-                <span className="shrink-0 text-[10px] px-1 py-0.5 rounded border bg-blue-500/10 border-blue-500/25 text-blue-400 font-semibold">SMS</span>
+                <span className="shrink-0 text-[10px] px-1 py-0.5 rounded border bg-status-reserved/10 border-status-reserved/25 text-status-reserved font-semibold">SMS</span>
               )}
             </div>
             <p className="text-iron-muted text-[11px] font-medium">
@@ -224,8 +224,8 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
       )}
 
       {isAvailable && softHold && !insight && (
-        <div className="mt-0.5 -mx-0.5 px-1.5 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30">
-          <p className="text-indigo-300 text-[11px] font-medium truncate">
+        <div className="mt-0.5 -mx-0.5 px-1.5 py-1 rounded-md bg-status-info/10 border border-status-info/30">
+          <p className="text-status-info text-[11px] font-medium truncate">
             ⏸ {softHold.guestName} · {T.common.guests(softHold.partySize)}
           </p>
           <p className="text-iron-muted text-[11px]">{isToday ? (() => { const m = waitMins(softHold.addedAt, operationalNow ?? Date.now()); return m < 1 ? T.waitlistPanel.justAdded : T.flowControl.softHoldWaiting(m); })() : ''}</p>

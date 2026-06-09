@@ -114,7 +114,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <div>
       <label className="block text-xs text-iron-muted mb-1">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+      {error && <p className="text-xs text-status-danger mt-1">{error}</p>}
     </div>
   );
 }
@@ -140,7 +140,7 @@ function Btn({
   const base = 'px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50';
   const cls =
     variant === 'primary' ? `${base} bg-iron-green hover:bg-iron-green-light text-white` :
-    variant === 'danger'  ? `${base} bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30` :
+    variant === 'danger'  ? `${base} bg-red-600/20 hover:bg-red-600/30 text-status-danger border border-red-600/30` :
     `${base} border border-iron-border text-iron-muted hover:text-iron-text`;
   return (
     <button type="button" className={cls} onClick={onClick} disabled={disabled || busy}>
@@ -576,7 +576,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             </ul>
 
             <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg px-4 py-3">
-              <p className="text-xs text-amber-300 leading-relaxed">
+              <p className="text-xs text-status-warning leading-relaxed">
                 The public page will show draft content immediately, but will not appear in any listing or QR scan until you configure branding and click <strong>Publish</strong>.
               </p>
             </div>
@@ -584,7 +584,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
           <div className="px-6 py-4 border-t border-iron-border">
             {provisionError && (
-              <p className="text-xs text-red-400 mb-3">{provisionError}</p>
+              <p className="text-xs text-status-danger mb-3">{provisionError}</p>
             )}
             <button
               type="button"
@@ -604,7 +604,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
     return (
       <div className="max-w-lg py-8">
         <div className="bg-iron-card border border-red-900/30 rounded-xl p-6">
-          <p className="text-red-400 text-sm">Failed to load Guest Hub data. Try refreshing.</p>
+          <p className="text-status-danger text-sm">Failed to load Guest Hub data. Try refreshing.</p>
         </div>
       </div>
     );
@@ -652,7 +652,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
           <h3 className="text-base font-semibold text-iron-text">Guest Hub Content</h3>
           <p className="text-xs text-iron-muted mt-0.5">
             Slug: <code className="text-iron-green">{hub.slug}</code>
-            {!hub.isActive && <span className="ml-2 text-amber-400">(inactive)</span>}
+            {!hub.isActive && <span className="ml-2 text-status-warning">(inactive)</span>}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -674,7 +674,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               href={liveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-700/50 text-emerald-400 hover:text-emerald-300 text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-status-success/50 text-status-success hover:text-status-success text-xs font-medium transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -749,14 +749,14 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
           const canActivate = s !== 'PUBLISHED' && !!hub.publishedBranding;
           return (
             <div className={`px-5 py-3.5 flex items-center justify-between gap-4 ${
-              isLive     ? 'bg-emerald-950/30 border-b border-emerald-900/40' :
+              isLive     ? 'bg-status-success/30 border-b border-status-success/40' :
               isInactive ? 'bg-amber-950/20 border-b border-amber-900/30'    :
               'border-b border-iron-border'
             }`}>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400' : isInactive ? 'bg-amber-400' : 'bg-iron-muted'}`} />
-                  <p className={`text-sm font-semibold ${isLive ? 'text-emerald-400' : isInactive ? 'text-amber-300' : 'text-iron-muted'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-status-success' : isInactive ? 'bg-status-warning' : 'bg-iron-muted'}`} />
+                  <p className={`text-sm font-semibold ${isLive ? 'text-status-success' : isInactive ? 'text-status-warning' : 'text-iron-muted'}`}>
                     {isLive ? 'Live — visible to guests' : isInactive ? 'Inactive — page offline' : 'Draft — not yet live'}
                   </p>
                 </div>
@@ -767,7 +767,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                      ? 'Content is published — click Activate to go live'
                      : 'Publish branding first, then activate'}
                 </p>
-                {activateError && <p className="text-xs text-red-400 mt-1 ml-3.5">{activateError}</p>}
+                {activateError && <p className="text-xs text-status-danger mt-1 ml-3.5">{activateError}</p>}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {canActivate && (
@@ -775,7 +775,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                     type="button"
                     onClick={activate}
                     disabled={activating}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 bg-status-success hover:bg-status-success text-white text-xs font-semibold rounded transition-colors disabled:opacity-50"
                   >
                     {activating ? 'Activating…' : isInactive ? 'Reactivate' : 'Activate'}
                   </button>
@@ -785,7 +785,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                     type="button"
                     onClick={deactivate}
                     disabled={activating}
-                    className="px-3 py-1.5 text-xs font-medium border border-iron-border text-iron-muted hover:text-red-400 hover:border-red-900/50 rounded transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs font-medium border border-iron-border text-iron-muted hover:text-status-danger hover:border-red-900/50 rounded transition-colors disabled:opacity-50"
                   >
                     {activating ? '…' : 'Deactivate'}
                   </button>
@@ -800,8 +800,8 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
           <div>
             {hasUnpublishedChanges ? (
               <>
-                <p className="text-sm font-medium text-amber-300">Unpublished content changes</p>
-                <p className="text-xs text-amber-400/70 mt-0.5">
+                <p className="text-sm font-medium text-status-warning">Unpublished content changes</p>
+                <p className="text-xs text-status-warning/70 mt-0.5">
                   {hub.lastPublishedAt
                     ? `Last published ${formatPublishedAt(hub.lastPublishedAt)}`
                     : 'Never published — activate requires publishing first'}
@@ -816,7 +816,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               </>
             )}
             {!publishConfirm && publishError && (
-              <p className="text-xs text-red-400 mt-1">{publishError}</p>
+              <p className="text-xs text-status-danger mt-1">{publishError}</p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -833,7 +833,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 type="button"
                 onClick={handlePublishClick}
                 disabled={publishBusy}
-                className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 bg-amber-500 hover:bg-amber-400 text-stone-900"
+                className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 bg-status-warning hover:bg-status-warning text-stone-900"
               >
                 {publishBusy ? 'Publishing…' : 'Review & publish →'}
               </button>
@@ -854,8 +854,8 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
 
         {/* Row 3 — Live URL (only when published) */}
         {hub.publicStatus === 'PUBLISHED' && (
-          <div className="px-5 py-3 border-t border-emerald-900/30 flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 min-w-0 flex-1">
+          <div className="px-5 py-3 border-t border-status-success/30 flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-status-success min-w-0 flex-1">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="2" y1="12" x2="22" y2="12"/>
@@ -864,7 +864,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               <span className="font-mono truncate">ironbooking.com/r/{hub.slug}</span>
             </div>
             {hub.qrTokens.filter(t => t.isActive).length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300 text-[11px] font-medium flex-shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-status-success/40 text-status-success text-[11px] font-medium flex-shrink-0">
                 {hub.qrTokens.filter(t => t.isActive).length} QR active
               </span>
             )}
@@ -874,7 +874,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 href={liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2 py-1 text-xs rounded border border-emerald-700/50 text-emerald-400 hover:text-emerald-300 transition-colors"
+                className="px-2 py-1 text-xs rounded border border-status-success/50 text-status-success hover:text-status-success transition-colors"
               >
                 Open ↗
               </a>
@@ -938,14 +938,14 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
       {publishConfirm && (
         <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 overflow-hidden">
           <div className="px-5 py-4 border-b border-amber-700/30">
-            <p className="text-sm font-semibold text-amber-300">Review before publishing</p>
-            <p className="text-xs text-amber-400/70 mt-0.5 leading-relaxed">
+            <p className="text-sm font-semibold text-status-warning">Review before publishing</p>
+            <p className="text-xs text-status-warning/70 mt-0.5 leading-relaxed">
               These items won't block publishing but may affect how guests see your page.
             </p>
           </div>
           <div className="px-5 py-4">
             {publishWarnings.length === 0 ? (
-              <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <div className="flex items-center gap-2 text-sm text-status-success">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
@@ -954,7 +954,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
             ) : (
               <ul className="space-y-2">
                 {publishWarnings.map(w => (
-                  <li key={w.key} className="flex items-start gap-2 text-xs text-amber-300 leading-relaxed">
+                  <li key={w.key} className="flex items-start gap-2 text-xs text-status-warning leading-relaxed">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 flex-shrink-0">
                       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                       <line x1="12" y1="9" x2="12" y2="13"/>
@@ -968,7 +968,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
           </div>
           {publishError && (
             <div className="px-5 pb-3">
-              <p className="text-xs text-red-400">{publishError}</p>
+              <p className="text-xs text-status-danger">{publishError}</p>
             </div>
           )}
           <div className="px-5 py-4 border-t border-amber-700/30 flex items-center gap-2">
@@ -976,7 +976,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               type="button"
               onClick={() => void publish()}
               disabled={publishBusy}
-              className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 bg-emerald-600 hover:bg-emerald-500 text-white"
+              className="px-4 py-2 rounded text-sm font-semibold transition-colors disabled:opacity-50 bg-status-success hover:bg-status-success text-white"
             >
               {publishBusy ? 'Publishing…' : 'Publish now'}
             </button>
@@ -1254,7 +1254,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                     <button
                       type="button"
                       onClick={() => setBrandingForm(f => ({ ...f, galleryImages: f.galleryImages.filter((_, i) => i !== idx) }))}
-                      className="mt-5 flex-shrink-0 px-2 py-1.5 text-xs text-iron-muted hover:text-red-400 border border-iron-border rounded transition-colors"
+                      className="mt-5 flex-shrink-0 px-2 py-1.5 text-xs text-iron-muted hover:text-status-danger border border-iron-border rounded transition-colors"
                       title="Remove image"
                     >
                       ✕
@@ -1272,12 +1272,12 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 )}
               </div>
               {brandingErrors.galleryImages && (
-                <p className="text-xs text-red-400">{brandingErrors.galleryImages}</p>
+                <p className="text-xs text-status-danger">{brandingErrors.galleryImages}</p>
               )}
             </div>
 
             {brandingError && (
-              <p className="text-sm text-red-400">{brandingError}</p>
+              <p className="text-sm text-status-danger">{brandingError}</p>
             )}
             <div className="flex gap-2 pt-1">
               <Btn variant="primary" onClick={saveBranding} busy={brandingBusy}>Save</Btn>
@@ -1315,17 +1315,17 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                         <span className="text-xs text-iron-text font-medium">{draftPreset.label}</span>
                         <span className="text-xs text-iron-muted">— {draftPreset.description}</span>
                         {hasDrift && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 font-medium">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-status-warning font-medium">
                             Draft
                           </span>
                         )}
                       </div>
                       {hasDrift && publishedPreset && (
-                        <div className="flex items-center gap-2 text-[11px] text-amber-400/80">
+                        <div className="flex items-center gap-2 text-[11px] text-status-warning/80">
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
                             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                           </svg>
-                          <span>Live page still shows <strong className="text-amber-300">{publishedPreset.label}</strong> — publish to apply this theme</span>
+                          <span>Live page still shows <strong className="text-status-warning">{publishedPreset.label}</strong> — publish to apply this theme</span>
                         </div>
                       )}
                     </div>
@@ -1391,7 +1391,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
                 <button
                   type="button"
                   onClick={() => removeSocialRow(idx)}
-                  className="text-iron-muted hover:text-red-400 transition-colors px-1 flex-shrink-0"
+                  className="text-iron-muted hover:text-status-danger transition-colors px-1 flex-shrink-0"
                   aria-label="Remove"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1410,7 +1410,7 @@ export default function GuestHubCmsPanel({ restaurantId }: { restaurantId: strin
               </button>
             )}
             {socialError && (
-              <p className="text-sm text-red-400">{socialError}</p>
+              <p className="text-sm text-status-danger">{socialError}</p>
             )}
             <div className="flex gap-2 pt-1">
               <Btn variant="primary" onClick={saveSocial} busy={socialBusy}>Save</Btn>

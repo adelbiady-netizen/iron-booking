@@ -334,7 +334,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
                    : dashData.hubStatus === 'INACTIVE'  ? 'Inactive'
                    : 'Not set up';
     const hubColor = dashData.hubStatus === 'PUBLISHED' ? 'text-iron-green'
-                   : dashData.hubStatus === 'DRAFT'     ? 'text-amber-400'
+                   : dashData.hubStatus === 'DRAFT'     ? 'text-status-warning'
                    : 'text-iron-muted';
 
     return (
@@ -516,7 +516,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
                 </table>
               </div>
               <p className="text-[11px] text-iron-muted">Service starts = first booking slot on the public page. Last seating = last reservation allowed.</p>
-              {scheduleError && <p className="text-xs text-red-400">{scheduleError}</p>}
+              {scheduleError && <p className="text-xs text-status-danger">{scheduleError}</p>}
               <div className="flex gap-3 pt-1">
                 <button onClick={handleSaveSchedule} disabled={scheduleBusy} className={btnPrimary}>
                   {scheduleBusy ? 'Saving…' : 'Save'}
@@ -582,7 +582,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
                       </div>
                       <button
                         onClick={() => handleDeleteRestriction(r.id)}
-                        className="shrink-0 text-xs text-iron-muted hover:text-red-400 px-1.5 py-1 rounded hover:bg-iron-bg transition-colors"
+                        className="shrink-0 text-xs text-iron-muted hover:text-status-danger px-1.5 py-1 rounded hover:bg-iron-bg transition-colors"
                         title="Delete restriction"
                       >✕</button>
                     </div>
@@ -632,7 +632,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
                       placeholder="Online booking unavailable for this date. Please call us to reserve."
                     />
                   </Field>
-                  {restrictionError && <p className="text-xs text-red-400">{restrictionError}</p>}
+                  {restrictionError && <p className="text-xs text-status-danger">{restrictionError}</p>}
                   <div className="flex gap-3 pt-1">
                     <button onClick={handleCreateRestriction} disabled={restrictionCreateBusy} className={btnPrimary}>
                       {restrictionCreateBusy ? 'Adding…' : 'Add rule'}

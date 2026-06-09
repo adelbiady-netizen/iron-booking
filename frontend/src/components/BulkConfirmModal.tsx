@@ -211,7 +211,7 @@ export default function BulkConfirmModal({ date, time, reservations, onClose, on
                   <span className="text-iron-muted text-xs">{T.bulkConfirm.loading}</span>
                 </div>
               ) : fetchError ? (
-                <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">{fetchError}</p>
+                <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">{fetchError}</p>
               ) : (
                 <>
                   {/* Total */}
@@ -230,8 +230,8 @@ export default function BulkConfirmModal({ date, time, reservations, onClose, on
                   {(stats.alreadyOk > 0 || stats.noPhone > 0 || stats.badStatus > 0 || stats.cooldown > 0) && (
                     <div className="border-t border-iron-border/40 pt-2.5 space-y-1.5">
                       {stats.alreadyOk > 0 && (
-                        <p className="text-emerald-400/80 text-xs flex items-center gap-1.5">
-                          <span className="text-emerald-400 shrink-0">✓</span>
+                        <p className="text-status-success/80 text-xs flex items-center gap-1.5">
+                          <span className="text-status-success shrink-0">✓</span>
                           {T.bulkConfirm.alreadyConfirmed(stats.alreadyOk)}
                         </p>
                       )}
@@ -248,8 +248,8 @@ export default function BulkConfirmModal({ date, time, reservations, onClose, on
                         </p>
                       )}
                       {stats.cooldown > 0 && (
-                        <p className="text-amber-400/80 text-xs flex items-center gap-1.5">
-                          <span className="text-amber-400 shrink-0">⚠</span>
+                        <p className="text-status-warning/80 text-xs flex items-center gap-1.5">
+                          <span className="text-status-warning shrink-0">⚠</span>
                           {T.bulkConfirm.cooldown(stats.cooldown)}
                         </p>
                       )}
@@ -276,16 +276,16 @@ export default function BulkConfirmModal({ date, time, reservations, onClose, on
           {/* Result */}
           {phase === 'done' && result && (
             <div className="space-y-1.5">
-              <p className="text-emerald-400 font-semibold text-sm">{T.bulkConfirm.resultSent(result.sent)}</p>
+              <p className="text-status-success font-semibold text-sm">{T.bulkConfirm.resultSent(result.sent)}</p>
               {result.failed > 0 && (
-                <p className="text-red-400 text-sm">{T.bulkConfirm.resultFailed(result.failed)}</p>
+                <p className="text-status-danger text-sm">{T.bulkConfirm.resultFailed(result.failed)}</p>
               )}
             </div>
           )}
 
           {/* Send error */}
           {sendError && (
-            <p className="text-red-400 text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">{sendError}</p>
+            <p className="text-status-danger text-xs bg-red-900/10 border border-red-900/20 rounded-lg px-3 py-2">{sendError}</p>
           )}
         </div>
 
@@ -302,7 +302,7 @@ export default function BulkConfirmModal({ date, time, reservations, onClose, on
             <button
               onClick={handleSend}
               disabled={!canSend}
-              className="w-full text-sm font-semibold py-2.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-iron-green/25 border-iron-green/50 text-iron-green-light hover:bg-iron-green/35"
+              className="w-full text-sm font-semibold py-2.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-iron-green-light border-iron-green-light text-white hover:bg-iron-green"
             >
               {phase === 'sending' ? (
                 <span className="flex items-center justify-center gap-2">

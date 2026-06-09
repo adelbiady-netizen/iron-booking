@@ -47,7 +47,7 @@ export default function ActionBar({ insights, onItemClick, sectionSignal, pacing
   if (deduped.length === 0 && !sectionSignal && !pacingSignal) return null;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-1.5 border-b border-iron-border bg-iron-card/90 overflow-x-auto shrink-0">
+    <div className="ib-bar flex items-center gap-2 px-4 py-1.5 border-b border-iron-border bg-iron-card/90 overflow-x-auto shrink-0">
       <span className="text-iron-muted text-xs font-semibold uppercase tracking-widest shrink-0 select-none">
         {T.actionBar.now}
       </span>
@@ -60,12 +60,12 @@ export default function ActionBar({ insights, onItemClick, sectionSignal, pacing
             i >= 2 ? 'hidden sm:flex' : 'flex'
           } ${
             insight.priority === 'HIGH'
-              ? 'bg-red-900/20 border-red-900/35 text-red-400 hover:bg-red-900/30 animate-action-pulse'
-              : 'bg-amber-900/15 border-amber-500/30 text-amber-400 hover:bg-amber-900/25'
+              ? 'bg-red-900/20 border-red-900/35 text-status-danger hover:bg-red-900/30 animate-action-pulse'
+              : 'bg-amber-900/15 border-status-warning/30 text-status-warning hover:bg-amber-900/25'
           }`}
         >
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-            insight.priority === 'HIGH' ? 'bg-red-500' : 'bg-amber-400'
+            insight.priority === 'HIGH' ? 'bg-status-danger' : 'bg-status-warning'
           }`} />
           {insight.message}
           <kbd className="ml-1 text-[10px] opacity-50 font-mono border border-current rounded px-0.5 leading-tight select-none">
@@ -83,8 +83,8 @@ export default function ActionBar({ insights, onItemClick, sectionSignal, pacing
           {pacingSignal && (
             <span className={`text-xs px-2 py-0.5 rounded border select-none ${
               pacingSignal === 'EASING'
-                ? 'text-emerald-400/70 border-emerald-700/40'
-                : 'text-amber-400/70 border-amber-600/35'
+                ? 'text-status-success/70 border-status-success/40'
+                : 'text-status-warning/70 border-amber-600/35'
             }`}>
               {pacingSignal === 'EASING' ? T.actionBar.pacingEasing : T.actionBar.pacingTightening}
             </span>

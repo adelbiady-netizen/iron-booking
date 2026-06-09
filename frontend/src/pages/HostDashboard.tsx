@@ -1955,7 +1955,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       />
 
       {/* Secondary toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-iron-border/30 bg-iron-bg shrink-0" style={{ boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.10)' }}>
+      <div className="ib-bar flex items-center justify-between px-4 py-2 border-b border-iron-border/30 bg-iron-bg shrink-0" style={{ boxShadow: 'inset 0 -1px 0 rgba(0,0,0,0.10)' }}>
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -1970,7 +1970,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             }}
             className={`text-xs font-semibold border rounded-lg px-3.5 py-2 min-h-[34px] transition-colors ${
               combineMode
-                ? 'bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/28'
+                ? 'bg-blue-600/20 border-status-reserved/40 text-status-reserved hover:bg-blue-600/28'
                 : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
             }`}
           >
@@ -1992,7 +1992,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             }}
             className={`text-xs font-semibold border rounded-lg px-3.5 py-2 min-h-[34px] transition-colors ${
               reorganizeMode
-                ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/28'
+                ? 'bg-status-warning/20 border-status-warning/40 text-status-warning hover:bg-status-warning/28'
                 : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
             }`}
           >
@@ -2348,11 +2348,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                           prev.includes(r.id) ? prev.filter(x => x !== r.id) : [...prev, r.id]
                         )}
                         disabled={rebuildDayBusy}
-                        className="w-3.5 h-3.5 rounded border-iron-border accent-amber-400 shrink-0"
+                        className="w-3.5 h-3.5 rounded border-iron-border accent-status-warning shrink-0"
                       />
                       <span className="text-iron-text text-xs font-medium flex-1 truncate">{r.guestName}</span>
                       <span className="text-iron-muted text-[11px]">{T.common.guests(r.partySize)}</span>
-                      <span className="text-amber-400 text-[11px]">{r.time}</span>
+                      <span className="text-status-warning text-[11px]">{r.time}</span>
                     </label>
                   ))}
                 </div>
@@ -2361,7 +2361,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                   placeholder={T.hostDashboard.rebuildDayReason}
                   value={rebuildDayReason}
                   onChange={e => setRebuildDayReason(e.target.value)}
-                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-1.5 text-xs text-iron-text placeholder-iron-muted focus:outline-none focus:border-amber-500/50"
+                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-1.5 text-xs text-iron-text placeholder-iron-muted focus:outline-none focus:border-status-warning/50"
                 />
               </>
             )}
@@ -2393,7 +2393,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                       setRebuildDayBusy(false);
                     }
                   }}
-                  className="flex-1 text-xs bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 rounded-lg px-3 py-2 font-semibold transition-colors disabled:opacity-50"
+                  className="flex-1 text-xs bg-status-warning/20 border border-status-warning/40 text-status-warning hover:bg-status-warning/30 rounded-lg px-3 py-2 font-semibold transition-colors disabled:opacity-50"
                 >
                   {rebuildDayBusy ? T.common.processing : T.hostDashboard.rebuildDayConfirm}
                 </button>
@@ -2530,7 +2530,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               <button
                 onClick={confirmMove}
                 disabled={pendingMove.busy}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors disabled:opacity-40"
+                className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-status-warning rounded-lg transition-colors disabled:opacity-40"
               >
                 {pendingMove.busy ? '…' : T.floorBoard.moveConfirmBtn}
               </button>

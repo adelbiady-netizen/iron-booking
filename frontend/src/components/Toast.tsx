@@ -31,12 +31,12 @@ function ToastItem({ toast, onRemove }: ItemProps) {
         animate-toast
         ${toast.type === 'success'
           ? 'bg-iron-card border-iron-green/60 text-iron-text'
-          : 'bg-iron-card border-red-500/50 text-red-400'}
+          : 'bg-iron-card border-status-danger/50 text-status-danger'}
       `}
     >
       {toast.type === 'success'
         ? <span className="text-iron-green-light text-base leading-none">✓</span>
-        : <span className="text-red-400 text-base leading-none">✕</span>
+        : <span className="text-status-danger text-base leading-none">✕</span>
       }
       <span className="flex-1">{toast.text}</span>
       {toast.action && (

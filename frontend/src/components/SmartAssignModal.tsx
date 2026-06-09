@@ -297,7 +297,7 @@ export default function SmartAssignModal({ reservations, date, onClose, onApply,
                 <button
                   onClick={executeAssignments}
                   disabled={loading || readySelected === 0}
-                  className="flex-1 text-[13px] font-semibold px-4 py-2.5 rounded-xl bg-iron-green/20 border border-iron-green/40 text-iron-green-light hover:bg-iron-green/30 transition-colors disabled:opacity-35 disabled:cursor-not-allowed touch-manipulation active:scale-[0.98]"
+                  className="flex-1 text-[13px] font-semibold px-4 py-2.5 rounded-xl bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors disabled:opacity-35 disabled:cursor-not-allowed touch-manipulation active:scale-[0.98]"
                   style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.24)' }}
                 >
                   {readySelected > 0
@@ -403,7 +403,7 @@ function PreviewRow({
             <span className="text-iron-green-light text-[14px] leading-none">✓</span>
           )}
           {execStatus === 'failed' && (
-            <span className="text-red-400/80 text-[13px] leading-none">✗</span>
+            <span className="text-status-danger/80 text-[13px] leading-none">✗</span>
           )}
           {execStatus === 'idle' && (
             <span className="w-1.5 h-1.5 rounded-full bg-iron-border/35 mx-auto" />
@@ -437,7 +437,7 @@ function PreviewRow({
               <span className="text-iron-muted/38 text-[11px]">· {item.sectionName}</span>
             )}
             {item.isTight && (
-              <span className="text-[10px] px-1.5 py-px rounded border bg-amber-500/8 border-amber-500/18 text-amber-500/65 font-medium shrink-0">
+              <span className="text-[10px] px-1.5 py-px rounded border bg-status-warning/8 border-status-warning/18 text-status-warning/65 font-medium shrink-0">
                 {T.smartAssign.tightWarning}
               </span>
             )}
@@ -446,7 +446,7 @@ function PreviewRow({
 
         {/* Exec error */}
         {phase !== 'preview' && execStatus === 'failed' && item.error && (
-          <span className="text-red-400/65 text-[11px]">{item.error}</span>
+          <span className="text-status-danger/65 text-[11px]">{item.error}</span>
         )}
       </div>
     </div>
