@@ -311,7 +311,8 @@ export default function ReservationPanel({
                           <button
                             type="button"
                             onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                            className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green text-white hover:bg-iron-green-light transition-colors shrink-0"
+                            className="text-xs font-semibold px-1.5 py-1 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap shrink-0"
+                            style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
                           >
                             {T.reservationPanel.markArrivedBtn}
                           </button>
@@ -501,6 +502,18 @@ export default function ReservationPanel({
                     <span className="text-iron-text text-[17px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
                     <span className="text-iron-muted/65 text-[12px] tabular-nums leading-none font-semibold">{r.partySize}p</span>
                   </div>
+                  {onMarkArrived && !r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status) && (
+                    <div className="shrink-0 flex items-center ps-2">
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
+                        className="text-xs font-semibold px-1.5 py-1 rounded-md bg-iron-green hover:bg-iron-green-light text-white transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                        style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                      >
+                        {T.reservationPanel.markArrivedBtn}
+                      </button>
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -615,7 +628,7 @@ export default function ReservationPanel({
                       </div>
                     )}
                   </button>
-                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (['PENDING', 'CONFIRMED'].includes(r.status) && !r.isArrived && onMarkArrived) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
+                  {((!r.table && ['PENDING', 'CONFIRMED'].includes(r.status) && onChooseTable) || (r.isArrived && ['PENDING', 'CONFIRMED'].includes(r.status))) && (
                     <div className="flex flex-col items-center justify-center gap-2 pe-3.5 ps-1 shrink-0">
                       {r.isArrived ? (
                         <span className="text-[11px] font-semibold text-status-arrived whitespace-nowrap text-center leading-tight">
@@ -632,15 +645,6 @@ export default function ReservationPanel({
                               className="text-xs font-semibold px-3 py-2 rounded-lg bg-iron-green-light text-white shadow-sm hover:brightness-110 transition-[filter,transform] active:scale-[0.97] whitespace-nowrap"
                             >
                               {T.reservationPanel.chooseTable}
-                            </button>
-                          )}
-                          {onMarkArrived && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                              className="text-xs font-semibold px-3 py-2 rounded-lg bg-iron-green text-white shadow-sm hover:bg-iron-green-light transition-colors active:scale-[0.97] whitespace-nowrap"
-                            >
-                              {T.reservationPanel.markArrivedBtn}
                             </button>
                           )}
                         </>

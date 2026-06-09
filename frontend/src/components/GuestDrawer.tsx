@@ -687,6 +687,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const btnAmber  = 'bg-status-warning/15 border-status-warning/30 text-status-warning hover:bg-status-warning/25';
   const btnRed    = 'bg-red-900/15 border-red-900/25 text-status-danger hover:bg-red-900/25';
   const btnNeutral= 'bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30';
+  const btnSuccess= 'bg-status-success/15 border-status-success/30 text-status-success hover:bg-status-success/25';
+  const btnIndigo = 'bg-status-info/15 border-status-info/30 text-status-info hover:bg-status-info/25';
 
   const assignedTable   = res.tableId ? tables.find(t => t.id === res.tableId) ?? null : null;
   const tableIsLocked   = assignedTable?.locked ?? false;
@@ -879,14 +881,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   ? T.guestDrawer.actionChangeCombination
                   : T.guestDrawer.actionChangeTable
             }
-            cls={btnNeutral}
+            cls={btnIndigo}
             onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
             disabled={busy}
           />
           {res.guestPhone && !res.isConfirmedByGuest && (
             <ActionBtn
               label={T.guestDrawer.actionSendSms}
-              cls={btnNeutral}
+              cls={btnBlue}
               onClick={handleSendConfirmation}
               disabled={busy}
             />
@@ -894,7 +896,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {!res.isArrived && (
             <ActionBtn
               label={T.guestDrawer.actionMarkArrived}
-              cls={btnNeutral}
+              cls={btnSuccess}
               onClick={handleMarkArrived}
               disabled={busy}
             />
@@ -951,14 +953,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   ? T.guestDrawer.actionChangeCombination
                   : T.guestDrawer.actionChangeTable
             }
-            cls={btnNeutral}
+            cls={btnIndigo}
             onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
             disabled={busy}
           />
           {res.guestPhone && !res.isConfirmedByGuest && (
             <ActionBtn
               label={T.guestDrawer.actionSendSms}
-              cls={btnNeutral}
+              cls={btnBlue}
               onClick={handleSendConfirmation}
               disabled={busy}
             />
@@ -966,7 +968,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {!res.isArrived && (
             <ActionBtn
               label={T.guestDrawer.actionMarkArrived}
-              cls={btnNeutral}
+              cls={btnSuccess}
               onClick={handleMarkArrived}
               disabled={busy}
             />
