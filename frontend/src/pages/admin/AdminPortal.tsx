@@ -3,7 +3,7 @@ import { api, ApiError } from '../../api';
 import GuestHubCmsPanel from './GuestHubCmsPanel';
 import { useT } from '../../i18n/useT';
 import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
-import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageReport } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -383,6 +383,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [smsUsage,        setSmsUsage]        = useState<SmsUsageReport | null>(null);
   const [smsUsageMonth,   setSmsUsageMonth]   = useState('');
   const [smsUsageLoading, setSmsUsageLoading] = useState(false);
+  const [smsDetail,       setSmsDetail]       = useState<SmsUsageDetail | null>(null);
+  const [smsDetailId,     setSmsDetailId]     = useState<string | null>(null);
+  const [smsDetailLoading, setSmsDetailLoading] = useState(false);
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
@@ -723,6 +726,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
   const loadSmsUsage = useCallback(async (month?: string) => {
     setSmsUsageLoading(true);
+    setSmsDetail(null);
+    setSmsDetailId(null);
     try {
       const report = await api.admin.sms.usage(month);
       setSmsUsage(report);
@@ -730,6 +735,17 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     } catch { /* ignore */ }
     finally { setSmsUsageLoading(false); }
   }, []);
+
+  async function toggleSmsDetail(restaurantId: string) {
+    if (smsDetailId === restaurantId) { setSmsDetailId(null); setSmsDetail(null); return; }
+    setSmsDetailId(restaurantId);
+    setSmsDetail(null);
+    setSmsDetailLoading(true);
+    try {
+      setSmsDetail(await api.admin.sms.usageDetail(restaurantId, smsUsageMonth || undefined));
+    } catch { /* ignore */ }
+    finally { setSmsDetailLoading(false); }
+  }
 
   function openSmsUsage() {
     setSidebarTab('sms');
@@ -2443,20 +2459,73 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     {rows.length === 0 ? (
                       <tr><td colSpan={5} className="px-4 py-6 text-center text-iron-muted">No restaurants</td></tr>
                     ) : rows.map(r => (
-                      <tr key={r.restaurantId} className="border-b border-iron-border/60 last:border-0">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-iron-text">{r.name}</div>
-                          {r.smsSenderName && <div className="text-xs text-iron-muted">sender: {r.smsSenderName}</div>}
-                        </td>
-                        <td className="px-4 py-3">
-                          {r.smsEnabled
-                            ? <span className="text-iron-green text-xs font-medium">{r.smsProvider === 'INFORU' ? 'Live' : 'Enabled (test)'}</span>
-                            : <span className="text-iron-muted text-xs">Off</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums font-medium">{r.sent}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-status-danger">{r.failed || ''}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-iron-muted">{r.mock || ''}</td>
-                      </tr>
+                      <React.Fragment key={r.restaurantId}>
+                        <tr
+                          onClick={() => toggleSmsDetail(r.restaurantId)}
+                          className={`border-b border-iron-border/60 last:border-0 cursor-pointer hover:bg-iron-bg ${smsDetailId === r.restaurantId ? 'bg-iron-bg' : ''}`}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-iron-text">{smsDetailId === r.restaurantId ? '▾' : '▸'} {r.name}</div>
+                            {r.smsSenderName && <div className="text-xs text-iron-muted ml-4">sender: {r.smsSenderName}</div>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {r.smsEnabled
+                              ? <span className="text-iron-green text-xs font-medium">{r.smsProvider === 'INFORU' ? 'Live' : 'Enabled (test)'}</span>
+                              : <span className="text-iron-muted text-xs">Off</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium">{r.sent}</td>
+                          <td className="px-4 py-3 text-right tabular-nums text-status-danger">{r.failed || ''}</td>
+                          <td className="px-4 py-3 text-right tabular-nums text-iron-muted">{r.mock || ''}</td>
+                        </tr>
+                        {smsDetailId === r.restaurantId && (
+                          <tr className="border-b border-iron-border/60">
+                            <td colSpan={5} className="px-4 py-4 bg-iron-bg/50">
+                              {smsDetailLoading || !smsDetail ? (
+                                <div className="flex justify-center py-4">
+                                  <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-iron-muted mb-2">Breakdown by type ({smsDetail.month})</p>
+                                    {smsDetail.byType.length === 0 ? (
+                                      <p className="text-xs text-iron-muted">No messages this month.</p>
+                                    ) : (
+                                      <div className="flex flex-wrap gap-2">
+                                        {smsDetail.byType.map(t => (
+                                          <span key={t.messageType} className="text-xs bg-iron-surface border border-iron-border rounded px-2 py-1">
+                                            {t.messageType}: <span className="text-iron-green">{t.sent}</span>
+                                            {t.failed > 0 && <span className="text-status-danger"> / {t.failed} failed</span>}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-iron-muted mb-2">Latest messages</p>
+                                    {smsDetail.latest.length === 0 ? (
+                                      <p className="text-xs text-iron-muted">No messages logged.</p>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        {smsDetail.latest.map(m => (
+                                          <div key={m.id} className="text-xs flex items-center gap-2 flex-wrap">
+                                            <span className={m.status === 'SENT' || m.status === 'DELIVERED' ? 'text-iron-green' : m.status === 'FAILED' ? 'text-status-danger' : 'text-iron-muted'}>{m.status}</span>
+                                            <span className="text-iron-muted">{new Date(m.createdAt).toLocaleString()}</span>
+                                            <span className="text-iron-text">{m.messageType}</span>
+                                            <span className="text-iron-muted">→ {m.phone}</span>
+                                            {m.senderName && <span className="text-iron-muted">[{m.senderName}]</span>}
+                                            {m.errorMessage && <span className="text-status-danger italic">{m.errorMessage}</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

@@ -206,10 +206,19 @@ class InforUSmsProvider implements SmsProvider {
 function resolveProvider(settings: Record<string, unknown>): SmsProvider {
   const providerKey = (settings.smsProvider as string | undefined)?.toUpperCase();
   if (providerKey === 'INFORU') {
-    const senderName = ((settings.smsSenderName as string | undefined) ?? '').trim() || 'IRON';
-    return new InforUSmsProvider(senderName);
+    return new InforUSmsProvider(resolveSenderName(settings) ?? 'IRON');
   }
   return new MockSmsProvider();
+}
+
+// The alphanumeric sender shown to the guest. INFORU uses the configured sender
+// (fallback 'IRON'); MOCK has no real sender. Persisted on every MessageLog row.
+function resolveSenderName(settings: Record<string, unknown>): string | null {
+  const providerKey = (settings.smsProvider as string | undefined)?.toUpperCase();
+  if (providerKey === 'INFORU') {
+    return ((settings.smsSenderName as string | undefined) ?? '').trim() || 'IRON';
+  }
+  return null;
 }
 
 // ─── Core dispatch ────────────────────────────────────────────────────────────
@@ -255,6 +264,7 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
       messageType:   type,
       channel:       MessageChannel.SMS,
       provider:      provider.providerName,
+      senderName:    resolveSenderName(settings),
       status:        MessageStatus.PENDING,
       body:          message,
     },

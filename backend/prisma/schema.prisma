@@ -914,6 +914,7 @@ model MessageLog {
   messageType       MessageType
   channel           MessageChannel  @default(SMS)
   provider          MessageProvider
+  senderName        String?         // alphanumeric sender shown to the guest (e.g. "NAJMA"); null for MOCK
   status            MessageStatus   @default(PENDING)
   providerMessageId String?
   errorMessage      String?

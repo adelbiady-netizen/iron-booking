@@ -257,6 +257,34 @@ export interface SmsUsageReport {
   restaurants: SmsUsageRow[];
 }
 
+export interface SmsUsageMessage {
+  id: string;
+  phone: string;
+  messageType: string;
+  provider: string;
+  senderName: string | null;
+  status: string;
+  providerMessageId: string | null;
+  errorMessage: string | null;
+  costAgorot: number | null;
+  createdAt: string;
+}
+
+export interface SmsUsageDetail {
+  restaurantId: string;
+  name: string;
+  slug: string;
+  smsEnabled: boolean;
+  smsProvider: string;
+  smsSenderName: string | null;
+  month: string;
+  rangeStart: string;
+  rangeEnd: string;
+  totals: { sent: number; failed: number; pending: number; mock: number };
+  byType: Array<{ messageType: string; sent: number; failed: number }>;
+  latest: SmsUsageMessage[];
+}
+
 export interface AdminUser {
   id: string;
   email: string;
