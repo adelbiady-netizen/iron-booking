@@ -413,7 +413,7 @@ export const api = {
       usageDetail: (restaurantId: string, month?: string) =>
         request<SmsUsageDetail>(`/admin/sms/usage/${restaurantId}${month ? `?month=${encodeURIComponent(month)}` : ''}`),
       test: (body: { restaurantId: string; to: string; message: string; type?: string }) =>
-        request<{ result: { success: boolean; messageLogId: string; providerMessageId?: string }; log: { status: string; provider: string; errorMessage: string | null } | null }>(
+        request<{ result: { success: boolean; messageLogId: string; providerMessageId?: string }; log: { status: string; provider: string; senderName: string | null; providerMessageId: string | null; errorMessage: string | null } | null }>(
           '/admin/sms/test', { method: 'POST', body: JSON.stringify(body) }),
     },
     groups: {

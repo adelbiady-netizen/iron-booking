@@ -18,6 +18,14 @@ interface WizardSettings {
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
 
+// Israeli mobile validation — accepts 05XXXXXXXX, +9725XXXXXXXX, or 9725XXXXXXXX
+// (spaces / dashes / parens ignored). Rejects landlines and malformed numbers,
+// which InforU rejects with StatusId -18 ("no valid recipients").
+function isValidIsraeliMobile(raw: string): boolean {
+  const p = raw.replace(/[\s\-().]/g, '');
+  return /^(?:\+972|972|0)5\d{8}$/.test(p);
+}
+
 interface ScheduleRow { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string; }
 
 interface OnlineRestriction {
@@ -378,6 +386,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [smsTestBusy,  setSmsTestBusy]  = useState(false);
   const [smsTestPhone, setSmsTestPhone] = useState('');
   const [smsError,     setSmsError]     = useState<string | null>(null);
+  const [smsTestResult, setSmsTestResult] = useState<{ ok: boolean; status: string; providerMessageId: string | null; error: string | null; to: string } | null>(null);
 
   // SMS usage report (SUPER_ADMIN only)
   const [smsUsage,        setSmsUsage]        = useState<SmsUsageReport | null>(null);
@@ -505,6 +514,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setEditWhatsapp(false);
     setEditSms(false);
     setSmsError(null);
+    setSmsTestResult(null);
     setEditBranding(false);
     setShowAddUser(false);
     setShowAddRestriction(false);
@@ -702,19 +712,29 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     if (!selectedId) return;
     const to = smsTestPhone.trim();
     if (!to) { setSmsError('Enter a phone number to send a test'); return; }
+    // Validate locally before hitting the provider — InforU rejects bad numbers
+    // with StatusId -18, so catch landlines / typos here.
+    if (!isValidIsraeliMobile(to)) {
+      setSmsError('Not a valid Israeli mobile. Use 05XXXXXXXX or +9725XXXXXXXX (landlines are not allowed).');
+      return;
+    }
     setSmsTestBusy(true);
     setSmsError(null);
+    setSmsTestResult(null);
     try {
       const { result, log } = await api.admin.sms.test({
         restaurantId: selectedId,
         to,
         message: `Iron Booking SMS test — ${detail?.name ?? ''}`.trim(),
       });
-      if (result.success) {
-        showToast(`Test SMS sent via ${log?.provider ?? 'provider'}`);
-      } else {
-        setSmsError(log?.errorMessage ?? 'Send failed — check provider settings');
-      }
+      setSmsTestResult({
+        ok:                result.success,
+        status:            log?.status ?? (result.success ? 'SENT' : 'FAILED'),
+        providerMessageId: log?.providerMessageId ?? result.providerMessageId ?? null,
+        error:             log?.errorMessage ?? null,
+        to,
+      });
+      if (result.success) showToast(`Test SMS sent via ${log?.provider ?? 'provider'}`);
     } catch (err) {
       setSmsError(err instanceof Error ? err.message : 'Test failed');
     } finally {
@@ -1704,23 +1724,48 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <dd className="text-iron-text">{smsForm.senderName || <span className="text-iron-muted italic">Not set</span>}</dd>
               </div>
             </dl>
-            {isSuperAdmin && smsForm.enabled && (
-              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-iron-border/60">
-                <span className="text-xs text-iron-muted mt-3">Send a test SMS to:</span>
-                <input
-                  value={smsTestPhone}
-                  onChange={e => setSmsTestPhone(e.target.value)}
-                  placeholder="+972501234567"
-                  className="mt-3 bg-iron-bg border border-iron-border rounded px-2 py-1 text-xs text-iron-text w-44"
-                />
-                <button
-                  onClick={handleTestSms}
-                  disabled={smsTestBusy}
-                  className="mt-3 text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg disabled:opacity-50"
-                >{smsTestBusy ? 'Sending…' : 'Send test SMS'}</button>
-                {smsError && <p className="w-full text-xs text-status-danger mt-1">{smsError}</p>}
-              </div>
-            )}
+            {isSuperAdmin && smsForm.enabled && (() => {
+              const trimmed = smsTestPhone.trim();
+              const invalid = trimmed.length > 0 && !isValidIsraeliMobile(trimmed);
+              return (
+                <div className="pt-3 border-t border-iron-border/60">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-iron-muted">Test phone:</span>
+                    <input
+                      value={smsTestPhone}
+                      onChange={e => setSmsTestPhone(e.target.value)}
+                      placeholder="+972501234567"
+                      className={`bg-iron-bg border rounded px-2 py-1 text-xs text-iron-text w-44 ${invalid ? 'border-status-danger' : 'border-iron-border'}`}
+                    />
+                    <button
+                      onClick={handleTestSms}
+                      disabled={smsTestBusy || trimmed.length === 0 || invalid}
+                      className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg disabled:opacity-50"
+                    >{smsTestBusy ? 'Sending…' : 'Send test SMS'}</button>
+                  </div>
+                  <p className="text-[11px] text-iron-muted mt-1">Israeli mobile only — 05XXXXXXXX or +9725XXXXXXXX. Landlines are rejected by the provider.</p>
+                  {invalid && <p className="text-xs text-status-danger mt-1">Not a valid Israeli mobile number.</p>}
+                  {smsError && <p className="text-xs text-status-danger mt-1">{smsError}</p>}
+
+                  {smsTestResult && (
+                    <div className={`mt-3 rounded-lg border p-3 text-xs ${smsTestResult.ok ? 'border-iron-green/40 bg-iron-green/5' : 'border-status-danger/40 bg-status-danger/5'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`font-semibold ${smsTestResult.ok ? 'text-iron-green' : 'text-status-danger'}`}>
+                          {smsTestResult.ok ? '✓ SENT' : '✕ ' + smsTestResult.status}
+                        </span>
+                        <span className="text-iron-muted">→ {smsTestResult.to}</span>
+                      </div>
+                      {smsTestResult.providerMessageId && (
+                        <div className="text-iron-muted">providerMessageId: <span className="text-iron-text font-mono">{smsTestResult.providerMessageId}</span></div>
+                      )}
+                      {smsTestResult.error && (
+                        <div className="text-status-danger mt-0.5">provider response: {smsTestResult.error}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
