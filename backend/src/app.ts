@@ -19,6 +19,7 @@ import hostsRouter    from './modules/hosts/router';
 import guestHubRouter      from './modules/guestHub/router';
 import guestHubAdminRouter from './modules/guestHub/adminRouter';
 import callLogsRouter      from './modules/calls/router';
+import smsRouter           from './modules/sms/router';
 
 const app = express();
 
@@ -102,6 +103,7 @@ app.use('/api/hosts',               hostsRouter);
 app.use('/api/public/hub',          guestHubRouter);
 app.use('/api/admin/hub',           guestHubAdminRouter);
 app.use('/api/call-logs',           callLogsRouter);
+app.use('/api/sms',                 smsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({
