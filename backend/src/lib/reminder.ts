@@ -2,7 +2,7 @@ import { prisma } from './prisma';
 import { sendSms } from './messaging';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { config } from '../config';
-import { formatDurationHe, formatDurationEn } from './duration';
+import { formatDurationHe, formatDurationEn, formatDurationByLang } from './duration';
 import { composeSms } from './smsTemplates';
 
 export interface ReminderResult {
@@ -135,7 +135,7 @@ export async function sendReservationReminders(
     const message         = composeSms(
       'REMINDER',
       defaultText,
-      { guestName: r.guestName, restaurantName, date: r.date.toISOString().slice(0, 10), time: r.time, partySize: r.partySize, confirmationLink: shortConfirmUrl },
+      { guestName: r.guestName, restaurantName, date: r.date.toISOString().slice(0, 10), time: r.time, partySize: r.partySize, confirmationLink: shortConfirmUrl, reservationDuration: formatDurationByLang(r.duration, lang) },
       settings,
     );
 

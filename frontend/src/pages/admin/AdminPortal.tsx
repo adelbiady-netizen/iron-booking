@@ -35,15 +35,15 @@ const SMS_TPL_TYPES: Array<{ key: SmsTplType; label: string; hasLink: boolean }>
   { key: 'REMINDER',             label: 'Reminder',             hasLink: true  },
 ];
 
-const SMS_TPL_VARS = ['{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}'];
+const SMS_TPL_VARS = ['{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}', '{reservationDuration}'];
 
 // Representative Hebrew defaults shown as placeholder / preview when no custom main
 // is set. The real send still uses the backend bilingual default — this is only for
 // the editor. The actual default adapts to the guest's language (he/en).
 const SMS_DEFAULT_TEMPLATES: Record<SmsTplType, string> = {
-  RESERVATION_RECEIVED: 'היי {guestName}, ההזמנה שלך ב-{restaurantName} התקבלה ל-{date} בשעה {time} עבור {partySize} סועדים. מחכים לארח אותך.',
-  CONFIRMATION_REQUEST: 'שלום {guestName}, אנא אשר/י את הגעתך ל{restaurantName} בתאריך {date} בשעה {time} ל-{partySize} אנשים. לאישור: {confirmationLink}',
-  REMINDER:             'היי {guestName}, תזכורת להזמנה שלך ב{restaurantName} היום בשעה {time}. לאישור: {confirmationLink}',
+  RESERVATION_RECEIVED: 'היי {guestName}, ההזמנה שלך ב-{restaurantName} התקבלה ל-{date} בשעה {time} עבור {partySize} סועדים. השולחן יעמוד לרשותכם למשך {reservationDuration}. מחכים לארח אותך.',
+  CONFIRMATION_REQUEST: 'שלום {guestName}, אנא אשר/י את הגעתך ל{restaurantName} בתאריך {date} בשעה {time} ל-{partySize} אנשים. השולחן יעמוד לרשותכם למשך {reservationDuration}. לאישור: {confirmationLink}',
+  REMINDER:             'היי {guestName}, תזכורת להזמנה שלך ב{restaurantName} היום בשעה {time}. השולחן יעמוד לרשותכם למשך {reservationDuration}. לאישור: {confirmationLink}',
 };
 
 const emptySmsTplForm = (): Record<SmsTplType, { main: string; addon: string }> => ({
@@ -777,6 +777,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       '{time}': '20:00',
       '{partySize}': '4',
       '{confirmationLink}': 'https://ironbooking.com/c/abc123',
+      '{reservationDuration}': 'כשעה וחצי',
     };
     const mainTpl = f.main.trim() || SMS_DEFAULT_TEMPLATES[type];
     const rendered = SMS_TPL_VARS.reduce((acc, v) => acc.split(v).join(sample[v] ?? ''), mainTpl);

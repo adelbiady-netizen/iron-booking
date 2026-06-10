@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 import { MessageChannel, MessageProvider, MessageStatus, MessageType } from '@prisma/client';
-import { formatDurationHe, formatDurationEn } from './duration';
+import { formatDurationHe, formatDurationEn, formatDurationByLang } from './duration';
 import { composeSms } from './smsTemplates';
 
 // ─── Reservation received ─────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ export async function sendReservationReceivedSms(params: {
   const message = composeSms(
     'RESERVATION_RECEIVED',
     defaultText,
-    { guestName, restaurantName, date, time, partySize },
+    { guestName, restaurantName, date, time, partySize, reservationDuration: formatDurationByLang(duration, lang) },
     (restaurant?.settings ?? {}) as Record<string, unknown>,
   );
 

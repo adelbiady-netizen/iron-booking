@@ -12,17 +12,18 @@
 export type TemplatedSmsType = 'RESERVATION_RECEIVED' | 'CONFIRMATION_REQUEST' | 'REMINDER';
 
 export interface SmsTemplateVars {
-  guestName?:        string;
-  restaurantName?:   string;
-  date?:             string;
-  time?:             string;
-  partySize?:        number | string;
-  confirmationLink?: string;
+  guestName?:           string;
+  restaurantName?:      string;
+  date?:                string;
+  time?:                string;
+  partySize?:           number | string;
+  confirmationLink?:    string;
+  reservationDuration?: string; // pre-formatted phrase, e.g. "כשעה וחצי" / "about 90 minutes"
 }
 
 // Variables offered for the main template (kept in sync with the portal editor).
 export const SMS_TEMPLATE_VARIABLES = [
-  '{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}',
+  '{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}', '{reservationDuration}',
 ] as const;
 
 interface TemplatePair { main?: string | null; addon?: string | null }
@@ -34,7 +35,8 @@ export function renderSmsTemplate(template: string, vars: SmsTemplateVars): stri
     .replace(/\{date\}/g,             vars.date             ?? '')
     .replace(/\{time\}/g,             vars.time             ?? '')
     .replace(/\{partySize\}/g,        vars.partySize != null ? String(vars.partySize) : '')
-    .replace(/\{confirmationLink\}/g, vars.confirmationLink ?? '');
+    .replace(/\{confirmationLink\}/g, vars.confirmationLink ?? '')
+    .replace(/\{reservationDuration\}/g, vars.reservationDuration ?? '');
 }
 
 export function composeSms(

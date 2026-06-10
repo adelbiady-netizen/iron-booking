@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { formatDurationHe, formatDurationEn } from '../../lib/duration';
+import { formatDurationHe, formatDurationEn, formatDurationByLang } from '../../lib/duration';
 import {
   CreateReservationSchema,
   UpdateReservationSchema,
@@ -457,7 +457,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
         const message = composeSms(
           'CONFIRMATION_REQUEST',
           defaultText,
-          { guestName: reservation.guestName, restaurantName, date: reservation.date.toISOString().slice(0, 10), time: reservation.time, partySize: reservation.partySize, confirmationLink: shortConfirmUrl },
+          { guestName: reservation.guestName, restaurantName, date: reservation.date.toISOString().slice(0, 10), time: reservation.time, partySize: reservation.partySize, confirmationLink: shortConfirmUrl, reservationDuration: formatDurationByLang(reservation.duration, lang) },
           (restaurant?.settings ?? {}) as Record<string, unknown>,
         );
         const result  = await sendSms({
@@ -646,7 +646,7 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
     const message         = composeSms(
       'REMINDER',
       reminderDefaultText,
-      { guestName: reservation.guestName, restaurantName: reminderRestaurantName, date: reservation.date.toISOString().slice(0, 10), time: reservation.time, partySize: reservation.partySize, confirmationLink: shortConfirmUrl },
+      { guestName: reservation.guestName, restaurantName: reminderRestaurantName, date: reservation.date.toISOString().slice(0, 10), time: reservation.time, partySize: reservation.partySize, confirmationLink: shortConfirmUrl, reservationDuration: formatDurationByLang(reservation.duration, lang) },
       settings,
     );
 

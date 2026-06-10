@@ -27,3 +27,10 @@ export function formatDurationEn(minutes: number): string {
   if (m === 30) return `about ${h} and a half hours`;
   return `about ${h}h ${m}m`;
 }
+
+// Lang-aware wrapper used for the {reservationDuration} SMS variable.
+// Returns '' for missing/zero duration so the placeholder resolves cleanly.
+export function formatDurationByLang(minutes: number | null | undefined, lang: 'en' | 'he'): string {
+  if (!minutes || minutes <= 0) return '';
+  return lang === 'he' ? formatDurationHe(minutes) : formatDurationEn(minutes);
+}
