@@ -408,6 +408,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   // SMS service config edit state (stored in restaurant.settings)
   const [editSms,      setEditSms]      = useState(false);
   const [smsForm,      setSmsForm]      = useState({ enabled: false, provider: 'MOCK', senderName: '' });
+  const [linkGroupsInput, setLinkGroupsInput] = useState('');
+  const [linkGroupsBusy,  setLinkGroupsBusy]  = useState(false);
+  const [linkGroupsError, setLinkGroupsError] = useState<string | null>(null);
+  const [unresolvedGroups, setUnresolvedGroups] = useState<Array<{ group: string; unresolvedCount: number; lastSeen: string | null; assignedTo: string | null }>>([]);
   const [smsBusy,      setSmsBusy]      = useState(false);
   const [smsTestBusy,  setSmsTestBusy]  = useState(false);
   const [smsTestPhone, setSmsTestPhone] = useState('');
@@ -516,6 +520,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         provider:   String(s.smsProvider ?? 'MOCK'),
         senderName: String(s.smsSenderName ?? ''),
       });
+      const lg = s.linkGroupIds;
+      setLinkGroupsInput(Array.isArray(lg) ? (lg as unknown[]).map(String).join(', ') : '');
+      if (isSuperAdmin) {
+        api.admin.telephony.unresolvedGroups()
+          .then(r => setUnresolvedGroups(r.groups))
+          .catch(() => setUnresolvedGroups([]));
+      }
       setSmsTestPhone(d.phone ?? '');
       const tpls = (s.smsTemplates ?? {}) as Record<string, { main?: string | null; addon?: string | null } | undefined>;
       const tplForm = emptySmsTplForm();
@@ -743,6 +754,34 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     } finally {
       setSmsBusy(false);
     }
+  }
+
+  function parseGroupIds(input: string): string[] {
+    return Array.from(new Set(input.split(/[,\s]+/).map(x => x.trim()).filter(x => /^\d+$/.test(x))));
+  }
+
+  async function handleSaveLinkGroups(idsOverride?: string[]) {
+    if (!selectedId) return;
+    setLinkGroupsBusy(true);
+    setLinkGroupsError(null);
+    try {
+      const ids = idsOverride ?? parseGroupIds(linkGroupsInput);
+      const updated = await api.admin.restaurants.settings(selectedId, { linkGroupIds: ids });
+      setDetail(d => d ? { ...d, settings: updated.settings } : d);
+      setLinkGroupsInput(ids.join(', '));
+      const r = await api.admin.telephony.unresolvedGroups();
+      setUnresolvedGroups(r.groups);
+      showToast('Link group IDs saved');
+    } catch (err) {
+      setLinkGroupsError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setLinkGroupsBusy(false);
+    }
+  }
+
+  function handleAssignGroup(group: string) {
+    const ids = Array.from(new Set([...parseGroupIds(linkGroupsInput), group]));
+    void handleSaveLinkGroups(ids);
   }
 
   async function handleSaveSmsTemplates() {
@@ -1843,6 +1882,45 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* Link Telephony — ring-group routing */}
+        {isSuperAdmin && (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
+            <div>
+              <h3 className="font-medium">Link Telephony — Group IDs</h3>
+              <p className="text-xs text-iron-muted mt-0.5">Comma-separated numeric Link ring-group IDs routed to this restaurant (e.g. 205, 206, 207). Incoming calls on these groups appear in this restaurant's call log.</p>
+            </div>
+            <Field label="Link Group IDs">
+              <Input
+                value={linkGroupsInput}
+                onChange={e => setLinkGroupsInput(e.target.value)}
+                placeholder="e.g. 205, 206, 207"
+              />
+            </Field>
+            {linkGroupsError && <p className="text-xs text-status-danger">{linkGroupsError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => handleSaveLinkGroups()} disabled={linkGroupsBusy} className={btnPrimary}>{linkGroupsBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+            </div>
+            {unresolvedGroups.filter(g => !g.assignedTo).length > 0 && (
+              <div className="pt-3 border-t border-iron-border/60">
+                <p className="text-xs text-iron-muted mb-2">Unresolved Link groups seen in call logs (not yet assigned to any restaurant). Click to add to this restaurant:</p>
+                <div className="flex flex-wrap gap-2">
+                  {unresolvedGroups.filter(g => !g.assignedTo).map(g => (
+                    <button
+                      key={g.group}
+                      onClick={() => handleAssignGroup(g.group)}
+                      disabled={linkGroupsBusy}
+                      className="text-xs px-2.5 py-1 rounded-md border border-status-warning/40 bg-status-warning/10 text-status-warning hover:bg-status-warning/20 disabled:opacity-50"
+                      title={`${g.unresolvedCount} unresolved call(s)${g.lastSeen ? ` · last ${new Date(g.lastSeen).toLocaleString()}` : ''}`}
+                    >
+                      + {g.group} <span className="opacity-70">({g.unresolvedCount})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

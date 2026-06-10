@@ -5,13 +5,15 @@ import { lookupGuestByPhone } from '../guests/service';
 
 const router = Router();
 
-// ─── Phase-128 group routing map ─────────────────────────────────────────────
-// Maps Link ring-group IDs to their restaurant target and call metadata.
+// ─── Legacy hardcoded group routing map ──────────────────────────────────────
+// SUPERSEDED by per-restaurant Restaurant.settings.linkGroupIds (managed in the
+// HQ Portal). This map is now only a FALLBACK for groups not yet migrated to the
+// DB mapping (currently 201/203 → Eataliano). New restaurants should be onboarded
+// via the portal "Link Group IDs" field, NOT by adding entries here.
 // Unknown groups fall through to DNIS-based routing (routingStatus=unresolved).
 //
 // Extension points for future phases:
-//   - Add new groups here as restaurants onboard to Link telephony
-//   - Move this map to the DB (Restaurant.linkGroups) when the set grows beyond ~10
+//   - Migrate 201/203 to Eataliano's settings.linkGroupIds, then delete this map
 //   - category='reservation' today; future values: 'support', 'delivery', 'enquiry'
 //   - channel='phone'|'sms' today; future values: 'whatsapp', 'ivr'
 //
@@ -103,42 +105,55 @@ async function processCallWebhook(
     return;
   }
 
-  const groupRoute: GroupRoute | undefined = groupStr ? LINK_GROUP_ROUTES[groupStr] : undefined;
+  // ── Routing resolution (in priority order) ────────────────────────────────
+  //   1. Per-restaurant Link group mapping  (Restaurant.settings.linkGroupIds)  ← primary, DB-driven
+  //   2. Legacy hardcoded LINK_GROUP_ROUTES  (201/203)                          ← fallback until migrated
+  //   3. DNIS fallback                        (called → Restaurant.linkPhone)    ← when Link sends `called`
+  // Tenant isolation: a Link group must belong to at most one restaurant. The
+  // admin layer enforces uniqueness on assignment; findFirst here is a single
+  // deterministic owner. Unmatched calls persist unrouted (SSE suppressed).
+  let restaurantId:     string | null = null;
+  let resolvedName:     string | null = null;
+  let resolvedCategory: string | null = null;
+  let resolvedChannel:  string | null = null;
+  let resolved = false;
 
-  const restaurantLookup: Promise<{ id: string } | null> = groupRoute
-    ? prisma.restaurant
-        .findUnique({ where: { slug: groupRoute.restaurantSlug }, select: { id: true } })
-        .then(r => {
-          if (r) return r;
-          if (calledStr) {
-            console.warn('[link/call] Group', groupStr, '→ slug lookup missed for', groupRoute.restaurantSlug, '; trying DNIS fallback on', calledStr);
-            return prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } });
-          }
-          return null;
-        })
-    : calledStr
-      ? prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true } })
-      : Promise.resolve(null);
+  if (groupStr) {
+    const byGroup = await prisma.restaurant.findFirst({
+      where: { isSystem: false, settings: { path: ['linkGroupIds'], array_contains: groupStr } },
+      select: { id: true, name: true },
+    });
+    if (byGroup) {
+      restaurantId = byGroup.id; resolvedName = byGroup.name;
+      resolvedCategory = 'reservation'; resolvedChannel = 'phone'; resolved = true;
+      console.log('[link/call] Resolution: group', groupStr, '→ per-restaurant linkGroupIds → restaurantId:', restaurantId, '| name:', resolvedName);
+    }
+  }
 
-  const restaurant = await restaurantLookup;
+  if (!resolved && groupStr && LINK_GROUP_ROUTES[groupStr]) {
+    const gr = LINK_GROUP_ROUTES[groupStr];
+    const bySlug = await prisma.restaurant.findUnique({ where: { slug: gr.restaurantSlug }, select: { id: true } });
+    if (bySlug) {
+      restaurantId = bySlug.id; resolvedName = gr.restaurantName;
+      resolvedCategory = gr.category; resolvedChannel = gr.channel; resolved = true;
+      console.log('[link/call] Resolution: group', groupStr, '→ legacy map → slug:', gr.restaurantSlug, '| restaurantId:', restaurantId);
+    } else {
+      console.warn('[link/call] Legacy group', groupStr, '→ slug "' + gr.restaurantSlug + '" not found in DB.');
+    }
+  }
+
+  if (!resolved && calledStr) {
+    const byDnis = await prisma.restaurant.findUnique({ where: { linkPhone: calledStr }, select: { id: true, name: true } });
+    if (byDnis) {
+      restaurantId = byDnis.id; resolvedName = byDnis.name;
+      resolvedCategory = 'reservation'; resolvedChannel = 'phone'; resolved = true;
+      console.log('[link/call] Resolution: DNIS', calledStr, '→ restaurantId:', restaurantId);
+    }
+  }
+
   console.log('[link/timing] ② restaurant resolved —', Date.now() - t0, 'ms total');
-
-  if (groupRoute) {
-    if (restaurant) {
-      console.log('[link/call] Resolution: group', groupStr, '→ slug:', groupRoute.restaurantSlug, '| restaurantId:', restaurant.id, '| category:', groupRoute.category, '| channel:', groupRoute.channel);
-    } else {
-      console.warn('[link/call] Resolution failed: group', groupStr, '→ slug "' + groupRoute.restaurantSlug + '" not found in DB. Persisting without restaurantId.');
-    }
-  } else if (calledStr) {
-    if (restaurant) {
-      console.log('[link/call] Resolution: DNIS', calledStr, '→ restaurantId:', restaurant.id);
-    } else {
-      console.warn('[link/call] Resolution failed: DNIS', calledStr, '| group:', groupStr ?? '(none)', '— no restaurant match.');
-    }
-  } else if (groupStr) {
-    console.warn('[link/call] Unknown group', groupStr, '— not in LINK_GROUP_ROUTES and no DNIS fallback. Persisting as unrouted.');
-  } else {
-    console.warn('[link/call] No routing signal — neither group nor DNIS (called) param present. Persisting as unrouted.');
+  if (!resolved) {
+    console.warn('[link/call] Unresolved — group:', groupStr ?? '(none)', '| called:', calledStr ?? '(none)', '— persisting as unrouted (will surface in HQ unresolved-groups).');
   }
 
   const tParallelStart = Date.now();
@@ -150,7 +165,7 @@ async function processCallWebhook(
       })();
   const [duplicate, guestMatch] = await Promise.all([
     prisma.callLog.findFirst({ where: dupWhere, select: { id: true } }),
-    restaurant?.id ? lookupGuestByPhone(restaurant.id, callerStr) : Promise.resolve(null),
+    restaurantId ? lookupGuestByPhone(restaurantId, callerStr) : Promise.resolve(null),
   ]);
   console.log('[link/timing] ③ parallel (dup+guest) —', Date.now() - tParallelStart, 'ms |', Date.now() - t0, 'ms total');
 
@@ -165,7 +180,7 @@ async function processCallWebhook(
   const tCreate = Date.now();
   const created = await prisma.callLog.create({
     data: {
-      restaurantId:   restaurant?.id ?? null,
+      restaurantId,
       phone:          callerStr,
       called:         calledStr,
       group:          groupStr,
@@ -174,10 +189,10 @@ async function processCallWebhook(
       status:         statusStr,
       duration:       durationSecs !== null && !isNaN(durationSecs) ? durationSecs : null,
       recordUrl:      recordStr,
-      routingStatus:  groupRoute ? 'resolved'                : 'unresolved',
-      category:       groupRoute ? groupRoute.category       : null,
-      channel:        groupRoute ? groupRoute.channel        : null,
-      restaurantName: groupRoute ? groupRoute.restaurantName : null,
+      routingStatus:  resolved ? 'resolved' : 'unresolved',
+      category:       resolvedCategory,
+      channel:        resolvedChannel,
+      restaurantName: resolvedName,
       guestName,
     },
   });

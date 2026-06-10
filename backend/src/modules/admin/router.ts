@@ -456,6 +456,9 @@ const UpdateSettingsSchema = z.object({
   reminderEnabled:           z.boolean().optional(),
   reminderLeadMinutes:       z.number().int().min(0).max(1440).optional(),
   smsTemplates:              SmsTemplatesSchema.optional(),
+  // Link telephony — numeric ring-group IDs owned by this restaurant (e.g. ["205","206"]).
+  // Used by the Link webhook to route incoming calls to this restaurant.
+  linkGroupIds:              z.array(z.string().trim().regex(/^\d+$/, 'Link group IDs must be numeric')).max(50).optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings
@@ -463,6 +466,27 @@ router.patch('/restaurants/:id/settings', superAdminOnly, validate(UpdateSetting
   try {
     const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    // Tenant isolation: a Link group ID may belong to at most one restaurant.
+    // Reject if any requested group is already claimed by a different restaurant.
+    const requestedGroups: unknown = req.body.linkGroupIds;
+    if (Array.isArray(requestedGroups) && requestedGroups.length > 0) {
+      const wanted = requestedGroups.map(String);
+      const others = await prisma.restaurant.findMany({
+        where: { isSystem: false, id: { not: restaurant.id } },
+        select: { name: true, settings: true },
+      });
+      const conflicts: string[] = [];
+      for (const o of others) {
+        const owned = (o.settings as Record<string, unknown> | null)?.linkGroupIds;
+        if (!Array.isArray(owned)) continue;
+        const ownedStr = owned.map(String);
+        for (const g of wanted) if (ownedStr.includes(g)) conflicts.push(`${g} → ${o.name}`);
+      }
+      if (conflicts.length > 0) {
+        throw new ConflictError(`Link group(s) already assigned to another restaurant: ${conflicts.join(', ')}`);
+      }
+    }
 
     const merged = { ...(restaurant.settings as object), ...req.body };
     const updated = await prisma.restaurant.update({
@@ -631,10 +655,52 @@ router.get('/telephony', superAdminOnly, async (_req: Request, res: Response, ne
   try {
     const rows = await prisma.restaurant.findMany({
       where: { isSystem: false },
-      select: { id: true, name: true, linkPhone: true },
+      select: { id: true, name: true, slug: true, linkPhone: true, settings: true },
       orderBy: { name: 'asc' },
     });
-    res.json(rows);
+    res.json(rows.map(r => {
+      const ids = (r.settings as Record<string, unknown> | null)?.linkGroupIds;
+      return {
+        id: r.id, name: r.name, slug: r.slug, linkPhone: r.linkPhone,
+        linkGroupIds: Array.isArray(ids) ? ids.map(String) : [],
+      };
+    }));
+  } catch (err) { next(err); }
+});
+
+// GET /admin/telephony/unresolved-groups — Link ring-groups seen in call logs but
+// not (yet) mapped to any restaurant. Drives the HQ "assign group" panel.
+router.get('/telephony/unresolved-groups', superAdminOnly, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const [grouped, restaurants] = await Promise.all([
+      prisma.callLog.groupBy({
+        by: ['group'],
+        where: { routingStatus: 'unresolved', group: { not: null } },
+        _count: { _all: true },
+        _max: { createdAt: true },
+      }),
+      prisma.restaurant.findMany({ where: { isSystem: false }, select: { name: true, settings: true } }),
+    ]);
+
+    const ownerOf = (g: string): string | null => {
+      for (const r of restaurants) {
+        const ids = (r.settings as Record<string, unknown> | null)?.linkGroupIds;
+        if (Array.isArray(ids) && ids.map(String).includes(g)) return r.name;
+      }
+      return null;
+    };
+
+    const groups = grouped
+      .filter(g => g.group)
+      .map(g => ({
+        group:          g.group as string,
+        unresolvedCount: g._count._all,
+        lastSeen:        g._max.createdAt,
+        assignedTo:      ownerOf(g.group as string),  // non-null = already mapped (will resolve on next call)
+      }))
+      .sort((a, b) => b.unresolvedCount - a.unresolvedCount);
+
+    res.json({ groups });
   } catch (err) { next(err); }
 });
 

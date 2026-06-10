@@ -416,6 +416,12 @@ export const api = {
         request<{ result: { success: boolean; messageLogId: string; providerMessageId?: string }; log: { status: string; provider: string; senderName: string | null; providerMessageId: string | null; errorMessage: string | null } | null }>(
           '/admin/sms/test', { method: 'POST', body: JSON.stringify(body) }),
     },
+    telephony: {
+      list: () =>
+        request<Array<{ id: string; name: string; slug: string; linkPhone: string | null; linkGroupIds: string[] }>>('/admin/telephony'),
+      unresolvedGroups: () =>
+        request<{ groups: Array<{ group: string; unresolvedCount: number; lastSeen: string | null; assignedTo: string | null }> }>('/admin/telephony/unresolved-groups'),
+    },
     groups: {
       list: () =>
         request<AdminGroup[]>('/admin/groups'),
