@@ -422,6 +422,18 @@ router.patch('/restaurants/:id/portal-permissions', validate(PortalPermissionsSc
   } catch (err) { next(err); }
 });
 
+// Per-restaurant SMS templates: a main override (with {variables}) + a free-text
+// addon, per message type. Both nullable/optional — empty means "use the default".
+const SmsTemplatePairSchema = z.object({
+  main:  z.string().max(600).nullable().optional(),
+  addon: z.string().max(600).nullable().optional(),
+});
+const SmsTemplatesSchema = z.object({
+  RESERVATION_RECEIVED: SmsTemplatePairSchema.optional(),
+  CONFIRMATION_REQUEST: SmsTemplatePairSchema.optional(),
+  REMINDER:             SmsTemplatePairSchema.optional(),
+});
+
 const UpdateSettingsSchema = z.object({
   defaultTurnMinutes:        z.number().int().min(15).max(480).optional(),
   slotIntervalMinutes:       z.number().int().optional(),
@@ -443,6 +455,7 @@ const UpdateSettingsSchema = z.object({
   smsFallbackEnabled:        z.boolean().optional(),
   reminderEnabled:           z.boolean().optional(),
   reminderLeadMinutes:       z.number().int().min(0).max(1440).optional(),
+  smsTemplates:              SmsTemplatesSchema.optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings

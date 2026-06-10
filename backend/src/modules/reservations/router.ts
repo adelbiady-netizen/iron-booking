@@ -15,6 +15,7 @@ import {
 import * as service from './service';
 import { sendConfirmationSms } from '../../lib/sms';
 import { sendSms, sendReservationReceivedSms } from '../../lib/messaging';
+import { composeSms } from '../../lib/smsTemplates';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
@@ -400,7 +401,7 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
   try {
     const [reservation, restaurant] = await Promise.all([
       prisma.reservation.findUnique({ where: { id: p(req, 'id') } }),
-      prisma.restaurant.findUnique({ where: { id: req.auth.restaurantId }, select: { name: true } }),
+      prisma.restaurant.findUnique({ where: { id: req.auth.restaurantId }, select: { name: true, settings: true } }),
     ]);
     if (!reservation || reservation.restaurantId !== req.auth.restaurantId) {
       throw new NotFoundError('Reservation', p(req, 'id'));
@@ -452,7 +453,13 @@ router.post('/:id/send-confirmation', async (req: Request, res: Response, next: 
       });
       if (!recentSent) {
         smsAttempted = true;
-        const message = buildConfirmationRequestSmsText(reservation, restaurantName, shortConfirmUrl);
+        const defaultText = buildConfirmationRequestSmsText(reservation, restaurantName, shortConfirmUrl);
+        const message = composeSms(
+          'CONFIRMATION_REQUEST',
+          defaultText,
+          { guestName: reservation.guestName, restaurantName, date: reservation.date.toISOString().slice(0, 10), time: reservation.time, partySize: reservation.partySize, confirmationLink: shortConfirmUrl },
+          (restaurant?.settings ?? {}) as Record<string, unknown>,
+        );
         const result  = await sendSms({
           restaurantId:  req.auth.restaurantId,
           to:            reservation.guestPhone,
@@ -634,7 +641,14 @@ router.post('/:id/send-reminder', async (req: Request, res: Response, next: Next
     const lang            = (reservation.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token           = reservation.confirmationToken ?? crypto.randomUUID();
     const shortConfirmUrl = `${config.frontendBaseUrl}/c/${token}`;
-    const message         = buildReminderSmsText(reservation, restaurant?.name ?? 'the restaurant', shortConfirmUrl);
+    const reminderRestaurantName = restaurant?.name ?? 'the restaurant';
+    const reminderDefaultText = buildReminderSmsText(reservation, reminderRestaurantName, shortConfirmUrl);
+    const message         = composeSms(
+      'REMINDER',
+      reminderDefaultText,
+      { guestName: reservation.guestName, restaurantName: reminderRestaurantName, date: reservation.date.toISOString().slice(0, 10), time: reservation.time, partySize: reservation.partySize, confirmationLink: shortConfirmUrl },
+      settings,
+    );
 
     const result = await sendSms({
       restaurantId:  req.auth.restaurantId,

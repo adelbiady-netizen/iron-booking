@@ -3,6 +3,7 @@ import { sendSms } from './messaging';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { config } from '../config';
 import { formatDurationHe, formatDurationEn } from './duration';
+import { composeSms } from './smsTemplates';
 
 export interface ReminderResult {
   sent: number;
@@ -130,7 +131,13 @@ export async function sendReservationReminders(
     const lang            = (r.guestLang === 'he' ? 'he' : 'en') as 'en' | 'he';
     const token           = r.confirmationToken ?? crypto.randomUUID();
     const shortConfirmUrl = `${config.frontendBaseUrl}/c/${token}`;
-    const message         = buildReminderSmsText(r, restaurantName, shortConfirmUrl);
+    const defaultText     = buildReminderSmsText(r, restaurantName, shortConfirmUrl);
+    const message         = composeSms(
+      'REMINDER',
+      defaultText,
+      { guestName: r.guestName, restaurantName, date: r.date.toISOString().slice(0, 10), time: r.time, partySize: r.partySize, confirmationLink: shortConfirmUrl },
+      settings,
+    );
 
     // Dry-run: log intent but do not send, do not update DB, do not write MessageLog
     if (options?.dryRun) {

@@ -26,6 +26,32 @@ function isValidIsraeliMobile(raw: string): boolean {
   return /^(?:\+972|972|0)5\d{8}$/.test(p);
 }
 
+// ─── SMS templates ────────────────────────────────────────────────────────────
+type SmsTplType = 'RESERVATION_RECEIVED' | 'CONFIRMATION_REQUEST' | 'REMINDER';
+
+const SMS_TPL_TYPES: Array<{ key: SmsTplType; label: string; hasLink: boolean }> = [
+  { key: 'RESERVATION_RECEIVED', label: 'Reservation received', hasLink: false },
+  { key: 'CONFIRMATION_REQUEST', label: 'Confirmation request', hasLink: true  },
+  { key: 'REMINDER',             label: 'Reminder',             hasLink: true  },
+];
+
+const SMS_TPL_VARS = ['{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}'];
+
+// Representative Hebrew defaults shown as placeholder / preview when no custom main
+// is set. The real send still uses the backend bilingual default — this is only for
+// the editor. The actual default adapts to the guest's language (he/en).
+const SMS_DEFAULT_TEMPLATES: Record<SmsTplType, string> = {
+  RESERVATION_RECEIVED: 'היי {guestName}, ההזמנה שלך ב-{restaurantName} התקבלה ל-{date} בשעה {time} עבור {partySize} סועדים. מחכים לארח אותך.',
+  CONFIRMATION_REQUEST: 'שלום {guestName}, אנא אשר/י את הגעתך ל{restaurantName} בתאריך {date} בשעה {time} ל-{partySize} אנשים. לאישור: {confirmationLink}',
+  REMINDER:             'היי {guestName}, תזכורת להזמנה שלך ב{restaurantName} היום בשעה {time}. לאישור: {confirmationLink}',
+};
+
+const emptySmsTplForm = (): Record<SmsTplType, { main: string; addon: string }> => ({
+  RESERVATION_RECEIVED: { main: '', addon: '' },
+  CONFIRMATION_REQUEST: { main: '', addon: '' },
+  REMINDER:             { main: '', addon: '' },
+});
+
 interface ScheduleRow { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string; }
 
 interface OnlineRestriction {
@@ -388,6 +414,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [smsError,     setSmsError]     = useState<string | null>(null);
   const [smsTestResult, setSmsTestResult] = useState<{ ok: boolean; status: string; providerMessageId: string | null; error: string | null; to: string } | null>(null);
 
+  // SMS templates edit state (main override + free-text addon per message type)
+  const [smsTplForm,  setSmsTplForm]  = useState(emptySmsTplForm());
+  const [smsTplBusy,  setSmsTplBusy]  = useState(false);
+  const [smsTplError, setSmsTplError] = useState<string | null>(null);
+
   // SMS usage report (SUPER_ADMIN only)
   const [smsUsage,        setSmsUsage]        = useState<SmsUsageReport | null>(null);
   const [smsUsageMonth,   setSmsUsageMonth]   = useState('');
@@ -486,6 +517,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         senderName: String(s.smsSenderName ?? ''),
       });
       setSmsTestPhone(d.phone ?? '');
+      const tpls = (s.smsTemplates ?? {}) as Record<string, { main?: string | null; addon?: string | null } | undefined>;
+      const tplForm = emptySmsTplForm();
+      (Object.keys(tplForm) as SmsTplType[]).forEach(k => {
+        tplForm[k] = { main: tpls[k]?.main ?? '', addon: tpls[k]?.addon ?? '' };
+      });
+      setSmsTplForm(tplForm);
       setBrandingForm({ cuisine: d.cuisine ?? '', primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '', websiteUrl: d.websiteUrl ?? '', instagramUrl: d.instagramUrl ?? '', googleMapsUrl: d.googleMapsUrl ?? '', wazeUrl: d.wazeUrl ?? '' });
       if (d.operatingHours?.length === 7) {
         setScheduleRows(d.operatingHours.map(h => ({
@@ -706,6 +743,45 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     } finally {
       setSmsBusy(false);
     }
+  }
+
+  async function handleSaveSmsTemplates() {
+    if (!selectedId) return;
+    setSmsTplBusy(true);
+    setSmsTplError(null);
+    try {
+      const smsTemplates: Record<string, { main: string | null; addon: string | null }> = {};
+      (Object.keys(smsTplForm) as SmsTplType[]).forEach(k => {
+        smsTemplates[k] = {
+          main:  smsTplForm[k].main.trim()  || null,
+          addon: smsTplForm[k].addon.trim() || null,
+        };
+      });
+      const updated = await api.admin.restaurants.settings(selectedId, { smsTemplates });
+      setDetail(d => d ? { ...d, settings: updated.settings } : d);
+      showToast('SMS templates saved');
+    } catch (err) {
+      setSmsTplError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSmsTplBusy(false);
+    }
+  }
+
+  // Compose the final SMS preview with sample data (mirrors backend composeSms).
+  function previewSmsTemplate(type: SmsTplType): string {
+    const f = smsTplForm[type];
+    const sample: Record<string, string> = {
+      '{guestName}': 'דנה לוי',
+      '{restaurantName}': detail?.name ?? 'המסעדה',
+      '{date}': '12/06/2026',
+      '{time}': '20:00',
+      '{partySize}': '4',
+      '{confirmationLink}': 'https://ironbooking.com/c/abc123',
+    };
+    const mainTpl = f.main.trim() || SMS_DEFAULT_TEMPLATES[type];
+    const rendered = SMS_TPL_VARS.reduce((acc, v) => acc.split(v).join(sample[v] ?? ''), mainTpl);
+    const addon = f.addon.trim();
+    return addon ? `${rendered}\n${addon}` : rendered;
   }
 
   async function handleTestSms() {
@@ -1766,6 +1842,63 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* SMS Message Templates */}
+        {isSuperAdmin && smsForm.enabled && (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-5">
+            <div>
+              <h3 className="font-medium">SMS Message Templates</h3>
+              <p className="text-xs text-iron-muted mt-0.5">Per message type: a main template (with variables) plus a free-text add-on appended on a new line. Leave the main blank to keep the built-in default (which adapts to guest language).</p>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-[11px] text-iron-muted mr-1">Variables:</span>
+              {SMS_TPL_VARS.map(v => (
+                <code key={v} className="text-[11px] bg-iron-bg border border-iron-border rounded px-1.5 py-0.5 text-iron-green">{v}</code>
+              ))}
+            </div>
+
+            {SMS_TPL_TYPES.map(({ key, label, hasLink }) => (
+              <div key={key} className="border-t border-iron-border/60 pt-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-iron-text">{label}</span>
+                  {!smsTplForm[key].main.trim() && <span className="text-[10px] text-iron-muted bg-iron-bg rounded px-1.5 py-0.5">using default</span>}
+                </div>
+                <div>
+                  <label className="text-[11px] text-iron-muted">Main template{hasLink ? '' : ' (no confirmation link for this type)'}</label>
+                  <textarea
+                    value={smsTplForm[key].main}
+                    onChange={e => setSmsTplForm(f => ({ ...f, [key]: { ...f[key], main: e.target.value } }))}
+                    placeholder={SMS_DEFAULT_TEMPLATES[key]}
+                    rows={2}
+                    dir="auto"
+                    className="w-full mt-1 bg-iron-bg border border-iron-border rounded px-2 py-1.5 text-xs text-iron-text placeholder-iron-muted/40 resize-y"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-iron-muted">Add-on (free text — parking, policy, notes; optional)</label>
+                  <textarea
+                    value={smsTplForm[key].addon}
+                    onChange={e => setSmsTplForm(f => ({ ...f, [key]: { ...f[key], addon: e.target.value } }))}
+                    placeholder="e.g. חניה חינם במגרש ממול · ביטול עד 24 שעות מראש"
+                    rows={2}
+                    dir="auto"
+                    className="w-full mt-1 bg-iron-bg border border-iron-border rounded px-2 py-1.5 text-xs text-iron-text placeholder-iron-muted/40 resize-y"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-iron-muted">Preview</label>
+                  <pre dir="auto" className="w-full mt-1 bg-iron-bg/60 border border-iron-border/60 rounded px-2 py-1.5 text-xs text-iron-text whitespace-pre-wrap font-sans">{previewSmsTemplate(key)}</pre>
+                </div>
+              </div>
+            ))}
+
+            {smsTplError && <p className="text-xs text-status-danger">{smsTplError}</p>}
+            <div className="flex gap-3 pt-1 border-t border-iron-border/60">
+              <button onClick={handleSaveSmsTemplates} disabled={smsTplBusy} className={btnPrimary}>{smsTplBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+            </div>
           </div>
         )}
 

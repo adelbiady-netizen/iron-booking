@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { MessageChannel, MessageProvider, MessageStatus, MessageType } from '@prisma/client';
 import { formatDurationHe, formatDurationEn } from './duration';
+import { composeSms } from './smsTemplates';
 
 // ─── Reservation received ─────────────────────────────────────────────────────
 
@@ -44,12 +45,19 @@ export async function sendReservationReceivedSms(params: {
 
   const restaurant = await prisma.restaurant.findUnique({
     where:  { id: restaurantId },
-    select: { name: true },
+    select: { name: true, settings: true },
   });
 
-  const message = buildReservationReceivedText({
-    guestName, restaurantName: restaurant?.name ?? '', date, time, partySize, lang, duration,
+  const restaurantName = restaurant?.name ?? '';
+  const defaultText = buildReservationReceivedText({
+    guestName, restaurantName, date, time, partySize, lang, duration,
   });
+  const message = composeSms(
+    'RESERVATION_RECEIVED',
+    defaultText,
+    { guestName, restaurantName, date, time, partySize },
+    (restaurant?.settings ?? {}) as Record<string, unknown>,
+  );
 
   await sendSms({ restaurantId, to: phone, message, type: MessageType.RESERVATION_RECEIVED, reservationId, guestId });
 }
