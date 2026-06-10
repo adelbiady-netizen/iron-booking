@@ -1,4 +1,4 @@
-import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, LocationTonightStats, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, Table, WaitlistEntry } from './types';
+import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, LocationTonightStats, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, SmsUsageReport, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -406,6 +406,13 @@ export const api = {
         delete: (id: string, rid: string) =>
           request<{ ok: boolean }>(`/admin/restaurants/${id}/online-restrictions/${rid}`, { method: 'DELETE' }),
       },
+    },
+    sms: {
+      usage: (month?: string) =>
+        request<SmsUsageReport>(`/admin/sms/usage${month ? `?month=${encodeURIComponent(month)}` : ''}`),
+      test: (body: { restaurantId: string; to: string; message: string; type?: string }) =>
+        request<{ result: { success: boolean; messageLogId: string; providerMessageId?: string }; log: { status: string; provider: string; errorMessage: string | null } | null }>(
+          '/admin/sms/test', { method: 'POST', body: JSON.stringify(body) }),
     },
     groups: {
       list: () =>

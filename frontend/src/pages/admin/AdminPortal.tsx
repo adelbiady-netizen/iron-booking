@@ -3,7 +3,7 @@ import { api, ApiError } from '../../api';
 import GuestHubCmsPanel from './GuestHubCmsPanel';
 import { useT } from '../../i18n/useT';
 import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
-import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageReport } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -297,7 +297,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const isSuperAdmin      = auth.user.role === 'SUPER_ADMIN';
   const isRestaurantAdmin = auth.user.role === 'RESTAURANT_ADMIN';
 
-  const [view,       setView]       = useState<'splash' | 'create' | 'detail' | 'create-group' | 'group-detail'>('splash');
+  const [view,       setView]       = useState<'splash' | 'create' | 'detail' | 'create-group' | 'group-detail' | 'sms-usage'>('splash');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail,     setDetail]     = useState<AdminRestaurantDetail | null>(null);
   const [users,      setUsers]      = useState<AdminUser[]>([]);
@@ -338,7 +338,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [layoutBusy, setLayoutBusy] = useState(false);
 
   // ── Group state (SUPER_ADMIN only) ───────────────────────────────────────────
-  const [sidebarTab,      setSidebarTab]      = useState<'locations' | 'groups'>('locations');
+  const [sidebarTab,      setSidebarTab]      = useState<'locations' | 'groups' | 'sms'>('locations');
   const [groups,          setGroups]          = useState<AdminGroup[]>([]);
   const [groupsLoading,   setGroupsLoading]   = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -370,6 +370,19 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [whatsappBusy,      setWhatsappBusy]      = useState(false);
   const [whatsappTestBusy,  setWhatsappTestBusy]  = useState(false);
   const [whatsappError,     setWhatsappError]     = useState<string | null>(null);
+
+  // SMS service config edit state (stored in restaurant.settings)
+  const [editSms,      setEditSms]      = useState(false);
+  const [smsForm,      setSmsForm]      = useState({ enabled: false, provider: 'MOCK', senderName: '' });
+  const [smsBusy,      setSmsBusy]      = useState(false);
+  const [smsTestBusy,  setSmsTestBusy]  = useState(false);
+  const [smsTestPhone, setSmsTestPhone] = useState('');
+  const [smsError,     setSmsError]     = useState<string | null>(null);
+
+  // SMS usage report (SUPER_ADMIN only)
+  const [smsUsage,        setSmsUsage]        = useState<SmsUsageReport | null>(null);
+  const [smsUsageMonth,   setSmsUsageMonth]   = useState('');
+  const [smsUsageLoading, setSmsUsageLoading] = useState(false);
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
@@ -455,6 +468,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
+      setSmsForm({
+        enabled:    Boolean(s.smsEnabled ?? false),
+        provider:   String(s.smsProvider ?? 'MOCK'),
+        senderName: String(s.smsSenderName ?? ''),
+      });
+      setSmsTestPhone(d.phone ?? '');
       setBrandingForm({ cuisine: d.cuisine ?? '', primaryColor: d.primaryColor ?? '', accentColor: d.accentColor ?? '', publicThemePreset: d.publicThemePreset ?? '', logoUrl: d.logoUrl ?? '', coverImageUrl: d.coverImageUrl ?? '', heroVideoUrl: d.heroVideoUrl ?? '', buttonStyle: d.buttonStyle ?? '', cardStyle: d.cardStyle ?? '', backgroundMood: d.backgroundMood ?? '', backgroundColorHex: d.backgroundColorHex ?? '', backgroundGradientHex: d.backgroundGradientHex ?? '', websiteUrl: d.websiteUrl ?? '', instagramUrl: d.instagramUrl ?? '', googleMapsUrl: d.googleMapsUrl ?? '', wazeUrl: d.wazeUrl ?? '' });
       if (d.operatingHours?.length === 7) {
         setScheduleRows(d.operatingHours.map(h => ({
@@ -481,6 +500,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setEditInfo(false);
     setEditSettings(false);
     setEditWhatsapp(false);
+    setEditSms(false);
+    setSmsError(null);
     setEditBranding(false);
     setShowAddUser(false);
     setShowAddRestriction(false);
@@ -648,6 +669,74 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     } finally {
       setWhatsappTestBusy(false);
     }
+  }
+
+  // ── SMS service ───────────────────────────────────────────────────────────────
+
+  async function handleSaveSms() {
+    if (!selectedId) return;
+    setSmsBusy(true);
+    setSmsError(null);
+    try {
+      const payload: Record<string, unknown> = {
+        smsEnabled:  smsForm.enabled,
+        smsProvider: smsForm.provider,
+      };
+      const sender = smsForm.senderName.trim();
+      if (sender) payload.smsSenderName = sender;
+      const updated = await api.admin.restaurants.settings(selectedId, payload);
+      setDetail(d => d ? { ...d, settings: updated.settings } : d);
+      setEditSms(false);
+      showToast('SMS settings saved');
+    } catch (err) {
+      setSmsError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSmsBusy(false);
+    }
+  }
+
+  async function handleTestSms() {
+    if (!selectedId) return;
+    const to = smsTestPhone.trim();
+    if (!to) { setSmsError('Enter a phone number to send a test'); return; }
+    setSmsTestBusy(true);
+    setSmsError(null);
+    try {
+      const { result, log } = await api.admin.sms.test({
+        restaurantId: selectedId,
+        to,
+        message: `Iron Booking SMS test — ${detail?.name ?? ''}`.trim(),
+      });
+      if (result.success) {
+        showToast(`Test SMS sent via ${log?.provider ?? 'provider'}`);
+      } else {
+        setSmsError(log?.errorMessage ?? 'Send failed — check provider settings');
+      }
+    } catch (err) {
+      setSmsError(err instanceof Error ? err.message : 'Test failed');
+    } finally {
+      setSmsTestBusy(false);
+    }
+  }
+
+  // ── SMS usage report ──────────────────────────────────────────────────────────
+
+  const loadSmsUsage = useCallback(async (month?: string) => {
+    setSmsUsageLoading(true);
+    try {
+      const report = await api.admin.sms.usage(month);
+      setSmsUsage(report);
+      setSmsUsageMonth(report.month);
+    } catch { /* ignore */ }
+    finally { setSmsUsageLoading(false); }
+  }, []);
+
+  function openSmsUsage() {
+    setSidebarTab('sms');
+    setView('sms-usage');
+    setSelectedId(null);
+    setSelectedGroupId(null);
+    loadSmsUsage(smsUsageMonth || undefined);
   }
 
   // ── Branding ──────────────────────────────────────────────────────────────────
@@ -1537,6 +1626,88 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           </div>
         )}
 
+        {/* SMS Service */}
+        {editSms ? (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
+            <h3 className="font-medium">SMS Service</h3>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={smsForm.enabled}
+                onChange={e => setSmsForm(f => ({ ...f, enabled: e.target.checked }))}
+              />
+              Enable SMS for this restaurant
+            </label>
+            <Field label="Provider">
+              <select
+                value={smsForm.provider}
+                onChange={e => setSmsForm(f => ({ ...f, provider: e.target.value }))}
+                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-sm text-iron-text"
+              >
+                <option value="MOCK">MOCK (testing — does not send)</option>
+                <option value="INFORU">InforU (live)</option>
+              </select>
+            </Field>
+            <Field label="Sender name (must be pre-approved with InforU, max 11 chars)">
+              <Input
+                value={smsForm.senderName}
+                onChange={e => setSmsForm(f => ({ ...f, senderName: e.target.value.slice(0, 11) }))}
+                placeholder="e.g. NAJMA"
+              />
+            </Field>
+            {smsError && <p className="text-xs text-status-danger">{smsError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveSms} disabled={smsBusy} className={btnPrimary}>{smsBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
+              <button onClick={() => { setEditSms(false); setSmsError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">SMS Service</h3>
+              {isSuperAdmin && <button
+                onClick={() => { setEditSms(true); setSmsError(null); }}
+                className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
+              >{T.admin.editBtn}</button>}
+            </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Status</dt>
+                <dd>
+                  {smsForm.enabled
+                    ? <span className="text-iron-green text-xs font-medium">Enabled</span>
+                    : <span className="text-status-warning text-xs font-medium">Disabled — no SMS will send</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Provider</dt>
+                <dd className="text-iron-text">{smsForm.provider}{smsForm.provider === 'MOCK' && <span className="text-iron-muted"> (test only)</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-iron-muted text-xs mb-0.5">Sender name</dt>
+                <dd className="text-iron-text">{smsForm.senderName || <span className="text-iron-muted italic">Not set</span>}</dd>
+              </div>
+            </dl>
+            {isSuperAdmin && smsForm.enabled && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-iron-border/60">
+                <span className="text-xs text-iron-muted mt-3">Send a test SMS to:</span>
+                <input
+                  value={smsTestPhone}
+                  onChange={e => setSmsTestPhone(e.target.value)}
+                  placeholder="+972501234567"
+                  className="mt-3 bg-iron-bg border border-iron-border rounded px-2 py-1 text-xs text-iron-text w-44"
+                />
+                <button
+                  onClick={handleTestSms}
+                  disabled={smsTestBusy}
+                  className="mt-3 text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg disabled:opacity-50"
+                >{smsTestBusy ? 'Sending…' : 'Send test SMS'}</button>
+                {smsError && <p className="w-full text-xs text-status-danger mt-1">{smsError}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Public Branding */}
         {editBranding ? (
           <div className="space-y-8">
@@ -2216,6 +2387,87 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     );
   }
 
+  function renderSmsUsage() {
+    const rows = smsUsage?.restaurants ?? [];
+    return (
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold">SMS Usage</h2>
+              <p className="text-iron-muted text-sm mt-0.5">How many SMS each restaurant actually sent.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="month"
+                value={smsUsageMonth}
+                onChange={e => { setSmsUsageMonth(e.target.value); loadSmsUsage(e.target.value || undefined); }}
+                className="bg-iron-bg border border-iron-border rounded px-3 py-1.5 text-sm text-iron-text"
+              />
+            </div>
+          </div>
+
+          {smsUsageLoading ? (
+            <div className="flex justify-center p-10">
+              <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-iron-surface rounded-lg p-4 border border-iron-border">
+                  <div className="text-2xl font-semibold text-iron-green">{smsUsage?.totals.sent ?? 0}</div>
+                  <div className="text-xs text-iron-muted mt-1">Sent ({smsUsage?.month ?? '—'})</div>
+                </div>
+                <div className="bg-iron-surface rounded-lg p-4 border border-iron-border">
+                  <div className="text-2xl font-semibold text-status-danger">{smsUsage?.totals.failed ?? 0}</div>
+                  <div className="text-xs text-iron-muted mt-1">Failed</div>
+                </div>
+                <div className="bg-iron-surface rounded-lg p-4 border border-iron-border">
+                  <div className="text-2xl font-semibold text-iron-muted">{smsUsage?.totals.mock ?? 0}</div>
+                  <div className="text-xs text-iron-muted mt-1">Mock (not live)</div>
+                </div>
+              </div>
+
+              <div className="bg-iron-surface rounded-lg border border-iron-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-iron-muted border-b border-iron-border">
+                      <th className="px-4 py-3 font-medium">Restaurant</th>
+                      <th className="px-4 py-3 font-medium">SMS</th>
+                      <th className="px-4 py-3 font-medium text-right">Sent</th>
+                      <th className="px-4 py-3 font-medium text-right">Failed</th>
+                      <th className="px-4 py-3 font-medium text-right">Mock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 ? (
+                      <tr><td colSpan={5} className="px-4 py-6 text-center text-iron-muted">No restaurants</td></tr>
+                    ) : rows.map(r => (
+                      <tr key={r.restaurantId} className="border-b border-iron-border/60 last:border-0">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-iron-text">{r.name}</div>
+                          {r.smsSenderName && <div className="text-xs text-iron-muted">sender: {r.smsSenderName}</div>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {r.smsEnabled
+                            ? <span className="text-iron-green text-xs font-medium">{r.smsProvider === 'INFORU' ? 'Live' : 'Enabled (test)'}</span>
+                            : <span className="text-iron-muted text-xs">Off</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium">{r.sent}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-status-danger">{r.failed || ''}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-iron-muted">{r.mock || ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderGroupDetail() {
     if (groupDetailBusy || !groupDetail) {
       return (
@@ -2518,6 +2770,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 onClick={() => { setSidebarTab('groups'); setView('splash'); setSelectedId(null); if (groups.length === 0) loadGroups(); }}
                 className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'groups' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
               >{T.admin.groups}</button>
+              <button
+                onClick={openSmsUsage}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'sms' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
+              >SMS</button>
             </div>
           )}
 
@@ -2607,6 +2863,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             {view === 'detail'        && renderDetail()}
             {view === 'create-group'  && renderCreateGroup()}
             {view === 'group-detail'  && renderGroupDetail()}
+            {view === 'sms-usage'     && renderSmsUsage()}
           </div>
         </PanelErrorBoundary>
       </div>

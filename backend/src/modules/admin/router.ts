@@ -8,7 +8,7 @@ import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
 import { sendSms } from '../../lib/messaging';
-import { MessageType } from '@prisma/client';
+import { MessageType, MessageProvider, MessageStatus, MessageChannel } from '@prisma/client';
 
 const router = Router();
 
@@ -435,6 +435,14 @@ const UpdateSettingsSchema = z.object({
   lateThresholdMinutes:      z.number().int().min(1).max(60).optional(),
   noShowThresholdMinutes:    z.number().int().min(5).max(120).optional(),
   confirmationRequired:      z.boolean().optional(),
+  // SMS service configuration (stored in restaurant.settings JSON)
+  smsEnabled:                z.boolean().optional(),
+  smsProvider:               z.enum(['INFORU', 'MOCK']).optional(),
+  smsSenderName:             z.string().trim().min(1).max(11).optional(),
+  smsMonthlyQuota:           z.number().int().min(0).optional(),
+  smsFallbackEnabled:        z.boolean().optional(),
+  reminderEnabled:           z.boolean().optional(),
+  reminderLeadMinutes:       z.number().int().min(0).max(1440).optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings
@@ -892,6 +900,93 @@ router.post('/groups/:id/users', superAdminOnly, validate(CreateHqUserSchema), a
       },
     });
     res.status(201).json(user);
+  } catch (err) { next(err); }
+});
+
+// ─── SMS usage report (SUPER_ADMIN only) ──────────────────────────────────────
+// GET /admin/sms/usage?month=YYYY-MM
+// Aggregates message_logs to report how many SMS each restaurant actually sent in
+// the given month. "Sent" = real provider (INFORU) with status SENT/DELIVERED.
+// MOCK rows (provider not yet switched to live) are excluded from the sent count.
+// Every non-system restaurant is listed, including those with zero sends.
+
+const SmsUsageQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+});
+
+router.get('/sms/usage', superAdminOnly, validate(SmsUsageQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const monthParam = (req.query as { month?: string }).month;
+    const now = new Date();
+    const [year, month] = monthParam
+      ? monthParam.split('-').map(Number)
+      : [now.getUTCFullYear(), now.getUTCMonth() + 1];
+
+    const rangeStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const rangeEnd   = new Date(Date.UTC(year, month, 1, 0, 0, 0)); // exclusive
+
+    const [restaurants, grouped] = await Promise.all([
+      prisma.restaurant.findMany({
+        where:   { isSystem: false },
+        select:  { id: true, name: true, slug: true, settings: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.messageLog.groupBy({
+        by: ['restaurantId', 'provider', 'status'],
+        where: {
+          channel:   MessageChannel.SMS,
+          createdAt: { gte: rangeStart, lt: rangeEnd },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    // restaurantId -> { sent, failed, pending, mock }
+    const buckets = new Map<string, { sent: number; failed: number; pending: number; mock: number }>();
+    for (const g of grouped) {
+      const b = buckets.get(g.restaurantId) ?? { sent: 0, failed: 0, pending: 0, mock: 0 };
+      const n = g._count._all;
+      if (g.provider === MessageProvider.MOCK) {
+        b.mock += n;
+      } else if (g.status === MessageStatus.SENT || g.status === MessageStatus.DELIVERED) {
+        b.sent += n;
+      } else if (g.status === MessageStatus.FAILED) {
+        b.failed += n;
+      } else {
+        b.pending += n;
+      }
+      buckets.set(g.restaurantId, b);
+    }
+
+    const rows = restaurants.map(r => {
+      const s = (r.settings ?? {}) as Record<string, unknown>;
+      const b = buckets.get(r.id) ?? { sent: 0, failed: 0, pending: 0, mock: 0 };
+      return {
+        restaurantId:  r.id,
+        name:          r.name,
+        slug:          r.slug,
+        smsEnabled:    s.smsEnabled === true,
+        smsProvider:   (s.smsProvider as string | undefined) ?? 'MOCK',
+        smsSenderName: (s.smsSenderName as string | undefined) ?? null,
+        sent:          b.sent,
+        failed:        b.failed,
+        pending:       b.pending,
+        mock:          b.mock,
+      };
+    });
+
+    const totals = rows.reduce(
+      (acc, r) => ({ sent: acc.sent + r.sent, failed: acc.failed + r.failed, pending: acc.pending + r.pending, mock: acc.mock + r.mock }),
+      { sent: 0, failed: 0, pending: 0, mock: 0 },
+    );
+
+    res.json({
+      month:      `${year}-${String(month).padStart(2, '0')}`,
+      rangeStart: rangeStart.toISOString(),
+      rangeEnd:   rangeEnd.toISOString(),
+      totals,
+      restaurants: rows,
+    });
   } catch (err) { next(err); }
 });
 

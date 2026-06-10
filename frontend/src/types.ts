@@ -236,6 +236,27 @@ export interface AdminRestaurantDetail extends AdminRestaurant {
   } | null;
 }
 
+export interface SmsUsageRow {
+  restaurantId: string;
+  name: string;
+  slug: string;
+  smsEnabled: boolean;
+  smsProvider: string;
+  smsSenderName: string | null;
+  sent: number;
+  failed: number;
+  pending: number;
+  mock: number;
+}
+
+export interface SmsUsageReport {
+  month: string;
+  rangeStart: string;
+  rangeEnd: string;
+  totals: { sent: number; failed: number; pending: number; mock: number };
+  restaurants: SmsUsageRow[];
+}
+
 export interface AdminUser {
   id: string;
   email: string;
