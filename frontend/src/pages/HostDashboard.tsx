@@ -219,31 +219,25 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [showBulkConfirm,    setShowBulkConfirm]    = useState(false);
   const [showCallLog,        setShowCallLog]        = useState(false);
   const [showMoreMenu,       setShowMoreMenu]       = useState(false);
+  const [showBroadcast,      setShowBroadcast]      = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!showMoreMenu) return;
+    if (!showMoreMenu && !showBroadcast) return;
     const onDown = (e: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+        setShowBroadcast(false);
+      }
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
-  }, [showMoreMenu]);
-  const [showBroadcast,      setShowBroadcast]      = useState(false);
+  }, [showMoreMenu, showBroadcast]);
   const [broadcastMsg,       setBroadcastMsg]       = useState('');
   const [broadcastTarget,    setBroadcastTarget]    = useState<'all' | 'specific'>('all');
   const [broadcastSelIds,    setBroadcastSelIds]    = useState<string[]>([]);
   const [broadcastBusy,      setBroadcastBusy]      = useState(false);
   const [broadcastResult,    setBroadcastResult]    = useState<{ sent: number } | null>(null);
   const [broadcastConfirming, setBroadcastConfirming] = useState(false);
-  const broadcastRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!showBroadcast) return;
-    const onDown = (e: MouseEvent) => {
-      if (broadcastRef.current && !broadcastRef.current.contains(e.target as Node)) setShowBroadcast(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [showBroadcast]);
   const [showSmartAssign,    setShowSmartAssign]    = useState(false);
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
   const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
@@ -2005,20 +1999,125 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const toolbarActions = (
     <>
-      {/* ── Broadcast / אישורים button ── */}
-      <div className="relative" ref={broadcastRef}>
+      {/* ── More menu (עוד) — contains all toolbar actions including broadcast ── */}
+      <div className="relative" ref={moreMenuRef}>
         <button
-          onClick={() => { setShowBroadcast(v => !v); setBroadcastResult(null); setBroadcastConfirming(false); }}
-          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors shrink-0"
+          onClick={() => { setShowMoreMenu(v => !v); setShowBroadcast(false); }}
+          className={`flex items-center gap-1 text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
+            showMoreMenu || showBroadcast
+              ? 'bg-iron-elevated/40 border-iron-border/65 text-iron-text/90'
+              : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
+          }`}
         >
-          {T.hostDashboard.broadcastBtn}
+          {T.hostDashboard.moreMenu}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`}>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
         </button>
+
+        {/* ── Dropdown menu ── */}
+        {showMoreMenu && (
+          <div
+            className="absolute end-0 top-full mt-1.5 z-50 min-w-[176px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
+            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          >
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowBroadcast(true); setBroadcastResult(null); setBroadcastConfirming(false); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.broadcastBtn}
+            </button>
+            <div className="my-1 border-t border-iron-border/30" />
+            <button
+              onClick={() => {
+                setShowMoreMenu(false);
+                if (combineMode) { setCombineMode(false); setCombinedSelection([]); }
+                else { setSelectedRes(null); setCreateMode(null); setCombineMode(true); }
+              }}
+              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
+                combineMode
+                  ? 'text-status-reserved bg-blue-600/10 hover:bg-blue-600/18'
+                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
+              }`}
+            >
+              {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables2}
+            </button>
+            <button
+              onClick={() => {
+                setShowMoreMenu(false);
+                if (reorganizeMode) { setReorganizeMode(false); setRebuildDayTarget(null); }
+                else { setSelectedRes(null); setCreateMode(null); setCombineMode(false); setCombinedSelection([]); setReorganizeMode(true); rebuildSessionIdRef.current = crypto.randomUUID(); }
+              }}
+              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
+                reorganizeMode
+                  ? 'text-status-warning bg-status-warning/10 hover:bg-status-warning/18'
+                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
+              }`}
+            >
+              {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor2}
+            </button>
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowCallLog(v => !v); }}
+              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
+                showCallLog
+                  ? 'text-iron-green-light bg-iron-green/10 hover:bg-iron-green/18'
+                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
+              }`}
+            >
+              {T.hostDashboard.callLogBtn}
+            </button>
+            <div className="my-1 border-t border-iron-border/30" />
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowBulkConfirm(true); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.bulkConfirmBtn}
+            </button>
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowServiceReport(true); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.serviceReportBtn}
+            </button>
+            <button
+              onClick={() => { setShowMoreMenu(false); setActivePage('activity'); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.activityLogBtn}
+            </button>
+            {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
+              <button
+                onClick={() => { setShowMoreMenu(false); setActivePage('hosts'); }}
+                className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+              >
+                {T.hostDashboard.hostsBtn}
+              </button>
+            )}
+            <button
+              onClick={() => { setShowMoreMenu(false); setLayoutMode(true); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.editLayout}
+            </button>
+          </div>
+        )}
+
+        {/* ── Broadcast panel (opens from same anchor after selecting from menu) ── */}
         {showBroadcast && (
           <div
             className="absolute end-0 top-full mt-1.5 z-50 w-72 rounded-xl border border-iron-border/50 bg-iron-elevated p-3 flex flex-col gap-2.5"
             style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
           >
-            <p className="text-xs font-semibold text-iron-text/90">{T.hostDashboard.broadcastTitle}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-iron-text/90">{T.hostDashboard.broadcastTitle}</p>
+              <button
+                onClick={() => setShowBroadcast(false)}
+                className="text-iron-muted/50 hover:text-iron-muted/80 transition-colors"
+                aria-label="Close"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
             <textarea
               rows={3}
               value={broadcastMsg}
@@ -2106,101 +2205,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 {T.hostDashboard.broadcastSend}
               </button>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* ── More menu (עוד) ── */}
-      <div className="relative" ref={moreMenuRef}>
-        <button
-          onClick={() => setShowMoreMenu(v => !v)}
-          className={`flex items-center gap-1 text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
-            showMoreMenu
-              ? 'bg-iron-elevated/40 border-iron-border/65 text-iron-text/90'
-              : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-          }`}
-        >
-          {T.hostDashboard.moreMenu}
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`}>
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-        {showMoreMenu && (
-          <div
-            className="absolute end-0 top-full mt-1.5 z-50 min-w-[176px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
-            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
-          >
-            <button
-              onClick={() => {
-                setShowMoreMenu(false);
-                if (combineMode) { setCombineMode(false); setCombinedSelection([]); }
-                else { setSelectedRes(null); setCreateMode(null); setCombineMode(true); }
-              }}
-              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
-                combineMode
-                  ? 'text-status-reserved bg-blue-600/10 hover:bg-blue-600/18'
-                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
-              }`}
-            >
-              {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables2}
-            </button>
-            <button
-              onClick={() => {
-                setShowMoreMenu(false);
-                if (reorganizeMode) { setReorganizeMode(false); setRebuildDayTarget(null); }
-                else { setSelectedRes(null); setCreateMode(null); setCombineMode(false); setCombinedSelection([]); setReorganizeMode(true); rebuildSessionIdRef.current = crypto.randomUUID(); }
-              }}
-              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
-                reorganizeMode
-                  ? 'text-status-warning bg-status-warning/10 hover:bg-status-warning/18'
-                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
-              }`}
-            >
-              {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor2}
-            </button>
-            <button
-              onClick={() => { setShowMoreMenu(false); setShowCallLog(v => !v); }}
-              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
-                showCallLog
-                  ? 'text-iron-green-light bg-iron-green/10 hover:bg-iron-green/18'
-                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
-              }`}
-            >
-              {T.hostDashboard.callLogBtn}
-            </button>
-            <div className="my-1 border-t border-iron-border/30" />
-            <button
-              onClick={() => { setShowMoreMenu(false); setShowBulkConfirm(true); }}
-              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
-            >
-              {T.hostDashboard.bulkConfirmBtn}
-            </button>
-            <button
-              onClick={() => { setShowMoreMenu(false); setShowServiceReport(true); }}
-              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
-            >
-              {T.hostDashboard.serviceReportBtn}
-            </button>
-            <button
-              onClick={() => { setShowMoreMenu(false); setActivePage('activity'); }}
-              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
-            >
-              {T.hostDashboard.activityLogBtn}
-            </button>
-            {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
-              <button
-                onClick={() => { setShowMoreMenu(false); setActivePage('hosts'); }}
-                className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
-              >
-                {T.hostDashboard.hostsBtn}
-              </button>
-            )}
-            <button
-              onClick={() => { setShowMoreMenu(false); setLayoutMode(true); }}
-              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
-            >
-              {T.hostDashboard.editLayout}
-            </button>
           </div>
         )}
       </div>
