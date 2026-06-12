@@ -221,6 +221,7 @@ export const T = {
     reorganizeRemovedFrom: (table: string) => `Removed from ${table}`,
     reorganizeAssign:    'Assign table',
     reorganizeOpen:      'Open',
+    reorganizeSeat:      'Seat',
     overdueHeader:    (n: number) => `Overdue · needs action (${n})`,
     overdueMinutes:   (n: number) => `${n}m late`,
     overdueOpen:      'Open',

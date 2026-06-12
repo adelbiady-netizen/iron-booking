@@ -222,6 +222,7 @@ export const THe = {
     reorganizeRemovedFrom: (table: string) => `הוסר משולחן ${table}`,
     reorganizeAssign:    'שייך שולחן',
     reorganizeOpen:      'פתח',
+    reorganizeSeat:      'הושבה',
     overdueHeader:    (n: number) => `לא הגיעו · צריך טיפול (${n})`,
     overdueMinutes:   (n: number) => `מאחר ${n} דקות`,
     overdueOpen:      'פתח',
