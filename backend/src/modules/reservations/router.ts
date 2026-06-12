@@ -687,4 +687,48 @@ router.post('/send-reminders', validate(SendRemindersSchema), async (req: Reques
   } catch (err) { next(err); }
 });
 
+// POST /reservations/broadcast — send a free-text message to all (or selected) guests on a date
+const BroadcastSchema = z.object({
+  date:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  message:        z.string().min(1).max(1000),
+  reservationIds: z.array(z.string().uuid()).optional(), // omit = all for the date
+});
+router.post('/broadcast', validate(BroadcastSchema, 'body'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { date, message, reservationIds } = req.body as z.infer<typeof BroadcastSchema>;
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        restaurantId: req.auth.restaurantId,
+        date:         new Date(date + 'T00:00:00.000Z'),
+        status:       { in: ['PENDING', 'CONFIRMED', 'SEATED'] },
+        guestPhone:   { not: null },
+        ...(reservationIds?.length ? { id: { in: reservationIds } } : {}),
+      },
+      select: { id: true, guestPhone: true, guestName: true, guestId: true },
+    });
+
+    let sent = 0;
+    const failed: string[] = [];
+    const { sendSms } = await import('../../lib/messaging');
+    for (const r of reservations) {
+      try {
+        const result = await sendSms({
+          restaurantId:  req.auth.restaurantId,
+          to:            r.guestPhone!,
+          message,
+          type:          MessageType.MANUAL,
+          reservationId: r.id,
+          guestId:       r.guestId ?? undefined,
+        });
+        if (result.success) sent++;
+        else failed.push(r.id);
+      } catch (err) {
+        console.error(`[broadcast] Failed for reservation ${r.id}:`, err instanceof Error ? err.message : err);
+        failed.push(r.id);
+      }
+    }
+    res.json({ sent, failed, total: reservations.length });
+  } catch (err) { next(err); }
+});
+
 export default router;

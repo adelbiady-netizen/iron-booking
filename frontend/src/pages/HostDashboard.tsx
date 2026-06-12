@@ -228,6 +228,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [showMoreMenu]);
+  const [showBroadcast,      setShowBroadcast]      = useState(false);
+  const [broadcastMsg,       setBroadcastMsg]       = useState('');
+  const [broadcastTarget,    setBroadcastTarget]    = useState<'all' | 'specific'>('all');
+  const [broadcastSelIds,    setBroadcastSelIds]    = useState<string[]>([]);
+  const [broadcastBusy,      setBroadcastBusy]      = useState(false);
+  const [broadcastResult,    setBroadcastResult]    = useState<{ sent: number } | null>(null);
+  const [broadcastConfirming, setBroadcastConfirming] = useState(false);
+  const broadcastRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showBroadcast) return;
+    const onDown = (e: MouseEvent) => {
+      if (broadcastRef.current && !broadcastRef.current.contains(e.target as Node)) setShowBroadcast(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showBroadcast]);
   const [showSmartAssign,    setShowSmartAssign]    = useState(false);
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
   const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
@@ -1959,60 +1975,142 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Compact card when the host is mid-flow so their context is not hidden.
   const callWorkflowActive = !!(selectedRes || createMode || tablePickMode || waitlistAssignEntry);
 
+  const handleBroadcastSend = async () => {
+    if (!broadcastMsg.trim() || broadcastBusy) return;
+    setBroadcastBusy(true);
+    setBroadcastConfirming(false);
+    setBroadcastResult(null);
+    try {
+      const body: { date: string; message: string; reservationIds?: string[] } = {
+        date: date,
+        message: broadcastMsg.trim(),
+      };
+      if (broadcastTarget === 'specific' && broadcastSelIds.length > 0) {
+        body.reservationIds = broadcastSelIds;
+      }
+      const result = await api.reservations.broadcast(body);
+      setBroadcastResult({ sent: result.sent });
+      setBroadcastMsg('');
+      setBroadcastSelIds([]);
+    } catch {
+      // keep panel open on error
+    } finally {
+      setBroadcastBusy(false);
+    }
+  };
+
+  const broadcastableRes = reservations.filter(
+    r => ['PENDING', 'CONFIRMED', 'SEATED'].includes(r.status) && r.guestPhone,
+  );
+
   const toolbarActions = (
     <>
-      <button
-        onClick={() => {
-          if (combineMode) {
-            setCombineMode(false);
-            setCombinedSelection([]);
-          } else {
-            setSelectedRes(null);
-            setCreateMode(null);
-            setCombineMode(true);
-          }
-        }}
-        className={`text-[11px] font-semibold border rounded-lg px-2.5 py-1.5 transition-colors ${
-          combineMode
-            ? 'bg-blue-600/20 border-status-reserved/40 text-status-reserved hover:bg-blue-600/28'
-            : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-        }`}
-      >
-        {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables}
-      </button>
-      <button
-        onClick={() => {
-          if (reorganizeMode) {
-            setReorganizeMode(false);
-            setRebuildDayTarget(null);
-          } else {
-            setSelectedRes(null);
-            setCreateMode(null);
-            setCombineMode(false);
-            setCombinedSelection([]);
-            setReorganizeMode(true);
-            rebuildSessionIdRef.current = crypto.randomUUID();
-          }
-        }}
-        className={`text-[11px] font-semibold border rounded-lg px-2.5 py-1.5 transition-colors ${
-          reorganizeMode
-            ? 'bg-status-warning/20 border-status-warning/40 text-status-warning hover:bg-status-warning/28'
-            : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-        }`}
-      >
-        {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor}
-      </button>
-      <div className="w-px h-5 bg-iron-border/30 shrink-0" />
-      <button
-        onClick={() => setShowCallLog(v => !v)}
-        className={`text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
-          showCallLog
-            ? 'bg-iron-green/15 border-iron-green/35 text-iron-green-light'
-            : 'text-iron-muted/70 hover:text-iron-text/90 border-iron-border/45 hover:border-iron-border/65 hover:bg-iron-elevated/30'
-        }`}
-      >
-        {T.callLog.btn}
-      </button>
+      {/* ── Broadcast / אישורים button ── */}
+      <div className="relative" ref={broadcastRef}>
+        <button
+          onClick={() => { setShowBroadcast(v => !v); setBroadcastResult(null); setBroadcastConfirming(false); }}
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors shrink-0"
+        >
+          {T.hostDashboard.broadcastBtn}
+        </button>
+        {showBroadcast && (
+          <div
+            className="absolute end-0 top-full mt-1.5 z-50 w-72 rounded-xl border border-iron-border/50 bg-iron-elevated p-3 flex flex-col gap-2.5"
+            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          >
+            <p className="text-xs font-semibold text-iron-text/90">{T.hostDashboard.broadcastTitle}</p>
+            <textarea
+              rows={3}
+              value={broadcastMsg}
+              onChange={e => setBroadcastMsg(e.target.value)}
+              placeholder={T.hostDashboard.broadcastPlaceholder}
+              className="w-full resize-none rounded-lg border border-iron-border/50 bg-iron-bg px-2.5 py-2 text-xs text-iron-text placeholder:text-iron-muted/40 focus:outline-none focus:border-iron-border/80"
+              dir="rtl"
+            />
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="broadcast-target"
+                  checked={broadcastTarget === 'all'}
+                  onChange={() => { setBroadcastTarget('all'); setBroadcastSelIds([]); }}
+                  className="accent-iron-green-light"
+                />
+                <span className="text-xs text-iron-muted/80">{T.hostDashboard.broadcastToAll} ({broadcastableRes.length})</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="broadcast-target"
+                  checked={broadcastTarget === 'specific'}
+                  onChange={() => setBroadcastTarget('specific')}
+                  className="accent-iron-green-light"
+                />
+                <span className="text-xs text-iron-muted/80">{T.hostDashboard.broadcastToSpecific}</span>
+              </label>
+            </div>
+            {broadcastTarget === 'specific' && (
+              <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+                {broadcastableRes.map(r => (
+                  <label key={r.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={broadcastSelIds.includes(r.id)}
+                      onChange={e => setBroadcastSelIds(prev =>
+                        e.target.checked ? [...prev, r.id] : prev.filter(x => x !== r.id)
+                      )}
+                      className="accent-iron-green-light"
+                    />
+                    <span className="text-xs text-iron-text/80 truncate">{r.guestName} — {r.time}</span>
+                  </label>
+                ))}
+                {broadcastableRes.length === 0 && (
+                  <p className="text-xs text-iron-muted/50">{T.hostDashboard.broadcastNoPhone}</p>
+                )}
+              </div>
+            )}
+            {broadcastResult && (
+              <p className="text-xs text-iron-green-light font-medium">
+                {T.hostDashboard.broadcastSuccess(broadcastResult.sent)}
+              </p>
+            )}
+            {broadcastConfirming ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-status-warning/30 bg-status-warning/10 px-3 py-2">
+                <span className="text-xs text-status-warning font-medium">
+                  {T.hostDashboard.broadcastConfirm(
+                    broadcastTarget === 'specific' ? broadcastSelIds.length : broadcastableRes.length
+                  )}
+                </span>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setBroadcastConfirming(false)}
+                    className="text-xs px-2.5 py-1 rounded-lg border border-iron-border/50 text-iron-muted/80 hover:text-iron-text transition-colors"
+                  >
+                    {T.hostDashboard.broadcastConfirmNo}
+                  </button>
+                  <button
+                    onClick={handleBroadcastSend}
+                    disabled={broadcastBusy}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-iron-green-light text-white hover:bg-iron-green disabled:opacity-40 transition-colors"
+                  >
+                    {broadcastBusy ? T.hostDashboard.broadcastSending : T.hostDashboard.broadcastConfirmYes}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setBroadcastConfirming(true)}
+                disabled={!broadcastMsg.trim() || (broadcastTarget === 'specific' && broadcastSelIds.length === 0)}
+                className="self-end text-xs font-semibold px-3 py-1.5 rounded-lg bg-iron-green-light text-white hover:bg-iron-green disabled:opacity-40 transition-colors"
+              >
+                {T.hostDashboard.broadcastSend}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── More menu (עוד) ── */}
       <div className="relative" ref={moreMenuRef}>
         <button
           onClick={() => setShowMoreMenu(v => !v)}
@@ -2032,6 +2130,51 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             className="absolute end-0 top-full mt-1.5 z-50 min-w-[176px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
             style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
           >
+            <button
+              onClick={() => {
+                setShowMoreMenu(false);
+                if (combineMode) { setCombineMode(false); setCombinedSelection([]); }
+                else { setSelectedRes(null); setCreateMode(null); setCombineMode(true); }
+              }}
+              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
+                combineMode
+                  ? 'text-status-reserved bg-blue-600/10 hover:bg-blue-600/18'
+                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
+              }`}
+            >
+              {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables2}
+            </button>
+            <button
+              onClick={() => {
+                setShowMoreMenu(false);
+                if (reorganizeMode) { setReorganizeMode(false); setRebuildDayTarget(null); }
+                else { setSelectedRes(null); setCreateMode(null); setCombineMode(false); setCombinedSelection([]); setReorganizeMode(true); rebuildSessionIdRef.current = crypto.randomUUID(); }
+              }}
+              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
+                reorganizeMode
+                  ? 'text-status-warning bg-status-warning/10 hover:bg-status-warning/18'
+                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
+              }`}
+            >
+              {reorganizeMode ? T.hostDashboard.exitReorganize : T.hostDashboard.reorganizeFloor2}
+            </button>
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowCallLog(v => !v); }}
+              className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
+                showCallLog
+                  ? 'text-iron-green-light bg-iron-green/10 hover:bg-iron-green/18'
+                  : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
+              }`}
+            >
+              {T.hostDashboard.callLogBtn}
+            </button>
+            <div className="my-1 border-t border-iron-border/30" />
+            <button
+              onClick={() => { setShowMoreMenu(false); setShowBulkConfirm(true); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.bulkConfirmBtn}
+            </button>
             <button
               onClick={() => { setShowMoreMenu(false); setShowServiceReport(true); }}
               className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
@@ -2088,7 +2231,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onAdminPortal={onAdminPortal}
         onGuestsPage={handleGuestsPage}
         onSwitchHost={onSwitchHost}
-        onBulkConfirm={() => setShowBulkConfirm(true)}
         sseStatus={sseStatus}
         toolbarSlot={toolbarActions}
       />

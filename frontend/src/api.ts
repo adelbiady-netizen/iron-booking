@@ -302,6 +302,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    broadcast: (body: { date: string; message: string; reservationIds?: string[] }) =>
+      request<{ sent: number; failed: string[]; total: number }>('/reservations/broadcast', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     sendReminder: (id: string) =>
       request<Reservation>(`/reservations/${id}/send-reminder`, { method: 'POST' }),
     sendReminders: (body: { date: string; withinMinutes?: number }) =>
