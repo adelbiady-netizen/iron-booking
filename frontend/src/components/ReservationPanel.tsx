@@ -363,15 +363,26 @@ export default function ReservationPanel({
                           <p className="text-status-warning/70 text-[10px] mt-0.5">{fromTable}</p>
                         )}
                       </div>
-                      {onContextMenuSeat && (
-                        <button
-                          onClick={() => onContextMenuSeat({ ...r, tableId: null })}
-                          className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] shrink-0"
-                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                        >
-                          {T.reservationPanel.reorganizeSeat}
-                        </button>
-                      )}
+                      {onContextMenuSeat && (() => {
+                        // Seating is only valid on the reservation's own service day
+                        // (backend rejects otherwise). Disable + explain for other dates.
+                        const seatBlocked = (r.date ?? '').slice(0, 10) !== todayStr;
+                        return (
+                          <button
+                            onClick={() => { if (!seatBlocked) onContextMenuSeat({ ...r, tableId: null }); }}
+                            disabled={seatBlocked}
+                            title={seatBlocked ? T.guestDrawer.seatFutureDisabled : undefined}
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-md shrink-0 transition-[background-color,transform] duration-100 ${
+                              seatBlocked
+                                ? 'bg-iron-border/20 text-iron-muted/45 cursor-not-allowed'
+                                : 'bg-iron-green text-white hover:bg-iron-green-light active:scale-[0.97]'
+                            }`}
+                            style={seatBlocked ? undefined : { boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                          >
+                            {T.reservationPanel.reorganizeSeat}
+                          </button>
+                        );
+                      })()}
                       <button
                         onClick={() => onReorganizeSelect?.(r)}
                         className="text-xs font-medium px-2.5 py-1 rounded-md border border-status-warning/40 text-status-warning hover:bg-status-warning/15 transition-colors shrink-0"
