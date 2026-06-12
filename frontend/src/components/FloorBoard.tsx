@@ -3017,14 +3017,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     bg = STATUS_BG['AVAILABLE'];
   }
 
-  // 4-state border: green=available, blue=reserved, orange=occupied, red=overdue
   let borderColor = selected          ? '#22c55e'
     : combinedSelected                ? '#3b82f6'
     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
     : table.locked                    ? '#f59e0b'
-    : (isOverdue || isStaleOccupied)  ? '#ef4444'
-    : table.liveStatus === 'OCCUPIED' ? 'rgba(234,88,12,0.70)'
-    : (displayStatus === 'RESERVED' || displayStatus === 'RESERVED_SOON') ? 'rgba(59,130,246,0.60)'
     : '#435B2A';
 
   let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
