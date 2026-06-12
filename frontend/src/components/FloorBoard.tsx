@@ -3151,6 +3151,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 
   const guestName = hasGuest ? (displayRes?.guestName ?? null) : null;
   const partySize = hasGuest && displayRes ? displayRes.partySize : null;
+  const resTime   = hasGuest && displayRes ? displayRes.time : null;
 
   return (
   <>
@@ -3191,13 +3192,25 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         {table.name}
       </span>
 
-      {/* Guest name — primary, most prominent */}
+      {/* Reservation time — most prominent when guest present */}
+      {resTime && (
+        <span style={{
+          fontSize: 16, fontWeight: 900,
+          color: '#435B2A',
+          lineHeight: 1.1, letterSpacing: '-0.03em',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {resTime}
+        </span>
+      )}
+
+      {/* Guest name */}
       {guestName && (
         <span style={{
-          fontSize: 14, fontWeight: 800,
+          fontSize: 12, fontWeight: 700,
           color: '#435B2A',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          width: '100%', lineHeight: 1.2, letterSpacing: '-0.02em',
+          width: '100%', lineHeight: 1.2, letterSpacing: '-0.01em',
         }}>
           {guestName}
         </span>
