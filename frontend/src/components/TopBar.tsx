@@ -28,9 +28,9 @@ interface Props {
   restaurantName: string;
   userName: string;
   onLogout: () => void;
-  zoom: number;
-  zoomStep: number;
-  onZoomChange: (v: number) => void;
+  zoom?: number;
+  zoomStep?: number;
+  onZoomChange?: (v: number) => void;
   theme: Theme;
   onThemeChange: () => void;
   onAdminPortal?: () => void;
@@ -91,12 +91,10 @@ export default function TopBar({
   date, time, onDateChange, onTimeChange,
   onPrevDay, onNextDay, onPrev30, onNext30, onNow, isLive,
   restaurantName, userName, onLogout,
-  zoom, zoomStep, onZoomChange,
   theme, onThemeChange,
   onAdminPortal,
   onGuestsPage,
   onSwitchHost,
-  onBulkConfirm,
   sseStatus,
   toolbarSlot,
 }: Props) {
@@ -158,10 +156,6 @@ export default function TopBar({
     return () => document.removeEventListener('mousedown', onPointer);
   }, [settingsOpen, userMenuOpen]);
 
-  const atMin  = zoom <= 75;
-  const atMax  = zoom >= 150;
-  const atNorm = zoom === 100;
-
   const todayStr = new Date().toISOString().slice(0, 10);
   const isToday  = date === todayStr;
 
@@ -174,7 +168,7 @@ export default function TopBar({
     : 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)';
 
   return (
-    <header dir="ltr" className="ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
+    <header dir="ltr" className="relative ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
@@ -188,8 +182,8 @@ export default function TopBar({
       {/* Zone separator: brand → command */}
       <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
 
-      {/* ── Date / Time Command Cluster ──────────────────────────────── */}
-      <div ref={calendarRef} className="relative flex items-center gap-2.5 shrink-0">
+      {/* ── Date / Time Command Cluster — absolutely centered ────────── */}
+      <div ref={calendarRef} className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5">
         <div className={`flex items-stretch rounded-2xl border ${light ? 'border-iron-border/70' : 'border-white/[0.08]'} bg-iron-bg overflow-hidden`} style={{ boxShadow: insetShadow }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
@@ -259,7 +253,7 @@ export default function TopBar({
           </div>
         )}
 
-        {/* Real ("wall") clock — the live current time; ALWAYS visible so it never pops in/out */}
+        {/* Real ("wall") clock */}
         <div
           dir="ltr"
           className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
@@ -269,7 +263,7 @@ export default function TopBar({
           <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
         </div>
 
-        {/* ── Service State — adjacent to time ─────────────────── */}
+        {/* Service State */}
         {isLive ? (
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-iron-green/14 border border-iron-green/30 shrink-0" style={{ boxShadow: '0 0 0 3px rgba(111,138,60,0.07), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
             <span className="w-2 h-2 rounded-full bg-iron-green-light animate-pulse shrink-0" style={{ animationDuration: '2.4s', boxShadow: '0 0 6px rgba(111,138,60,0.5)' }} />
@@ -282,53 +276,6 @@ export default function TopBar({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-iron-green/10 border border-iron-green/30 text-iron-green-light text-xs font-semibold hover:bg-iron-green/18 transition-colors shrink-0"
           >
             ↩ {T.topBar.nowBtn}
-          </button>
-        )}
-      </div>
-
-      {/* Zone separator: command → utility */}
-      <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
-
-      {/* ── Utility group: zoom + bulk confirm ──────────────────────── */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        <div
-          className="flex items-center bg-iron-bg/60 rounded-xl overflow-hidden divide-x divide-iron-border/25"
-          style={{ boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.04)' : 'inset 0 1px 4px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(255,255,255,0.03)' }}
-          title={T.topBar.zoomTitle}
-        >
-          <button
-            onClick={() => onZoomChange(zoom - zoomStep)}
-            disabled={atMin}
-            aria-label={T.topBar.zoomOut}
-            className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
-          >
-            −
-          </button>
-          <button
-            onClick={() => onZoomChange(100)}
-            title={T.topBar.resetZoom}
-            className={`px-2.5 py-1.5 text-xs font-semibold tabular-nums leading-none hover:bg-iron-bg transition-colors select-none w-12 text-center ${
-              atNorm ? 'text-iron-muted' : 'text-iron-green-light'
-            }`}
-          >
-            {zoom}%
-          </button>
-          <button
-            onClick={() => onZoomChange(zoom + zoomStep)}
-            disabled={atMax}
-            aria-label={T.topBar.zoomIn}
-            className="px-2 py-1.5 text-sm leading-none text-iron-muted hover:text-iron-text hover:bg-iron-bg disabled:opacity-25 disabled:cursor-not-allowed transition-colors select-none"
-          >
-            +
-          </button>
-        </div>
-
-        {onBulkConfirm && (
-          <button
-            onClick={onBulkConfirm}
-            className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors shrink-0"
-          >
-            {T.topBar.bulkConfirmButton}
           </button>
         )}
       </div>
