@@ -709,11 +709,19 @@ router.post('/broadcast', validate(BroadcastSchema, 'body'), async (req: Request
 
     let sent = 0;
     const failed: string[] = [];
-    const { sendWhatsApp } = await import('../../lib/sms');
+    const { sendSms } = await import('../../lib/messaging');
     for (const r of reservations) {
       try {
-        await sendWhatsApp(req.auth.restaurantId, r.guestPhone!, message);
-        sent++;
+        const result = await sendSms({
+          restaurantId:  req.auth.restaurantId,
+          to:            r.guestPhone!,
+          message,
+          type:          MessageType.MANUAL,
+          reservationId: r.id,
+          guestId:       r.guestId ?? undefined,
+        });
+        if (result.success) sent++;
+        else failed.push(r.id);
       } catch (err) {
         console.error(`[broadcast] Failed for reservation ${r.id}:`, err instanceof Error ? err.message : err);
         failed.push(r.id);
