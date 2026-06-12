@@ -238,9 +238,10 @@ export default function ReservationPanel({
                     onClick={() => setFilter(f.value)}
                     className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
                       filter === f.value
-                        ? 'text-iron-text font-semibold bg-iron-elevated border border-iron-border/40'
+                        ? 'font-semibold text-white'
                         : 'text-iron-muted/70 font-medium hover:text-iron-text hover:bg-iron-bg/50'
                     }`}
+                    style={filter === f.value ? { backgroundColor: '#435B2A' } : undefined}
                   >
                     {f.label}
                     {f.count !== undefined && (
@@ -612,7 +613,7 @@ export default function ReservationPanel({
                         <span className="text-iron-text text-[18px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
-                        <span className="shrink-0 min-w-[26px] text-center text-[15px] font-bold tabular-nums px-1.5 py-0.5 rounded border border-iron-border/40 bg-iron-border/15 text-iron-text leading-none">{r.partySize}</span>
+                        <span className="shrink-0 min-w-[26px] text-center text-[15px] font-bold tabular-nums px-1.5 py-0.5 rounded border leading-none" style={{ color: '#435B2A', borderColor: 'rgba(67,91,42,0.35)', backgroundColor: 'rgba(67,91,42,0.08)' }}>{r.partySize}</span>
                         {r.guest?.isVip && (
                           <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
                             VIP
