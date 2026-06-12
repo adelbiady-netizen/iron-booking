@@ -89,6 +89,7 @@ export default function ReservationPanel({
   const [filter, setFilter] = useState<FilterValue>('ACTIVE');
   const [search, setSearch] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ res: Reservation; x: number; y: number } | null>(null);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,6 +100,13 @@ export default function ReservationPanel({
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [ctxMenu]);
+
+  useEffect(() => {
+    if (!openActionsId) return;
+    function onDown() { setOpenActionsId(null); }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [openActionsId]);
 
   // Live clock for waiting-time labels on arrived guests — ticks every minute.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -537,36 +545,57 @@ export default function ReservationPanel({
                     )}
                   </div>
                   {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
-                    <div className="shrink-0 flex items-center gap-0.5 ps-2">
-                      {onChooseTable && (
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                          className="text-[10px] font-semibold px-1 py-0.5 rounded bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                    <div className="shrink-0 flex items-center ps-1 relative">
+                      {/* Three-dot toggle */}
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setOpenActionsId(openActionsId === r.id ? null : r.id); }}
+                        className="w-7 h-7 flex items-center justify-center rounded text-iron-muted/60 hover:text-iron-text hover:bg-iron-border/20 transition-colors duration-100"
+                        title="פעולות"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                          <circle cx="8" cy="3" r="1.4"/>
+                          <circle cx="8" cy="8" r="1.4"/>
+                          <circle cx="8" cy="13" r="1.4"/>
+                        </svg>
+                      </button>
+                      {/* Actions popover */}
+                      {openActionsId === r.id && (
+                        <div
+                          className="absolute end-8 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 px-2 py-1.5 rounded-lg border border-iron-border/40 bg-iron-surface shadow-lg"
+                          onClick={e => e.stopPropagation()}
                         >
-                          {r.table ? T.guestDrawer.actionChangeTable : T.guestDrawer.actionChooseTable}
-                        </button>
-                      )}
-                      {onSendSms && r.guestPhone && !r.isConfirmedByGuest && (
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); onSendSms(r); }}
-                          className="text-[10px] font-semibold px-1 py-0.5 rounded bg-status-reserved text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                        >
-                          {T.guestDrawer.actionSendSms}
-                        </button>
-                      )}
-                      {onMarkArrived && !r.isArrived && (
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); onMarkArrived(r); }}
-                          className="text-[10px] font-semibold px-1 py-0.5 rounded bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                          style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                        >
-                          {T.reservationPanel.markArrivedBtn}
-                        </button>
+                          {onChooseTable && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setOpenActionsId(null); onChooseTable(r); }}
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                            >
+                              {r.table ? T.guestDrawer.actionChangeTable : T.guestDrawer.actionChooseTable}
+                            </button>
+                          )}
+                          {onSendSms && r.guestPhone && !r.isConfirmedByGuest && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setOpenActionsId(null); onSendSms(r); }}
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-reserved text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                            >
+                              {T.guestDrawer.actionSendSms}
+                            </button>
+                          )}
+                          {onMarkArrived && !r.isArrived && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setOpenActionsId(null); onMarkArrived(r); }}
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                            >
+                              {T.reservationPanel.markArrivedBtn}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
