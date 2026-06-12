@@ -215,6 +215,7 @@ export const T = {
     reminded:         'reminded',
     smsSent:          'SMS sent',
     ctxSeat:          'Seat',
+    ctxQuickSeat:     'Quick Seat',
     ctxClose:         'Close',
     reorganizeHeader: (n: number) => `Reorganize · ${n}`,
     reorganizeRemovedFrom: (table: string) => `Removed from ${table}`,

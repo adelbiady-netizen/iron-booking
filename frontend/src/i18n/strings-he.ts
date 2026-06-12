@@ -216,6 +216,7 @@ export const THe = {
     reminded:         'תוזכר',
     smsSent:          'SMS נשלח',
     ctxSeat:          'הושבה',
+    ctxQuickSeat:     'הושב מהיר',
     ctxClose:         'סגור',
     reorganizeHeader: (n: number) => `סידור מחדש · ${n}`,
     reorganizeRemovedFrom: (table: string) => `הוסר משולחן ${table}`,

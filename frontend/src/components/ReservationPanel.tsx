@@ -707,7 +707,7 @@ export default function ReservationPanel({
               onClick={() => { onContextMenuSeat?.({ ...ctxMenu.res, tableId: null, combinedTableIds: [] }); setCtxMenu(null); }}
             >
               <span className="text-base leading-none shrink-0">🍽️</span>
-              <span>{T.reservationPanel.ctxSeat}</span>
+              <span>{ctxMenu.res.tableId ? T.reservationPanel.ctxSeat : T.reservationPanel.ctxQuickSeat}</span>
             </button>
           )}
 
