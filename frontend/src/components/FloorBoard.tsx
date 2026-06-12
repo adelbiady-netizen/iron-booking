@@ -3045,7 +3045,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isFarFutureReserved = isReservedOrSoon && !isNextResBoardActive;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
-  const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
+  const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW'); void isOpportunity;
 
   let bg = isOverdue || isStaleOccupied
     ? 'rgba(254,202,202,0.97)'   // red/pink — עבר הזמן שלו
@@ -3179,86 +3179,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     if (dimmed) opacity = Math.max(opacity, 0.55);
   }
 
-  // State halo — soft operational light pool that anchors each table in the dark surface.
-  // Wider spread (36-44px) gives clear spatial presence without neon aggression.
-  // Suppressed during pick/warn/select modes where border rings carry state signal.
-  if (!pickMode && !wlPickWarn && !waitlistAssignTarget && !selected && !combinedSelected && !dimmed && !(softHold && table.liveStatus === 'AVAILABLE')) {
-    let halo: string | undefined;
-    if (isOverdue) {
-      halo = overdueTier === 'critical'
-        ? (isDark
-          ? '0 0 0 1px rgba(185,28,28,0.70), 0 0 52px rgba(185,28,28,0.48)'
-          : '0 0 0 1px rgba(185,28,28,0.85), 0 0 52px rgba(185,28,28,0.40)')
-        : overdueTier === 'warning'
-        ? (isDark
-          ? '0 0 0 1px rgba(220,38,38,0.55), 0 0 48px rgba(220,38,38,0.36)'
-          : '0 0 0 1px rgba(220,38,38,0.72), 0 0 48px rgba(220,38,38,0.30)')
-        : (isDark
-          ? '0 0 0 1px rgba(239,68,68,0.40), 0 0 44px rgba(239,68,68,0.26)'
-          : '0 0 0 1px rgba(239,68,68,0.55), 0 0 44px rgba(239,68,68,0.22)');
-    } else if (table.liveStatus === 'OCCUPIED') {
-      if (isEndingSoon) {
-        // Ending soon: amber halo — table is about to free, seating opportunity imminent
-        halo = isDark
-          ? '0 0 0 1px rgba(251,191,36,0.40), 0 0 44px rgba(251,191,36,0.20)'
-          : '0 0 0 1px rgba(217,119,6,0.52), 0 0 40px rgba(217,119,6,0.16)';
-      } else if (isLongStable) {
-        // Long stable: quieted green — present but not competing for attention
-        halo = isDark
-          ? '0 0 0 1px rgba(134,239,172,0.12), 0 0 24px rgba(134,239,172,0.06)'
-          : '0 0 0 1px rgba(22,163,74,0.18), 0 0 24px rgba(22,163,74,0.06)';
-      } else {
-        // Active mid-service: standard green presence
-        halo = isDark
-          ? '0 0 0 1px rgba(134,239,172,0.28), 0 0 40px rgba(134,239,172,0.16)'
-          : '0 0 0 1px rgba(22,163,74,0.42), 0 0 40px rgba(22,163,74,0.16)';
-      }
-    } else if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
-      // Arriving very soon: strongest non-overdue halo — host needs to prepare
-      halo = isDark
-        ? '0 0 0 1px rgba(251,191,36,0.44), 0 0 48px rgba(251,191,36,0.24)'
-        : '0 0 0 1px rgba(217,119,6,0.58), 0 0 46px rgba(217,119,6,0.22)';
-    } else if (displayStatus === 'RESERVED') {
-      // ACTIVE (<60 min): clear blue halo — service prep window is open.
-      // UPCOMING/DORMANT (60+ min): no halo — table surface is already neutral.
-      halo = isFarFutureReserved
-        ? undefined
-        : isDark
-          ? '0 0 0 1px rgba(147,197,253,0.26), 0 0 36px rgba(147,197,253,0.14)'
-          : '0 0 0 1px rgba(37,99,235,0.38), 0 0 36px rgba(37,99,235,0.14)';
-    } else if (table.liveStatus === 'AVAILABLE') {
-      halo = isOpportunity
-        // Seating opportunity: green edge — draw eye without urgency alarm
-        ? isDark
-          ? '0 0 0 1px rgba(134,239,172,0.26), 0 0 34px rgba(134,239,172,0.13)'
-          : '0 0 0 1px rgba(22,163,74,0.38), 0 0 32px rgba(22,163,74,0.12)'
-        : cls === 'vip'
-        // VIP real estate: warm gold ambient — premium presence, clearly below occupied urgency
-        ? isDark
-          ? '0 0 0 1px rgba(255,215,130,0.14), 0 0 30px rgba(255,215,130,0.06)'
-          : '0 0 0 1px rgba(180,150,50,0.17), 0 0 28px rgba(180,150,50,0.07)'
-        : isDark ? '0 0 22px rgba(255,255,255,0.09)' : undefined;
-    }
-    if (halo) boxShadow = boxShadow ? `${boxShadow}, ${halo}` : halo;
-  }
 
-  // Plate depth — inset edge cue. Dark: white top highlight + state-tinted left edge catch.
-  // Left edge color mirrors surface temperature: green for occupied, amber for soon, blue for reserved.
-  // This gives tactile status confirmation independent of the text layer.
-  if (!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus !== 'BLOCKED') {
-    const leftEdgeColor = !isDark ? 'rgba(0,0,0,0)'
-      : isOverdue                                               ? 'rgba(185,28,28,0.35)'
-      : isEndingSoon                                            ? 'rgba(217,119,6,0.26)'
-      : table.liveStatus === 'OCCUPIED'                          ? 'rgba(134,239,172,0.22)'
-      : isStaleOccupied                                         ? 'rgba(217,119,6,0.14)'
-      : displayStatus   === 'RESERVED_SOON' && !isFarFutureReserved ? 'rgba(251,191,36,0.20)'
-      : displayStatus   === 'RESERVED' && !isFarFutureReserved      ? 'rgba(147,197,253,0.18)'
-      :                                                            'rgba(255,255,255,0.28)';
-    const depthShadow = isDark
-      ? `inset 0 1px 0 rgba(255,255,255,0.96), inset 1px 0 0 ${leftEdgeColor}, inset -1px 0 0 rgba(0,0,0,0.13), inset 0 -2px 10px rgba(0,0,0,0.19)`
-      : 'inset 0 1px 0 rgba(0,0,0,0.07), inset 0 -2px 8px rgba(0,0,0,0.11)';
-    boxShadow = boxShadow ? `${boxShadow}, ${depthShadow}` : depthShadow;
-  }
 
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
   // and the table number becomes a secondary label.
