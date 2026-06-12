@@ -613,7 +613,7 @@ export default function ReservationPanel({
                         <span className="text-iron-text text-[18px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
-                        <span className="shrink-0 min-w-[26px] text-center text-[15px] font-bold tabular-nums px-1.5 py-0.5 rounded border leading-none" style={{ color: '#435B2A', borderColor: 'rgba(67,91,42,0.35)', backgroundColor: 'rgba(67,91,42,0.08)' }}>{r.partySize}</span>
+                        <span className="shrink-0 min-w-[26px] text-center text-[15px] font-bold tabular-nums px-1.5 py-0.5 rounded border leading-none" style={{ color: '#ffffff', borderColor: '#435B2A', backgroundColor: '#435B2A' }}>{r.partySize}</span>
                         {r.guest?.isVip && (
                           <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
                             VIP
