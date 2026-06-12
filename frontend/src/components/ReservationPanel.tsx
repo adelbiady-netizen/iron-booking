@@ -585,7 +585,7 @@ export default function ReservationPanel({
                         <span className="text-iron-text text-[18px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
-                        <span className="text-iron-muted/70 text-[13px] font-semibold shrink-0 tabular-nums">{r.partySize}</span>
+                        <span className="shrink-0 min-w-[26px] text-center text-[15px] font-bold tabular-nums px-1.5 py-0.5 rounded border border-iron-border/40 bg-iron-border/15 text-iron-text leading-none">{r.partySize}</span>
                         {r.guest?.isVip && (
                           <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
                             VIP
