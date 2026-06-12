@@ -3368,7 +3368,17 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // RESERVED/RESERVED_SOON tables don't render the same guest name twice — once in the
   // card body and again as the first pill in the turn strip.
   const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
-    ? turns.filter(r => !hasGuest || !displayRes || r.id !== displayRes.id).slice(0, 6)
+    ? turns
+        .filter(r => !hasGuest || !displayRes || r.id !== displayRes.id)
+        // Availability indicator at the selected board time: hide turns whose window has
+        // already ended (start + duration ≤ boardTime), so scrubbing forward past a booking
+        // frees the table on the map instead of showing the stale pill all day long.
+        .filter(r => {
+          if (boardMinutes === null || !r.time) return true;
+          const [h, m] = r.time.split(':').map(Number);
+          return (h * 60 + m + (r.duration ?? 90)) > boardMinutes;
+        })
+        .slice(0, 6)
     : [];
 
   // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
