@@ -1013,9 +1013,15 @@ export default function FloorBoard({
   const allDayTurnData = new Map<string, Reservation[]>();
   for (const r of reservations) {
     if (!r.tableId || !['PENDING', 'CONFIRMED'].includes(r.status)) continue;
-    const arr = allDayTurnData.get(r.tableId) ?? [];
-    arr.push(r);
-    allDayTurnData.set(r.tableId, arr);
+    // Index under the primary table AND every combined (secondary) table, so a combined
+    // booking shows on ALL of its tables — mirrors the backend floor-state indexing.
+    // Without this, secondary tables had no boardActiveRes → treated as far-future →
+    // the guest label was suppressed and the table looked free (phantom double-booking).
+    for (const tid of [r.tableId, ...(r.combinedTableIds ?? [])]) {
+      const arr = allDayTurnData.get(tid) ?? [];
+      arr.push(r);
+      allDayTurnData.set(tid, arr);
+    }
   }
   for (const arr of allDayTurnData.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
 
