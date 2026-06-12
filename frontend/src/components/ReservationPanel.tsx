@@ -150,7 +150,7 @@ export default function ReservationPanel({
 
   const visible = reservations
     .filter(r => {
-      if (filter === 'ACTIVE')   return ['PENDING', 'CONFIRMED'].includes(r.status) && !!r.table;
+      if (filter === 'ACTIVE')   return ['PENDING', 'CONFIRMED'].includes(r.status);
       if (filter === 'SEATED')   return r.status === 'SEATED';
       if (filter === 'DONE')     return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
       if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
@@ -363,7 +363,9 @@ export default function ReservationPanel({
                   return (
                     <div
                       key={r.id}
-                      className="px-3.5 py-2.5 border-t border-status-warning/15 flex items-center gap-3"
+                      className="px-3.5 py-2.5 border-t border-status-warning/15 flex items-center gap-3 cursor-pointer hover:bg-status-warning/8 transition-colors"
+                      onClick={() => onReorganizeSelect?.(r)}
+                      onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -375,40 +377,6 @@ export default function ReservationPanel({
                           <p className="text-status-warning/70 text-[10px] mt-0.5">{fromTable}</p>
                         )}
                       </div>
-                      {(() => {
-                        // Live seating is only valid on the reservation's own service day.
-                        // Future/other day → offer table ASSIGNMENT (planning) instead of seating.
-                        // Today → live quick-seat. Both open the floor table picker.
-                        const futureDay = (r.date ?? '').slice(0, 10) !== todayStr;
-                        if (futureDay) {
-                          if (!onChooseTable) return null;
-                          return (
-                            <button
-                              onClick={() => onChooseTable(r)}
-                              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] shrink-0"
-                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                            >
-                              {T.reservationPanel.reorganizeAssign}
-                            </button>
-                          );
-                        }
-                        if (!onContextMenuSeat) return null;
-                        return (
-                          <button
-                            onClick={() => onContextMenuSeat({ ...r, tableId: null })}
-                            className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] shrink-0"
-                            style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                          >
-                            {T.reservationPanel.reorganizeSeat}
-                          </button>
-                        );
-                      })()}
-                      <button
-                        onClick={() => onReorganizeSelect?.(r)}
-                        className="text-xs font-medium px-2.5 py-1 rounded-md border border-status-warning/40 text-status-warning hover:bg-status-warning/15 transition-colors shrink-0"
-                      >
-                        {T.reservationPanel.reorganizeOpen}
-                      </button>
                     </div>
                   );
                 })}
@@ -545,7 +513,7 @@ export default function ReservationPanel({
                     {r.table ? (
                       <span className="text-iron-muted/65 text-[11px] leading-none font-medium truncate max-w-full px-0.5">{r.table.name}</span>
                     ) : (
-                      <span className="text-iron-muted/40 text-[11px] leading-none">—</span>
+                      <span className="text-[9px] px-1 py-0.5 rounded font-semibold leading-none whitespace-nowrap" style={{ color: '#435B2A', backgroundColor: 'rgba(67,91,42,0.13)', border: '1px solid rgba(67,91,42,0.28)' }}>{T.reservationPanel.filterNoTable}</span>
                     )}
                   </div>
                   {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
