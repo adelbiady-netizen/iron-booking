@@ -1660,13 +1660,17 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                       <Field label={T.guestDrawer.fieldTime}>
                         <input
                           className={inputCls}
-                          type="time"
-                          lang="he"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="HH:MM"
+                          pattern="[0-9]{2}:[0-9]{2}"
+                          maxLength={5}
                           value={editTime}
                           onChange={e => {
-                            const t = e.target.value;
-                            setEditTime(t);
-                            onDateTimeChange?.(editDate, t);
+                            let v = e.target.value.replace(/[^0-9:]/g, '');
+                            if (v.length === 2 && !v.includes(':') && editTime.length < 3) v = v + ':';
+                            setEditTime(v);
+                            if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
                           }}
                         />
                       </Field>
