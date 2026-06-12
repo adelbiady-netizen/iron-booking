@@ -126,13 +126,13 @@ interface FieldProps {
 function Field({ label, children }: FieldProps) {
   return (
     <div className="space-y-1">
-      <label className="text-iron-muted text-xs font-medium">{label}</label>
+      <label className="text-[10px] font-semibold uppercase tracking-[0.1em] text-iron-green-light/80">{label}</label>
       {children}
     </div>
   );
 }
 
-const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green/70 transition-colors';
+const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green-light/80 focus:ring-1 focus:ring-iron-green/20 transition-colors';
 
 // ─── Suggestion reason chips ──────────────────────────────────────────────────
 
@@ -324,9 +324,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     prevIsArrivedRef.current = res.isArrived;
   }, [res.isArrived]);
 
-  useEffect(() => {
-    console.log('[drawer]', { reorganizeOpen: !!reorganizeModal, conflictsLen: reorganizeModal?.conflicts?.length ?? 0 });
-  }, [reorganizeModal]);
 
   function enterEdit() {
     setEditName(res.guestName);
@@ -1611,7 +1608,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                     min={1}
                     max={100}
                     value={editParty}
-                    onChange={e => setEditParty(e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setEditParty(v);
+                      const n = parseInt(v, 10);
+                      if (!isNaN(n) && n >= 1) setEditDuration(n >= 7 ? 120 : 90);
+                    }}
                   />
                 </Field>
 
@@ -1646,6 +1648,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         <input
                           className={inputCls}
                           type="date"
+                          lang="he"
                           value={editDate}
                           onChange={e => {
                             const d = e.target.value;
@@ -1658,6 +1661,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                         <input
                           className={inputCls}
                           type="time"
+                          lang="he"
                           value={editTime}
                           onChange={e => {
                             const t = e.target.value;
