@@ -3075,7 +3075,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
     : isOverdue      ? (overdueTier === 'critical' ? '#b91c1c' : overdueTier === 'warning' ? '#dc2626' : '#ef4444')
     : table.locked   ? '#f59e0b'
-    : sectionColor;
+    : '#435B2A';
 
   let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2
     : overdueTier === 'critical' ? 2.5
