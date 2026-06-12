@@ -8,7 +8,7 @@ import TableTimeline from './TableTimeline';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
-import { minutesUntilEnd, fmtHostTime, normalizeTime } from '../utils/time';
+import { minutesUntilEnd, normalizeTime } from '../utils/time';
 import { useAtmosphere } from '../hooks/useTimeWarmth';
 import { OBJECT_REGISTRY, resolveObjectVariant } from '../mapEngine';
 
@@ -443,45 +443,6 @@ function tableRadius(shape: string): string {
   return '12px';  // softer premium corners — hospitality furniture, not a UI button
 }
 
-// Surface gradient — state-tinted top highlight. Active states get a warm/cool wash that reinforces
-// status color without requiring text. Hosts read the table surface before reading the label.
-function tableGradient(_shape: string, status: string, cls: string, isDark: boolean): string | undefined {
-  if (status === 'BLOCKED') return undefined;
-  if (!isDark) {
-    if (status === 'AVAILABLE') {
-      if (cls === 'vip') return 'linear-gradient(180deg, rgba(180,150,50,0.055) 0%, transparent 55%)';
-      return 'linear-gradient(180deg, rgba(0,0,0,0.025) 0%, transparent 55%)';
-    }
-    return 'linear-gradient(180deg, rgba(0,0,0,0.045) 0%, transparent 52%)';
-  }
-  if (status === 'AVAILABLE') {
-    // VIP surfaces: warm cream highlight — chandelier reads as amber-tinted linen, not white cotton
-    if (cls === 'vip') return [
-      'linear-gradient(180deg, rgba(255,240,180,0.28) 0%, transparent 52%)',
-      'linear-gradient(90deg, rgba(255,255,255,0.09) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.06) 100%)',
-    ].join(', ');
-    return [
-      'linear-gradient(180deg, rgba(255,255,255,0.30) 0%, transparent 52%)',
-      'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, transparent 28%, transparent 72%, rgba(0,0,0,0.08) 100%)',
-    ].join(', ');
-  }
-  if (status === 'OCCUPIED') return [
-    'linear-gradient(180deg, rgba(134,239,172,0.26) 0%, transparent 50%)',
-    'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
-  ].join(', ');
-  if (status === 'RESERVED_SOON') return [
-    'linear-gradient(180deg, rgba(251,191,36,0.22) 0%, transparent 50%)',
-    'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
-  ].join(', ');
-  if (status === 'RESERVED') return [
-    'linear-gradient(180deg, rgba(147,197,253,0.20) 0%, transparent 50%)',
-    'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
-  ].join(', ');
-  return [
-    'linear-gradient(180deg, rgba(255,255,255,0.50) 0%, transparent 50%)',
-    'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, transparent 26%, transparent 74%, rgba(0,0,0,0.08) 100%)',
-  ].join(', ');
-}
 
 function hasPositions(tables: FloorTable[]): boolean {
   if (tables.length === 0) return false;
@@ -2932,7 +2893,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2962,7 +2923,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
 }) {
   const T = useT();
   const { locale } = useLocale();
-  const isRTL = locale === 'he';
+  const _isRTL = locale === 'he'; void _isRTL;
   const isDark = typeof document !== 'undefined'
     ? document.documentElement.getAttribute('data-theme') !== 'light'
     : true;
@@ -3008,18 +2969,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         minutesRemaining !== null && minutesRemaining < 0 ? Math.round(-minutesRemaining) : 0
       )
     : 0;
-  const overdueTier: 'mild' | 'warning' | 'critical' | null =
-    overdueMinutes >= 45 ? 'critical' : overdueMinutes >= 15 ? 'warning' : overdueMinutes > 0 ? 'mild' : null;
+  const _overdueTier: 'mild' | 'warning' | 'critical' | null =
+    overdueMinutes >= 45 ? 'critical' : overdueMinutes >= 15 ? 'warning' : overdueMinutes > 0 ? 'mild' : null; void _overdueTier;
   const isStaleOccupied = table.liveStatus === 'STALE_OCCUPIED';
   // endingSoon: last 10 minutes before expected release — calm amber warning, not yet critical
   const isEndingSoon = isToday && !isOverdue && minutesRemaining !== null && minutesRemaining >= 0 && minutesRemaining <= 10;
   // Stable/recession states — reduce visual weight to let urgent tables surface
-  const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
+  const _isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45; void _isLongStable;
   const minutesUntilNext   = nextRes?.minutesUntil ?? 0;  // real-time-based from backend
   const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0; void isNextResCombined;
   const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
-  const isUpcomingReserved = isReservedOrSoon && minutesUntilNext >= 60 && minutesUntilNext < 120;
-  const isDormantReserved  = isReservedOrSoon && minutesUntilNext >= 120;
+  const _isUpcomingReserved = isReservedOrSoon && minutesUntilNext >= 60 && minutesUntilNext < 120; void _isUpcomingReserved;
+  const _isDormantReserved  = isReservedOrSoon && minutesUntilNext >= 120; void _isDormantReserved;
   // boardMinutes: board-selected time as minutes-since-midnight
   const boardMinutes: number | null = nowTime
     ? (() => { const [h, m] = nowTime.split(':').map(Number); return h * 60 + m; })()
@@ -3045,7 +3006,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const isFarFutureReserved = isReservedOrSoon && !isNextResBoardActive;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
-  const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW'); void isOpportunity;
+  const _isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!_waitlistMatch || _insight?.type === 'SEAT_NOW'); void _isOpportunity;
 
   let bg = isOverdue || isStaleOccupied
     ? 'rgba(254,202,202,0.97)'   // red/pink — עבר הזמן שלו
@@ -3191,52 +3152,9 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Exclude the reservation already shown as the primary guest label (displayRes) so
   // RESERVED/RESERVED_SOON tables don't render the same guest name twice — once in the
   // card body and again as the first pill in the turn strip.
-  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
-    ? turns
-        .filter(r => !hasGuest || !displayRes || r.id !== displayRes.id)
-        // Availability indicator at the selected board time: hide turns whose window has
-        // already ended (start + duration ≤ boardTime), so scrubbing forward past a booking
-        // frees the table on the map instead of showing the stale pill all day long.
-        .filter(r => {
-          if (boardMinutes === null || !r.time) return true;
-          const [h, m] = r.time.split(':').map(Number);
-          return (h * 60 + m + (r.duration ?? 90)) > boardMinutes;
-        })
-        .slice(0, 6)
-    : [];
 
-  // Position-seeded animation delay — each table starts mid-cycle at a unique offset.
-  // Negative value means the animation has already been running for that duration.
-  const _animSeed = table.posX * 0.013 + table.posY * 0.017;
-
-  // Class-modulated drop shadow — VIP tables cast a deeper, premium shadow footprint.
-  // Pick mode: uniform single shadow — border rings carry status signal, no need for multi-layer GPU work.
-  const tableFilter = dimmed ? undefined
-    : pickMode ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.55))'
-    : table.liveStatus === 'OCCUPIED'
-    // Shadow density mirrors urgency — overdue comes forward most, stable recedes
-    ? isOverdue
-      ? overdueTier === 'critical'
-        ? 'drop-shadow(0 6px 32px rgba(0,0,0,0.88)) drop-shadow(0 2px 10px rgba(153,27,27,0.58))'
-        : overdueTier === 'warning'
-        ? 'drop-shadow(0 6px 30px rgba(0,0,0,0.86)) drop-shadow(0 2px 8px rgba(185,28,28,0.42))'
-        : 'drop-shadow(0 6px 30px rgba(0,0,0,0.84)) drop-shadow(0 2px 8px rgba(220,38,38,0.28))'
-      : isEndingSoon
-      ? 'drop-shadow(0 5px 26px rgba(0,0,0,0.78)) drop-shadow(0 1px 7px rgba(0,0,0,0.44))'
-      : isLongStable
-      ? 'drop-shadow(0 2px 13px rgba(0,0,0,0.46)) drop-shadow(0 1px 4px rgba(0,0,0,0.22))'
-      : 'drop-shadow(0 4px 22px rgba(0,0,0,0.72)) drop-shadow(0 1px 6px rgba(0,0,0,0.42))'
-    : displayStatus === 'RESERVED_SOON' && !isFarFutureReserved
-    // Arriving soon: stronger presence — host needs to prepare the table
-    ? 'drop-shadow(0 4px 22px rgba(0,0,0,0.66)) drop-shadow(0 1px 6px rgba(0,0,0,0.34))'
-    : displayStatus === 'RESERVED' && !isFarFutureReserved
-    ? 'drop-shadow(0 3px 16px rgba(0,0,0,0.54)) drop-shadow(0 1px 4px rgba(0,0,0,0.26))'  // ACTIVE: maintain
-    : table.liveStatus === 'BLOCKED'
-    ? undefined
-    // VIP tables cast a deeper shadow footprint even when empty — premium floor presence
-    : cls === 'vip'
-    ? 'drop-shadow(0 2px 12px rgba(0,0,0,0.36)) drop-shadow(0 1px 4px rgba(0,0,0,0.18))'
-    : 'drop-shadow(0 1px 7px rgba(0,0,0,0.28))';
+  const guestName = hasGuest ? (displayRes?.guestName ?? null) : null;
+  const partySize = hasGuest && displayRes ? displayRes.partySize : null;
 
   return (
   <>
@@ -3252,404 +3170,74 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         borderRadius: familyRadius,
         border: `${borderWidth}px solid ${borderColor}`,
         backgroundColor: bg,
-        // Material surface — gradient angle and shape vary by table type so overhead light
-        // reads correctly: radial for round, top-down for booths, angled for rectangular.
-        // Pick/warn states are neutral (clarity first — no decoration during selection).
-        backgroundImage: !pickMode && !wlPickWarn ? tableGradient(
-          table.shape,
-          (isFarFutureReserved || isStaleOccupied || isOverdue) ? 'AVAILABLE'
-          : isEndingSoon ? 'RESERVED_SOON'
-          : displayStatus,
-          cls, isDark
-        ) : undefined,
         boxShadow,
-        // Physical depth — tables are objects on a floor, they cast shadows.
-        // Occupied tables come forward (heavier shadow); available recede (lighter).
-        // Drop-shadow is not clipped by overflow:hidden, unlike box-shadow.
-        // Shadow hierarchy mirrors operational priority: OCCUPIED comes forward most.
-        // Double drop-shadow (wide soft + tight hard) replicates real restaurant
-        // spotlight physics — a wide floor shadow beneath + a tight table-edge shadow.
-        filter: tableFilter,
+        filter: dimmed ? undefined : 'drop-shadow(0 1px 4px rgba(0,0,0,0.22))',
         opacity,
-        padding: '6px 8px',
+        padding: '4px 6px',
         overflow: 'hidden',
-        display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 1,
         textAlign: 'center',
         cursor,
-        transition: `opacity var(--duration-fast) ease-out, transform var(--duration-fast) var(--ease-hospitality), filter var(--duration-settle) var(--ease-hospitality), border-color var(--duration-service) var(--ease-hospitality), box-shadow var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
+        transition: `opacity var(--duration-fast) ease-out, border-color var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
     >
-      {/* ── Live presence overlays ──────────────────────────────────────────── */}
-      {/* Alive — occupied non-overdue tables breathe with a faint green warmth */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && (
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 90% 90% at 35% 35%, rgba(134,239,172,0.14) 0%, transparent 70%)',
-          animation: `table-alive 7s ease-in-out infinite`,
-          animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
-        }} />
-      )}
-      {/* Centerpiece warmth — static warm center simulating candle or floral catch.
-          Not animated; occupies no layout space; barely visible, only felt. */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && (
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 32% 28% at 50% 44%, rgba(255,205,85,0.10) 0%, transparent 100%)',
-        }} />
-      )}
-      {/* Ending — tables about to free pulse with amber from the bottom edge */}
-      {!pickMode && isEndingSoon && (
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 80% at 50% 88%, rgba(251,191,36,0.10) 0%, transparent 70%)',
-          animation: `table-ending 6.5s ease-in-out infinite`,
-          animationDelay: `-${(_animSeed % 6.5).toFixed(2)}s`,
-        }} />
-      )}
-      {/* Incoming — RESERVED_SOON tables glow from the top edge in anticipation */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && displayStatus === 'RESERVED_SOON' && !isFarFutureReserved && (
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 80% 80% at 50% 12%, rgba(251,191,36,0.07) 0%, transparent 70%)',
-          animation: `table-incoming 5s ease-in-out infinite`,
-          animationDelay: `-${(_animSeed % 5.0).toFixed(2)}s`,
-        }} />
-      )}
-      {/* Tense — overdue tables pulse with a contained red ring */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && isOverdue && (
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          boxShadow: overdueTier === 'critical'
-            ? 'inset 0 0 18px rgba(185,28,28,0.46)'
-            : overdueTier === 'warning'
-            ? 'inset 0 0 16px rgba(220,38,38,0.34)'
-            : 'inset 0 0 16px rgba(239,68,68,0.22)',
-          animation: `table-tense 5.5s ease-in-out infinite`,
-          animationDelay: `-${(_animSeed % 5.5).toFixed(2)}s`,
-        }} />
-      )}
-      {/* VIP prestige — faint gold center bloom for empty VIP tables.
-          Not animated; present only at rest so the glow reads as material, not alert. */}
-      {!pickMode && !wlPickWarn && !waitlistAssignTarget && cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue && (
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 70% 60% at 50% 40%, rgba(255,215,130,0.09) 0%, transparent 100%)',
-        }} />
-      )}
-
-      {/* Table number — primary when empty, secondary label when a guest is present */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', minWidth: 0 }}>
-        <span style={{
-          fontSize: hasGuest ? 10 : 15,
-          fontWeight: hasGuest ? 600 : 900,
-          color: hasGuest ? '#52525b' : table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
-          opacity: hasGuest ? 0.88 : table.liveStatus === 'BLOCKED' ? 0.75 : 1,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-          letterSpacing: hasGuest ? '0.04em' : '-0.02em',
-        }}>
-          {table.name}
-        </span>
-        {!pickMode && insight?.priority === 'HIGH'   && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />}
-        {!pickMode && insight?.priority === 'MEDIUM' && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b', flexShrink: 0 }} />}
-        {pickMode && pickStatus === 'current' && (
-          <span style={{ fontSize: 9, color: '#d97706', fontWeight: 700, flexShrink: 0 }}>◉</span>
-        )}
-        {pickMode && pickSelected && (
-          <span style={{ fontSize: 9, color: '#2563eb', fontWeight: 700, flexShrink: 0 }}>✓</span>
-        )}
-        {pickMode && !pickSelected && pickStatus === 'recommended' && (
-          <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
-        )}
-      </div>
-
-      {/* Capacity (muted) + reservation party size (bold) — the party size shows on
-          EVERY reserved table incl. combined secondaries, right under the table number
-          and above the guest name, so the group size is always clearly visible. */}
-      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, fontSize: 10, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em' }}>
-        <span style={{ color: '#3f3f46', opacity: hasGuest ? 0.5 : 0.88, fontWeight: hasGuest ? 500 : 600 }}>
-          {table.maxCovers}p
-        </span>
-        {hasGuest && displayRes && (
-          <span style={{ fontWeight: 800, color: isDark ? '#60a5fa' : '#1e40af' }}>
-            · {displayRes.partySize}p
-          </span>
-        )}
+      {/* Table number */}
+      <span style={{
+        fontSize: guestName ? 10 : 15,
+        fontWeight: guestName ? 600 : 900,
+        color: table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
+        opacity: guestName ? 0.7 : 1,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        lineHeight: 1.2,
+        letterSpacing: guestName ? '0.04em' : '-0.02em',
+      }}>
+        {table.name}
       </span>
 
-      {/* Pick mode: current-table label */}
-      {pickMode && pickStatus === 'current' && (
-        <div style={{ marginTop: 2, width: '100%' }}>
-          <span style={{ fontSize: 8, color: '#d97706', fontWeight: 700, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.30)', borderRadius: 3, padding: '1px 4px', letterSpacing: '0.04em', userSelect: 'none' }}>
-            {T.floorBoard.pickModeCurrentTable}
-          </span>
-        </div>
-      )}
-
-      {/* OCCUPIED */}
-      {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
-        // Use Date.now() for the displayed countdown — real wall-clock, not board-navigation time.
-        const mr = minutesUntilEnd(currentRes.expectedEndTime, Date.now());
-        const isCombined  = currentRes.combinedTableIds.length > 0;
-        const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        const nameColor = isOverdue ? (overdueTier === 'critical' ? '#7f1d1d' : '#991b1b')
-          : isDark ? '#15803d' : '#166534';
-        const nameWeight = isOverdue ? 800 : 700;
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
-            {/* Name zone — always centered */}
-            <p style={{ fontSize: 14, color: nameColor, fontWeight: nameWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
-              {currentRes.guestName}
-            </p>
-            {/* Metadata zone — partySize · timer; centered */}
-            {!isSecondary && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.2, flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0, direction: 'ltr' }}>
-                <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 500, opacity: 0.92, flexShrink: 0 }}>
-                  {currentRes.partySize}p
-                </span>
-                {isToday && (() => {
-                  const endTimeStr = fmtHostTime(currentRes.expectedEndTime);
-                  const timerStr = mr > 20 ? endTimeStr
-                    : mr > 5   ? T.floorBoard.mLeft(mr)
-                    : mr >= -5 ? T.floorBoard.ending
-                    : T.floorBoard.mOver(Math.abs(mr));
-                  const timerColor = isOverdue || mr <= 5 ? '#dc2626'
-                    : mr <= 20 ? '#b45309'
-                    : '#3f3f46';
-                  const timerWeight = isOverdue || mr <= 5 ? 800 : mr <= 20 ? 700 : 600;
-                  const timerSize = isOverdue || mr <= 20 ? 12 : 11;
-                  return (
-                    <span style={{ fontSize: timerSize, color: timerColor, fontWeight: timerWeight, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-                      · {timerStr}
-                    </span>
-                  );
-                })()}
-              </div>
-            )}
-            {/* Combined-table badge — floats at bottom-right corner */}
-            {!isSecondary && isCombined && (
-              <span style={{ position: 'absolute', bottom: 3, right: 4, fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
-                ⊞
-              </span>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* STALE_OCCUPIED — from a previous service day: muted amber, no urgency */}
-      {isStaleOccupied && currentRes && (() => {
-        const isCombined  = currentRes.combinedTableIds.length > 0;
-        const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
-            <p style={{ fontSize: 12, color: isDark ? 'rgba(146,100,40,0.80)' : 'rgba(120,72,20,0.72)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
-              {currentRes.guestName}
-            </p>
-            {!isSecondary && (
-              <p style={{ fontSize: 9, color: isDark ? 'rgba(180,130,60,0.60)' : 'rgba(146,100,40,0.55)', fontWeight: 500, textAlign: 'center', margin: 0, lineHeight: 1.2, letterSpacing: '0.01em' }}>
-                שרידי שירות
-              </p>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* RESERVED / RESERVED_SOON / boardTimeActive — suppressed when boardTime is outside reservation window */}
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON' || isBoardTimeActive) && displayRes && !isFarFutureReserved && (() => {
-        const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
-        const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
-        const isSoon = displayStatus === 'RESERVED_SOON';
-        // In pick mode: if this table is selectable (recommended/possible/tight), its reservation
-        // is a later turn that does not conflict with the selected slot. Recede the label visually
-        // so the pick-ring border is the dominant signal and the guest info is secondary context.
-        const isFutureTurnOnly = pickMode && !!pickStatus && pickStatus !== 'unavailable' && pickStatus !== 'current';
-        // Progressive typography — ACTIVE 14/700, UPCOMING 13/600, DORMANT 12/500
-        const guestColor = isFutureTurnOnly
-          ? isDark ? 'rgba(96,165,250,0.52)' : 'rgba(30,64,175,0.45)'
-          : isDormantReserved
-          ? isDark ? 'rgba(96,165,250,0.55)' : 'rgba(30,64,175,0.48)'
-          : isUpcomingReserved
-          ? isDark ? 'rgba(96,165,250,0.80)' : 'rgba(30,64,175,0.72)'   // UPCOMING: slightly muted
-          : isSoon ? '#92400e'
-          : isDark ? '#1d4ed8' : '#1e40af';
-        const isReceded = isFutureTurnOnly || isDormantReserved;
-        const guestFontSize   = isReceded ? 12 : isUpcomingReserved ? 13 : 14;
-        const guestFontWeight = isReceded ? 500 : isUpcomingReserved ? 600 : 700;
-        const metaOpacity     = isDormantReserved ? 0.60 : isUpcomingReserved ? 0.78 : 0.92;
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0, ...(isFutureTurnOnly ? { opacity: 0.58 } : {}) }}>
-            {/* Name zone — always centered; stable anchor regardless of badge presence */}
-            <p style={{ fontSize: guestFontSize, color: guestColor, fontWeight: guestFontWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
-              {displayRes.guestName}
-            </p>
-            {/* Metadata zone — time + soon/combine chips (primary only; party size is up top) */}
-            {!isSecondary && nextRes && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
-                {/* Text group — centered; chip stays adjacent */}
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: metaOpacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {normalizeTime(nextRes.time)}
-                  </span>
-                  {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
-                    <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      · {T.floorBoard.inNMin(nextRes.minutesUntil)}
-                    </span>
-                  )}
-                </span>
-                {/* Chips suppressed in future-turn-only and FAR-quiet-reserved context */}
-                {(isSoon || isCombined) && !isReceded && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                    {isSoon && (
-                      <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>
-                        {T.floorBoard.soon}
-                      </span>
-                    )}
-                    {isCombined && !isSoon && (
-                      <span style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, background: 'rgba(37,99,235,0.10)', border: '1px solid rgba(37,99,235,0.22)', borderRadius: 3, padding: '0 3px' }}>
-                        ⊞
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* BLOCKED */}
-      {table.liveStatus === 'BLOCKED' && (
-        <p style={{ fontSize: 10, color: '#a1a1aa', opacity: 0.65, marginTop: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', fontStyle: 'italic' }}>
-          {table.blockReason ?? 'blocked'}
-        </p>
-      )}
-
-      {/* AVAILABLE + soft hold */}
-      {!pickMode && table.liveStatus === 'AVAILABLE' && softHold && !insight && (
-        <div style={{
-          marginTop: 'auto', width: '100%',
-          backgroundColor: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)',
-          borderRadius: 4, padding: '2px 4px',
+      {/* Guest name — primary identity */}
+      {guestName && (
+        <span style={{
+          fontSize: 13, fontWeight: 700,
+          color: '#18181b',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          width: '100%', lineHeight: 1.2, letterSpacing: '-0.01em',
         }}>
-          <p style={{ fontSize: 9, color: isDark ? '#a5b4fc' : '#4f46e5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            ⏸ {softHold.guestName} · {softHold.partySize}
-          </p>
-        </div>
+          {guestName}
+        </span>
       )}
 
-      {/* AVAILABLE + SEAT_NOW insight */}
-      {!pickMode && table.liveStatus === 'AVAILABLE' && insight?.type === 'SEAT_NOW' && insight.reservation && (
-        <div
-          onClick={(e) => { e.stopPropagation(); onInsightAction?.(); }}
-          style={{
-            marginTop: 'auto', width: '100%',
-            backgroundColor: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)',
-            borderRadius: 4, padding: '2px 4px', cursor: 'pointer',
-          }}
-        >
-          <p style={{ fontSize: 9, color: 'var(--canvas-status-occupied)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            → {insight.reservation.guestName}
-          </p>
-        </div>
-      )}
+      {/* Party size */}
+      <span style={{
+        fontSize: 10, fontWeight: 600,
+        color: '#3f3f46', opacity: 0.75,
+        lineHeight: 1.2,
+      }}>
+        {partySize != null ? `${partySize}p` : `${table.maxCovers}p`}
+      </span>
 
-      {/* AVAILABLE + waitlist match */}
-      {!pickMode && table.liveStatus === 'AVAILABLE' && !insight && waitlistMatch && (
-        <div
-          onClick={(e) => { e.stopPropagation(); onWaitlistAction?.(); }}
-          style={{
-            marginTop: 'auto', width: '100%',
-            backgroundColor: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)',
-            borderRadius: 4, padding: '2px 4px', cursor: 'pointer',
-          }}
-        >
-          <p style={{ fontSize: 9, color: 'var(--canvas-status-occupied)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            → {waitlistMatch.guestName} · {waitlistMatch.partySize}
-          </p>
-        </div>
+      {/* Pick mode indicators */}
+      {pickMode && pickStatus === 'current' && (
+        <span style={{ fontSize: 8, color: '#d97706', fontWeight: 700, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.30)', borderRadius: 3, padding: '1px 4px', userSelect: 'none' }}>
+          {T.floorBoard.pickModeCurrentTable}
+        </span>
+      )}
+      {pickMode && pickSelected && (
+        <span style={{ fontSize: 9, color: '#2563eb', fontWeight: 700 }}>✓</span>
       )}
 
       {/* Lock badge */}
       {table.locked && (
-        <div style={{ position: 'absolute', bottom: 3, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-          <span style={{
-            fontSize: 8, color: '#f59e0b',
-            backgroundColor: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)',
-            borderRadius: 3, padding: '1px 4px', letterSpacing: '0.04em', userSelect: 'none',
-          }}>
-            LOCKED
-          </span>
-        </div>
-      )}
-
-      {/* Turn count badge — fallback when the turn stack is not rendered (pick mode, dimmed, etc.) */}
-      {!pickMode && extraTurns > 0 && turnsToShow.length === 0 && table.liveStatus !== 'AVAILABLE' && !isOverdue && (
         <span style={{
-          position: 'absolute', top: 3, right: 3,
-          fontSize: 9, fontWeight: 700, color: isDark ? '#60a5fa' : '#1d4ed8',
-          backgroundColor: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)',
-          borderRadius: 3, padding: '1px 4px', userSelect: 'none', lineHeight: 1.4,
+          position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)',
+          fontSize: 8, color: '#f59e0b',
+          backgroundColor: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)',
+          borderRadius: 3, padding: '1px 4px', userSelect: 'none',
         }}>
-          +{extraTurns}
+          LOCKED
         </span>
       )}
-
-      {/* Section color dot — only on available tables; occupied/reserved content speaks for itself */}
-      {!pickMode && table.section?.color && !table.locked && table.liveStatus === 'AVAILABLE' && (
-        <span style={{
-          position: 'absolute', bottom: 4, right: 4,
-          width: 5, height: 5, borderRadius: '50%',
-          backgroundColor: table.section.color, opacity: 0.52,
-        }} />
-      )}
     </button>
-
-    {/* Daily schedule strip — compact horizontal pills anchored below each table.
-        Shows all PENDING/CONFIRMED reservations for the selected day ordered by time.
-        Table state (active/dormant) is determined by the board time; this strip is
-        the day-view snapshot regardless of how far away each reservation is. */}
-    {turnsToShow.length > 0 && (
-      <div
-        style={{
-          position: 'absolute',
-          left: table.posX,
-          top: table.posY + table.height + 5,
-          width: Math.max(table.width, 72),
-          zIndex: 6,
-          pointerEvents: 'none',
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: 3,
-          opacity,
-          direction: isRTL ? 'rtl' : 'ltr',
-        }}
-      >
-        {turnsToShow.map((r, i) => (
-          <div
-            key={r.id ?? i}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 3,
-              padding: '2px 5px',
-              background: isDark ? 'rgba(15,17,22,0.92)' : 'rgba(248,250,252,0.96)',
-              borderRadius: 4,
-              border: `1px solid ${isDark ? 'rgba(148,163,184,0.10)' : 'rgba(100,116,139,0.13)'}`,
-              borderLeft: isRTL ? undefined : '2px solid rgba(96,165,250,0.50)',
-              borderRight: isRTL ? '2px solid rgba(96,165,250,0.50)' : undefined,
-              direction: 'ltr',
-            }}
-          >
-            <span style={{ fontSize: 10, color: '#60a5fa', fontWeight: 700, flexShrink: 0, letterSpacing: '0.01em', fontVariantNumeric: 'tabular-nums' }}>
-              {normalizeTime(r.time)}
-            </span>
-            <span style={{ fontSize: 10, color: isDark ? '#d1d5db' : '#374151', fontWeight: 500, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {r.guestName}
-            </span>
-          </div>
-        ))}
-      </div>
-    )}
   </>
   );
 }
