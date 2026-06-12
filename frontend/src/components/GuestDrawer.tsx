@@ -134,6 +134,17 @@ function Field({ label, children }: FieldProps) {
 
 const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green-light/80 focus:ring-1 focus:ring-iron-green/20 transition-colors';
 
+function isoToDDMMYYYY(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function ddmmyyyyToIso(v: string): string | null {
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return null;
+  const [d, m, y] = v.split('/');
+  return `${y}-${m}-${d}`;
+}
+
 // ─── Suggestion reason chips ──────────────────────────────────────────────────
 
 function SuggestionChips({ s, T }: { s: BackendTableSuggestion; T: ReturnType<typeof import('../i18n/useT').useT> }) {
@@ -264,6 +275,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [editName,       setEditName]       = useState('');
   const [editPhone,      setEditPhone]      = useState('');
   const [editDate,       setEditDate]       = useState('');
+  const [editDateDisplay, setEditDateDisplay] = useState('');
   const [editTime,       setEditTime]       = useState('');
   const [editParty,      setEditParty]      = useState('');
   const [editDuration,   setEditDuration]   = useState(0);
@@ -328,8 +340,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   function enterEdit() {
     setEditName(res.guestName);
     setEditPhone(res.guestPhone ?? '');
-    setEditDate(res.date.slice(0, 10)); // normalize ISO "2026-05-19T00:00:00.000Z" → "2026-05-19"
-    setEditTime(res.time);
+    const iso = res.date.slice(0, 10);
+    setEditDate(iso);
+    setEditDateDisplay(isoToDDMMYYYY(iso));
+    setEditTime(res.time.slice(0, 5)); // normalize "12:00:00" → "12:00"
     setEditParty(String(res.partySize));
     setEditDuration(res.duration);
     setOriginalDuration(res.duration);
@@ -1647,13 +1661,18 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                       <Field label={T.guestDrawer.fieldDate}>
                         <input
                           className={inputCls}
-                          type="date"
-                          lang="he"
-                          value={editDate}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="DD/MM/YYYY"
+                          maxLength={10}
+                          value={editDateDisplay}
                           onChange={e => {
-                            const d = e.target.value;
-                            setEditDate(d);
-                            onDateTimeChange?.(d, editTime);
+                            let v = e.target.value.replace(/[^0-9/]/g, '');
+                            if (v.length === 2 && editDateDisplay.length <= 2 && !v.includes('/')) v += '/';
+                            if (v.length === 5 && editDateDisplay.length <= 5 && v.split('/').length === 2) v += '/';
+                            setEditDateDisplay(v);
+                            const iso = ddmmyyyyToIso(v);
+                            if (iso) { setEditDate(iso); onDateTimeChange?.(iso, editTime); }
                           }}
                         />
                       </Field>
@@ -1663,12 +1682,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                           type="text"
                           inputMode="numeric"
                           placeholder="HH:MM"
-                          pattern="[0-9]{2}:[0-9]{2}"
                           maxLength={5}
                           value={editTime}
                           onChange={e => {
                             let v = e.target.value.replace(/[^0-9:]/g, '');
-                            if (v.length === 2 && !v.includes(':') && editTime.length < 3) v = v + ':';
+                            if (v.length === 2 && editTime.length <= 2 && !v.includes(':')) v += ':';
                             setEditTime(v);
                             if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
                           }}
