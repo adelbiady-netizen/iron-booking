@@ -101,6 +101,15 @@ export default function ReservationPanel({
     return () => document.removeEventListener('mousedown', onDown);
   }, [ctxMenu]);
 
+  // Close the actions menu when clicking anywhere outside it.
+  // Uses 'click' (not 'mousedown') so action buttons fire their own onClick first,
+  // then stopPropagation prevents the click from reaching this listener.
+  useEffect(() => {
+    if (!openActionsId) return;
+    function onOutside() { setOpenActionsId(null); }
+    document.addEventListener('click', onOutside);
+    return () => document.removeEventListener('click', onOutside);
+  }, [openActionsId]);
 
   // Live clock for waiting-time labels on arrived guests — ticks every minute.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -539,19 +548,45 @@ export default function ReservationPanel({
                     )}
                   </div>
                   {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
-                    <div className="shrink-0 flex items-center ps-1 relative">
-                      {/* Transparent backdrop — closes popover without swallowing the action click */}
-                      {openActionsId === r.id && (
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={e => { e.stopPropagation(); setOpenActionsId(null); }}
-                        />
-                      )}
+                    <div className="shrink-0 flex items-center gap-0.5 ps-1">
+                      {/* Inline action buttons — visible only when this row's menu is open */}
+                      {openActionsId === r.id && (<>
+                        {onChooseTable && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setOpenActionsId(null); onChooseTable(r); }}
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                            style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                          >
+                            {r.table ? T.guestDrawer.actionChangeTable : T.guestDrawer.actionChooseTable}
+                          </button>
+                        )}
+                        {onSendSms && r.guestPhone && !r.isConfirmedByGuest && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setOpenActionsId(null); onSendSms(r); }}
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-reserved text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                            style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                          >
+                            {T.guestDrawer.actionSendSms}
+                          </button>
+                        )}
+                        {onMarkArrived && !r.isArrived && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setOpenActionsId(null); onMarkArrived(r); }}
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                            style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                          >
+                            {T.reservationPanel.markArrivedBtn}
+                          </button>
+                        )}
+                      </>)}
                       {/* Three-dot toggle */}
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); setOpenActionsId(openActionsId === r.id ? null : r.id); }}
-                        className="w-7 h-7 flex items-center justify-center rounded text-iron-muted/60 hover:text-iron-text hover:bg-iron-border/20 transition-colors duration-100 relative z-20"
+                        className="w-7 h-7 flex items-center justify-center rounded text-iron-muted/60 hover:text-iron-text hover:bg-iron-border/20 transition-colors duration-100"
                         title="פעולות"
                       >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -560,43 +595,6 @@ export default function ReservationPanel({
                           <circle cx="8" cy="13" r="1.4"/>
                         </svg>
                       </button>
-                      {/* Actions popover — z-20 sits above the backdrop */}
-                      {openActionsId === r.id && (
-                        <div
-                          className="absolute end-8 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 px-2 py-1.5 rounded-lg border border-iron-border/40 bg-iron-surface shadow-lg"
-                        >
-                          {onChooseTable && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setOpenActionsId(null); onChooseTable(r); }}
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                            >
-                              {r.table ? T.guestDrawer.actionChangeTable : T.guestDrawer.actionChooseTable}
-                            </button>
-                          )}
-                          {onSendSms && r.guestPhone && !r.isConfirmedByGuest && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setOpenActionsId(null); onSendSms(r); }}
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-reserved text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                            >
-                              {T.guestDrawer.actionSendSms}
-                            </button>
-                          )}
-                          {onMarkArrived && !r.isArrived && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setOpenActionsId(null); onMarkArrived(r); }}
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
-                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
-                            >
-                              {T.reservationPanel.markArrivedBtn}
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
 
