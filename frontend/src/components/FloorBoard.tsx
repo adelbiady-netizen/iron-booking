@@ -3156,7 +3156,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Future reservation pills — upcoming turns for this table, excluding the active one
   const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
     ? turns
-        .filter(r => !displayRes || r.id !== displayRes.id)
+        .filter(r => !hasGuest || !displayRes || r.id !== displayRes.id)
         .filter(r => {
           if (boardMinutes === null || !r.time) return true;
           const [h, m] = r.time.split(':').map(Number);
