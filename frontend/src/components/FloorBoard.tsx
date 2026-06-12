@@ -3153,6 +3153,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const partySize = hasGuest && displayRes ? displayRes.partySize : null;
   const resTime   = hasGuest && displayRes ? displayRes.time : null;
 
+  // Future reservation pills — upcoming turns for this table, excluding the active one
+  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
+    ? turns
+        .filter(r => !displayRes || r.id !== displayRes.id)
+        .filter(r => {
+          if (boardMinutes === null || !r.time) return true;
+          const [h, m] = r.time.split(':').map(Number);
+          return (h * 60 + m + (r.duration ?? 90)) > boardMinutes;
+        })
+        .slice(0, 4)
+    : [];
+
   return (
   <>
     <button
@@ -3247,6 +3259,38 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         </span>
       )}
     </button>
+
+    {/* Future reservation pills — anchored below the table card */}
+    {turnsToShow.length > 0 && (
+      <div style={{
+        position: 'absolute',
+        left: table.posX,
+        top: table.posY + table.height + 4,
+        width: Math.max(table.width, 72),
+        zIndex: 6,
+        pointerEvents: 'none',
+        display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 3,
+        opacity,
+      }}>
+        {turnsToShow.map((r, i) => (
+          <div key={r.id ?? i} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            padding: '2px 5px',
+            backgroundColor: 'rgba(67,91,42,0.10)',
+            borderRadius: 4,
+            border: '1px solid rgba(67,91,42,0.28)',
+            borderLeft: '2px solid #435B2A',
+          }}>
+            <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 700, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+              {normalizeTime(r.time)}
+            </span>
+            <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 500, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>
+              {r.guestName}
+            </span>
+          </div>
+        ))}
+      </div>
+    )}
   </>
   );
 }
