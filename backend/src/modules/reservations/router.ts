@@ -711,8 +711,10 @@ router.post('/broadcast', validate(BroadcastSchema, 'body'), async (req: Request
     const failed: string[] = [];
     const errors: string[] = [];
     const { sendSms } = await import('../../lib/messaging');
+    const { sendWhatsApp } = await import('../../lib/sms');
     for (const r of reservations) {
       try {
+        // Try INFORU first (smsEnabled restaurants); fall back to UltraMsg/WhatsApp
         const result = await sendSms({
           restaurantId:  req.auth.restaurantId,
           to:            r.guestPhone!,
@@ -724,11 +726,9 @@ router.post('/broadcast', validate(BroadcastSchema, 'body'), async (req: Request
         if (result.success) {
           sent++;
         } else {
-          failed.push(r.id);
-          // Surface the messageLog error so the caller can diagnose provider issues
-          const { prisma: db } = await import('../../lib/prisma');
-          const log = await db.messageLog.findUnique({ where: { id: result.messageLogId }, select: { errorMessage: true } });
-          if (log?.errorMessage) errors.push(log.errorMessage);
+          // INFORU not enabled — try WhatsApp (UltraMsg) path used by individual confirmations
+          await sendWhatsApp(req.auth.restaurantId, r.guestPhone!, message);
+          sent++;
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
