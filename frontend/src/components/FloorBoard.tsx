@@ -350,7 +350,7 @@ const STATUS_BG_DARK: Record<string, string> = {
 };
 // Light canvas (#EAEDE6) needs more saturation so status tables read off the pale surface
 const STATUS_BG_LIGHT: Record<string, string> = {
-  AVAILABLE:     'rgba(255,255,255,0.94)',   // white — clear lift off the linen canvas
+  AVAILABLE:     '#8E9D7F',   // sage green — empty table
   OCCUPIED:      'rgba(209,250,229,0.97)',   // green-100 — clearly active
   RESERVED_SOON: 'rgba(254,243,199,0.97)',   // amber-100 — clearly imminent
   RESERVED:      'rgba(219,234,254,0.97)',   // blue-100 — clearly committed
