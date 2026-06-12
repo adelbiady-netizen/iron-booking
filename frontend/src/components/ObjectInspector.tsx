@@ -12,27 +12,34 @@ import {
   getObjectSegmentCount,
   resolveObjectVariant,
 } from '../mapEngine';
+import { useLocale } from '../i18n/useLocale';
+import { formatFloorObjLabel } from '../utils/displayHelpers';
 
 const ATTACHMENT_LABEL: Record<string, string> = {
-  LEFT: 'Left', RIGHT: 'Right', TOP: 'Top', BOTTOM: 'Bottom', CENTER: 'Center',
+  LEFT: 'שמאל', RIGHT: 'ימין', TOP: 'למעלה', BOTTOM: 'למטה', CENTER: 'מרכז',
 };
 
 const VARIANT_DISPLAY: Partial<Record<VariantId, string>> = {
-  DEFAULT:   'Default',
-  CURVED:    'Curved',
-  ARC_LEFT:  'Arc Left',
-  ARC_RIGHT: 'Arc Right',
-  U_SHAPE:   'U-Shape',
-  L_SHAPE:   'L-Shape',
-  MODULAR:   'Modular',
+  DEFAULT:   'ברירת מחדל',
+  CURVED:    'מעוגל',
+  ARC_LEFT:  'קשת שמאל',
+  ARC_RIGHT: 'קשת ימין',
+  U_SHAPE:   'צורת U',
+  L_SHAPE:   'צורת L',
+  MODULAR:   'מודולרי',
 };
 
-// Registry-driven selectable variants for CURVED_BOOTH_SEGMENT.
-// DEFAULT excluded — it's a fallback, not a user-facing choice.
+const CATEGORY_LABEL_HE: Record<string, string> = {
+  FURNITURE:    'ריהוט',
+  ARCHITECTURE: 'אדריכלות',
+  OPERATIONAL:  'תפעולי',
+  ATMOSPHERE:   'אווירה',
+  ZONING:       'אזורים',
+};
+
 const BOOTH_SELECTABLE_VARIANTS = getObjectAllowedVariants('CURVED_BOOTH_SEGMENT')
   .filter(v => v !== 'DEFAULT' && VARIANT_DISPLAY[v] !== undefined);
 
-// Cycle order for the quick-cycle action. Must stay a subset of BOOTH_SELECTABLE_VARIANTS.
 const BOOTH_CYCLE: VariantId[] = ['CURVED', 'ARC_LEFT', 'ARC_RIGHT'];
 
 function nextBoothVariant(current: VariantId): VariantId {
@@ -72,49 +79,35 @@ interface Props {
 }
 
 export default function ObjectInspector({ obj, onPatch, chainCount = 0 }: Props) {
+  const { locale } = useLocale();
   const def      = getObjectDefinition(obj.kind);
   const catStyle = CATEGORY_STYLE[def.category] ?? 'text-iron-muted border-iron-border/40';
+  const label    = formatFloorObjLabel(def.label, locale);
 
   return (
     <div className="px-4 pt-2.5 pb-2 border-b border-iron-border/40 space-y-1.5">
 
-      {/* Row 1 — identity + operational purpose */}
+      {/* Row 1 — identity */}
       <div className="flex items-center gap-2 min-w-0 flex-wrap">
-        <span className="text-iron-text text-xs font-semibold shrink-0">{def.label}</span>
+        <span className="text-iron-text text-xs font-semibold shrink-0">{label}</span>
         <span className={`text-[9px] px-1.5 py-px rounded border font-semibold tracking-widest uppercase shrink-0 ${catStyle}`}>
-          {def.category}
+          {CATEGORY_LABEL_HE[def.category] ?? def.category}
         </span>
-        {def.operationalPriority > 0 && (
-          <span className="text-[9px] text-iron-muted/40 shrink-0 font-mono">P{def.operationalPriority}</span>
-        )}
-        {def.operationalPurpose && (
-          <span className="text-[9px] text-iron-muted/55 truncate">{def.operationalPurpose}</span>
-        )}
       </div>
 
-      {/* Row 2 — guest visibility (only when the object is guest-visible) */}
-      {def.guestVisibleHint && (
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-iron-muted/50">Guest visible</span>
-          <span className="text-[9px] px-1.5 py-px rounded border border-iron-border/30 text-iron-text/50 font-medium">
-            "{def.guestVisibleHint}"
-          </span>
-        </div>
-      )}
-
-      {/* Row 3 — semantic capabilities */}
+      {/* Row 2 — capabilities */}
       <div className="flex items-center gap-3 flex-wrap">
-        <CapFlag active label="Movable" />
-        <CapFlag active={canResizeObject(obj.kind)} label="Resizable" />
-        <CapFlag active={canRotateObject(obj.kind)} label="Rotatable" />
-        <CapFlag active={canDeleteObject(obj.kind)} label="Removable" />
-        <CapFlag active={canRenameObject(obj.kind)} label="Renameable" />
+        <CapFlag active label="ניתן להזזה" />
+        <CapFlag active={canResizeObject(obj.kind)} label="שינוי גודל" />
+        <CapFlag active={canRotateObject(obj.kind)} label="סיבוב" />
+        <CapFlag active={canDeleteObject(obj.kind)} label="הסרה" />
+        <CapFlag active={canRenameObject(obj.kind)} label="שינוי שם" />
       </div>
 
       {/* Variant selector — CURVED_BOOTH_SEGMENT only */}
       {obj.kind === 'CURVED_BOOTH_SEGMENT' && (
         <div className="pt-1.5 border-t border-iron-border/25 space-y-1">
-          <span className="text-[9px] text-iron-muted/45">Variant</span>
+          <span className="text-[9px] text-iron-muted/45">וריאנט</span>
           <div className="flex items-center gap-1">
             {BOOTH_SELECTABLE_VARIANTS.map(v => {
               const isActive = resolveObjectVariant(obj) === v;
@@ -134,31 +127,26 @@ export default function ObjectInspector({ obj, onPatch, chainCount = 0 }: Props)
             })}
             <button
               onClick={() => onPatch?.({ variant: nextBoothVariant(resolveObjectVariant(obj)) })}
-              title="Cycle variant"
+              title="החלף וריאנט"
               className="text-[9px] px-1.5 py-0.5 rounded border border-iron-border/30 text-iron-muted/40 hover:text-iron-green-light hover:border-iron-green/40 transition-colors ml-1 font-mono"
             >
               ↻
             </button>
           </div>
-          {!obj.variant && (
-            <p className="text-[8px] text-iron-muted/30 leading-tight">
-              Temporary fallback may be inferred from label.
-            </p>
-          )}
         </div>
       )}
 
-      {/* Chain composition summary — CURVED_BOOTH_SEGMENT only, when part of a local chain */}
+      {/* Chain composition summary */}
       {obj.kind === 'CURVED_BOOTH_SEGMENT' && chainCount > 0 && (
         <div className="pt-1 border-t border-iron-border/20 flex items-center gap-2">
-          <span className="text-[9px] text-iron-muted/45">Composition</span>
+          <span className="text-[9px] text-iron-muted/45">קומפוזיציה</span>
           <span className="text-[9px] text-iron-text/55 font-medium">
-            {chainCount} nearby {chainCount === 1 ? 'segment' : 'segments'}
+            {chainCount} {chainCount === 1 ? 'קטע קרוב' : 'קטעים קרובים'}
           </span>
         </div>
       )}
 
-      {/* Modular geometry — only for objects that declare attachment points */}
+      {/* Modular geometry */}
       {supportsModularAttachment(obj.kind) && (() => {
         const pts    = getObjectAttachmentPoints(obj.kind);
         const arcDeg = getObjectArcDegrees(obj.kind);
@@ -166,12 +154,12 @@ export default function ObjectInspector({ obj, onPatch, chainCount = 0 }: Props)
         return (
           <div className="pt-1.5 border-t border-iron-border/25 space-y-1">
             <p className="text-[9px] font-semibold uppercase tracking-widest text-iron-muted/40">
-              Modular Geometry
+              גיאומטריה מודולרית
             </p>
             <div className="space-y-0.5">
-              <ModRow label="Attachment" value={pts.map(p => ATTACHMENT_LABEL[p] ?? p).join(', ')} />
-              {arcDeg !== undefined && <ModRow label="Arc" value={`${arcDeg}°`} />}
-              {segs   !== undefined && <ModRow label="Segments" value={String(segs)} />}
+              <ModRow label="חיבורים" value={pts.map(p => ATTACHMENT_LABEL[p] ?? p).join(', ')} />
+              {arcDeg !== undefined && <ModRow label="קשת" value={`${arcDeg}°`} />}
+              {segs   !== undefined && <ModRow label="קטעים" value={String(segs)} />}
             </div>
           </div>
         );

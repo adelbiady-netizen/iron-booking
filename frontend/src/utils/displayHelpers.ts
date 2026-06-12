@@ -33,11 +33,24 @@ export function formatSectionName(name: string, locale: 'en' | 'he'): string {
 }
 
 const FLOOR_OBJ_LABELS_HE: Record<string, string> = {
-  'Wall':     'קיר',
-  'Divider':  'מחיצה',
-  'Bar':      'בר',
-  'Entrance': 'כניסה',
-  'Zone':     'אזור',
+  'Wall':                   'קיר',
+  'Divider':                'מחיצה',
+  'Bar':                    'בר',
+  'Entrance':               'כניסה',
+  'Zone':                   'אזור',
+  'Planter':                'עציץ',
+  'Host Stand':             'דוכן מארח',
+  'Service Lane':           'מסלול שירות',
+  'Lounge Boundary':        'גבול לאונג׳',
+  'Curved Lounge':          'לאונג׳ מעוגל',
+  'VIP Enclosure':          'מתחם VIP',
+  'Curved Booth':           'בות׳ מעוגל',
+  'Dining Table':           'שולחן אוכל',
+  'Round Table':            'שולחן עגול',
+  'Booth':                  'בות׳',
+  'Bar Seat':               'מושב בר',
+  'Lounge Table':           'שולחן לאונג׳',
+  'VIP Table':              'שולחן VIP',
 };
 
 export function formatFloorObjLabel(label: string, locale: 'en' | 'he'): string {

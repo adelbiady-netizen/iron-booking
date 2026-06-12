@@ -39,16 +39,15 @@ const SHAPE_DIMS: Record<ShapeType, [number, number]> = {
   RECTANGLE: [120, 72], SQUARE: [80, 80], ROUND: [80, 80], OVAL: [112, 72], BOOTH: [140, 72],
 };
 const SHAPE_LABELS: Record<ShapeType, string> = {
-  RECTANGLE: 'Rectangle', SQUARE: 'Square', ROUND: 'Round', OVAL: 'Oval', BOOTH: 'Booth',
+  RECTANGLE: 'מלבן', SQUARE: 'ריבוע', ROUND: 'עגול', OVAL: 'אליפסה', BOOTH: 'בות׳',
 };
-// Shape labels are kept in component data (not in T) — they describe geometry, not UI text.
 const ALL_SHAPES: ShapeType[] = ['RECTANGLE', 'SQUARE', 'ROUND', 'OVAL', 'BOOTH'];
 
 const SIZE_PRESETS = [
-  { label: 'S 2-top',  w: 72,  h: 72,  min: 1, max: 2 },
-  { label: 'M 4-top',  w: 100, h: 80,  min: 2, max: 4 },
-  { label: 'L 6-top',  w: 132, h: 88,  min: 4, max: 6 },
-  { label: 'XL 8-top', w: 160, h: 96,  min: 6, max: 8 },
+  { label: 'S  1–2',  w: 72,  h: 72,  min: 1, max: 2 },
+  { label: 'M  2–4',  w: 100, h: 80,  min: 2, max: 4 },
+  { label: 'L  4–6',  w: 132, h: 88,  min: 4, max: 6 },
+  { label: 'XL 6–8', w: 160, h: 96,  min: 6, max: 8 },
 ] as const;
 
 const OBJ_DEFAULT_COLORS: Record<FloorObjKind, string> = {
@@ -132,7 +131,7 @@ function newId() { return `__new_${++clientSeq}`; }
 function SideSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="p-3 border-b border-iron-border">
-      <p className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-2">{title}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 text-iron-green-light/70">{title}</p>
       {children}
     </div>
   );
@@ -790,7 +789,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     <div className="fixed inset-0 z-50 bg-iron-bg flex flex-col select-none">
 
       {/* ─── Header ─────────────────────────────────────────────────────── */}
-      <div className="h-12 shrink-0 border-b border-iron-border bg-iron-card flex items-center gap-3 px-4">
+      <div className="h-12 shrink-0 border-b border-iron-border bg-iron-card flex items-center gap-3 px-4" style={{ backgroundImage: 'linear-gradient(180deg, rgba(67,91,42,0.10) 0%, transparent 100%)' }}>
         <button onClick={onClose} className="text-iron-muted hover:text-iron-text text-sm transition-colors">
           {T.layoutEditor.backButton}
         </button>
@@ -837,16 +836,16 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
       {/* ─── Alignment toolbar ──────────────────────────────────────────── */}
       <div className="h-9 shrink-0 border-b border-iron-border bg-iron-card/50 flex items-center gap-1 px-3 overflow-x-auto">
         <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mr-1 shrink-0">{T.layoutEditor.alignLabel}</span>
-        <AlignBtn label="⊢L" title="Align left edges"                    enabled={selTables.length >= 2} onClick={() => align('left')}   />
-        <AlignBtn label="R⊣" title="Align right edges"                   enabled={selTables.length >= 2} onClick={() => align('right')}  />
-        <AlignBtn label="⊤T" title="Align top edges"                     enabled={selTables.length >= 2} onClick={() => align('top')}    />
-        <AlignBtn label="B⊥" title="Align bottom edges"                  enabled={selTables.length >= 2} onClick={() => align('bottom')} />
-        <AlignBtn label="↔"  title="Center horizontally"                 enabled={selTables.length >= 2} onClick={() => align('ch')}     />
-        <AlignBtn label="↕"  title="Center vertically"                   enabled={selTables.length >= 2} onClick={() => align('cv')}     />
+        <AlignBtn label="⊢L" title="יישור לקצה שמאל"    enabled={selTables.length >= 2} onClick={() => align('left')}   />
+        <AlignBtn label="R⊣" title="יישור לקצה ימין"    enabled={selTables.length >= 2} onClick={() => align('right')}  />
+        <AlignBtn label="⊤T" title="יישור לקצה עליון"   enabled={selTables.length >= 2} onClick={() => align('top')}    />
+        <AlignBtn label="B⊥" title="יישור לקצה תחתון"   enabled={selTables.length >= 2} onClick={() => align('bottom')} />
+        <AlignBtn label="↔"  title="מרכז אופקי"          enabled={selTables.length >= 2} onClick={() => align('ch')}     />
+        <AlignBtn label="↕"  title="מרכז אנכי"           enabled={selTables.length >= 2} onClick={() => align('cv')}     />
         <div className="w-px h-4 bg-iron-border mx-1 shrink-0" />
         <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-widest mr-1 shrink-0">{T.layoutEditor.distributeLabel}</span>
-        <AlignBtn label="⇔H" title="Distribute horizontally (3+ tables)" enabled={selTables.length >= 3} onClick={() => align('dh')} />
-        <AlignBtn label="⇕V" title="Distribute vertically (3+ tables)"   enabled={selTables.length >= 3} onClick={() => align('dv')} />
+        <AlignBtn label="⇔H" title="פיזור אופקי (3+ שולחנות)" enabled={selTables.length >= 3} onClick={() => align('dh')} />
+        <AlignBtn label="⇕V" title="פיזור אנכי (3+ שולחנות)"  enabled={selTables.length >= 3} onClick={() => align('dv')} />
         {selTables.length > 0 && (
           <>
             <div className="w-px h-4 bg-iron-border mx-1.5 shrink-0" />
@@ -1190,9 +1189,8 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
         <div className="shrink-0 border-t border-iron-border bg-iron-card">
           {!singleSel.isActive && (
             <div className="flex items-center gap-2 px-4 py-1.5 bg-status-warning/10 border-b border-status-warning/20">
-              <span className="text-status-warning text-xs font-semibold">INACTIVE TABLE</span>
-              <span className="text-iron-muted text-[10px] font-mono">{singleSel.isNew ? '(new — not yet saved)' : singleSel.id}</span>
-              <span className="text-iron-muted text-[10px]">· pos {singleSel.posX},{singleSel.posY} · size {singleSel.width}×{singleSel.height}</span>
+              <span className="text-status-warning text-xs font-semibold">{T.layoutEditor.statusInactive}</span>
+              {singleSel.isNew && <span className="text-iron-muted text-[10px]">{T.layoutEditor.tagNew}</span>}
             </div>
           )}
           <div className="flex items-center gap-4 px-4 pt-3 pb-1.5 flex-wrap">
