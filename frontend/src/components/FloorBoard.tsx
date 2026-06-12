@@ -3639,24 +3639,29 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
               {displayRes.guestName}
             </p>
             {/* Metadata zone — time + partySize; centered */}
-            {!isSecondary && nextRes && (
+            {nextRes && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
                 {/* Text group — centered; chip stays adjacent */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0, overflow: 'hidden' }}>
+                  {/* Party size — shown on EVERY reserved table, incl. combined secondaries */}
                   <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: metaOpacity, flexShrink: 0 }}>
                     {nextRes.partySize}p
                   </span>
-                  <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: metaOpacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    · {normalizeTime(nextRes.time)}
-                  </span>
-                  {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
-                    <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      · {T.floorBoard.inNMin(nextRes.minutesUntil)}
-                    </span>
+                  {!isSecondary && (
+                    <>
+                      <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: metaOpacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        · {normalizeTime(nextRes.time)}
+                      </span>
+                      {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
+                        <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          · {T.floorBoard.inNMin(nextRes.minutesUntil)}
+                        </span>
+                      )}
+                    </>
                   )}
                 </span>
                 {/* Chips suppressed in future-turn-only and FAR-quiet-reserved context */}
-                {(isSoon || isCombined) && !isReceded && (
+                {!isSecondary && (isSoon || isCombined) && !isReceded && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
                       <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>
