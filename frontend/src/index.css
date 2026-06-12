@@ -27,7 +27,7 @@
   --status-info:       129 140 248;    /* indigo-400 — waitlist / hold       */
 
   /* Canvas map (hex — used in inline style backgroundColor) */
-  --canvas-bg:              #141715;   /* lifted graphite — reduces "black void" in daylight */
+  --canvas-bg:              #DADFD5;   /* sage green floor canvas */
   --canvas-dot:             #1c1916;   /* warm-tinted grid — like tile grout under dim light       */
   --canvas-grid:            rgba(255,195,110,0.025); /* warm amber seams — matches floor material  */
   --canvas-ambient:         rgba(255,215,130,0.034); /* warm chandelier bloom — daylight visibility without blue haze */

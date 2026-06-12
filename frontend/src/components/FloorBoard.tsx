@@ -342,7 +342,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 }
 
 const STATUS_BG_DARK: Record<string, string> = {
-  AVAILABLE:     'rgba(232,230,226,0.93)',   // neutral — readable in daylight
+  AVAILABLE:     '#8E9D7F',   // sage green — empty table
   OCCUPIED:      'rgba(208,244,216,0.97)',   // green — active presence, reads <0.5s
   RESERVED_SOON: 'rgba(247,230,188,0.97)',   // amber — imminent arrival, reads <0.5s
   RESERVED:      'rgba(203,220,248,0.97)',   // blue — committed calm, reads <0.5s
