@@ -530,7 +530,11 @@ export default function ReservationPanel({
                   {/* Time anchor column — left rail for instant time scanning */}
                   <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3 gap-1.5">
                     <span className="text-iron-text text-[17px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
-                    <span className="text-iron-muted/65 text-[12px] tabular-nums leading-none font-semibold">{r.partySize}p</span>
+                    {r.table ? (
+                      <span className="text-iron-muted/65 text-[11px] leading-none font-medium truncate max-w-full px-0.5">{r.table.name}</span>
+                    ) : (
+                      <span className="text-iron-muted/40 text-[11px] leading-none">—</span>
+                    )}
                   </div>
                   {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
                     <div className="shrink-0 flex items-center gap-0.5 ps-2">
@@ -575,12 +579,13 @@ export default function ReservationPanel({
                     className="flex-1 text-start px-3 py-3 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
                   >
 
-                    {/* Row 1 — name + VIP + source badge + status badge */}
+                    {/* Row 1 — name + party size + VIP + source badge + status badge */}
                     <div className="flex items-center gap-2 mb-1">
                       <span className="flex-1 min-w-0 flex items-center gap-1.5">
                         <span className="text-iron-text text-[18px] font-bold tracking-tight truncate leading-snug min-w-0">
                           {r.guestName}
                         </span>
+                        <span className="text-iron-muted/70 text-[13px] font-semibold shrink-0 tabular-nums">{r.partySize}</span>
                         {r.guest?.isVip && (
                           <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-status-warning/10 border-status-warning/30 text-status-warning">
                             VIP
@@ -633,25 +638,7 @@ export default function ReservationPanel({
                       )}
                     </div>
 
-                    {/* Row 3 — phone identity layer */}
-                    <div className="flex items-center gap-1.5 mt-2">
-                      {r.guestPhone ? (
-                        <span dir="ltr" className="text-iron-muted/50 text-[12px] font-mono tabular-nums tracking-wider leading-none">
-                          {(() => {
-                            const d = r.guestPhone.replace(/\D/g, '');
-                            if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
-                            if (d.length === 10 && d.startsWith('0'))   return `${d.slice(0,3)} · ${d.slice(3,6)} · ${d.slice(6)}`;
-                            return r.guestPhone;
-                          })()}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-iron-muted/40 font-medium">
-                          {T.reservationPanel.noPhone}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Row 4 — optional signal chips */}
+                    {/* Row 3 — optional signal chips */}
                     {(r.hostNotes || r.occasion || r.isConfirmedByGuest || r.isRunningLate || r.remindedAt || r.confirmationSentAt || (r.guest?.tags?.length ?? 0) > 0) && (
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {r.hostNotes && (

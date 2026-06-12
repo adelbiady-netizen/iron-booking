@@ -3034,8 +3034,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       })
     : undefined;
   const isBoardTimeActive = boardActiveRes !== undefined;
-  // Suppress RESERVED/RESERVED_SOON styling only when boardTime is outside the reservation window
-  const isFarFutureReserved = isReservedOrSoon && !isBoardTimeActive;
+  // Suppress RESERVED/RESERVED_SOON styling only when boardTime is outside the STATUS-CAUSING
+  // reservation's window. boardActiveRes may be a different combined-booking turn covering
+  // boardTime — that must not un-suppress liveStatus styling for a distinct future reservation.
+  const nextResStart = nextRes
+    ? (() => { const [h, m] = nextRes.time.split(':').map(Number); return h * 60 + m; })()
+    : null;
+  const isNextResBoardActive = boardMinutes !== null && nextResStart !== null
+    && boardMinutes >= nextResStart && boardMinutes < nextResStart + (nextRes?.duration ?? 90);
+  const isFarFutureReserved = isReservedOrSoon && !isNextResBoardActive;
 
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');

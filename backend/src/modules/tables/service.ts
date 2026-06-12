@@ -238,14 +238,19 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       };
     }
 
-    // Upcoming filter uses real wall-clock so RESERVED_SOON fires only on genuine
-    // arrival proximity, not board-time scrubbing. BoardTime affects planning helpers
-    // (gap analysis, block overlap) but not the operational status label or color.
+    // In live service (board time ≈ real now) use the real wall-clock so RESERVED_SOON
+    // fires on genuine arrival proximity. In time-travel (board time differs by >5 min)
+    // use slotTime as the reference so RESERVED_SOON reflects the planned viewing time,
+    // not a coincidental real-clock match from an entirely different hour.
+    const LIVE_THRESHOLD_MS = 5 * 60_000;
+    const isTimeTravelling = Math.abs(slotTime.getTime() - realNowVirtual.getTime()) > LIVE_THRESHOLD_MS;
+    const statusNow = isTimeTravelling ? slotTime : realNowVirtual;
+
     const upcoming = tableReservations
       .filter(r => {
         if (r.status === 'SEATED') return false;
         const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
-        return resEnd > addMinutes(realNowVirtual, -bufferMinutes);
+        return resEnd > addMinutes(statusNow, -bufferMinutes);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -253,7 +258,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     if (nextRes) {
       const nextTime = parseTimeOnDate(date, nextRes.time);
       const minutesUntil = Math.round(
-        (nextTime.getTime() - realNowVirtual.getTime()) / 60000
+        (nextTime.getTime() - statusNow.getTime()) / 60000
       );
       return {
         ...table,
@@ -263,7 +268,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
           minutesUntil: Math.round(
-            (parseTimeOnDate(date, r.time).getTime() - realNowVirtual.getTime()) / 60000
+            (parseTimeOnDate(date, r.time).getTime() - statusNow.getTime()) / 60000
           ),
         })),
         nextReservationStart,

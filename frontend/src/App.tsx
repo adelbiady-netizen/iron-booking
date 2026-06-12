@@ -170,11 +170,12 @@ export default function App() {
 
   const path = window.location.pathname;
 
-  // ── Dedicated management-portal domain (portal.ironbooking.com) ─────────────
-  // The portal domain serves the same SPA as www, but its root lands directly on
+  // ── Dedicated management-portal domains (portal.ironbooking.com, portal.iron-pos.com) ─
+  // A portal domain serves the same SPA as www, but its root lands directly on
   // the HQ portal entry (/hq → login → AdminPortal / role-based redirect). Public
   // booking stays primary on www.ironbooking.com; existing www URLs are unchanged.
-  const isPortalHost = window.location.hostname === 'portal.ironbooking.com';
+  const PORTAL_HOSTS = ['portal.ironbooking.com', 'portal.iron-pos.com'];
+  const isPortalHost = PORTAL_HOSTS.includes(window.location.hostname);
   if (isPortalHost && (path === '/' || path === '')) {
     window.location.replace('/hq');
     return <></>; // navigation in progress — nothing to render

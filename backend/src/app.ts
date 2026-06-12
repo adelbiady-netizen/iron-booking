@@ -39,6 +39,7 @@ const allowedOrigins = [
   'https://ironbooking.com',
   'https://www.ironbooking.com',
   'https://portal.ironbooking.com', // dedicated management-portal domain
+  'https://portal.iron-pos.com',    // iron-pos management-portal domain
 ];
 
 // Dynamically add FRONTEND_BASE_URL so the guest confirmation page can reach the API
