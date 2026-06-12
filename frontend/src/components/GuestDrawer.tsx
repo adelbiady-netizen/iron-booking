@@ -1091,7 +1091,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       {/* Reorganize confirmation modal — seat flow
           Portaled to document.body to escape App.tsx's transform:scale stacking context,
           which would otherwise make position:fixed children unable to cover the drawer. */}
-      {void console.log('[drawer:render]', { reorganizeOpen: !!reorganizeModal })}
       {reorganizeModal && createPortal(
         <ReorganizeConflictModal
           key={reorganizeModal._key}

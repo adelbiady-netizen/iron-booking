@@ -634,7 +634,6 @@ export default function FloorBoard({
 
   // Cancel swap mode on Esc
   useEffect(() => {
-    console.log('[swap:floor] swapMode prop changed to', swapMode, 'swapSourceId=', swapSourceId);
     if (!swapMode) return;
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onSwapCancel?.(); }
     window.addEventListener('keydown', onKey);
@@ -1022,7 +1021,7 @@ export default function FloorBoard({
     Math.min(reservedSoon  / 4, 1) * 0.10
   );
   // quietFade: smooth opacity target for idle AVAILABLE tables — 0 = full, 0.4 = max recession.
-  const quietFade = quietIdle ? Math.max(0.10, pressureScore * 0.40) : 0; void quietFade;
+  const quietFade = quietIdle ? Math.max(0.10, pressureScore * 0.40) : 0;
 
   // ── Service energy ──────────────────────────────────────────────────────────
   // Normalized 0–1 live-floor-activity signal. Unlike pressureScore (which weights
