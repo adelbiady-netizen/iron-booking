@@ -709,6 +709,7 @@ router.post('/broadcast', validate(BroadcastSchema, 'body'), async (req: Request
 
     let sent = 0;
     const failed: string[] = [];
+    const errors: string[] = [];
     const { sendSms } = await import('../../lib/messaging');
     for (const r of reservations) {
       try {
@@ -720,14 +721,23 @@ router.post('/broadcast', validate(BroadcastSchema, 'body'), async (req: Request
           reservationId: r.id,
           guestId:       r.guestId ?? undefined,
         });
-        if (result.success) sent++;
-        else failed.push(r.id);
+        if (result.success) {
+          sent++;
+        } else {
+          failed.push(r.id);
+          // Surface the messageLog error so the caller can diagnose provider issues
+          const { prisma: db } = await import('../../lib/prisma');
+          const log = await db.messageLog.findUnique({ where: { id: result.messageLogId }, select: { errorMessage: true } });
+          if (log?.errorMessage) errors.push(log.errorMessage);
+        }
       } catch (err) {
-        console.error(`[broadcast] Failed for reservation ${r.id}:`, err instanceof Error ? err.message : err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[broadcast] Failed for reservation ${r.id}:`, msg);
         failed.push(r.id);
+        errors.push(msg);
       }
     }
-    res.json({ sent, failed, total: reservations.length });
+    res.json({ sent, failed, total: reservations.length, errors });
   } catch (err) { next(err); }
 });
 

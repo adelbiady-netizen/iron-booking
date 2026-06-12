@@ -236,7 +236,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [broadcastTarget,    setBroadcastTarget]    = useState<'all' | 'specific'>('all');
   const [broadcastSelIds,    setBroadcastSelIds]    = useState<string[]>([]);
   const [broadcastBusy,      setBroadcastBusy]      = useState(false);
-  const [broadcastResult,    setBroadcastResult]    = useState<{ sent: number } | null>(null);
+  const [broadcastResult,    setBroadcastResult]    = useState<{ sent: number; total: number; errors: string[] } | null>(null);
   const [broadcastConfirming, setBroadcastConfirming] = useState(false);
   const [showSmartAssign,    setShowSmartAssign]    = useState(false);
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
@@ -1983,7 +1983,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         body.reservationIds = broadcastSelIds;
       }
       const result = await api.reservations.broadcast(body);
-      setBroadcastResult({ sent: result.sent });
+      setBroadcastResult({ sent: result.sent, total: result.total, errors: result.errors ?? [] });
       setBroadcastMsg('');
       setBroadcastSelIds([]);
     } catch {
@@ -2168,10 +2168,19 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 )}
               </div>
             )}
-            {broadcastResult && (
+            {broadcastResult && broadcastResult.sent > 0 && (
               <p className="text-xs text-iron-green-light font-medium">
                 {T.hostDashboard.broadcastSuccess(broadcastResult.sent)}
               </p>
+            )}
+            {broadcastResult && broadcastResult.sent === 0 && broadcastResult.total === 0 && (
+              <p className="text-xs text-status-danger font-medium">לא נמצאו אורחים לתאריך זה</p>
+            )}
+            {broadcastResult && broadcastResult.sent === 0 && broadcastResult.total > 0 && (
+              <div className="text-xs text-status-danger">
+                <p className="font-medium">שליחה נכשלה ({broadcastResult.total} אורחים)</p>
+                {broadcastResult.errors[0] && <p className="text-[11px] opacity-80 mt-0.5">{broadcastResult.errors[0]}</p>}
+              </div>
             )}
             {broadcastConfirming ? (
               <div className="flex items-center justify-between gap-2 rounded-lg border border-status-warning/30 bg-status-warning/10 px-3 py-2">

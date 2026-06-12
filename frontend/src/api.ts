@@ -303,7 +303,7 @@ export const api = {
         body: JSON.stringify(body),
       }),
     broadcast: (body: { date: string; message: string; reservationIds?: string[] }) =>
-      request<{ sent: number; failed: string[]; total: number }>('/reservations/broadcast', {
+      request<{ sent: number; failed: string[]; total: number; errors: string[] }>('/reservations/broadcast', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
