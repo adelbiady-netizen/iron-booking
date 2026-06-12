@@ -341,20 +341,20 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
   }
 }
 
+// 4 statuses only: green=available, blue=reserved, orange=occupied, red=overdue
 const STATUS_BG_DARK: Record<string, string> = {
-  AVAILABLE:     '#8E9D7F',   // sage green — empty table
-  OCCUPIED:      'rgba(208,244,216,0.97)',   // green — active presence, reads <0.5s
-  RESERVED_SOON: 'rgba(247,230,188,0.97)',   // amber — imminent arrival, reads <0.5s
-  RESERVED:      'rgba(203,220,248,0.97)',   // blue — committed calm, reads <0.5s
-  BLOCKED:       'rgba(220,38,38,0.14)',     // red tint — not in service, conflict
+  AVAILABLE:     '#8E9D7F',
+  OCCUPIED:      'rgba(253,224,195,0.97)',  // peach/orange — יושב
+  RESERVED_SOON: 'rgba(214,232,253,0.97)',  // same blue as RESERVED
+  RESERVED:      'rgba(214,232,253,0.97)',  // light blue — תפוס
+  BLOCKED:       'rgba(220,38,38,0.14)',
 };
-// Light canvas (#EAEDE6) needs more saturation so status tables read off the pale surface
 const STATUS_BG_LIGHT: Record<string, string> = {
-  AVAILABLE:     '#8E9D7F',   // sage green — empty table
-  OCCUPIED:      'rgba(209,250,229,0.97)',   // green-100 — clearly active
-  RESERVED_SOON: 'rgba(254,243,199,0.97)',   // amber-100 — clearly imminent
-  RESERVED:      'rgba(219,234,254,0.97)',   // blue-100 — clearly committed
-  BLOCKED:       'rgba(254,226,226,0.92)',   // red-100 — not in service, conflict
+  AVAILABLE:     '#8E9D7F',
+  OCCUPIED:      'rgba(253,224,195,0.97)',
+  RESERVED_SOON: 'rgba(214,232,253,0.97)',
+  RESERVED:      'rgba(214,232,253,0.97)',
+  BLOCKED:       'rgba(254,226,226,0.92)',
 };
 
 interface Props {
@@ -1061,7 +1061,7 @@ export default function FloorBoard({
     Math.min(reservedSoon  / 4, 1) * 0.10
   );
   // quietFade: smooth opacity target for idle AVAILABLE tables — 0 = full, 0.4 = max recession.
-  const quietFade = quietIdle ? Math.max(0.10, pressureScore * 0.40) : 0;
+  const quietFade = quietIdle ? Math.max(0.10, pressureScore * 0.40) : 0; void quietFade;
 
   // ── Service energy ──────────────────────────────────────────────────────────
   // Normalized 0–1 live-floor-activity signal. Unlike pressureScore (which weights
@@ -2932,7 +2932,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -3016,7 +3016,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Stable/recession states — reduce visual weight to let urgent tables surface
   const isLongStable = table.liveStatus === 'OCCUPIED' && !isOverdue && !isEndingSoon && minutesRemaining !== null && minutesRemaining > 45;
   const minutesUntilNext   = nextRes?.minutesUntil ?? 0;  // real-time-based from backend
-  const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0;
+  const isNextResCombined  = (nextRes?.combinedTableIds?.length ?? 0) > 0; void isNextResCombined;
   const isReservedOrSoon = table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON';
   const isUpcomingReserved = isReservedOrSoon && minutesUntilNext >= 60 && minutesUntilNext < 120;
   const isDormantReserved  = isReservedOrSoon && minutesUntilNext >= 120;
@@ -3047,29 +3047,26 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Seating opportunity — AVAILABLE table with a queued guest waiting to be seated
   const isOpportunity = table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && (!!waitlistMatch || insight?.type === 'SEAT_NOW');
 
-  let bg = softHold && table.liveStatus === 'AVAILABLE' ? 'rgba(238,236,253,0.96)'   // soft lavender — held
-    : isOverdue       ? (overdueTier === 'critical' ? 'rgba(248,113,113,0.97)' : overdueTier === 'warning' ? 'rgba(252,165,165,0.97)' : 'rgba(254,202,202,0.97)')  // severity-tiered: mild/warning/critical
-    : isEndingSoon    ? (isDark ? 'rgba(253,230,138,0.97)' : 'rgba(254,243,199,0.97)')  // warm amber — last 10 min, calmer than overdue
-    : isStaleOccupied ? (isDark ? 'rgba(240,233,220,0.96)' : 'rgba(253,249,242,0.96)')  // warm muted — prev service
+  let bg = isOverdue || isStaleOccupied
+    ? 'rgba(254,202,202,0.97)'   // red/pink — עבר הזמן שלו
     : (STATUS_BG[displayStatus] ?? STATUS_BG['AVAILABLE']);
-  // All available tables use unified sage green — no per-class bg overrides.
   // UPCOMING/DORMANT: restore clean neutral surface — same as an empty table.
   // Only the blue border (UPCOMING) or nothing (DORMANT) carries the reservation signal.
   if (isFarFutureReserved && !softHold && !isOverdue) {
     bg = STATUS_BG['AVAILABLE'];
   }
 
-  let borderColor = selected        ? '#22c55e'
-    : combinedSelected ? '#3b82f6'
+  // 4-state border: green=available, blue=reserved, orange=occupied, red=overdue
+  let borderColor = selected          ? '#22c55e'
+    : combinedSelected                ? '#3b82f6'
     : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
-    : isOverdue      ? (overdueTier === 'critical' ? '#b91c1c' : overdueTier === 'warning' ? '#dc2626' : '#ef4444')
-    : table.locked   ? '#f59e0b'
+    : table.locked                    ? '#f59e0b'
+    : (isOverdue || isStaleOccupied)  ? '#ef4444'
+    : table.liveStatus === 'OCCUPIED' ? 'rgba(234,88,12,0.70)'
+    : (displayStatus === 'RESERVED' || displayStatus === 'RESERVED_SOON') ? 'rgba(59,130,246,0.60)'
     : '#435B2A';
 
-  let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2
-    : overdueTier === 'critical' ? 2.5
-    : overdueTier === 'warning' ? 2
-    : 1.5;
+  let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
 
   let boxShadow: string | undefined = selected
     ? '0 0 0 3px rgba(34,197,94,0.48), 0 0 18px rgba(34,197,94,0.11)'
@@ -3079,98 +3076,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     ? '0 0 0 3px rgba(99,102,241,0.34), 0 0 14px rgba(99,102,241,0.08)'
     : bestSuggestion
     ? '0 0 0 2px rgba(34,197,94,0.28), 0 0 14px rgba(34,197,94,0.07)'
-    : isOverdue ? (
-        overdueTier === 'critical' ? '0 0 0 3px rgba(185,28,28,0.80)' :
-        overdueTier === 'warning'  ? '0 0 0 2px rgba(220,38,38,0.60)' :
-        '0 0 0 2px rgba(239,68,68,0.38)'
-      )
     : table.locked ? '0 0 0 2px rgba(245,158,11,0.18)' : undefined;
 
-  let opacity = dimmed ? 0.25
-    : table.locked ? 0.55
-    : isLongStable ? 0.90          // stable occupied recedes; urgent states stay full
-    : 1;
-  // UPCOMING/DORMANT do NOT fade the table — only the reservation tint layer changes (see bg below)
+  let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
   let cursor = 'pointer';
-
-  // Ambient status glow — each occupied/arriving state casts its own light.
-  // Only applied when no priority shadow is already set (selected/overdue/locked take precedence).
-  if (!boxShadow && !table.locked) {
-    if (table.liveStatus === 'OCCUPIED' && !isOverdue) {
-      boxShadow = isEndingSoon
-        ? '0 2px 8px rgba(251,191,36,0.08)'      // freeing soon — warm amber readiness
-        : isLongStable
-        ? '0 1px 5px rgba(34,197,94,0.05)'        // long stable — very subtle, recedes
-        : '0 2px 8px rgba(34,197,94,0.08)';       // active occupancy — warm green presence
-    } else if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
-      boxShadow = '0 2px 8px rgba(217,119,6,0.08)';    // amber urgency bloom
-    } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
-      boxShadow = '0 2px 10px rgba(59,130,246,0.09)';  // NEAR: faint blue bloom — operational signal
-    }
-  }
-
-  // Day mode: give every table a real drop shadow so the cards lift off the
-  // light floor with clear depth. Layers under any status glow; priority ring
-  // states (selected/combined/overdue/locked) keep their own emphasis.
-  if (!isDark && !selected && !combinedSelected && !isOverdue && !table.locked) {
-    const depth = '0 2px 5px rgba(0,0,0,0.17), 0 7px 18px rgba(0,0,0,0.11)';
-    boxShadow = boxShadow ? `${boxShadow}, ${depth}` : depth;
-  }
-
-  // Status-driven border refinements
-  if (!selected && !combinedSelected && !(softHold && table.liveStatus === 'AVAILABLE') && !isOverdue && !table.locked) {
-    if (displayStatus === 'RESERVED_SOON' && !isFarFutureReserved) {
-      borderColor = 'rgba(217,119,6,0.88)';           // amber — imminent arrival, strong edge
-    } else if (displayStatus === 'RESERVED' && !isFarFutureReserved) {
-      borderColor = 'rgba(59,130,246,0.34)';   // ACTIVE <60 min: committed signal
-    } else if (isEndingSoon) {
-      borderColor = 'rgba(251,191,36,0.68)';           // warm readiness — actionable, table is about to free
-    } else if (table.liveStatus === 'BLOCKED') {
-      borderColor = 'rgba(220,38,38,0.55)';
-      borderWidth = 1.5;
-    }
-  }
-
-  // AVAILABLE: uniform green border.
-  if (table.liveStatus === 'AVAILABLE' && !selected && !combinedSelected && !softHold && !table.locked) {
-    borderWidth = 1.5;
-    borderColor = '#435B2A';
-  }
-
-  // FAR-FUTURE (60+ min): green border; combined keeps a faint blue.
-  if (isFarFutureReserved && !selected && !combinedSelected && !softHold) {
-    borderWidth = 1.5;
-    borderColor = isNextResCombined ? 'rgba(59,130,246,0.13)' : '#435B2A';
-  }
-
-  // STALE_OCCUPIED: warm amber border at low opacity — visibly "something here" but not urgent.
-  if (isStaleOccupied && !selected && !combinedSelected && !softHold) {
-    borderWidth = 1;
-    borderColor = 'rgba(217,119,6,0.36)';
-  }
 
   // BLOCKED: intentional absence — near-ghost, clearly not in service
   if (table.liveStatus === 'BLOCKED' && !selected && !combinedSelected) {
     opacity = Math.min(opacity, 0.60);
     cursor = 'default';
-  }
-
-  // Peripheral quieting — continuous, pressure-proportional recession of idle tables.
-  // At quietFade=0.10 → opacity ≤ 0.87 (barely visible). At 0.40 → ≤ 0.78 (matches prior binary).
-  // Active zones emerge without any explicit signal — the room does the talking.
-  if (quietFade > 0 && table.liveStatus === 'AVAILABLE' && !softHold && !table.locked && !selected) {
-    opacity = Math.min(opacity, 0.88 - quietFade * 0.38);
-  }
-
-  // Board-time blue: when boardTime falls inside a reservation window, force RESERVED (blue) surface.
-  // Runs after all class/status overrides so it wins cleanly; pick/swap/waitlist modes take over after.
-  if (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' && table.liveStatus !== 'BLOCKED' && !isOverdue && !softHold && !table.locked) {
-    bg = STATUS_BG['RESERVED'];
-    if (!selected && !combinedSelected) {
-      borderColor = 'rgba(59,130,246,0.34)';
-      borderWidth = Math.max(borderWidth, 1.5);
-      if (!boxShadow) boxShadow = '0 2px 10px rgba(59,130,246,0.09)';
-    }
   }
 
   // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
