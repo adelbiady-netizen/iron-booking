@@ -126,6 +126,274 @@ function tableGradient(shape: ShapeType): string {
 let clientSeq = 0;
 function newId() { return `__new_${++clientSeq}`; }
 
+// ─── Floor object visual system ───────────────────────────────────────────────
+
+interface ObjVisual {
+  containerStyle: React.CSSProperties;
+  inner: React.ReactNode;
+}
+
+function getObjVisual(kind: FloorObjKind, isSel: boolean, width: number, height: number, label: string): ObjVisual {
+  const selBorder = isSel ? '2px solid rgba(74,222,128,0.75)' : undefined;
+  const selGlow   = isSel ? '0 0 0 3px rgba(74,222,128,0.18)' : '';
+
+  switch (kind) {
+
+    case 'BAR': {
+      const stoolCount = Math.max(2, Math.floor(width / 30));
+      return {
+        containerStyle: {
+          background: [
+            'linear-gradient(180deg, rgba(255,190,110,0.18) 0%, transparent 14%)',
+            'linear-gradient(158deg, #3d1f0d 0%, #5c2d12 28%, #4a2210 58%, #3a1c08 100%)',
+          ].join(', '),
+          border: selBorder ?? '1.5px solid rgba(155,85,30,0.70)',
+          borderRadius: 4,
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,190,80,0.22)`,
+          overflow: 'hidden',
+        },
+        inner: (
+          <>
+            {[0.20, 0.38, 0.56, 0.74, 0.90].map((p, i) => (
+              <div key={i} style={{ position: 'absolute', top: `${p * 100}%`, left: 0, right: 0, height: 1, background: 'rgba(255,175,75,0.07)', pointerEvents: 'none' }} />
+            ))}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.max(8, height * 0.22), background: 'linear-gradient(180deg, rgba(255,200,100,0.22) 0%, transparent 100%)', borderBottom: '1px solid rgba(255,175,55,0.28)', pointerEvents: 'none' }} />
+            {height >= 48 && (
+              <div style={{ position: 'absolute', bottom: 5, left: 0, right: 0, display: 'flex', justifyContent: 'space-evenly', alignItems: 'center', pointerEvents: 'none' }}>
+                {Array.from({ length: stoolCount }, (_, i) => (
+                  <div key={i} style={{ width: 13, height: 13, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, rgba(255,175,55,0.22), rgba(75,35,12,0.58))', border: '1px solid rgba(200,125,45,0.4)' }} />
+                ))}
+              </div>
+            )}
+            <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 11, fontWeight: 700, color: 'rgba(255,210,140,0.82)', letterSpacing: '0.12em', textTransform: 'uppercase', textShadow: '0 1px 3px rgba(0,0,0,0.65)', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+          </>
+        ),
+      };
+    }
+
+    case 'WALL': {
+      return {
+        containerStyle: {
+          background: '#27272a',
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.04) 4px, rgba(255,255,255,0.04) 5px)',
+          border: selBorder ?? '2px solid #52525b',
+          borderRadius: 2,
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+        },
+        inner: (
+          <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(161,161,170,0.50)', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+        ),
+      };
+    }
+
+    case 'DIVIDER': {
+      return {
+        containerStyle: {
+          background: 'rgba(113,113,122,0.16)',
+          backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 11px)',
+          border: selBorder ?? '1.5px dashed rgba(113,113,122,0.50)',
+          borderRadius: 2,
+          boxShadow: selGlow || 'inset 0 0 8px rgba(0,0,0,0.22)',
+        },
+        inner: (
+          <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(161,161,170,0.48)', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+        ),
+      };
+    }
+
+    case 'ENTRANCE': {
+      const dw = Math.min(width * 0.44, 50);
+      const cx = width / 2;
+      const by = height - 3;
+      return {
+        containerStyle: {
+          background: 'linear-gradient(180deg, #0e1e3c 0%, #16254a 55%, #0c1830 100%)',
+          border: selBorder ?? '1.5px solid rgba(59,130,246,0.58)',
+          borderRadius: 3,
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}inset 0 0 12px rgba(59,130,246,0.07)`,
+          overflow: 'visible',
+        },
+        inner: (
+          <>
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'rgba(59,130,246,0.38)', borderRadius: '0 0 2px 2px', pointerEvents: 'none' }} />
+            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
+              <path d={`M ${cx - 3 - dw} ${by} L ${cx - 3} ${by} A ${dw} ${dw} 0 0 0 ${cx - 3} ${by - dw}`} fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.42)" strokeWidth="1" />
+              <path d={`M ${cx + 3 + dw} ${by} L ${cx + 3} ${by} A ${dw} ${dw} 0 0 1 ${cx + 3} ${by - dw}`} fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.42)" strokeWidth="1" />
+              <line x1={cx} y1={height * 0.22} x2={cx} y2={by} stroke="rgba(59,130,246,0.30)" strokeWidth="1" />
+            </svg>
+            <span style={{ position: 'absolute', top: 7, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 700, color: 'rgba(147,197,253,0.78)', letterSpacing: '0.1em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+          </>
+        ),
+      };
+    }
+
+    case 'HOST_STAND': {
+      return {
+        containerStyle: {
+          background: 'radial-gradient(ellipse at 42% 28%, #5a3010 0%, #3d2008 52%, #2c1705 100%)',
+          border: selBorder ?? '1.5px solid rgba(155,85,30,0.68)',
+          borderRadius: 6,
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,175,55,0.18)`,
+        },
+        inner: (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: '12%', right: '12%', height: '38%', background: 'linear-gradient(180deg, rgba(255,175,55,0.14) 0%, transparent 100%)', borderRadius: '0 0 50% 50%', pointerEvents: 'none' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, zIndex: 1 }}>
+              <span style={{ fontSize: 13, lineHeight: 1, color: 'rgba(255,200,100,0.65)', userSelect: 'none', pointerEvents: 'none' }}>✦</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,200,110,0.75)', letterSpacing: '0.12em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            </div>
+          </>
+        ),
+      };
+    }
+
+    case 'SERVICE_LANE': {
+      return {
+        containerStyle: {
+          background: '#0e0e11',
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(245,158,11,0.055) 12px, rgba(245,158,11,0.055) 14px)',
+          border: selBorder ?? '1.5px dashed rgba(245,158,11,0.40)',
+          borderRadius: 2,
+          boxShadow: selGlow || 'none',
+        },
+        inner: (
+          <>
+            <div style={{ position: 'absolute', top: '50%', left: 8, right: 8, height: 0, borderTop: '1.5px dashed rgba(245,158,11,0.30)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <span style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, fontWeight: 600, color: 'rgba(245,158,11,0.58)', letterSpacing: '0.10em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+          </>
+        ),
+      };
+    }
+
+    case 'PLANTER': {
+      const r = Math.min(width, height) / 2;
+      return {
+        containerStyle: {
+          background: 'radial-gradient(ellipse at 40% 28%, #16a34a 0%, #166534 45%, #14532d 100%)',
+          border: selBorder ?? '1.5px solid rgba(34,197,94,0.48)',
+          borderRadius: r,
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 0 18px rgba(22,101,52,0.38)`,
+          overflow: 'hidden',
+        },
+        inner: (
+          <>
+            <div style={{ position: 'absolute', top: '-22%', left: '18%', width: '58%', height: '58%', borderRadius: '50%', background: 'rgba(34,197,94,0.12)', filter: 'blur(5px)', pointerEvents: 'none' }} />
+            {/* Leaf shapes */}
+            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} viewBox={`0 0 ${width} ${height}`}>
+              <ellipse cx={width * 0.38} cy={height * 0.32} rx={width * 0.16} ry={height * 0.24} fill="rgba(34,197,94,0.22)" transform={`rotate(-30 ${width*0.38} ${height*0.32})`} />
+              <ellipse cx={width * 0.62} cy={height * 0.30} rx={width * 0.14} ry={height * 0.22} fill="rgba(74,222,128,0.18)" transform={`rotate(25 ${width*0.62} ${height*0.30})`} />
+              <ellipse cx={width * 0.50} cy={height * 0.55} rx={width * 0.10} ry={height * 0.18} fill="rgba(22,163,74,0.20)" />
+            </svg>
+          </>
+        ),
+      };
+    }
+
+    case 'ZONE': {
+      return {
+        containerStyle: {
+          background: 'rgba(55,65,81,0.16)',
+          border: selBorder ?? '1.5px dashed rgba(107,114,128,0.42)',
+          borderRadius: 8,
+          boxShadow: selGlow || 'none',
+        },
+        inner: (
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(156,163,175,0.62)', letterSpacing: '0.05em', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+        ),
+      };
+    }
+
+    case 'LOUNGE_BOUNDARY': {
+      return {
+        containerStyle: {
+          background: 'rgba(120,53,15,0.18)',
+          backgroundImage: 'radial-gradient(ellipse at 32% 28%, rgba(255,150,50,0.07) 0%, transparent 62%)',
+          border: selBorder ?? '1.5px solid rgba(146,64,14,0.42)',
+          borderRadius: 14,
+          boxShadow: selGlow || 'inset 0 0 20px rgba(120,53,15,0.22)',
+        },
+        inner: (
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(214,160,90,0.62)', letterSpacing: '0.05em', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+        ),
+      };
+    }
+
+    case 'CURVED_LOUNGE_BOUNDARY': {
+      return {
+        containerStyle: {
+          background: 'rgba(120,53,15,0.18)',
+          backgroundImage: 'radial-gradient(ellipse at 36% 30%, rgba(255,150,50,0.09) 0%, transparent 68%)',
+          border: selBorder ?? '1.5px solid rgba(146,64,14,0.42)',
+          borderRadius: '50%',
+          boxShadow: selGlow || 'inset 0 0 20px rgba(120,53,15,0.22)',
+        },
+        inner: (
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(214,160,90,0.62)', letterSpacing: '0.05em', userSelect: 'none', pointerEvents: 'none', textAlign: 'center' }}>{label}</span>
+        ),
+      };
+    }
+
+    case 'VIP_ENCLOSURE': {
+      return {
+        containerStyle: {
+          background: 'linear-gradient(135deg, rgba(180,130,40,0.11) 0%, rgba(12,10,6,0.90) 50%, rgba(180,130,40,0.11) 100%)',
+          border: selBorder ?? '2px solid rgba(180,130,40,0.52)',
+          borderRadius: 10,
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 0 0 1px rgba(180,130,40,0.16), inset 0 0 22px rgba(180,130,40,0.07)`,
+          overflow: 'hidden',
+        },
+        inner: (
+          <>
+            {([[true,true],[true,false],[false,true],[false,false]] as const).map(([isTop, isLeft], i) => (
+              <div key={i} style={{ position: 'absolute', top: isTop ? 4 : undefined, bottom: !isTop ? 4 : undefined, left: isLeft ? 4 : undefined, right: !isLeft ? 4 : undefined, width: 5, height: 5, borderRadius: 1, background: 'rgba(180,130,40,0.42)', pointerEvents: 'none' }} />
+            ))}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, zIndex: 1 }}>
+              <span style={{ fontSize: 14, lineHeight: 1, color: 'rgba(250,204,21,0.68)', userSelect: 'none', pointerEvents: 'none' }}>★</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(250,204,21,0.62)', letterSpacing: '0.14em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            </div>
+          </>
+        ),
+      };
+    }
+
+    case 'CURVED_BOOTH_SEGMENT': {
+      return {
+        containerStyle: {
+          background: 'radial-gradient(ellipse at 48% 20%, #7c4a24 0%, #5c3610 42%, #3d2408 100%)',
+          border: selBorder ?? '1.5px solid rgba(160,100,50,0.58)',
+          borderRadius: '42% 42% 10% 10%',
+          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 6px 18px rgba(0,0,0,0.58), inset 0 3px 0 rgba(255,175,75,0.22)`,
+          overflow: 'hidden',
+        },
+        inner: (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: '14%', right: '14%', height: '44%', background: 'linear-gradient(180deg, rgba(255,175,55,0.16) 0%, transparent 100%)', borderRadius: '0 0 62% 62%', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: '62%', left: '10%', right: '10%', height: 0, borderTop: '1px dashed rgba(255,155,55,0.20)', pointerEvents: 'none' }} />
+            <span style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', fontSize: 9, fontWeight: 600, color: 'rgba(255,190,100,0.68)', letterSpacing: '0.10em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+          </>
+        ),
+      };
+    }
+
+    default: {
+      const defColor = OBJ_META[kind as FloorObjKind]?.color ?? '#52525b';
+      return {
+        containerStyle: {
+          backgroundColor: defColor + 'bb',
+          border: selBorder ?? `1.5px solid ${defColor}88`,
+          borderRadius: 3,
+          boxShadow: selGlow || undefined,
+        },
+        inner: (
+          <span style={{ fontSize: 10, color: 'rgb(var(--iron-text))', opacity: 0.85, userSelect: 'none', padding: '0 4px', textAlign: 'center', pointerEvents: 'none' }}>
+            {label}
+          </span>
+        ),
+      };
+    }
+  }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SideSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1048,24 +1316,20 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
 
             {/* Floor objects — rendered beneath tables */}
             {floorObjs.map(o => {
-              const meta   = OBJ_META[o.kind];
               const isSel  = o.id === selectedObjId;
-              const isZone = o.kind === 'ZONE';
+              const { containerStyle, inner } = getObjVisual(o.kind, isSel, o.width, o.height, formatFloorObjLabel(o.label, locale));
               return (
                 <div
                   key={o.id}
                   style={{
                     position: 'absolute', left: o.posX, top: o.posY,
                     width: o.width, height: o.height,
-                    backgroundColor: meta.color + (isZone ? '20' : 'bb'),
-                    border: `${isSel ? 2 : 1.5}px solid ${isSel ? 'rgba(74,222,128,0.75)' : meta.color + '88'}`,
-                    borderRadius: isZone ? 8 : 3,
                     cursor: 'grab',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: isSel ? '0 0 0 3px rgba(74,222,128,0.18)' : undefined,
                     transform: o.rotation ? `rotate(${o.rotation}deg)` : undefined,
                     transformOrigin: 'center center',
                     transition: 'border-color 0.1s, box-shadow 0.1s',
+                    ...containerStyle,
                   }}
                   onMouseDown={e => {
                     e.preventDefault(); e.stopPropagation();
@@ -1073,9 +1337,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                     dragRef.current = { kind: 'obj', id: o.id, startMX: e.clientX, startMY: e.clientY, startPX: o.posX, startPY: o.posY };
                   }}
                 >
-                  <span style={{ fontSize: 10, color: 'rgb(var(--iron-text))', opacity: 0.85, userSelect: 'none', padding: '0 4px', textAlign: 'center', pointerEvents: 'none' }}>
-                    {o.label}
-                  </span>
+                  {inner}
                 </div>
               );
             })}
@@ -1139,8 +1401,8 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                   )}
                   {t.isNew && <span className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-iron-green" />}
                   {!t.isActive && (
-                    <span style={{ position: 'absolute', top: 0, left: 0, right: 0, textAlign: 'center', fontSize: 8, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 0', letterSpacing: 1, textTransform: 'uppercase' }}>
-                      INACTIVE
+                    <span style={{ position: 'absolute', top: 0, left: 0, right: 0, textAlign: 'center', fontSize: 8, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 0', letterSpacing: 1 }}>
+                      {T.layoutEditor.statusInactive}
                     </span>
                   )}
                   {occupiedIds.has(t.id) && (
