@@ -263,7 +263,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       return {
         ...table,
         locked: effectiveLocked,
-        liveStatus: minutesUntil <= RESERVED_SOON_MINUTES ? ('RESERVED_SOON' as const) : ('RESERVED' as const),
+        liveStatus: (!isTimeTravelling && minutesUntil <= RESERVED_SOON_MINUTES) ? ('RESERVED_SOON' as const) : ('RESERVED' as const),
         currentReservation: null,
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
