@@ -3178,36 +3178,36 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         transition: `opacity var(--duration-fast) ease-out, border-color var(--duration-service) var(--ease-hospitality), background-color var(--duration-settle) var(--ease-hospitality)`,
       }}
     >
-      {/* Table number */}
+      {/* Table number — secondary label */}
       <span style={{
-        fontSize: guestName ? 10 : 15,
-        fontWeight: guestName ? 600 : 900,
-        color: table.liveStatus === 'BLOCKED' ? '#a1a1aa' : '#18181b',
-        opacity: guestName ? 0.7 : 1,
+        fontSize: guestName ? 9 : 16,
+        fontWeight: guestName ? 500 : 800,
+        color: '#435B2A',
+        opacity: guestName ? 0.65 : 1,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        lineHeight: 1.2,
-        letterSpacing: guestName ? '0.04em' : '-0.02em',
+        lineHeight: 1.1,
+        letterSpacing: guestName ? '0.05em' : '-0.02em',
       }}>
         {table.name}
       </span>
 
-      {/* Guest name — primary identity */}
+      {/* Guest name — primary, most prominent */}
       {guestName && (
         <span style={{
-          fontSize: 13, fontWeight: 700,
-          color: '#18181b',
+          fontSize: 14, fontWeight: 800,
+          color: '#435B2A',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          width: '100%', lineHeight: 1.2, letterSpacing: '-0.01em',
+          width: '100%', lineHeight: 1.2, letterSpacing: '-0.02em',
         }}>
           {guestName}
         </span>
       )}
 
-      {/* Party size */}
+      {/* Party size — secondary label */}
       <span style={{
-        fontSize: 10, fontWeight: 600,
-        color: '#3f3f46', opacity: 0.75,
-        lineHeight: 1.2,
+        fontSize: 10, fontWeight: 500,
+        color: '#435B2A', opacity: guestName ? 0.6 : 0.8,
+        lineHeight: 1.1,
       }}>
         {partySize != null ? `${partySize}p` : `${table.maxCovers}p`}
       </span>
