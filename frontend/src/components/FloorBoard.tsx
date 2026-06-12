@@ -2974,7 +2974,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const displayStatus = table.liveStatus;
   const nextRes = table.upcomingReservations[0] as (typeof table.upcomingReservations[0] & { minutesUntil: number }) | undefined;
 
-  const sectionColor = table.section?.color ?? '#3f3f46';
+  const _sectionColor = table.section?.color ?? '#3f3f46'; void _sectionColor;
 
   // Table class — inferred from name/section keywords, shape, and area.
   // Used purely for material differentiation; never shown as a label or indicator.
@@ -3052,18 +3052,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : isEndingSoon    ? (isDark ? 'rgba(253,230,138,0.97)' : 'rgba(254,243,199,0.97)')  // warm amber — last 10 min, calmer than overdue
     : isStaleOccupied ? (isDark ? 'rgba(240,233,220,0.96)' : 'rgba(253,249,242,0.96)')  // warm muted — prev service
     : (STATUS_BG[displayStatus] ?? STATUS_BG['AVAILABLE']);
-  if (cls === 'vip' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(250,249,240,0.96)';     // soft barely-ivory — VIP prestige
-  }
-  if (cls === 'communal' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(242,246,252,0.96)';     // soft barely-cool — communal social
-  }
-  if (cls === 'lounge' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(251,248,240,0.96)';     // soft barely-warm-cream — lounge relaxed
-  }
-  if (cls === 'bar' && table.liveStatus === 'AVAILABLE' && !softHold && !isOverdue) {
-    bg = 'rgba(247,247,247,0.96)';     // soft neutral — bar clean
-  }
+  // All available tables use unified sage green — no per-class bg overrides.
   // UPCOMING/DORMANT: restore clean neutral surface — same as an empty table.
   // Only the blue border (UPCOMING) or nothing (DORMANT) carries the reservation signal.
   if (isFarFutureReserved && !softHold && !isOverdue) {
@@ -3142,23 +3131,16 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     }
   }
 
-  // AVAILABLE: recede — thinner border, section color at low opacity so empty tables don't compete.
-  // Communal carries slightly more edge weight (structural presence); lounge recedes further (softness).
+  // AVAILABLE: uniform green border.
   if (table.liveStatus === 'AVAILABLE' && !selected && !combinedSelected && !softHold && !table.locked) {
-    borderWidth = cls === 'communal' ? 1.5 : cls === 'lounge' ? 1 : 1;
-    borderColor = sectionColor.startsWith('#') && sectionColor.length === 7
-      ? sectionColor + '44'   // ~27% opacity — empty tables do not compete
-      : sectionColor;
+    borderWidth = 1.5;
+    borderColor = '#435B2A';
   }
 
-  // FAR-FUTURE (60+ min): near-neutral border. Combined keeps a faint blue so hosts see table is committed.
+  // FAR-FUTURE (60+ min): green border; combined keeps a faint blue.
   if (isFarFutureReserved && !selected && !combinedSelected && !softHold) {
-    borderWidth = cls === 'communal' ? 1.5 : 1;
-    borderColor = isNextResCombined
-      ? 'rgba(59,130,246,0.13)'   // combined dormant: faint blue — distinct from AVAILABLE, calm
-      : sectionColor.startsWith('#') && sectionColor.length === 7
-      ? sectionColor + '44'
-      : sectionColor;
+    borderWidth = 1.5;
+    borderColor = isNextResCombined ? 'rgba(59,130,246,0.13)' : '#435B2A';
   }
 
   // STALE_OCCUPIED: warm amber border at low opacity — visibly "something here" but not urgent.
