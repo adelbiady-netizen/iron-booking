@@ -363,21 +363,29 @@ export default function ReservationPanel({
                           <p className="text-status-warning/70 text-[10px] mt-0.5">{fromTable}</p>
                         )}
                       </div>
-                      {onContextMenuSeat && (() => {
-                        // Seating is only valid on the reservation's own service day
-                        // (backend rejects otherwise). Disable + explain for other dates.
-                        const seatBlocked = (r.date ?? '').slice(0, 10) !== todayStr;
+                      {(() => {
+                        // Live seating is only valid on the reservation's own service day.
+                        // Future/other day → offer table ASSIGNMENT (planning) instead of seating.
+                        // Today → live quick-seat. Both open the floor table picker.
+                        const futureDay = (r.date ?? '').slice(0, 10) !== todayStr;
+                        if (futureDay) {
+                          if (!onChooseTable) return null;
+                          return (
+                            <button
+                              onClick={() => onChooseTable(r)}
+                              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] shrink-0"
+                              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                            >
+                              {T.reservationPanel.reorganizeAssign}
+                            </button>
+                          );
+                        }
+                        if (!onContextMenuSeat) return null;
                         return (
                           <button
-                            onClick={() => { if (!seatBlocked) onContextMenuSeat({ ...r, tableId: null }); }}
-                            disabled={seatBlocked}
-                            title={seatBlocked ? T.guestDrawer.seatFutureDisabled : undefined}
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-md shrink-0 transition-[background-color,transform] duration-100 ${
-                              seatBlocked
-                                ? 'bg-iron-border/20 text-iron-muted/45 cursor-not-allowed'
-                                : 'bg-iron-green text-white hover:bg-iron-green-light active:scale-[0.97]'
-                            }`}
-                            style={seatBlocked ? undefined : { boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
+                            onClick={() => onContextMenuSeat({ ...r, tableId: null })}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] shrink-0"
+                            style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
                           >
                             {T.reservationPanel.reorganizeSeat}
                           </button>
