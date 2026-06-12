@@ -101,12 +101,6 @@ export default function ReservationPanel({
     return () => document.removeEventListener('mousedown', onDown);
   }, [ctxMenu]);
 
-  useEffect(() => {
-    if (!openActionsId) return;
-    function onDown() { setOpenActionsId(null); }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [openActionsId]);
 
   // Live clock for waiting-time labels on arrived guests — ticks every minute.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -546,11 +540,18 @@ export default function ReservationPanel({
                   </div>
                   {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
                     <div className="shrink-0 flex items-center ps-1 relative">
+                      {/* Transparent backdrop — closes popover without swallowing the action click */}
+                      {openActionsId === r.id && (
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={e => { e.stopPropagation(); setOpenActionsId(null); }}
+                        />
+                      )}
                       {/* Three-dot toggle */}
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); setOpenActionsId(openActionsId === r.id ? null : r.id); }}
-                        className="w-7 h-7 flex items-center justify-center rounded text-iron-muted/60 hover:text-iron-text hover:bg-iron-border/20 transition-colors duration-100"
+                        className="w-7 h-7 flex items-center justify-center rounded text-iron-muted/60 hover:text-iron-text hover:bg-iron-border/20 transition-colors duration-100 relative z-20"
                         title="פעולות"
                       >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -559,11 +560,10 @@ export default function ReservationPanel({
                           <circle cx="8" cy="13" r="1.4"/>
                         </svg>
                       </button>
-                      {/* Actions popover */}
+                      {/* Actions popover — z-20 sits above the backdrop */}
                       {openActionsId === r.id && (
                         <div
                           className="absolute end-8 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 px-2 py-1.5 rounded-lg border border-iron-border/40 bg-iron-surface shadow-lg"
-                          onClick={e => e.stopPropagation()}
                         >
                           {onChooseTable && (
                             <button
