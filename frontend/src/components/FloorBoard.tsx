@@ -3528,9 +3528,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         )}
       </div>
 
-      {/* Capacity — fixed table metadata, always visible */}
-      <span style={{ fontSize: 10, color: '#3f3f46', opacity: hasGuest ? 0.52 : 0.88, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em', fontWeight: hasGuest ? 500 : 600 }}>
-        {table.maxCovers}p
+      {/* Capacity (muted) + reservation party size (bold) — the party size shows on
+          EVERY reserved table incl. combined secondaries, right under the table number
+          and above the guest name, so the group size is always clearly visible. */}
+      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, fontSize: 10, lineHeight: 1.3, marginTop: 1, letterSpacing: '0.02em' }}>
+        <span style={{ color: '#3f3f46', opacity: hasGuest ? 0.5 : 0.88, fontWeight: hasGuest ? 500 : 600 }}>
+          {table.maxCovers}p
+        </span>
+        {hasGuest && displayRes && (
+          <span style={{ fontWeight: 800, color: isDark ? '#60a5fa' : '#1e40af' }}>
+            · {displayRes.partySize}p
+          </span>
+        )}
       </span>
 
       {/* Pick mode: current-table label */}
@@ -3638,30 +3647,22 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             <p style={{ fontSize: guestFontSize, color: guestColor, fontWeight: guestFontWeight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', minWidth: 0, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15, textAlign: 'center' }}>
               {displayRes.guestName}
             </p>
-            {/* Metadata zone — time + partySize; centered */}
-            {nextRes && (
+            {/* Metadata zone — time + soon/combine chips (primary only; party size is up top) */}
+            {!isSecondary && nextRes && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, width: '100%', lineHeight: 1.3, direction: isRTL ? 'rtl' : 'ltr', overflow: 'hidden' }}>
                 {/* Text group — centered; chip stays adjacent */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0, overflow: 'hidden' }}>
-                  {/* Party size — shown on EVERY reserved table, incl. combined secondaries */}
-                  <span style={{ fontSize: 10, color: '#3f3f46', fontWeight: 600, opacity: metaOpacity, flexShrink: 0 }}>
-                    {nextRes.partySize}p
+                  <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: metaOpacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {normalizeTime(nextRes.time)}
                   </span>
-                  {!isSecondary && (
-                    <>
-                      <span style={{ fontSize: 11, color: isSoon && !isReceded ? '#92400e' : '#3f3f46', fontWeight: isSoon && !isReceded ? 700 : 600, opacity: metaOpacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        · {normalizeTime(nextRes.time)}
-                      </span>
-                      {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
-                        <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          · {T.floorBoard.inNMin(nextRes.minutesUntil)}
-                        </span>
-                      )}
-                    </>
+                  {isToday && isSoon && !isReceded && nextRes.minutesUntil > 0 && (
+                    <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      · {T.floorBoard.inNMin(nextRes.minutesUntil)}
+                    </span>
                   )}
                 </span>
                 {/* Chips suppressed in future-turn-only and FAR-quiet-reserved context */}
-                {!isSecondary && (isSoon || isCombined) && !isReceded && (
+                {(isSoon || isCombined) && !isReceded && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                     {isSoon && (
                       <span style={{ fontSize: 11, color: '#92400e', fontWeight: 800, background: 'rgba(146,64,14,0.18)', border: '1px solid rgba(146,64,14,0.40)', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.03em' }}>
