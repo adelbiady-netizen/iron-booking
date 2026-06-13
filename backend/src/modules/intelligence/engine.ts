@@ -162,8 +162,9 @@ export async function refreshGuestStats(restaurantId: string, guestId: string) {
   vipScore -= (guest?.noShowCount ?? 0) * 10;
   vipScore = Math.max(0, vipScore);
 
-  await prisma.guest.update({
-    where: { id: guestId },
+  // restaurantId in where prevents cross-tenant IDOR if guestId is crafted externally
+  await prisma.guest.updateMany({
+    where: { id: guestId, restaurantId },
     data: {
       firstVisitAt,
       lastVisitAt,
@@ -492,27 +493,44 @@ export async function runIntelligenceTick(restaurantId: string) {
 // ─── Send Approved Moments ─────────────────────────────────────────────────────
 
 export async function sendApprovedMoments(restaurantId: string) {
-  const approved = await prisma.momentQueue.findMany({
+  // Atomic claim: mark sentAt first so concurrent ticks never double-send
+  const now = new Date();
+  const claimed = await prisma.momentQueue.findMany({
     where: {
       restaurantId,
       status: 'APPROVED',
       sentAt: null,
-      scheduledFor: { lte: new Date() },
+      scheduledFor: { lte: now },
     },
-    include: { guest: { select: { phone: true } } },
+    select: { id: true },
   });
+  if (claimed.length === 0) return;
 
-  for (const moment of approved) {
-    if (!moment.guest.phone) continue;
+  // Stamp each moment individually so the window between select and update is per-row
+  for (const { id } of claimed) {
+    const updated = await prisma.momentQueue.updateMany({
+      where: { id, restaurantId, sentAt: null },
+      data: { sentAt: now },
+    });
+    if (updated.count === 0) continue; // another process claimed it first
+
+    const moment = await prisma.momentQueue.findUnique({
+      where: { id },
+      include: { guest: { select: { phone: true } } },
+    });
+    if (!moment?.guest.phone) continue;
+
     const message = moment.finalMessage ?? moment.draftMessage;
     try {
       await sendWhatsApp(restaurantId, moment.guest.phone, message);
       await prisma.momentQueue.update({
-        where: { id: moment.id },
-        data: { status: 'SENT', sentAt: new Date() },
+        where: { id },
+        data: { status: 'SENT' },
       });
     } catch (err) {
-      console.error(`[GIC] Failed to send moment ${moment.id}:`, err);
+      // Roll back the sentAt claim so it can retry next tick
+      await prisma.momentQueue.update({ where: { id }, data: { sentAt: null } });
+      console.error(`[GIC] Failed to send moment ${id}:`, err);
     }
   }
 }

@@ -10,8 +10,10 @@ function fmtDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-function fmtDateHe(iso: string): string {
+function fmtDateHe(iso: string | null | undefined): string {
+  if (!iso) return '';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
@@ -271,6 +273,7 @@ interface Props {
 
 export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, onClose }: Props) {
   const restaurantId = restaurantIdProp ?? localStorage.getItem('iron_restaurant_id') ?? '';
+  if (!guestId) return null;
 
   const [guest, setGuest]         = useState<GuestDetail | null>(null);
   const [intel, setIntel]         = useState<GuestIntelligence | null>(null);

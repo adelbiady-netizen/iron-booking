@@ -26,7 +26,13 @@ export async function getGuestIntelligence(restaurantId: string, guestId: string
       orderBy: [{ emotionalWeight: 'desc' }, { occurredAt: 'desc' }],
     }),
     prisma.guestAlert.findMany({
-      where: { restaurantId, guestId, isDismissed: false, isRead: false },
+      where: {
+        restaurantId,
+        guestId,
+        isDismissed: false,
+        isRead: false,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.recoveryCase.findMany({

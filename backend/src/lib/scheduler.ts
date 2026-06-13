@@ -84,7 +84,7 @@ async function runSchedulerTick(dryRun: boolean, allowlist: string[] | null): Pr
 
         // Guest Intelligence: run nightly at 06:00 local time, send approved moments every tick
         try {
-          if (localTimeHHmm(timezone, now) >= '06:00' && localTimeHHmm(timezone, now) < '06:10') {
+          if (localTime >= '06:00' && localTime < '06:10') {
             await runIntelligenceTick(restaurant.id);
             console.log(`[scheduler] ${restaurant.name} | intelligence tick done`);
           }
