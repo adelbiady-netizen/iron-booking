@@ -1,4 +1,4 @@
-import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestListItem, GuestLookupResult, GuestSearchResult, HostUser, LocationTonightStats, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, Reservation, Section, SmsUsageDetail, SmsUsageReport, Table, WaitlistEntry } from './types';
+import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestIntelligence, GuestListItem, GuestLookupResult, GuestMemoryRecord, GuestSearchResult, HostUser, LocationTonightStats, MorningBriefRecord, MomentRecord, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, RecoveryCaseRecord, Reservation, Section, SmsUsageDetail, SmsUsageReport, Table, WaitlistEntry } from './types';
 
 export const BASE = "https://iron-booking.onrender.com/api";
 
@@ -367,6 +367,32 @@ export const api = {
       preferences: Record<string, unknown>; internalNotes: string | null;
     }>) =>
       request<GuestDetail>(`/guests/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  },
+
+  intelligence: {
+    getGuest: (restaurantId: string, guestId: string) =>
+      request<GuestIntelligence>(`/restaurants/${restaurantId}/intelligence/guests/${guestId}`),
+    refreshGuest: (restaurantId: string, guestId: string) =>
+      request<GuestIntelligence>(`/restaurants/${restaurantId}/intelligence/guests/${guestId}/refresh`, { method: 'POST' }),
+    addMemory: (restaurantId: string, guestId: string, body: {
+      category: string; headline: string; context?: string;
+      emotionalWeight?: number; occurredAt: string;
+    }) =>
+      request<GuestMemoryRecord>(`/restaurants/${restaurantId}/intelligence/guests/${guestId}/memories`, { method: 'POST', body: JSON.stringify(body) }),
+    dismissAlert: (restaurantId: string, alertId: string) =>
+      request<{ ok: boolean }>(`/restaurants/${restaurantId}/intelligence/alerts/${alertId}`, { method: 'DELETE' }),
+    createRecovery: (restaurantId: string, guestId: string, body: { description: string; reservationId?: string }) =>
+      request<RecoveryCaseRecord>(`/restaurants/${restaurantId}/intelligence/guests/${guestId}/recovery`, { method: 'POST', body: JSON.stringify(body) }),
+    addRecoveryAction: (restaurantId: string, caseId: string, body: { actorName: string; note: string }) =>
+      request<{ id: string }>(`/restaurants/${restaurantId}/intelligence/recovery/${caseId}/actions`, { method: 'POST', body: JSON.stringify(body) }),
+    resolveRecovery: (restaurantId: string, caseId: string) =>
+      request<RecoveryCaseRecord>(`/restaurants/${restaurantId}/intelligence/recovery/${caseId}/resolve`, { method: 'POST' }),
+    getPendingMoments: (restaurantId: string) =>
+      request<MomentRecord[]>(`/restaurants/${restaurantId}/intelligence/moments`),
+    reviewMoment: (restaurantId: string, momentId: string, body: { action: 'approve' | 'reject'; finalMessage?: string }) =>
+      request<MomentRecord>(`/restaurants/${restaurantId}/intelligence/moments/${momentId}/review`, { method: 'POST', body: JSON.stringify(body) }),
+    getMorningBrief: (restaurantId: string) =>
+      request<MorningBriefRecord>(`/restaurants/${restaurantId}/intelligence/morning-brief`),
   },
 
   admin: {

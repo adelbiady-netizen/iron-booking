@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { Reservation, ReservationStatus, Prisma } from '@prisma/client';
+import { buildMomentQueue, refreshGuestStats } from '../intelligence/engine';
 import {
   ConflictError,
   NotFoundError,
@@ -1290,6 +1291,19 @@ export async function completeReservation(
       });
     }
 
+    return updated;
+  }).then(async (updated) => {
+    // Fire-and-forget: build moment queue after transaction commits
+    if (r.guestId) {
+      Promise.resolve().then(async () => {
+        try {
+          await refreshGuestStats(r.restaurantId, r.guestId!);
+          await buildMomentQueue(r.restaurantId, r.guestId!, r.id);
+        } catch (err) {
+          console.error('[GIC] post-completion hook failed:', err);
+        }
+      });
+    }
     return updated;
   });
 }

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal from './ReorganizeConflictModal';
+import GuestProfile from './GuestProfile';
 import SmartTablePicker from './SmartTablePicker';
 import type React from 'react';
 import { useT } from '../i18n/useT';
@@ -203,6 +204,7 @@ interface Props {
   reservation: Reservation;
   tables: Table[];
   allReservations?: Reservation[];
+  restaurantId?: string;
   onClose: () => void;
   onUpdated: (r: Reservation) => void;
   onSuccess?: (message: string) => void;
@@ -222,7 +224,7 @@ interface Props {
   onMarkArrived?: (r: Reservation) => void;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -243,6 +245,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [cancelReason,  setCancelReason]  = useState('');
   const [unseatConfirm, setUnseatConfirm] = useState(false);
   const [phoneCopied,   setPhoneCopied]   = useState(false);
+  const [showProfile,   setShowProfile]   = useState(false);
   const [lockReason,   setLockReason]   = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1283,6 +1286,15 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {mode === 'view' && res.guestId && (
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-iron-border/55 text-iron-muted/70 hover:border-status-reserved/55 hover:text-status-reserved transition-colors touch-manipulation"
+                  title="כרטיס לקוח"
+                >
+                  כרטיס לקוח
+                </button>
+              )}
               {mode === 'view' && !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && (
                 <button
                   onClick={enterEdit}
@@ -2044,6 +2056,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           </section>
         </div>
       </aside>
+
+      {showProfile && res.guestId && (
+        <GuestProfile guestId={res.guestId} restaurantId={restaurantId} onClose={() => setShowProfile(false)} />
+      )}
     </>
   );
 }

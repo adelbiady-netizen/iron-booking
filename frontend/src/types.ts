@@ -666,3 +666,102 @@ export interface CallLogItem {
   createdAt: string;
   guestName?: string | null;
 }
+
+// ─── Guest Intelligence Center ────────────────────────────────────────────────
+
+export type MemoryCategory = 'CELEBRATION' | 'RECOVERY' | 'EMOTIONAL_MOMENT' | 'MILESTONE' | 'PREFERENCE' | 'GROUP_EVENT';
+export type AlertType = 'SILENT_GUEST' | 'BIRTHDAY_SOON' | 'ANNIVERSARY_SOON' | 'HIGH_NOSHOW' | 'RECOVERY_OPEN';
+export type RecoveryStatus = 'OPEN' | 'CONTACTED' | 'RESOLVED';
+export type MomentType = 'LONG_RETURN' | 'BIRTHDAY_ECHO' | 'ANNIVERSARY_ECHO' | 'RECOVERY_SEALED';
+export type MomentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SENT';
+
+export interface GuestMemoryRecord {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  reservationId?: string | null;
+  category: MemoryCategory;
+  source: 'AUTO_DETECTED' | 'HOST_ADDED';
+  headline: string;
+  context?: string | null;
+  emotionalWeight: number;
+  occurredAt: string;
+  isRecurring: boolean;
+  surfacedCount: number;
+  isSuppressed: boolean;
+  createdAt: string;
+}
+
+export interface GuestAlertRecord {
+  id: string;
+  guestId: string;
+  type: AlertType;
+  headline: string;
+  context?: string | null;
+  isRead: boolean;
+  isDismissed: boolean;
+  expiresAt?: string | null;
+  createdAt: string;
+}
+
+export interface RecoveryActionRecord {
+  id: string;
+  actorName: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface RecoveryCaseRecord {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  reservationId?: string | null;
+  description: string;
+  status: RecoveryStatus;
+  resolvedAt?: string | null;
+  createdAt: string;
+  actions: RecoveryActionRecord[];
+}
+
+export interface MomentRecord {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  type: MomentType;
+  status: MomentStatus;
+  draftMessage: string;
+  finalMessage?: string | null;
+  scheduledFor?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+  guest: { id: string; name: string; phone: string | null };
+}
+
+export interface MorningBriefRecord {
+  id: string;
+  briefDate: string;
+  content: {
+    vipArrivals: Array<{ name: string; time: string; partySize: number }>;
+    birthdays: Array<{ name: string; time: string }>;
+    anniversaries: Array<{ name: string; time: string }>;
+    silentReturns: Array<{ name: string; silentScore: number | null }>;
+    openRecovery: number;
+    totalCovers: number;
+  };
+}
+
+export interface GuestIntelligence {
+  guest: {
+    id: string;
+    firstVisitAt?: string | null;
+    avgVisitIntervalDays?: number | null;
+    nextExpectedVisitDate?: string | null;
+    silentScore?: number | null;
+    vipScore?: number | null;
+    gicComputedAt?: string | null;
+  } | null;
+  memories: GuestMemoryRecord[];
+  alerts: GuestAlertRecord[];
+  recoveryCases: RecoveryCaseRecord[];
+}
+

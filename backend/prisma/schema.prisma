@@ -11,15 +11,15 @@ datasource db {
 // Restaurants that are standalone (the common case) leave groupId null.
 
 model RestaurantGroup {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  settings    Json     @default("{}") // future: chain-level defaults, branding, etc.
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  settings  Json     @default("{}") // future: chain-level defaults, branding, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   restaurants Restaurant[]
-  users       User[]       // HQ-level users who span multiple branches
+  users       User[] // HQ-level users who span multiple branches
 
   @@map("restaurant_groups")
 }
@@ -27,16 +27,16 @@ model RestaurantGroup {
 // ─── Restaurant ─────────────────────────────────────────────────────────────
 
 model Restaurant {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  timezone    String   @default("America/New_York")
-  phone       String?
-  email       String?
-  address     String?
+  id       String  @id @default(uuid())
+  name     String
+  slug     String  @unique
+  timezone String  @default("America/New_York")
+  phone    String?
+  email    String?
+  address  String?
 
   // Operational settings stored as structured JSON
-  settings    Json     @default("{}")
+  settings Json @default("{}")
   // {
   //   defaultTurnMinutes: number        (e.g. 90)
   //   slotIntervalMinutes: number       (e.g. 15)
@@ -67,61 +67,66 @@ model Restaurant {
 
   // Link telephony DID — the number the system routes calls to for this restaurant.
   // Used to match incoming call webhooks to the correct restaurant.
-  linkPhone   String?  @unique
+  linkPhone String? @unique
 
   // Per-restaurant WhatsApp (UltraMsg) credentials — optional; if absent, no messages sent
-  ultramsgInstanceId  String?
-  ultramsgToken       String?
-  whatsappPhone       String?
+  ultramsgInstanceId String?
+  ultramsgToken      String?
+  whatsappPhone      String?
 
   // Restaurant group — null for standalone restaurants (the current default)
-  groupId     String?
-  group       RestaurantGroup? @relation(fields: [groupId], references: [id])
+  groupId String?
+  group   RestaurantGroup? @relation(fields: [groupId], references: [id])
 
   // Set true for the internal _system restaurant that SUPER_ADMIN users belong to
-  isSystem    Boolean  @default(false)
+  isSystem Boolean @default(false)
 
   // Public-facing profile (all nullable — shown on guest confirmation page)
-  logoUrl              String?
-  coverImageUrl        String?
-  description          String?
-  cuisine              String?
-  websiteUrl           String?
-  instagramUrl         String?
-  googleMapsUrl        String?
-  wazeUrl              String?
-  parkingNotes         String?
-  cancellationPolicy   String?
-  specialInstructions  String?
+  logoUrl             String?
+  coverImageUrl       String?
+  description         String?
+  cuisine             String?
+  websiteUrl          String?
+  instagramUrl        String?
+  googleMapsUrl       String?
+  wazeUrl             String?
+  parkingNotes        String?
+  cancellationPolicy  String?
+  specialInstructions String?
 
   // Public guest-page branding
-  primaryColor      String?  // hex, e.g. "#C9A84C"
-  accentColor       String?  // hex, secondary accent
-  publicThemePreset String?  // "luxury" | "casual" | "family" | "nightlife" | "minimal" | "fineDining" | "mediterranean" | "italiano"
-  heroVideoUrl      String?  // muted autoplay background video for the public booking page
-  buttonStyle          String?  // "rounded" | "pill" | "sharp" | "luxury"
-  cardStyle            String?  // "glass" | "solid" | "luxury-dark" | "soft-light"
-  backgroundMood       String?  // "espresso" | "olive" | "cream" | "dark" | "warm"
-  backgroundColorHex   String?  // custom bg base color, e.g. "#1a0f05"; overrides mood preset
+  primaryColor          String? // hex, e.g. "#C9A84C"
+  accentColor           String? // hex, secondary accent
+  publicThemePreset     String? // "luxury" | "casual" | "family" | "nightlife" | "minimal" | "fineDining" | "mediterranean" | "italiano"
+  heroVideoUrl          String? // muted autoplay background video for the public booking page
+  buttonStyle           String? // "rounded" | "pill" | "sharp" | "luxury"
+  cardStyle             String? // "glass" | "solid" | "luxury-dark" | "soft-light"
+  backgroundMood        String? // "espresso" | "olive" | "cream" | "dark" | "warm"
+  backgroundColorHex    String? // custom bg base color, e.g. "#1a0f05"; overrides mood preset
   backgroundGradientHex String? // optional gradient end color, e.g. "#0a0603"
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users            User[]
-  guests           Guest[]
-  callLogs         CallLog[]
-  tables           Table[]
-  tableCombinations TableCombination[]
-  sections         Section[]
-  reservations     Reservation[]
-  waitlistEntries  WaitlistEntry[]
-  blockedPeriods              BlockedPeriod[]
-  operatingHours              OperatingHour[]
-  floorObjects                FloorObject[]
-  onlineBookingRestrictions   OnlineBookingRestriction[]
-  portalPermissions           RestaurantPortalPermissions?
-  messageLogs                 MessageLog[]
+  users                     User[]
+  guests                    Guest[]
+  callLogs                  CallLog[]
+  tables                    Table[]
+  tableCombinations         TableCombination[]
+  sections                  Section[]
+  reservations              Reservation[]
+  waitlistEntries           WaitlistEntry[]
+  blockedPeriods            BlockedPeriod[]
+  operatingHours            OperatingHour[]
+  floorObjects              FloorObject[]
+  onlineBookingRestrictions OnlineBookingRestriction[]
+  portalPermissions         RestaurantPortalPermissions?
+  messageLogs               MessageLog[]
+  guestMemories             GuestMemory[]
+  guestAlerts               GuestAlert[]
+  recoveryCases             RecoveryCase[]
+  momentQueue               MomentQueue[]
+  morningBriefs             MorningBrief[]
 
   @@map("restaurants")
 }
@@ -145,10 +150,10 @@ model RestaurantPortalPermissions {
 
 model User {
   id           String    @id @default(uuid())
-  restaurantId String    // always set — HQ users are tied to their primary branch or the system restaurant
-  email        String?   // null for PIN-only floor hosts
-  passwordHash String?   // null for PIN-only floor hosts
-  pin          String?   // bcrypt-hashed 4-digit PIN for floor login
+  restaurantId String // always set — HQ users are tied to their primary branch or the system restaurant
+  email        String? // null for PIN-only floor hosts
+  passwordHash String? // null for PIN-only floor hosts
+  pin          String? // bcrypt-hashed 4-digit PIN for floor login
   avatarUrl    String?
   firstName    String
   lastName     String
@@ -158,13 +163,13 @@ model User {
 
   // Group membership — set for HQ_ADMIN / GROUP_MANAGER users who span branches.
   // Null for all existing restaurant-scoped users (backward safe).
-  groupId      String?
-  group        RestaurantGroup? @relation(fields: [groupId], references: [id])
+  groupId String?
+  group   RestaurantGroup? @relation(fields: [groupId], references: [id])
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -173,15 +178,15 @@ model User {
 }
 
 enum UserRole {
-  SUPER_ADMIN       // system-wide admin (all restaurants, cross-group)
-  HQ_ADMIN          // group-level admin (all branches within their group)
-  GROUP_MANAGER     // group-level manager (limited cross-branch access)
-  RESTAURANT_ADMIN  // single-restaurant admin (portal access scoped to own restaurant)
-  OWNER             // restaurant owner (restaurant-scoped, highest branch role)
-  ADMIN             // restaurant-level admin (kept for backward compatibility)
-  MANAGER           // restaurant manager
-  HOST              // floor host
-  SERVER            // server (read-mostly)
+  SUPER_ADMIN // system-wide admin (all restaurants, cross-group)
+  HQ_ADMIN // group-level admin (all branches within their group)
+  GROUP_MANAGER // group-level manager (limited cross-branch access)
+  RESTAURANT_ADMIN // single-restaurant admin (portal access scoped to own restaurant)
+  OWNER // restaurant owner (restaurant-scoped, highest branch role)
+  ADMIN // restaurant-level admin (kept for backward compatibility)
+  MANAGER // restaurant manager
+  HOST // floor host
+  SERVER // server (read-mostly)
 }
 
 // ─── Operating Hours ─────────────────────────────────────────────────────────
@@ -189,13 +194,13 @@ enum UserRole {
 model OperatingHour {
   id           String  @id @default(uuid())
   restaurantId String
-  dayOfWeek    Int     // 0=Sunday … 6=Saturday
-  openTime     String  // "HH:mm"
-  closeTime    String  // "HH:mm"
-  lastSeating  String  // "HH:mm" — last reservation slot
+  dayOfWeek    Int // 0=Sunday … 6=Saturday
+  openTime     String // "HH:mm"
+  closeTime    String // "HH:mm"
+  lastSeating  String // "HH:mm" — last reservation slot
   isOpen       Boolean @default(true)
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, dayOfWeek])
   @@map("operating_hours")
@@ -204,14 +209,14 @@ model OperatingHour {
 // ─── Sections ────────────────────────────────────────────────────────────────
 
 model Section {
-  id           String  @id @default(uuid())
+  id           String @id @default(uuid())
   restaurantId String
-  name         String  // "Main Dining", "Bar", "Patio", "Private"
-  sortOrder    Int     @default(0)
-  color        String  @default("#6366f1") // UI color for section
+  name         String // "Main Dining", "Bar", "Patio", "Private"
+  sortOrder    Int    @default(0)
+  color        String @default("#6366f1") // UI color for section
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  tables       Table[]
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables     Table[]
 
   @@unique([restaurantId, name])
   @@map("sections")
@@ -220,42 +225,42 @@ model Section {
 // ─── Tables ──────────────────────────────────────────────────────────────────
 
 model Table {
-  id           String      @id @default(uuid())
+  id           String     @id @default(uuid())
   restaurantId String
   sectionId    String?
-  name         String      // "T1", "Bar 3", "Patio 7"
+  name         String // "T1", "Bar 3", "Patio 7"
   minCovers    Int
   maxCovers    Int
-  shape        TableShape  @default(RECTANGLE)
-  isCombinable Boolean     @default(false)
-  isActive     Boolean     @default(true)
+  shape        TableShape @default(RECTANGLE)
+  isCombinable Boolean    @default(false)
+  isActive     Boolean    @default(true)
 
   // Floor plan position (pixels, relative to section canvas)
-  posX         Float       @default(0)
-  posY         Float       @default(0)
-  width        Float       @default(80)
-  height       Float       @default(80)
-  rotation     Float       @default(0)
+  posX     Float @default(0)
+  posY     Float @default(0)
+  width    Float @default(80)
+  height   Float @default(80)
+  rotation Float @default(0)
 
   // Override turn time at table level (null = use restaurant default)
   turnTimeMinutes Int?
 
-  notes        String?     // permanent notes ("wobbly leg", "near kitchen")
+  notes String? // permanent notes ("wobbly leg", "near kitchen")
 
   // Operational lock — independent of timed BlockedPeriods
-  locked       Boolean   @default(false)
-  lockReason   String?
-  lockedUntil  DateTime?
+  locked      Boolean   @default(false)
+  lockReason  String?
+  lockedUntil DateTime?
 
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  restaurant        Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  section           Section?           @relation(fields: [sectionId], references: [id])
-  reservations      Reservation[]
-  blockedPeriods    BlockedPeriod[]
-  combinationsA     TableCombination[] @relation("CombinationTableA")
-  combinationsB     TableCombination[] @relation("CombinationTableB")
+  restaurant     Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  section        Section?           @relation(fields: [sectionId], references: [id])
+  reservations   Reservation[]
+  blockedPeriods BlockedPeriod[]
+  combinationsA  TableCombination[] @relation("CombinationTableA")
+  combinationsB  TableCombination[] @relation("CombinationTableB")
 
   @@unique([restaurantId, name])
   @@index([restaurantId, sectionId])
@@ -277,16 +282,16 @@ enum TableShape {
 model TableCombination {
   id           String  @id @default(uuid())
   restaurantId String
-  name         String  // "T1+T2", "Boardroom"
+  name         String // "T1+T2", "Boardroom"
   tableAId     String
   tableBId     String
   minCovers    Int
   maxCovers    Int
   isActive     Boolean @default(true)
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  tableA       Table      @relation("CombinationTableA", fields: [tableAId], references: [id])
-  tableB       Table      @relation("CombinationTableB", fields: [tableBId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tableA     Table      @relation("CombinationTableA", fields: [tableAId], references: [id])
+  tableB     Table      @relation("CombinationTableB", fields: [tableBId], references: [id])
 
   @@unique([restaurantId, tableAId, tableBId])
   @@map("table_combinations")
@@ -295,36 +300,48 @@ model TableCombination {
 // ─── Guests (CRM) ────────────────────────────────────────────────────────────
 
 model Guest {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   restaurantId String
   firstName    String
   lastName     String
   email        String?
   phone        String?
 
-  isVip        Boolean  @default(false)
+  isVip         Boolean @default(false)
   isBlacklisted Boolean @default(false)
 
   // Stored as arrays of strings for flexibility
-  allergies    String[] @default([])
-  tags         String[] @default([])  // "birthday regular", "wine lover"
-  preferences  Json     @default("{}") // { seatingPref: "window", dietaryNotes: "" }
+  allergies   String[] @default([])
+  tags        String[] @default([]) // "birthday regular", "wine lover"
+  preferences Json     @default("{}") // { seatingPref: "window", dietaryNotes: "" }
 
-  internalNotes String?  // host-only notes, not shown to guest
+  internalNotes String? // host-only notes, not shown to guest
 
   // Aggregated stats (updated via triggers or scheduled job)
-  visitCount   Int      @default(0)
-  noShowCount  Int      @default(0)
-  cancelCount  Int      @default(0)
-  lastVisitAt  DateTime?
+  visitCount  Int       @default(0)
+  noShowCount Int       @default(0)
+  cancelCount Int       @default(0)
+  lastVisitAt DateTime?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  // Guest Intelligence Center — computed nightly
+  firstVisitAt          DateTime?
+  avgVisitIntervalDays  Float?     // personal visit rhythm
+  nextExpectedVisitDate DateTime?  // lastVisitAt + avgVisitIntervalDays
+  silentScore           Int?       // 0–100, higher = more at risk
+  vipScore              Int?       // 0–100
+  gicComputedAt         DateTime?  // when scores were last refreshed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   restaurant      Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   reservations    Reservation[]
   waitlistEntries WaitlistEntry[]
   messageLogs     MessageLog[]
+  memories        GuestMemory[]
+  alerts          GuestAlert[]
+  recoveryCases   RecoveryCase[]
+  momentQueue     MomentQueue[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -336,47 +353,47 @@ model Guest {
 // ─── Reservations ────────────────────────────────────────────────────────────
 
 model Reservation {
-  id           String            @id @default(uuid())
-  restaurantId String
-  guestId      String?
-  tableId          String?   // null until assigned (primary table)
-  combinedTableIds String[]  @default([]) // secondary tables for combined seatings
+  id               String   @id @default(uuid())
+  restaurantId     String
+  guestId          String?
+  tableId          String? // null until assigned (primary table)
+  combinedTableIds String[] @default([]) // secondary tables for combined seatings
 
   // Booking details
-  partySize    Int
-  date         DateTime          @db.Date // date only
-  time         String            // "HH:mm" — stored separately for slot logic
-  duration     Int               // minutes (computed from restaurant default + overrides)
+  partySize Int
+  date      DateTime @db.Date // date only
+  time      String // "HH:mm" — stored separately for slot logic
+  duration  Int // minutes (computed from restaurant default + overrides)
 
-  status       ReservationStatus @default(PENDING)
-  source       ReservationSource @default(PHONE)
+  status ReservationStatus @default(PENDING)
+  source ReservationSource @default(PHONE)
 
   // Guest info (denormalized for speed — allows reservations without Guest record)
-  guestName    String
-  guestPhone   String?
-  guestEmail   String?
+  guestName  String
+  guestPhone String?
+  guestEmail String?
 
   // Occasion & special requests
-  occasion     String?           // "birthday", "anniversary", "business"
-  guestNotes   String?           // what the guest told us
-  hostNotes    String?           // internal host notes
-  guestLang    String?           // "en" | "he" — captured at booking; used for WhatsApp
+  occasion   String? // "birthday", "anniversary", "business"
+  guestNotes String? // what the guest told us
+  hostNotes  String? // internal host notes
+  guestLang  String? // "en" | "he" — captured at booking; used for WhatsApp
 
   // Guest club / marketing consent (explicit opt-in from public booking form)
   marketingOptIn         Boolean   @default(false)
-  birthday               String?   // "MM-DD" — annual; year not stored
-  anniversary            String?   // "MM-DD" — annual; year not stored
+  birthday               String? // "MM-DD" — annual; year not stored
+  anniversary            String? // "MM-DD" — annual; year not stored
   marketingConsentAt     DateTime?
-  marketingConsentSource String?   // "PUBLIC_BOOKING"
+  marketingConsentSource String? // "PUBLIC_BOOKING"
 
   // Tags for filtering/reporting
-  tags         String[]          @default([])
+  tags String[] @default([])
 
   // Deposit tracking
-  depositRequired   Boolean      @default(false)
+  depositRequired    Boolean   @default(false)
   depositAmountCents Int?
-  depositPaidAt     DateTime?
-  depositRefundedAt DateTime?
+  depositPaidAt      DateTime?
+  depositRefundedAt  DateTime?
 
   // Guest confirmation (SMS/link flow)
   isConfirmedByGuest Boolean   @default(false)
@@ -388,23 +405,23 @@ model Reservation {
   lateNotifiedAt DateTime?
 
   // Host-marked physical arrival — guest is present but not yet seated
-  isArrived  Boolean   @default(false)
-  arrivedAt  DateTime?
+  isArrived Boolean   @default(false)
+  arrivedAt DateTime?
 
   // Lifecycle timestamps
-  confirmedAt  DateTime?
-  remindedAt   DateTime?
-  reminderCount Int      @default(0)
-  seatedAt     DateTime?
-  completedAt  DateTime?
-  cancelledAt  DateTime?
-  noShowAt     DateTime?
-  returnedToListAt DateTime?  // set on unseat; cleared when host acts again
+  confirmedAt      DateTime?
+  remindedAt       DateTime?
+  reminderCount    Int       @default(0)
+  seatedAt         DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  noShowAt         DateTime?
+  returnedToListAt DateTime? // set on unseat; cleared when host acts again
 
   // Reorganize — set when a future reservation is displaced from its table during seating
-  reorganizeAt          DateTime?  // set when displaced; cleared on resolution
-  reorganizeFromTableId String?    // audit: which table was cleared
-  reorganizeBySeatingId String?    // audit: which reservation triggered displacement
+  reorganizeAt          DateTime? // set when displaced; cleared on resolution
+  reorganizeFromTableId String? // audit: which table was cleared
+  reorganizeBySeatingId String? // audit: which reservation triggered displacement
 
   // For move history — which table was previously assigned
   previousTableId String?
@@ -417,14 +434,16 @@ model Reservation {
   movedByName       String?
   reorganizedByName String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  guest        Guest?         @relation(fields: [guestId], references: [id])
-  table        Table?         @relation(fields: [tableId], references: [id])
-  activityLog  ReservationActivity[]
-  messageLogs  MessageLog[]
+  restaurant  Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest       Guest?                @relation(fields: [guestId], references: [id])
+  table       Table?                @relation(fields: [tableId], references: [id])
+  activityLog    ReservationActivity[]
+  messageLogs    MessageLog[]
+  guestMemories  GuestMemory[]
+  recoveryCases  RecoveryCase[]
 
   @@index([restaurantId, date])
   @@index([restaurantId, status])
@@ -434,21 +453,21 @@ model Reservation {
 }
 
 enum ReservationStatus {
-  PENDING       // created, not yet confirmed
-  CONFIRMED     // confirmed (deposit paid or auto-confirmed)
-  SEATED        // guest is at the table
-  COMPLETED     // table cleared, turn complete
-  CANCELLED     // cancelled by guest or host
-  NO_SHOW       // guest never arrived
+  PENDING // created, not yet confirmed
+  CONFIRMED // confirmed (deposit paid or auto-confirmed)
+  SEATED // guest is at the table
+  COMPLETED // table cleared, turn complete
+  CANCELLED // cancelled by guest or host
+  NO_SHOW // guest never arrived
 }
 
 enum ReservationSource {
-  ONLINE        // direct online booking
-  PHONE         // phone call
-  WALK_IN       // converted from walk-in/waitlist
-  OPENTABLE     // OT integration
-  RESY          // Resy integration
-  INTERNAL      // created by host in the system
+  ONLINE // direct online booking
+  PHONE // phone call
+  WALK_IN // converted from walk-in/waitlist
+  OPENTABLE // OT integration
+  RESY // Resy integration
+  INTERNAL // created by host in the system
 }
 
 // ─── Reservation Activity Log ────────────────────────────────────────────────
@@ -456,12 +475,12 @@ enum ReservationSource {
 model ReservationActivity {
   id            String   @id @default(uuid())
   reservationId String
-  action        String   // "CONFIRMED", "TABLE_ASSIGNED", "MOVED", "NOTE_ADDED", etc.
-  actor         String   // user name or "system"
-  details       Json?    // { from: X, to: Y } etc.
+  action        String // "CONFIRMED", "TABLE_ASSIGNED", "MOVED", "NOTE_ADDED", etc.
+  actor         String // user name or "system"
+  details       Json? // { from: X, to: Y } etc.
   timestamp     DateTime @default(now())
 
-  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@index([reservationId])
   @@map("reservation_activity")
@@ -470,37 +489,37 @@ model ReservationActivity {
 // ─── Waitlist ─────────────────────────────────────────────────────────────────
 
 model WaitlistEntry {
-  id           String          @id @default(uuid())
+  id           String         @id @default(uuid())
   restaurantId String
-  guestId      String?         // nullable FK — auto-linked on add/seat
-  date         DateTime        @db.Date
+  guestId      String? // nullable FK — auto-linked on add/seat
+  date         DateTime       @db.Date
   guestName    String
   guestPhone   String?
   partySize    Int
-  status       WaitlistStatus  @default(WAITING)
-  source       WaitlistSource  @default(WALK_IN)
+  status       WaitlistStatus @default(WAITING)
+  source       WaitlistSource @default(WALK_IN)
 
   // Quote given when added
-  quotedWaitMinutes  Int?
+  quotedWaitMinutes Int?
 
   // Timestamps
-  addedAt      DateTime        @default(now())
-  notifiedAt   DateTime?       // when we sent "table ready" notification
-  seatedAt     DateTime?
-  leftAt       DateTime?       // guest decided to leave
+  addedAt    DateTime  @default(now())
+  notifiedAt DateTime? // when we sent "table ready" notification
+  seatedAt   DateTime?
+  leftAt     DateTime? // guest decided to leave
 
-  notes        String?
+  notes String?
 
   // Public self-service waitlist fields
-  publicToken   String?  @unique          // opaque guest tracking token
-  preferredTime String?                   // "HH:MM" requested time
-  flexibleTime  Boolean  @default(false)  // guest accepts ±1 hour
+  publicToken   String? @unique // opaque guest tracking token
+  preferredTime String? // "HH:MM" requested time
+  flexibleTime  Boolean @default(false) // guest accepts ±1 hour
 
   // If converted to reservation
   reservationId String?
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  guest        Guest?     @relation(fields: [guestId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest      Guest?     @relation(fields: [guestId], references: [id])
 
   @@index([restaurantId, date, status])
   @@index([restaurantId, guestId])
@@ -509,11 +528,11 @@ model WaitlistEntry {
 
 enum WaitlistStatus {
   WAITING
-  NOTIFIED   // told table is ready, waiting confirmation
+  NOTIFIED // told table is ready, waiting confirmation
   SEATED
-  LEFT       // chose to leave
-  REMOVED    // host removed
-  ARCHIVED   // auto-closed at end of operational day
+  LEFT // chose to leave
+  REMOVED // host removed
+  ARCHIVED // auto-closed at end of operational day
 }
 
 enum WaitlistSource {
@@ -527,26 +546,26 @@ enum WaitlistSource {
 // Block a table or the entire restaurant for events, maintenance, VIP holds.
 
 model BlockedPeriod {
-  id           String      @id @default(uuid())
+  id           String    @id @default(uuid())
   restaurantId String
-  tableId      String?     // null = all tables (restaurant-level block)
+  tableId      String? // null = all tables (restaurant-level block)
   reason       String
-  type         BlockType   @default(EVENT)
+  type         BlockType @default(EVENT)
   startTime    DateTime
   endTime      DateTime
-  createdBy    String      // user name
+  createdBy    String // user name
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  table        Table?     @relation(fields: [tableId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      Table?     @relation(fields: [tableId], references: [id])
 
   @@index([restaurantId, tableId, startTime, endTime])
   @@map("blocked_periods")
 }
 
 enum BlockType {
-  EVENT       // private event
+  EVENT // private event
   MAINTENANCE // table out of service
-  VIP_HOLD    // holding for a specific guest
+  VIP_HOLD // holding for a specific guest
   STAFF_MEAL
 }
 
@@ -567,10 +586,10 @@ model FloorObject {
   color        String?
   variant      String?
 
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@index([restaurantId])
   @@map("floor_objects")
@@ -594,27 +613,27 @@ enum FloorObjKind {
 // ─── Call Logs (Link telephony webhook) ──────────────────────────────────────
 
 model CallLog {
-  id           String      @id @default(uuid())
-  restaurantId String?     // null when called number doesn't match any restaurant
-  phone        String      // caller (ANI)
-  called       String?     // dialed number (DNIS) — used for restaurant routing
-  group        String?     // Link call group / ring group
-  extension    String?     // Link extension reached
-  callid       String?     // provider-issued call identifier; shared across ring/answered events
+  id           String   @id @default(uuid())
+  restaurantId String? // null when called number doesn't match any restaurant
+  phone        String // caller (ANI)
+  called       String? // dialed number (DNIS) — used for restaurant routing
+  group        String? // Link call group / ring group
+  extension    String? // Link extension reached
+  callid       String? // provider-issued call identifier; shared across ring/answered events
   status       String
-  duration     Int?        // seconds; null when not provided
+  duration     Int? // seconds; null when not provided
   recordUrl    String?
-  createdAt    DateTime    @default(now())
+  createdAt    DateTime @default(now())
 
   // ── Phase-128 routing metadata ────────────────────────────────────────────
   // Null on records created before Phase 128.
-  routingStatus  String?   // "resolved" | "unresolved"
-  category       String?   // "reservation" | future categories
-  channel        String?   // "phone" | "sms" | future channels
-  restaurantName String?   // denormalised; set when group routing resolves to a known target
-  guestName      String?   // denormalised snapshot — first+last at call time; null if no match
+  routingStatus  String? // "resolved" | "unresolved"
+  category       String? // "reservation" | future categories
+  channel        String? // "phone" | "sms" | future channels
+  restaurantName String? // denormalised; set when group routing resolves to a known target
+  guestName      String? // denormalised snapshot — first+last at call time; null if no match
 
-  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
 
   @@index([phone])
   @@index([restaurantId])
@@ -631,17 +650,17 @@ model CallLog {
 // extracted to a separate service without touching operational logic.
 
 model GuestHub {
-  id           String               @id @default(uuid())
-  slug         String               @unique   // canonical URL slug — /r/ember-stone
-  restaurantId String?                        // soft link; hub may outlive a restaurant record
-  isActive     Boolean              @default(true)
-  publicStatus GuestHubPublicStatus @default(PUBLISHED) // see enum — DRAFT for new provisions
-  lastPublishedAt DateTime?                  // null = never published
+  id              String               @id @default(uuid())
+  slug            String               @unique // canonical URL slug — /r/ember-stone
+  restaurantId    String? // soft link; hub may outlive a restaurant record
+  isActive        Boolean              @default(true)
+  publicStatus    GuestHubPublicStatus @default(PUBLISHED) // see enum — DRAFT for new provisions
+  lastPublishedAt DateTime? // null = never published
   // i18n: locale of default content. Future: per-entity translation table
   // keyed on (entityType, entityId, locale, field).
-  defaultLocale String?             @default("en")
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  defaultLocale   String?              @default("en")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   branding             GuestHubBranding?
   menus                GuestHubMenu[]
@@ -656,27 +675,27 @@ model GuestHub {
 }
 
 model GuestHubBranding {
-  id            String   @id @default(uuid())
-  hubId         String   @unique
-  name          String
-  tagline       String?
-  about         String?  // short identity paragraph shown on Guest Hub (max 250 chars)
-  estYear       Int?     // establishment year, e.g. 2018 — displayed as "Est. 2018" in hero
-  features      String[] @default([]) // fixed vocab: OUTDOOR_SEATING | PRIVATE_DINING | LIVE_MUSIC | VEGAN_OPTIONS | ROOFTOP | CHEFS_CHOICE
+  id             String   @id @default(uuid())
+  hubId          String   @unique
+  name           String
+  tagline        String?
+  about          String? // short identity paragraph shown on Guest Hub (max 250 chars)
+  estYear        Int? // establishment year, e.g. 2018 — displayed as "Est. 2018" in hero
+  features       String[] @default([]) // fixed vocab: OUTDOOR_SEATING | PRIVATE_DINING | LIVE_MUSIC | VEGAN_OPTIONS | ROOFTOP | CHEFS_CHOICE
   galleryImages  String[] @default([]) // ordered Cloudinary URLs, max 10
   galleryEnabled Boolean  @default(false) // explicit opt-in; false = section never renders even if images exist
-  phone         String?
-  address       String?
-  directionsUrl String?
-  logoUrl       String?
-  coverImageUrl String?
-  primaryColor  String?   // hex — overrides themePreset
-  accentColor   String?
-  themePreset   String?   // preset key: "luxury" | "fineDining" | "casual" etc.
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  phone          String?
+  address        String?
+  directionsUrl  String?
+  logoUrl        String?
+  coverImageUrl  String?
+  primaryColor   String? // hex — overrides themePreset
+  accentColor    String?
+  themePreset    String? // preset key: "luxury" | "fineDining" | "casual" etc.
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  hub           GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@map("guest_hub_branding")
 }
@@ -701,15 +720,15 @@ model GuestHubMenuCategory {
   id          String   @id @default(uuid())
   menuId      String
   name        String
-  description String?            // optional sub-heading shown under category name
+  description String? // optional sub-heading shown under category name
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   isHidden    Boolean  @default(false) // soft-hide: excluded from public, visible in CMS
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  menu      GuestHubMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  dishes    GuestHubDish[]
+  menu   GuestHubMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  dishes GuestHubDish[]
 
   @@unique([menuId, name])
   @@map("guest_hub_menu_category")
@@ -719,17 +738,17 @@ model GuestHubDish {
   id           String           @id @default(uuid())
   categoryId   String
   name         String
-  subtitle     String?          // secondary line: "Pan-seared, with seasonal greens"
+  subtitle     String? // secondary line: "Pan-seared, with seasonal greens"
   description  String?
-  price        String?          // display string: "$38", "Market price", "48 ₪"
-  tag          String?          // "Chef's pick", "Seasonal", "New"
+  price        String? // display string: "$38", "Market price", "48 ₪"
+  tag          String? // "Chef's pick", "Seasonal", "New"
   dietaryTags  String[]         @default([]) // ["vegan","gluten-free","halal","kosher"]
   availability DishAvailability @default(AVAILABLE)
   isFeatured   Boolean          @default(false)
-  featuredRank Int?             // ordering within featured carousel; null = unranked
+  featuredRank Int? // ordering within featured carousel; null = unranked
   sortOrder    Int              @default(0)
   imageUrl     String?
-  gradient     String?          // CSS gradient fallback when imageUrl is absent
+  gradient     String? // CSS gradient fallback when imageUrl is absent
   isActive     Boolean          @default(true)
   isHidden     Boolean          @default(false) // soft-hide: excluded from public, visible in CMS
   createdAt    DateTime         @default(now())
@@ -737,7 +756,7 @@ model GuestHubDish {
 
   // Future: GuestHubDishTranslation(dishId, locale, name, subtitle, description)
 
-  category    GuestHubMenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category GuestHubMenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, name])
   @@map("guest_hub_dish")
@@ -745,8 +764,8 @@ model GuestHubDish {
 
 enum DishAvailability {
   AVAILABLE
-  SOLD_OUT      // 86'd today; shown dimmed in menu
-  SEASONAL      // available only in season; shown with badge
+  SOLD_OUT // 86'd today; shown dimmed in menu
+  SEASONAL // available only in season; shown with badge
   BREAKFAST_ONLY
   DINNER_ONLY
 }
@@ -767,15 +786,15 @@ model GuestHubPromotion {
   hubId       String
   title       String
   description String?
-  schedule    String?   // "Every Friday from 7:00 pm"
+  schedule    String? // "Every Friday from 7:00 pm"
   tag         String?
-  tagColor    String?   // "gold" | "stone"
+  tagColor    String? // "gold" | "stone"
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  hub         GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@unique([hubId, title])
   @@map("guest_hub_promotion")
@@ -796,7 +815,7 @@ model GuestHubEvent {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  hub         GuestHub  @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@unique([hubId, title])
   @@map("guest_hub_event")
@@ -805,12 +824,12 @@ model GuestHubEvent {
 model GuestHubSocialLink {
   id        String   @id @default(uuid())
   hubId     String
-  platform  String   // "instagram" | "tiktok" | "website" | "facebook"
-  handle    String   // username or full URL
+  platform  String // "instagram" | "tiktok" | "website" | "facebook"
+  handle    String // username or full URL
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
-  hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@unique([hubId, platform])
   @@map("guest_hub_social_link")
@@ -834,19 +853,19 @@ model GuestHubPublishedBranding {
   themePreset   String?
   publishedAt   DateTime
 
-  hub           GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@map("guest_hub_published_branding")
 }
 
 model GuestHubPublishedSocialLink {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   hubId     String
   platform  String
   handle    String
-  sortOrder Int      @default(0)
+  sortOrder Int    @default(0)
 
-  hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@unique([hubId, platform])
   @@map("guest_hub_published_social_link")
@@ -859,8 +878,8 @@ model GuestHubPublishedSocialLink {
 model GuestHubQrToken {
   id        String   @id @default(uuid())
   hubId     String
-  token     String   @unique   // URL-safe, stable identifier
-  label     String?            // "Table 5 QR", "Entrance QR"
+  token     String   @unique // URL-safe, stable identifier
+  label     String? // "Table 5 QR", "Entrance QR"
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -869,9 +888,9 @@ model GuestHubQrToken {
   // TODO: revoke — set isActive=false, create new token, re-print affected cards
   // TODO: rotate — atomic revoke + create, preserve label, audit old token
   // TODO: archive — soft-delete with retainedUntil for attribution reporting
-  metadata  Json?
+  metadata Json?
 
-  hub       GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  hub GuestHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
 
   @@unique([hubId, label])
   @@map("guest_hub_qr_token")
@@ -884,17 +903,17 @@ model GuestHubQrToken {
 model OnlineBookingRestriction {
   id              String   @id @default(uuid())
   restaurantId    String
-  date            String   // "YYYY-MM-DD"
-  startTime       String?  // "HH:mm" — null = full-day restriction
-  endTime         String?  // "HH:mm" — null = full-day restriction
-  restrictionType String   @default("BLOCK")  // BLOCK | PHONE_ONLY | VIP_ONLY | DEPOSIT_REQUIRED | WAITLIST_ONLY | MEMBERS_EVENT
-  reason          String?  // internal note, shown only to host
-  guestMessage    String?  // message shown in public booking widget
+  date            String // "YYYY-MM-DD"
+  startTime       String? // "HH:mm" — null = full-day restriction
+  endTime         String? // "HH:mm" — null = full-day restriction
+  restrictionType String   @default("BLOCK") // BLOCK | PHONE_ONLY | VIP_ONLY | DEPOSIT_REQUIRED | WAITLIST_ONLY | MEMBERS_EVENT
+  reason          String? // internal note, shown only to host
+  guestMessage    String? // message shown in public booking widget
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
-  createdBy       String   // staff user id
+  createdBy       String // staff user id
 
-  restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@index([restaurantId, date])
   @@map("online_booking_restrictions")
@@ -914,11 +933,11 @@ model MessageLog {
   messageType       MessageType
   channel           MessageChannel  @default(SMS)
   provider          MessageProvider
-  senderName        String?         // alphanumeric sender shown to the guest (e.g. "NAJMA"); null for MOCK
+  senderName        String? // alphanumeric sender shown to the guest (e.g. "NAJMA"); null for MOCK
   status            MessageStatus   @default(PENDING)
   providerMessageId String?
   errorMessage      String?
-  costAgorot        Int?            // provider-reported cost in agorot (1/100 ILS); null if not reported
+  costAgorot        Int? // provider-reported cost in agorot (1/100 ILS); null if not reported
   body              String
   sentAt            DateTime?
   deliveredAt       DateTime?
@@ -926,9 +945,9 @@ model MessageLog {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  reservation  Reservation? @relation(fields: [reservationId], references: [id])
-  guest        Guest?       @relation(fields: [guestId], references: [id])
+  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+  guest       Guest?       @relation(fields: [guestId], references: [id])
 
   @@index([restaurantId])
   @@index([restaurantId, messageType])
@@ -961,4 +980,149 @@ enum MessageStatus {
   SENT
   DELIVERED
   FAILED
+}
+
+// ─── Guest Intelligence Center ────────────────────────────────────────────────
+
+enum MemoryCategory {
+  CELEBRATION      // birthday, anniversary, engagement
+  RECOVERY         // bad experience that was resolved
+  EMOTIONAL_MOMENT // guest shared something personal
+  MILESTONE        // 10th visit, 1 year guest, etc.
+  PREFERENCE       // always orders X, prefers quiet corner
+  GROUP_EVENT      // came with large party, corporate dinner
+}
+
+enum MemorySource {
+  AUTO_DETECTED  // computed from reservation data
+  HOST_ADDED     // manually typed by staff
+}
+
+enum AlertType {
+  SILENT_GUEST     // hasn't returned in 2× their normal interval
+  BIRTHDAY_SOON    // birthday within 7 days
+  ANNIVERSARY_SOON // anniversary within 7 days
+  HIGH_NOSHOW      // 3+ no-shows
+  RECOVERY_OPEN    // has an unresolved recovery case
+}
+
+enum RecoveryStatus {
+  OPEN       // incident identified, no action yet
+  CONTACTED  // staff reached out
+  RESOLVED   // guest returned / confirmed recovered
+}
+
+enum MomentType {
+  LONG_RETURN          // guest returns after long absence
+  BIRTHDAY_ECHO        // first visit near birthday
+  ANNIVERSARY_ECHO     // first visit near anniversary
+  RECOVERY_SEALED      // guest returned after bad experience
+}
+
+enum MomentStatus {
+  PENDING   // waiting for owner review
+  APPROVED  // message will be sent
+  REJECTED  // owner skipped
+  SENT      // message dispatched
+}
+
+model GuestMemory {
+  id             String         @id @default(uuid())
+  restaurantId   String
+  guestId        String
+  reservationId  String?
+  category       MemoryCategory
+  source         MemorySource   @default(AUTO_DETECTED)
+  headline       String         // "10th visit — always celebrates here"
+  context        String?        // longer note
+  emotionalWeight Int           @default(5) // 1–10
+  occurredAt     DateTime
+  isRecurring    Boolean        @default(false)
+  recurMonth     Int?           // 1–12 for annual recurrences
+  recurDay       Int?           // 1–31
+  surfacedCount  Int            @default(0)
+  lastSurfacedAt DateTime?
+  isSuppressed   Boolean        @default(false)
+  addedBy        String?        // userId if manually added
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest        Guest         @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  reservation  Reservation?  @relation(fields: [reservationId], references: [id])
+  momentQueue  MomentQueue[]
+}
+
+model GuestAlert {
+  id           String    @id @default(uuid())
+  restaurantId String
+  guestId      String
+  type         AlertType
+  headline     String
+  context      String?
+  isRead       Boolean   @default(false)
+  isDismissed  Boolean   @default(false)
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest      Guest      @relation(fields: [guestId], references: [id], onDelete: Cascade)
+}
+
+model RecoveryCase {
+  id           String         @id @default(uuid())
+  restaurantId String
+  guestId      String
+  reservationId String?
+  description  String         // what went wrong
+  status       RecoveryStatus @default(OPEN)
+  resolvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  restaurant  Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest       Guest           @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  reservation Reservation?    @relation(fields: [reservationId], references: [id])
+  actions     RecoveryAction[]
+}
+
+model RecoveryAction {
+  id             String   @id @default(uuid())
+  recoveryCaseId String
+  actorName      String   // who took the action
+  note           String
+  createdAt      DateTime @default(now())
+
+  case RecoveryCase @relation(fields: [recoveryCaseId], references: [id], onDelete: Cascade)
+}
+
+model MomentQueue {
+  id           String       @id @default(uuid())
+  restaurantId String
+  guestId      String
+  memoryId     String?
+  type         MomentType
+  status       MomentStatus @default(PENDING)
+  draftMessage String       // auto-generated draft for owner to edit
+  finalMessage String?      // owner-edited version
+  scheduledFor DateTime?    // when to send (if approved)
+  sentAt       DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest      Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  memory     GuestMemory? @relation(fields: [memoryId], references: [id])
+}
+
+model MorningBrief {
+  id           String   @id @default(uuid())
+  restaurantId String
+  briefDate    DateTime // the date this brief covers (date-only)
+  content      Json     // structured: { vipArrivals, birthdays, silentReturns, recoveryCases, totalCovers }
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, briefDate])
 }
