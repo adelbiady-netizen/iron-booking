@@ -1,6 +1,7 @@
 import { Router, Request } from 'express';
 import { authenticate } from '../../middleware/auth';
 import * as svc from './service';
+import { seedIntelligenceDemo, clearIntelligenceDemo } from './seeder';
 
 const router = Router({ mergeParams: true });
 
@@ -120,6 +121,29 @@ router.get('/morning-brief', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /restaurants/:restaurantId/intelligence/seed-demo
+// Temporary: seeds realistic GIC test data for UI evaluation. Idempotent — clears prior seed first.
+router.post('/seed-demo', async (req, res) => {
+  try {
+    const result = await seedIntelligenceDemo(rid(req));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Seed failed', detail: String(err) });
+  }
+});
+
+// DELETE /restaurants/:restaurantId/intelligence/seed-demo
+router.delete('/seed-demo', async (req, res) => {
+  try {
+    const result = await clearIntelligenceDemo(rid(req));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Clear failed', detail: String(err) });
   }
 });
 
