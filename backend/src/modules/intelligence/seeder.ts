@@ -25,8 +25,8 @@ export async function seedIntelligenceDemo(restaurantId: string) {
   });
   // Reset demo guest stats
   await prisma.guest.updateMany({
-    where: { restaurantId, notes: { contains: '[DEMO_VIP]' } },
-    data: { vipScore: null, silentScore: null, notes: '' },
+    where: { restaurantId, internalNotes: { contains: '[DEMO_VIP]' } },
+    data: { vipScore: null, silentScore: null, internalNotes: '' },
   });
 
   // ── 2. Pick real guests ───────────────────────────────────────────────────
@@ -203,7 +203,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
       visitCount: 20,
       firstVisitAt: daysAgo(365),
       gicComputedAt: now,
-      notes: '[DEMO_VIP]',
+      internalNotes: '[DEMO_VIP]',
     },
   });
   await prisma.guestMemory.create({
@@ -315,8 +315,8 @@ export async function clearIntelligenceDemo(restaurantId: string) {
     where: { restaurantId, addedBy: 'DEMO_SEED' },
   });
   await prisma.guest.updateMany({
-    where: { restaurantId, notes: '[DEMO_VIP]' },
-    data: { vipScore: null, silentScore: null, notes: '' },
+    where: { restaurantId, internalNotes: '[DEMO_VIP]' },
+    data: { vipScore: null, silentScore: null, internalNotes: '' },
   });
   return { ok: true, cleared: true };
 }
