@@ -36,6 +36,7 @@ interface Props {
   onCreated: (r: Reservation) => void;
   onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, walkIn?: boolean) => void;
   onPickTablesCancel?: () => void;
+  onUpdatePickSuggestions?: (suggestions: BackendTableSuggestion[]) => void;
   /** Called whenever the reservation date or time changes so the parent can keep
    *  the floor board in sync with the drawer. */
   onDateTimeChange?: (date: string, time: string) => void;
@@ -97,7 +98,7 @@ export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables,
   preselectedTableId, preselectedCombinedTableIds, floorObjs,
   initialData, gapHint, onClose, onCreated,
-  onPickTables, onPickTablesCancel,
+  onPickTables, onPickTablesCancel, onUpdatePickSuggestions,
   onDateTimeChange,
 }: Props) {
   const T = useT();
@@ -277,6 +278,15 @@ export default function CreateDrawer({
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resDate, resTime, resParty, resDuration, mode]);
+
+  // Push updated suggestions to the full-screen map picker whenever they arrive
+  // after it's already open (user clicked party size before the API returned).
+  useEffect(() => {
+    if (pickingOnMap && !suggestBusy) onUpdatePickSuggestions?.(resSuggestions);
+  }, [pickingOnMap, suggestBusy, resSuggestions, onUpdatePickSuggestions]);
+  useEffect(() => {
+    if (wiPickingOnMap && !wiSuggestBusy) onUpdatePickSuggestions?.(wiSuggestions);
+  }, [wiPickingOnMap, wiSuggestBusy, wiSuggestions, onUpdatePickSuggestions]);
 
   // Walk-in auto-allocation — mirrors reservation logic but always uses today + now.
   // Fires when party size or duration changes in walk-in mode.
@@ -556,8 +566,8 @@ export default function CreateDrawer({
       {/* Backdrop — hidden during map pick so the floor is accessible */}
       {!pickingOnMap && !wiPickingOnMap && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
 
-      {/* Drawer — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-[420px] bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl${(pickingOnMap || wiPickingOnMap) ? ' hidden' : ''}`}>
+      {/* Drawer — stays visible during map pick so the host sees the form alongside the floor */}
+      <aside className="fixed right-0 top-0 h-full w-[420px] bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">
 
         {/* Header */}
         <div className="p-4 border-b border-iron-border shrink-0">
@@ -677,6 +687,7 @@ export default function CreateDrawer({
                     max={100}
                     value={resParty}
                     onChange={e => setResParty(parseInt(e.target.value, 10) || 1)}
+                    onClick={openTablePicker}
                     required
                   />
                   {gapHint && (
@@ -1107,6 +1118,7 @@ export default function CreateDrawer({
                   max={100}
                   value={wiParty}
                   onChange={e => setWiParty(parseInt(e.target.value, 10) || 1)}
+                  onClick={openWiTablePicker}
                 />
               </div>
             </div>

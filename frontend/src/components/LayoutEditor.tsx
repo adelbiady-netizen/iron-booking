@@ -127,268 +127,284 @@ let clientSeq = 0;
 function newId() { return `__new_${++clientSeq}`; }
 
 // ─── Floor object visual system ───────────────────────────────────────────────
+// Design principle: clean architectural plan-view symbols, not fake 3D.
+// Each type gets a distinctive shape + flat colour + minimal SVG icon.
 
 interface ObjVisual {
   containerStyle: React.CSSProperties;
   inner: React.ReactNode;
 }
 
+const OBJ_LABEL_STYLE: React.CSSProperties = {
+  fontSize: 9, fontWeight: 700, letterSpacing: '0.10em',
+  textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none',
+  whiteSpace: 'nowrap', textAlign: 'center',
+};
+
 function getObjVisual(kind: FloorObjKind, isSel: boolean, width: number, height: number, label: string): ObjVisual {
-  const selBorder = isSel ? '2px solid rgba(74,222,128,0.75)' : undefined;
-  const selGlow   = isSel ? '0 0 0 3px rgba(74,222,128,0.18)' : '';
+  const sb = isSel ? '2px solid rgba(74,222,128,0.80)' : undefined;
+  const sg = isSel ? '0 0 0 3px rgba(74,222,128,0.18)' : '';
+  const sh = (extra = '') => sg ? `${sg}${extra ? ', ' + extra : ''}` : (extra || 'none');
 
   switch (kind) {
 
+    /* ── BAR ────────────────────────────────────────────────────── */
     case 'BAR': {
-      const stoolCount = Math.max(2, Math.floor(width / 30));
       return {
         containerStyle: {
-          background: [
-            'linear-gradient(180deg, rgba(255,190,110,0.18) 0%, transparent 14%)',
-            'linear-gradient(158deg, #3d1f0d 0%, #5c2d12 28%, #4a2210 58%, #3a1c08 100%)',
-          ].join(', '),
-          border: selBorder ?? '1.5px solid rgba(155,85,30,0.70)',
+          backgroundColor: '#2e1606',
+          border: sb ?? '1.5px solid rgba(140,75,25,0.70)',
           borderRadius: 4,
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,190,80,0.22)`,
+          boxShadow: sh('0 3px 10px rgba(0,0,0,0.55)'),
           overflow: 'hidden',
         },
         inner: (
           <>
-            {[0.20, 0.38, 0.56, 0.74, 0.90].map((p, i) => (
-              <div key={i} style={{ position: 'absolute', top: `${p * 100}%`, left: 0, right: 0, height: 1, background: 'rgba(255,175,75,0.07)', pointerEvents: 'none' }} />
-            ))}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.max(8, height * 0.22), background: 'linear-gradient(180deg, rgba(255,200,100,0.22) 0%, transparent 100%)', borderBottom: '1px solid rgba(255,175,55,0.28)', pointerEvents: 'none' }} />
-            {height >= 48 && (
-              <div style={{ position: 'absolute', bottom: 5, left: 0, right: 0, display: 'flex', justifyContent: 'space-evenly', alignItems: 'center', pointerEvents: 'none' }}>
-                {Array.from({ length: stoolCount }, (_, i) => (
-                  <div key={i} style={{ width: 13, height: 13, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, rgba(255,175,55,0.22), rgba(75,35,12,0.58))', border: '1px solid rgba(200,125,45,0.4)' }} />
-                ))}
-              </div>
-            )}
-            <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 11, fontWeight: 700, color: 'rgba(255,210,140,0.82)', letterSpacing: '0.12em', textTransform: 'uppercase', textShadow: '0 1px 3px rgba(0,0,0,0.65)', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            {/* Counter top surface */}
+            <div style={{ position:'absolute', top:0, left:0, right:0, height: Math.max(7, height*0.24), background:'rgba(200,130,50,0.22)', borderBottom:'1.5px solid rgba(200,130,50,0.40)', pointerEvents:'none' }} />
+            {/* Foot rail */}
+            <div style={{ position:'absolute', bottom:4, left:'8%', right:'8%', height:2, background:'rgba(180,110,40,0.30)', borderRadius:1, pointerEvents:'none' }} />
+            <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(230,175,95,0.85)', zIndex:1 }}>{label}</span>
           </>
         ),
       };
     }
 
+    /* ── WALL ───────────────────────────────────────────────────── */
     case 'WALL': {
       return {
         containerStyle: {
-          background: '#27272a',
-          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.04) 4px, rgba(255,255,255,0.04) 5px)',
-          border: selBorder ?? '2px solid #52525b',
+          backgroundColor: '#1c1c20',
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent 0px, transparent 3px, rgba(255,255,255,0.055) 3px, rgba(255,255,255,0.055) 4px)',
+          border: sb ?? '2px solid #3f3f46',
           borderRadius: 2,
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+          boxShadow: sh(),
         },
-        inner: (
-          <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(161,161,170,0.50)', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
-        ),
+        inner: null,
       };
     }
 
+    /* ── DIVIDER ────────────────────────────────────────────────── */
     case 'DIVIDER': {
       return {
         containerStyle: {
-          background: 'rgba(113,113,122,0.16)',
-          backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 11px)',
-          border: selBorder ?? '1.5px dashed rgba(113,113,122,0.50)',
+          backgroundColor: 'rgba(80,80,92,0.28)',
+          backgroundImage: 'repeating-linear-gradient(-60deg, transparent 0px, transparent 5px, rgba(255,255,255,0.045) 5px, rgba(255,255,255,0.045) 6px)',
+          border: sb ?? '1px dashed rgba(130,130,145,0.55)',
           borderRadius: 2,
-          boxShadow: selGlow || 'inset 0 0 8px rgba(0,0,0,0.22)',
+          boxShadow: sh(),
         },
         inner: (
-          <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(161,161,170,0.48)', letterSpacing: '0.08em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+          <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(180,180,195,0.60)', fontSize:8 }}>{label}</span>
         ),
       };
     }
 
+    /* ── ENTRANCE ───────────────────────────────────────────────── */
     case 'ENTRANCE': {
-      const dw = Math.min(width * 0.44, 50);
+      const dw = Math.min(width * 0.42, 48);
       const cx = width / 2;
-      const by = height - 3;
+      const by = height - 4;
       return {
         containerStyle: {
-          background: 'linear-gradient(180deg, #0e1e3c 0%, #16254a 55%, #0c1830 100%)',
-          border: selBorder ?? '1.5px solid rgba(59,130,246,0.58)',
+          backgroundColor: '#0b1628',
+          border: sb ?? '1.5px solid rgba(59,130,246,0.55)',
           borderRadius: 3,
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}inset 0 0 12px rgba(59,130,246,0.07)`,
+          boxShadow: sh(),
           overflow: 'visible',
         },
         inner: (
           <>
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'rgba(59,130,246,0.38)', borderRadius: '0 0 2px 2px', pointerEvents: 'none' }} />
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
-              <path d={`M ${cx - 3 - dw} ${by} L ${cx - 3} ${by} A ${dw} ${dw} 0 0 0 ${cx - 3} ${by - dw}`} fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.42)" strokeWidth="1" />
-              <path d={`M ${cx + 3 + dw} ${by} L ${cx + 3} ${by} A ${dw} ${dw} 0 0 1 ${cx + 3} ${by - dw}`} fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.42)" strokeWidth="1" />
-              <line x1={cx} y1={height * 0.22} x2={cx} y2={by} stroke="rgba(59,130,246,0.30)" strokeWidth="1" />
+            {/* Threshold */}
+            <div style={{ position:'absolute', bottom:0, left:0, right:0, height:4, background:'rgba(59,130,246,0.45)', borderRadius:'0 0 2px 2px', pointerEvents:'none' }} />
+            {/* Door swing arcs — classic floor plan symbol */}
+            <svg style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', overflow:'visible', pointerEvents:'none' }}>
+              <path d={`M ${cx-2-dw} ${by} L ${cx-2} ${by} A ${dw} ${dw} 0 0 0 ${cx-2} ${by-dw}`}
+                fill="rgba(59,130,246,0.06)" stroke="rgba(96,165,250,0.55)" strokeWidth="1.2" />
+              <path d={`M ${cx+2+dw} ${by} L ${cx+2} ${by} A ${dw} ${dw} 0 0 1 ${cx+2} ${by-dw}`}
+                fill="rgba(59,130,246,0.06)" stroke="rgba(96,165,250,0.55)" strokeWidth="1.2" />
+              <line x1={cx} y1={height*0.18} x2={cx} y2={by} stroke="rgba(96,165,250,0.30)" strokeWidth="1" />
             </svg>
-            <span style={{ position: 'absolute', top: 7, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 700, color: 'rgba(147,197,253,0.78)', letterSpacing: '0.1em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            <span style={{ ...OBJ_LABEL_STYLE, position:'absolute', top:6, left:'50%', transform:'translateX(-50%)', color:'rgba(147,197,253,0.80)' }}>{label}</span>
           </>
         ),
       };
     }
 
+    /* ── HOST STAND ─────────────────────────────────────────────── */
     case 'HOST_STAND': {
+      const tw = width * 0.55;
+      const bw = width * 0.85;
+      const th = height * 0.75;
       return {
         containerStyle: {
-          background: 'radial-gradient(ellipse at 42% 28%, #5a3010 0%, #3d2008 52%, #2c1705 100%)',
-          border: selBorder ?? '1.5px solid rgba(155,85,30,0.68)',
-          borderRadius: 6,
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,175,55,0.18)`,
+          backgroundColor: '#241404',
+          border: sb ?? '1.5px solid rgba(140,75,25,0.60)',
+          borderRadius: 5,
+          boxShadow: sh('0 3px 10px rgba(0,0,0,0.50)'),
+          overflow: 'hidden',
         },
         inner: (
           <>
-            <div style={{ position: 'absolute', top: 0, left: '12%', right: '12%', height: '38%', background: 'linear-gradient(180deg, rgba(255,175,55,0.14) 0%, transparent 100%)', borderRadius: '0 0 50% 50%', pointerEvents: 'none' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, zIndex: 1 }}>
-              <span style={{ fontSize: 13, lineHeight: 1, color: 'rgba(255,200,100,0.65)', userSelect: 'none', pointerEvents: 'none' }}>✦</span>
-              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,200,110,0.75)', letterSpacing: '0.12em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
-            </div>
+            {/* Podium trapezoid from above */}
+            <svg style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}>
+              <polygon
+                points={`${(width-tw)/2},${(height-th)/2} ${(width+tw)/2},${(height-th)/2} ${(width+bw)/2},${(height+th)/2} ${(width-bw)/2},${(height+th)/2}`}
+                fill="rgba(180,110,40,0.18)" stroke="rgba(200,130,50,0.45)" strokeWidth="1.2"
+              />
+            </svg>
+            <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(220,165,80,0.80)', zIndex:1 }}>{label}</span>
           </>
         ),
       };
     }
 
+    /* ── SERVICE LANE ───────────────────────────────────────────── */
     case 'SERVICE_LANE': {
       return {
         containerStyle: {
-          background: '#0e0e11',
-          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(245,158,11,0.055) 12px, rgba(245,158,11,0.055) 14px)',
-          border: selBorder ?? '1.5px dashed rgba(245,158,11,0.40)',
+          backgroundColor: '#0a0a0c',
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent 0px, transparent 10px, rgba(245,158,11,0.07) 10px, rgba(245,158,11,0.07) 12px)',
+          border: sb ?? '1.5px dashed rgba(245,158,11,0.42)',
           borderRadius: 2,
-          boxShadow: selGlow || 'none',
+          boxShadow: sh(),
         },
         inner: (
           <>
-            <div style={{ position: 'absolute', top: '50%', left: 8, right: 8, height: 0, borderTop: '1.5px dashed rgba(245,158,11,0.30)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-            <span style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, fontWeight: 600, color: 'rgba(245,158,11,0.58)', letterSpacing: '0.10em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            <div style={{ position:'absolute', top:'50%', left:10, right:10, height:0, borderTop:'1px dashed rgba(245,158,11,0.28)', transform:'translateY(-50%)', pointerEvents:'none' }} />
+            <span style={{ ...OBJ_LABEL_STYLE, position:'absolute', top:4, left:'50%', transform:'translateX(-50%)', color:'rgba(245,158,11,0.60)' }}>{label}</span>
           </>
         ),
       };
     }
 
+    /* ── PLANTER ────────────────────────────────────────────────── */
     case 'PLANTER': {
-      const r = Math.min(width, height) / 2;
+      const cx = width / 2, cy = height / 2;
+      const r  = Math.min(cx, cy) * 0.82;
+      const r2 = r * 0.55;
+      // Classic architectural plan-view plant: concentric circles + radial spokes
+      const spokes = 8;
+      const lines = Array.from({ length: spokes }, (_, i) => {
+        const a = (i * Math.PI * 2) / spokes;
+        return { x1: cx + Math.cos(a)*r2*0.4, y1: cy + Math.sin(a)*r2*0.4, x2: cx + Math.cos(a)*r, y2: cy + Math.sin(a)*r };
+      });
       return {
         containerStyle: {
-          background: 'radial-gradient(ellipse at 40% 28%, #16a34a 0%, #166534 45%, #14532d 100%)',
-          border: selBorder ?? '1.5px solid rgba(34,197,94,0.48)',
-          borderRadius: r,
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 0 18px rgba(22,101,52,0.38)`,
+          backgroundColor: '#0f3d1e',
+          border: sb ?? '1.5px solid rgba(34,197,94,0.50)',
+          borderRadius: Math.min(cx, cy),
+          boxShadow: sh('0 0 14px rgba(20,83,45,0.45)'),
           overflow: 'hidden',
         },
         inner: (
-          <>
-            <div style={{ position: 'absolute', top: '-22%', left: '18%', width: '58%', height: '58%', borderRadius: '50%', background: 'rgba(34,197,94,0.12)', filter: 'blur(5px)', pointerEvents: 'none' }} />
-            {/* Leaf shapes */}
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} viewBox={`0 0 ${width} ${height}`}>
-              <ellipse cx={width * 0.38} cy={height * 0.32} rx={width * 0.16} ry={height * 0.24} fill="rgba(34,197,94,0.22)" transform={`rotate(-30 ${width*0.38} ${height*0.32})`} />
-              <ellipse cx={width * 0.62} cy={height * 0.30} rx={width * 0.14} ry={height * 0.22} fill="rgba(74,222,128,0.18)" transform={`rotate(25 ${width*0.62} ${height*0.30})`} />
-              <ellipse cx={width * 0.50} cy={height * 0.55} rx={width * 0.10} ry={height * 0.18} fill="rgba(22,163,74,0.20)" />
-            </svg>
-          </>
+          <svg style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}>
+            <circle cx={cx} cy={cy} r={r}  fill="rgba(22,163,74,0.18)" stroke="rgba(34,197,94,0.55)" strokeWidth="1.2" />
+            <circle cx={cx} cy={cy} r={r2} fill="rgba(22,163,74,0.22)" stroke="rgba(34,197,94,0.40)" strokeWidth="1" />
+            {lines.map((l, i) => <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(34,197,94,0.40)" strokeWidth="0.9" />)}
+          </svg>
         ),
       };
     }
 
+    /* ── ZONE ───────────────────────────────────────────────────── */
     case 'ZONE': {
       return {
         containerStyle: {
-          background: 'rgba(55,65,81,0.16)',
-          border: selBorder ?? '1.5px dashed rgba(107,114,128,0.42)',
+          backgroundColor: 'rgba(50,58,70,0.20)',
+          border: sb ?? '1.5px dashed rgba(107,114,128,0.45)',
           borderRadius: 8,
-          boxShadow: selGlow || 'none',
+          boxShadow: sg || 'none',
         },
         inner: (
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(156,163,175,0.62)', letterSpacing: '0.05em', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+          <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(156,163,175,0.65)' }}>{label}</span>
         ),
       };
     }
 
+    /* ── LOUNGE BOUNDARY ────────────────────────────────────────── */
     case 'LOUNGE_BOUNDARY': {
       return {
         containerStyle: {
-          background: 'rgba(120,53,15,0.18)',
-          backgroundImage: 'radial-gradient(ellipse at 32% 28%, rgba(255,150,50,0.07) 0%, transparent 62%)',
-          border: selBorder ?? '1.5px solid rgba(146,64,14,0.42)',
-          borderRadius: 14,
-          boxShadow: selGlow || 'inset 0 0 20px rgba(120,53,15,0.22)',
+          backgroundColor: 'rgba(92,40,10,0.22)',
+          border: sb ?? '1.5px solid rgba(180,100,30,0.40)',
+          borderRadius: 16,
+          boxShadow: sg || 'none',
         },
         inner: (
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(214,160,90,0.62)', letterSpacing: '0.05em', userSelect: 'none', pointerEvents: 'none' }}>{label}</span>
+          <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(220,155,80,0.65)' }}>{label}</span>
         ),
       };
     }
 
+    /* ── CURVED LOUNGE BOUNDARY ─────────────────────────────────── */
     case 'CURVED_LOUNGE_BOUNDARY': {
       return {
         containerStyle: {
-          background: 'rgba(120,53,15,0.18)',
-          backgroundImage: 'radial-gradient(ellipse at 36% 30%, rgba(255,150,50,0.09) 0%, transparent 68%)',
-          border: selBorder ?? '1.5px solid rgba(146,64,14,0.42)',
+          backgroundColor: 'rgba(92,40,10,0.22)',
+          border: sb ?? '1.5px solid rgba(180,100,30,0.40)',
           borderRadius: '50%',
-          boxShadow: selGlow || 'inset 0 0 20px rgba(120,53,15,0.22)',
+          boxShadow: sg || 'none',
         },
         inner: (
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(214,160,90,0.62)', letterSpacing: '0.05em', userSelect: 'none', pointerEvents: 'none', textAlign: 'center' }}>{label}</span>
+          <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(220,155,80,0.65)', textAlign:'center' }}>{label}</span>
         ),
       };
     }
 
+    /* ── VIP ENCLOSURE ──────────────────────────────────────────── */
     case 'VIP_ENCLOSURE': {
       return {
         containerStyle: {
-          background: 'linear-gradient(135deg, rgba(180,130,40,0.11) 0%, rgba(12,10,6,0.90) 50%, rgba(180,130,40,0.11) 100%)',
-          border: selBorder ?? '2px solid rgba(180,130,40,0.52)',
+          backgroundColor: 'rgba(8,6,3,0.92)',
+          border: sb ?? '2px solid rgba(180,135,40,0.58)',
           borderRadius: 10,
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 0 0 1px rgba(180,130,40,0.16), inset 0 0 22px rgba(180,130,40,0.07)`,
+          boxShadow: sh('0 0 0 1px rgba(180,135,40,0.14), inset 0 0 20px rgba(180,135,40,0.06)'),
           overflow: 'hidden',
         },
         inner: (
           <>
-            {([[true,true],[true,false],[false,true],[false,false]] as const).map(([isTop, isLeft], i) => (
-              <div key={i} style={{ position: 'absolute', top: isTop ? 4 : undefined, bottom: !isTop ? 4 : undefined, left: isLeft ? 4 : undefined, right: !isLeft ? 4 : undefined, width: 5, height: 5, borderRadius: 1, background: 'rgba(180,130,40,0.42)', pointerEvents: 'none' }} />
+            {([[true,true],[true,false],[false,true],[false,false]] as const).map(([t,l],i) => (
+              <div key={i} style={{ position:'absolute', top:t?5:undefined, bottom:!t?5:undefined, left:l?5:undefined, right:!l?5:undefined, width:4, height:4, borderRadius:1, background:'rgba(200,155,45,0.50)', pointerEvents:'none' }} />
             ))}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, zIndex: 1 }}>
-              <span style={{ fontSize: 14, lineHeight: 1, color: 'rgba(250,204,21,0.68)', userSelect: 'none', pointerEvents: 'none' }}>★</span>
-              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(250,204,21,0.62)', letterSpacing: '0.14em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, zIndex:1 }}>
+              <span style={{ fontSize:13, lineHeight:1, color:'rgba(250,204,21,0.72)', userSelect:'none', pointerEvents:'none' }}>★</span>
+              <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(250,204,21,0.68)' }}>{label}</span>
             </div>
           </>
         ),
       };
     }
 
+    /* ── CURVED BOOTH SEGMENT ───────────────────────────────────── */
     case 'CURVED_BOOTH_SEGMENT': {
+      // Seat back is flat (top), seat curves toward guests (bottom)
       return {
         containerStyle: {
-          background: 'radial-gradient(ellipse at 48% 20%, #7c4a24 0%, #5c3610 42%, #3d2408 100%)',
-          border: selBorder ?? '1.5px solid rgba(160,100,50,0.58)',
-          borderRadius: '42% 42% 10% 10%',
-          boxShadow: `${selGlow ? selGlow + ', ' : ''}0 6px 18px rgba(0,0,0,0.58), inset 0 3px 0 rgba(255,175,75,0.22)`,
+          backgroundColor: '#3a2008',
+          border: sb ?? '1.5px solid rgba(155,95,45,0.62)',
+          borderRadius: '5px 5px 38% 38%',
+          boxShadow: sh('0 4px 14px rgba(0,0,0,0.55), inset 0 2px 0 rgba(200,140,60,0.18)'),
           overflow: 'hidden',
         },
         inner: (
           <>
-            <div style={{ position: 'absolute', top: 0, left: '14%', right: '14%', height: '44%', background: 'linear-gradient(180deg, rgba(255,175,55,0.16) 0%, transparent 100%)', borderRadius: '0 0 62% 62%', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', top: '62%', left: '10%', right: '10%', height: 0, borderTop: '1px dashed rgba(255,155,55,0.20)', pointerEvents: 'none' }} />
-            <span style={{ position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)', fontSize: 9, fontWeight: 600, color: 'rgba(255,190,100,0.68)', letterSpacing: '0.10em', textTransform: 'uppercase', userSelect: 'none', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+            {/* Upholstery seam line */}
+            <div style={{ position:'absolute', top:'42%', left:'12%', right:'12%', height:0, borderTop:'1px solid rgba(200,140,60,0.22)', pointerEvents:'none' }} />
+            {/* Back pad highlight */}
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:'40%', background:'rgba(200,140,60,0.10)', pointerEvents:'none' }} />
+            <span style={{ ...OBJ_LABEL_STYLE, position:'absolute', bottom:6, left:'50%', transform:'translateX(-50%)', color:'rgba(220,165,90,0.72)' }}>{label}</span>
           </>
         ),
       };
     }
 
+    /* ── DEFAULT ────────────────────────────────────────────────── */
     default: {
-      const defColor = OBJ_META[kind as FloorObjKind]?.color ?? '#52525b';
+      const c = OBJ_META[kind as FloorObjKind]?.color ?? '#52525b';
       return {
-        containerStyle: {
-          backgroundColor: defColor + 'bb',
-          border: selBorder ?? `1.5px solid ${defColor}88`,
-          borderRadius: 3,
-          boxShadow: selGlow || undefined,
-        },
-        inner: (
-          <span style={{ fontSize: 10, color: 'rgb(var(--iron-text))', opacity: 0.85, userSelect: 'none', padding: '0 4px', textAlign: 'center', pointerEvents: 'none' }}>
-            {label}
-          </span>
-        ),
+        containerStyle: { backgroundColor: c + 'bb', border: sb ?? `1.5px solid ${c}88`, borderRadius: 3, boxShadow: sg || undefined },
+        inner: <span style={{ ...OBJ_LABEL_STYLE, color:'rgba(255,255,255,0.75)', padding:'0 4px' }}>{label}</span>,
       };
     }
   }

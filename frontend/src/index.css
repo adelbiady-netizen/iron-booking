@@ -240,6 +240,17 @@ input[type="time"] {
   will-change: opacity;
 }
 
+/* Pick-mode recommended table pulse — clear green heartbeat so the host      */
+/* immediately knows which tables fit the party.                               */
+@keyframes pick-recommended-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(34,197,94,0.25), 0 0 0 0px rgba(34,197,94,0.0); }
+  50%      { box-shadow: 0 0 0 2px rgba(34,197,94,0.50), 0 0 8px 4px rgba(34,197,94,0.30); }
+}
+.animate-pick-pulse {
+  animation: pick-recommended-pulse 1.1s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
 /* ── Motion safety ────────────────────────────────────────────────────────── */
 /* Respect system preference. Non-critical animations pause; operational      */
 /* signals (pulse dots, spinners) use opacity-only fallbacks.                 */

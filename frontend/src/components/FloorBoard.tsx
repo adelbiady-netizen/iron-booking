@@ -3088,7 +3088,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         case 'recommended':
           borderColor = '#22c55e';
           borderWidth = 2;
-          boxShadow   = '0 0 0 2px rgba(34,197,94,0.25)';
+          // boxShadow intentionally omitted — animate-pick-pulse CSS handles it
           opacity     = 1;
           break;
         case 'possible':
@@ -3170,7 +3170,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={turnTooltip}
-      className="active:scale-[0.965] touch-manipulation"
+      className={`active:scale-[0.965] touch-manipulation${pickStatus === 'recommended' ? ' animate-pick-pulse' : ''}`}
       style={{
         position: 'absolute',
         left: table.posX, top: table.posY,
