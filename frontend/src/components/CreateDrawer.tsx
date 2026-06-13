@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, Table } from '../types';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeConflictModal';
@@ -101,6 +102,7 @@ export default function CreateDrawer({
 }: Props) {
   const T = useT();
   const { locale, intlLocale } = useLocale();
+  const isDesktop = useIsDesktop();
   const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : initialMode);
 
   // Reservation fields
@@ -347,6 +349,16 @@ export default function CreateDrawer({
     return tables.find(t => t.id === id)?.name ?? id;
   }
 
+  // On desktop: go straight to full-screen map. On mobile/tablet: show inline picker.
+  function openTablePicker() {
+    if (isDesktop && onPickTables) {
+      openMapPicker();
+    } else {
+      setShowPicker(true);
+      setManualOverride(true);
+    }
+  }
+
   function openMapPicker() {
     const sug = suggestBusy ? [] : resSuggestions;
     setPickingOnMap(true);
@@ -364,6 +376,15 @@ export default function CreateDrawer({
       },
       'change-table',
     );
+  }
+
+  function openWiTablePicker() {
+    if (isDesktop && onPickTables) {
+      openWiMapPicker();
+    } else {
+      setWiShowPicker(true);
+      setWiManualOverride(true);
+    }
   }
 
   function openWiMapPicker() {
@@ -832,12 +853,12 @@ export default function CreateDrawer({
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setShowPicker(true); setManualOverride(true); }}
+                      onClick={openTablePicker}
                       className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
                     >
                       {T.createDrawer.tableChangeBtn}
                     </button>
-                    {onPickTables && (
+                    {onPickTables && !isDesktop && (
                       <button
                         type="button"
                         onClick={openMapPicker}
@@ -864,12 +885,12 @@ export default function CreateDrawer({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setShowPicker(true)}
+                        onClick={openTablePicker}
                         className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
                       >
                         {T.createDrawer.tableChangeBtn}
                       </button>
-                      {onPickTables && (
+                      {onPickTables && !isDesktop && (
                         <button
                           type="button"
                           onClick={openMapPicker}
@@ -902,12 +923,12 @@ export default function CreateDrawer({
                     <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                     <button
                       type="button"
-                      onClick={() => { setShowPicker(true); setManualOverride(true); }}
+                      onClick={openTablePicker}
                       className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
                     >
                       {T.createDrawer.tableShowAll}
                     </button>
-                    {onPickTables && (
+                    {onPickTables && !isDesktop && (
                       <button
                         type="button"
                         onClick={openMapPicker}
@@ -981,7 +1002,7 @@ export default function CreateDrawer({
 
             {/* ── Sticky confirm footer ── */}
             <div className="p-3 border-t border-iron-border shrink-0">
-              {onPickTables && !pickingOnMap && (
+              {onPickTables && !pickingOnMap && !isDesktop && (
                 <button
                   type="button"
                   onClick={openMapPicker}
@@ -1182,12 +1203,12 @@ export default function CreateDrawer({
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setWiShowPicker(true); setWiManualOverride(true); }}
+                    onClick={openWiTablePicker}
                     className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
                   >
                     {T.createDrawer.tableChangeBtn}
                   </button>
-                  {onPickTables && (
+                  {onPickTables && !isDesktop && (
                     <button
                       type="button"
                       onClick={openWiMapPicker}
@@ -1214,12 +1235,12 @@ export default function CreateDrawer({
                     </div>
                     <button
                       type="button"
-                      onClick={() => setWiShowPicker(true)}
+                      onClick={openWiTablePicker}
                       className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:border-iron-green hover:text-iron-text transition-colors shrink-0"
                     >
                       {T.createDrawer.tableChangeBtn}
                     </button>
-                    {onPickTables && (
+                    {onPickTables && !isDesktop && (
                       <button
                         type="button"
                         onClick={openWiMapPicker}
@@ -1252,12 +1273,12 @@ export default function CreateDrawer({
                   <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                   <button
                     type="button"
-                    onClick={() => { setWiShowPicker(true); setWiManualOverride(true); }}
+                    onClick={openWiTablePicker}
                     className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
                   >
                     {T.createDrawer.tableShowAll}
                   </button>
-                  {onPickTables && (
+                  {onPickTables && !isDesktop && (
                     <button
                       type="button"
                       onClick={openWiMapPicker}
@@ -1313,7 +1334,7 @@ export default function CreateDrawer({
             )}
 
             <div className="space-y-2">
-              {onPickTables && !wiPickingOnMap && (
+              {onPickTables && !wiPickingOnMap && !isDesktop && (
                 <button
                   type="button"
                   onClick={openWiMapPicker}

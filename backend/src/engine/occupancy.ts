@@ -65,7 +65,7 @@ export function reservationOverlapsSlotTime(
 // ─── RESERVED_SOON_MINUTES ────────────────────────────────────────────────────
 // Threshold that separates RESERVED_SOON (amber) from RESERVED (blue) on the
 // floor map. A reservation within this many minutes of board time is RESERVED_SOON.
-export const RESERVED_SOON_MINUTES = 15;
+export const RESERVED_SOON_MINUTES = 30;
 
 // ─── NO_SHOW_AFTER_MINUTES ───────────────────────────────────────────────────
 // Grace period after a reservation's scheduled start before it is considered a

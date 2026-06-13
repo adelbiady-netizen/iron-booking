@@ -1,8 +1,6 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BackendTableSuggestion, FloorObjectData, Table } from '../types';
 import SmartTablePicker from './SmartTablePicker';
-
-const PICKER_W = 376;
 
 const OBJ_STYLE: Record<string, { bg: string; border: string; isZone: boolean }> = {
   WALL:     { bg: '#71717abb', border: '#71717a', isZone: false },
@@ -28,6 +26,17 @@ interface Props {
 }
 
 export default function FloorTablePicker({ tables, floorObjs, suggestions, selectedIds, onMultiPick, walkInMode = false }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerW, setContainerW] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) => setContainerW(entry.contentRect.width));
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   // Bounding box — must run unconditionally (hooks before any early return)
   const { minX, minY, contentW, contentH, hasLayout } = useMemo(() => {
     const pts = tables.filter(t => t.isActive && (t.posX > 5 || t.posY > 5));
@@ -67,8 +76,16 @@ export default function FloorTablePicker({ tables, floorObjs, suggestions, selec
     );
   }
 
-  const scale   = PICKER_W / contentW;
-  const scaledH = Math.ceil(contentH * scale);
+  // Use measured container width, fall back to 320 until first measurement
+  const pickerW = containerW > 0 ? containerW : 320;
+  // Minimum scale keeps tables legible (~40px min table width assuming ~80px layout width)
+  const MIN_SCALE = 0.42;
+  const fitScale  = pickerW / contentW;
+  const scale     = Math.max(fitScale, MIN_SCALE);
+  const scaledW   = Math.ceil(contentW * scale);
+  const scaledH   = Math.ceil(contentH * scale);
+  // If scaled content is wider than container, enable horizontal scroll
+  const needsScroll = scaledW > pickerW;
 
   // Counter-scaled font sizes so text stays readable regardless of scale
   const nf = Math.max(9,  Math.round(11 / scale));
@@ -118,8 +135,14 @@ export default function FloorTablePicker({ tables, floorObjs, suggestions, selec
 
   return (
     <div
-      className="rounded-lg border border-iron-border overflow-hidden"
-      style={{ width: PICKER_W, height: scaledH }}
+      ref={containerRef}
+      className="rounded-lg border border-iron-border w-full"
+      style={{
+        height: containerW > 0 ? Math.min(scaledH, 260) : undefined,
+        minHeight: 80,
+        overflowX: needsScroll ? 'auto' : 'hidden',
+        overflowY: 'hidden',
+      }}
     >
       <div
         style={{

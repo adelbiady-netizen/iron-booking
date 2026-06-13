@@ -234,16 +234,18 @@ export async function seatWaitlistGuest(
   tableId?: string,
   overrideConflicts = false
 ): Promise<{ entry: Awaited<ReturnType<typeof prisma.waitlistEntry.update>>; reservation: any }> {
-  const entry = await assertEntry(restaurantId, id);
+  const [entry, restaurant] = await Promise.all([
+    assertEntry(restaurantId, id),
+    prisma.restaurant.findUniqueOrThrow({
+      where: { id: restaurantId },
+      select: { settings: true, timezone: true },
+    }),
+  ]);
 
   if (!['WAITING', 'NOTIFIED'].includes(entry.status)) {
     throw new BusinessRuleError(`Cannot seat a guest with status ${entry.status}`);
   }
 
-  const restaurant = await prisma.restaurant.findUniqueOrThrow({
-    where: { id: restaurantId },
-    select: { settings: true, timezone: true },
-  });
   const s = restaurant.settings as Record<string, any>;
 
   const todayLocal   = new Intl.DateTimeFormat('en-CA', { timeZone: restaurant.timezone }).format(new Date());
@@ -265,6 +267,19 @@ export async function seatWaitlistGuest(
   }).format(new Date());
   const duration = (s.defaultTurnMinutes as number) ?? 90;
   const bufferMinutes = (s.bufferBetweenTurnsMinutes as number) ?? 15;
+
+  // Resolve guest CRM link and validate table availability in parallel
+  const guestLinkPromise: Promise<string | null> = (async () => {
+    if (entry.guestId) return entry.guestId;
+    if (!entry.guestPhone) return null;
+    try {
+      const { firstName, lastName } = splitName(entry.guestName);
+      const { guest } = await findOrCreateGuest(restaurantId, { firstName, lastName, phone: entry.guestPhone });
+      return guest.id;
+    } catch {
+      return null; // Non-fatal: seat without guest link
+    }
+  })();
 
   if (tableId && !overrideConflicts) {
     try {
@@ -318,21 +333,7 @@ export async function seatWaitlistGuest(
     }
   }
 
-  // Resolve guest CRM link: use existing link from entry, or try to resolve
-  let resolvedGuestId: string | null = entry.guestId ?? null;
-  if (!resolvedGuestId && entry.guestPhone) {
-    try {
-      const { firstName, lastName } = splitName(entry.guestName);
-      const { guest } = await findOrCreateGuest(restaurantId, {
-        firstName,
-        lastName,
-        phone: entry.guestPhone,
-      });
-      resolvedGuestId = guest.id;
-    } catch {
-      // Non-fatal: seat without guest link
-    }
-  }
+  const resolvedGuestId = await guestLinkPromise;
 
   // Convert to a reservation
   const reservation = await prisma.$transaction(async (tx) => {
@@ -381,27 +382,23 @@ export async function seatWaitlistGuest(
       },
     });
 
-    await tx.waitlistEntry.update({
-      where: { id },
-      data: {
-        status: 'SEATED',
-        seatedAt: new Date(),
-        reservationId: res.id,
-      },
-    });
+    const [updatedEntry] = await Promise.all([
+      tx.waitlistEntry.update({
+        where: { id },
+        data: { status: 'SEATED', seatedAt: new Date(), reservationId: res.id },
+      }),
+      resolvedGuestId
+        ? tx.guest.update({
+            where: { id: resolvedGuestId },
+            data: { visitCount: { increment: 1 }, lastVisitAt: new Date() },
+          })
+        : Promise.resolve(null),
+    ]);
 
-    if (resolvedGuestId) {
-      await tx.guest.update({
-        where: { id: resolvedGuestId },
-        data: { visitCount: { increment: 1 }, lastVisitAt: new Date() },
-      });
-    }
-
-    return res;
+    return { res, updatedEntry };
   });
 
-  const updated = await prisma.waitlistEntry.findUniqueOrThrow({ where: { id } });
-  return { entry: updated, reservation };
+  return { entry: reservation.updatedEntry, reservation: reservation.res };
 }
 
 export async function removeFromWaitlist(restaurantId: string, id: string, reason: 'LEFT' | 'REMOVED') {

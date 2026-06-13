@@ -1837,7 +1837,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         };
       }));
     }
-    setSelectedRes(created);
     setHighlightId(created.id);
     showToast(created.status === 'SEATED' ? T.hostDashboard.toastSeated : T.hostDashboard.toastCreated);
     setTimeout(() => setHighlightId(null), 2000);

@@ -148,12 +148,14 @@ export default function ReservationPanel({
 
   const waitingCount = waitlist.filter(e => e.status === 'WAITING' || e.status === 'NOTIFIED').length;
 
+  const reorganizeIds = new Set((reorganizeQueue ?? []).map(r => r.id));
+
   const visible = reservations
     .filter(r => {
       if (filter === 'ACTIVE')   return ['PENDING', 'CONFIRMED'].includes(r.status);
       if (filter === 'SEATED')   return r.status === 'SEATED';
       if (filter === 'DONE')     return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(r.status);
-      if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table;
+      if (filter === 'NO_TABLE') return ['PENDING', 'CONFIRMED'].includes(r.status) && !r.table && !reorganizeIds.has(r.id);
       return false;
     })
     .filter(r => matchesSearch(r.guestName, r.guestPhone, search, r.occasion))
