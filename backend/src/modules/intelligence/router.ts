@@ -88,10 +88,11 @@ router.post('/recovery/:caseId/resolve', async (req, res) => {
   }
 });
 
-// GET /restaurants/:restaurantId/intelligence/moments
+// GET /restaurants/:restaurantId/intelligence/moments?status=PENDING|APPROVED|SENT
 router.get('/moments', async (req, res) => {
   try {
-    const moments = await svc.getPendingMoments(rid(req));
+    const status = req.query['status'] as string | undefined;
+    const moments = await svc.getMoments(rid(req), status);
     res.json(moments);
   } catch (err) {
     console.error(err);

@@ -734,7 +734,7 @@ export interface MomentRecord {
   scheduledFor?: string | null;
   sentAt?: string | null;
   createdAt: string;
-  guest: { id: string; name: string; phone: string | null };
+  guest: { id: string; firstName: string; lastName: string; phone: string | null };
 }
 
 export interface MorningBriefRecord {

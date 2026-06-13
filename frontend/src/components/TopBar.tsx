@@ -35,6 +35,7 @@ interface Props {
   onThemeChange: () => void;
   onAdminPortal?: () => void;
   onGuestsPage?: () => void;
+  onIntelligencePage?: () => void;
   onSwitchHost?: () => void;
   onBulkConfirm?: () => void;
   sseStatus?: SseStatus;
@@ -94,6 +95,7 @@ export default function TopBar({
   theme, onThemeChange,
   onAdminPortal,
   onGuestsPage,
+  onIntelligencePage,
   onSwitchHost,
   sseStatus,
   toolbarSlot,
@@ -350,6 +352,15 @@ export default function TopBar({
             className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
           >
             {T.topBar.guestsButton}
+          </button>
+        )}
+        {onIntelligencePage && (
+          <button
+            onClick={onIntelligencePage}
+            className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
+            title="Intelligence — מרכז המידע"
+          >
+            ✦ Intelligence
           </button>
         )}
         {onAdminPortal && (

@@ -387,7 +387,7 @@ export const api = {
       request<{ id: string }>(`/restaurants/${restaurantId}/intelligence/recovery/${caseId}/actions`, { method: 'POST', body: JSON.stringify(body) }),
     resolveRecovery: (restaurantId: string, caseId: string) =>
       request<RecoveryCaseRecord>(`/restaurants/${restaurantId}/intelligence/recovery/${caseId}/resolve`, { method: 'POST' }),
-    getPendingMoments: (restaurantId: string) =>
+    getMoments: (restaurantId: string) =>
       request<MomentRecord[]>(`/restaurants/${restaurantId}/intelligence/moments`),
     reviewMoment: (restaurantId: string, momentId: string, body: { action: 'approve' | 'reject'; finalMessage?: string }) =>
       request<MomentRecord>(`/restaurants/${restaurantId}/intelligence/moments/${momentId}/review`, { method: 'POST', body: JSON.stringify(body) }),

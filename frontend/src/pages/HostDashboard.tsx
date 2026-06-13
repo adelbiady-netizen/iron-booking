@@ -19,6 +19,7 @@ import ActionBar from '../components/ActionBar';
 import LayoutEditor from '../components/LayoutEditor';
 import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
+import IntelligencePage from './IntelligencePage';
 import HostsSettingsPage from './HostsSettingsPage';
 import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
@@ -194,7 +195,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
-  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity'>('dashboard');
+  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity' | 'intelligence'>('dashboard');
   const [layoutMode,                  setLayoutMode]                  = useState(false);
   const [createMode,                  setCreateMode]                  = useState<CreateMode | null>(null);
   const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
@@ -1919,6 +1920,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setActivePage('guests');
   }, []);
 
+  const handleIntelligencePage = useCallback(() => {
+    setSelectedRes(null);
+    setCreateMode(null);
+    setActivePage('intelligence');
+  }, []);
+
   if (activePage === 'guests') {
     return (
       <>
@@ -1950,6 +1957,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onBack={() => setActivePage('dashboard')}
           userRole={auth.user.role}
         />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
+  if (activePage === 'intelligence') {
+    return (
+      <>
+        <IntelligencePage onBack={() => setActivePage('dashboard')} />
         <ToastContainer toasts={toasts} onRemove={removeToast} />
       </>
     );
@@ -2242,6 +2258,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onThemeChange={onThemeChange}
         onAdminPortal={onAdminPortal}
         onGuestsPage={handleGuestsPage}
+        onIntelligencePage={handleIntelligencePage}
         onSwitchHost={onSwitchHost}
         sseStatus={sseStatus}
         toolbarSlot={toolbarActions}
@@ -2467,6 +2484,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onCreated={handleCreated}
             onPickTables={handlePickTablesFromDrawer}
             onPickTablesCancel={handlePickCancel}
+            onUpdatePickSuggestions={setTablePickSuggestions}
             onDateTimeChange={handleDrawerDateTimeChange}
           />
         </DrawerErrorBoundary>

@@ -122,11 +122,15 @@ export async function resolveRecoveryCase(restaurantId: string, caseId: string) 
   });
 }
 
-export async function getPendingMoments(restaurantId: string) {
+export async function getMoments(restaurantId: string, status?: string) {
   return prisma.momentQueue.findMany({
-    where: { restaurantId, status: 'PENDING' },
-    include: { guest: { select: { id: true, name: true, phone: true } } },
-    orderBy: { createdAt: 'asc' },
+    where: {
+      restaurantId,
+      ...(status ? { status: status as never } : { status: { in: ['PENDING', 'APPROVED', 'SENT'] as never[] } }),
+    },
+    include: { guest: { select: { id: true, firstName: true, lastName: true, phone: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
   });
 }
 
