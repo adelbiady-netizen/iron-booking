@@ -461,6 +461,7 @@ const UpdateSettingsSchema = z.object({
   linkGroupIds:              z.array(z.string().trim().regex(/^\d+$/, 'Link group IDs must be numeric')).max(50).optional(),
   // Feature flags
   guestsPageEnabled:         z.boolean().optional(),
+  feedbackEnabled:           z.boolean().optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings

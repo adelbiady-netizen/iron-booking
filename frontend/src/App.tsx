@@ -17,6 +17,7 @@ import ContactPage from './pages/legal/ContactPage';
 import GuestHubPage        from './features/guestHub/GuestHubPage';
 import GuestHubQrRedirect  from './features/guestHub/GuestHubQrRedirect';
 import GuestHubPreviewPage from './features/guestHub/GuestHubPreviewPage';
+import FeedbackPage from './pages/FeedbackPage';
 import type { AuthState, UserRole } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -224,6 +225,10 @@ export default function App() {
   if (path.startsWith('/c/')) {
     const token = path.split('/')[2];
     if (token) return <ConfirmationPage token={token} />;
+  }
+  if (path.startsWith('/f/')) {
+    const token = path.split('/')[2];
+    if (token) return <FeedbackPage token={token} />;
   }
   if (path.startsWith('/book/')) {
     const slug = path.split('/')[2];

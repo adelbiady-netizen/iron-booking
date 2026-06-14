@@ -1529,6 +1529,30 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <span className="text-sm text-iron-text">{s.guestsPageEnabled !== false ? 'Enabled' : 'Disabled'}</span>
               </label>
             </div>
+
+            {/* Feedback */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-iron-text">Emotional Feedback</p>
+                <p className="text-xs text-iron-muted mt-0.5">Send post-visit SMS feedback requests to guests</p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 cursor-pointer accent-iron-green"
+                  checked={s.feedbackEnabled !== false}
+                  onChange={async (e) => {
+                    try {
+                      await api.admin.restaurants.settings(selectedId!, { feedbackEnabled: e.target.checked });
+                      await loadDetail(selectedId!);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                />
+                <span className="text-sm text-iron-text">{s.feedbackEnabled !== false ? 'Enabled' : 'Disabled'}</span>
+              </label>
+            </div>
           </div>
         )}
 

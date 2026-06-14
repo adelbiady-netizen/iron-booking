@@ -21,6 +21,7 @@ import guestHubAdminRouter from './modules/guestHub/adminRouter';
 import callLogsRouter      from './modules/calls/router';
 import smsRouter           from './modules/sms/router';
 import intelligenceRouter  from './modules/intelligence/router';
+import feedbackRouter      from './modules/feedback/router';
 
 const app = express();
 
@@ -108,6 +109,7 @@ app.use('/api/admin/hub',           guestHubAdminRouter);
 app.use('/api/call-logs',           callLogsRouter);
 app.use('/api/sms',                 smsRouter);
 app.use('/api/restaurants/:restaurantId/intelligence', intelligenceRouter);
+app.use('/api/feedback', feedbackRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

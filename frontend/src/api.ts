@@ -369,6 +369,19 @@ export const api = {
       request<GuestDetail>(`/guests/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   },
 
+  feedback: {
+    get: (token: string) =>
+      request<{
+        restaurant: { name: string; slug: string };
+        guestName: string | null;
+        date: string | null;
+        time: string | null;
+        alreadySubmitted: boolean;
+      }>(`/feedback/${token}`),
+    submit: (token: string, body: { sentiment: 'EXCELLENT' | 'GOOD' | 'BAD'; freeText?: string; tags?: string[] }) =>
+      request<{ ok: boolean }>(`/feedback/${token}`, { method: 'POST', body: JSON.stringify(body) }),
+  },
+
   intelligence: {
     getGuest: (restaurantId: string, guestId: string) =>
       request<GuestIntelligence>(`/restaurants/${restaurantId}/intelligence/guests/${guestId}`),

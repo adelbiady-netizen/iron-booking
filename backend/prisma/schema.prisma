@@ -127,6 +127,7 @@ model Restaurant {
   recoveryCases             RecoveryCase[]
   momentQueue               MomentQueue[]
   morningBriefs             MorningBrief[]
+  guestFeedback             GuestFeedback[]
 
   @@map("restaurants")
 }
@@ -342,6 +343,7 @@ model Guest {
   alerts          GuestAlert[]
   recoveryCases   RecoveryCase[]
   momentQueue     MomentQueue[]
+  feedback        GuestFeedback[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -444,6 +446,7 @@ model Reservation {
   messageLogs    MessageLog[]
   guestMemories  GuestMemory[]
   recoveryCases  RecoveryCase[]
+  feedback       GuestFeedback?
 
   @@index([restaurantId, date])
   @@index([restaurantId, status])
@@ -964,6 +967,7 @@ enum MessageType {
   MANUAL
   SYSTEM
   RESERVATION_RECEIVED
+  FEEDBACK_REQUEST
 }
 
 enum MessageChannel {
@@ -999,11 +1003,12 @@ enum MemorySource {
 }
 
 enum AlertType {
-  SILENT_GUEST     // hasn't returned in 2× their normal interval
-  BIRTHDAY_SOON    // birthday within 7 days
-  ANNIVERSARY_SOON // anniversary within 7 days
-  HIGH_NOSHOW      // 3+ no-shows
-  RECOVERY_OPEN    // has an unresolved recovery case
+  SILENT_GUEST      // hasn't returned in 2× their normal interval
+  BIRTHDAY_SOON     // birthday within 7 days
+  ANNIVERSARY_SOON  // anniversary within 7 days
+  HIGH_NOSHOW       // 3+ no-shows
+  RECOVERY_OPEN     // has an unresolved recovery case
+  FEEDBACK_NEGATIVE // post-visit negative feedback received
 }
 
 enum RecoveryStatus {
@@ -1125,4 +1130,33 @@ model MorningBrief {
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, briefDate])
+}
+
+// ─── Guest Feedback ───────────────────────────────────────────────────────────
+
+model GuestFeedback {
+  id            String            @id @default(uuid())
+  restaurantId  String
+  guestId       String?
+  reservationId String?           @unique
+  token         String             @unique
+  sentiment     FeedbackSentiment?
+  freeText      String?
+  tags          String[]          @default([])
+  submittedAt   DateTime?
+  createdAt     DateTime          @default(now())
+
+  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest       Guest?       @relation(fields: [guestId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([restaurantId])
+  @@index([guestId])
+  @@map("guest_feedback")
+}
+
+enum FeedbackSentiment {
+  EXCELLENT
+  GOOD
+  BAD
 }
