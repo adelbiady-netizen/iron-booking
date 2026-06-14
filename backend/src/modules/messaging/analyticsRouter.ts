@@ -223,7 +223,6 @@ router.get('/daily', async (req: Request, res: Response, next: NextFunction) => 
     const days = Math.min(daysParam, 90);
 
     if (!restaurantId) {
-      // For super admins without a restaurantId filter, aggregate across all restaurants
       const rows = await prisma.$queryRaw<
         Array<{ date: string; sent: bigint; delivered: bigint; failed: bigint }>
       >`
@@ -233,7 +232,7 @@ router.get('/daily', async (req: Request, res: Response, next: NextFunction) => 
           COUNT(*) FILTER (WHERE status = 'DELIVERED') AS delivered,
           COUNT(*) FILTER (WHERE status = 'FAILED') AS failed
         FROM "MessageLog"
-        WHERE "createdAt" >= NOW() - (${days} || ' days')::INTERVAL
+        WHERE "createdAt" >= NOW() - make_interval(days => ${days})
         GROUP BY DATE("createdAt")
         ORDER BY date ASC
       `;
@@ -258,7 +257,7 @@ router.get('/daily', async (req: Request, res: Response, next: NextFunction) => 
         COUNT(*) FILTER (WHERE status = 'FAILED') AS failed
       FROM "MessageLog"
       WHERE "restaurantId" = ${restaurantId}
-        AND "createdAt" >= NOW() - (${days} || ' days')::INTERVAL
+        AND "createdAt" >= NOW() - make_interval(days => ${days})
       GROUP BY DATE("createdAt")
       ORDER BY date ASC
     `;
