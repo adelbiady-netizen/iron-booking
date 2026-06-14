@@ -13,8 +13,6 @@ function p(req: Request, key: string): string {
   return Array.isArray(v) ? v[0] : (v as string);
 }
 
-const router = Router({ mergeParams: true });
-
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
 const JoinSchema = z.object({
@@ -35,9 +33,13 @@ const CreateInviteSchema = z.object({
   expiresInDays: z.number().min(1).max(90).default(30),
 });
 
-// ─── GET /api/join/:token  (PUBLIC) ──────────────────────────────────────────
+// ─── Public router — mounted at /api/join ─────────────────────────────────────
+// Handles GET /api/join/:token and POST /api/join/:token
 
-router.get('/join/:token', async (req: Request, res: Response, next: NextFunction) => {
+export const joinPublicRouter = Router({ mergeParams: true });
+
+// GET /api/join/:token
+joinPublicRouter.get('/:token', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = p(req, 'token');
 
@@ -65,9 +67,8 @@ router.get('/join/:token', async (req: Request, res: Response, next: NextFunctio
   }
 });
 
-// ─── POST /api/join/:token  (PUBLIC) ─────────────────────────────────────────
-
-router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/join/:token
+joinPublicRouter.post('/:token', validate(JoinSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = p(req, 'token');
     const body = req.body as z.infer<typeof JoinSchema>;
@@ -82,14 +83,12 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
     if (invite.usedAt != null) throw new BusinessRuleError('כבר הצטרפת לקלאב');
 
     const { restaurantId, reservationId } = invite;
-    const restaurantName = invite.restaurant.name;
 
     // ── Resolve or create Guest ───────────────────────────────────────────────
     let guestId: string;
 
     if (invite.guestId) {
       guestId = invite.guestId;
-      // Update name if not already set
       await prisma.guest.update({
         where: { id: guestId },
         data: {
@@ -99,7 +98,6 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
         },
       });
     } else {
-      // Try to find by phone
       const existingGuest = body.phone
         ? await prisma.guest.findFirst({
             where: { restaurantId, phone: body.phone },
@@ -110,10 +108,7 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
         guestId = existingGuest.id;
         await prisma.guest.update({
           where: { id: guestId },
-          data: {
-            firstName: body.firstName,
-            lastName: body.lastName,
-          },
+          data: { firstName: body.firstName, lastName: body.lastName },
         });
       } else {
         const newGuest = await prisma.guest.create({
@@ -128,13 +123,12 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
       }
     }
 
-    // ── Deduplicate — check if already a member ───────────────────────────────
+    // ── Deduplicate ────────────────────────────────────────────────────────────
     const existingMember = await prisma.clubMember.findUnique({
       where: { restaurantId_guestId: { restaurantId, guestId } },
     });
 
     if (existingMember) {
-      // Just mark invite used and return — no duplicate member created
       await prisma.clubJoinInvite.update({
         where: { id: invite.id },
         data: { usedAt: new Date() },
@@ -158,13 +152,11 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
       },
     });
 
-    // ── Mark invite used ──────────────────────────────────────────────────────
     await prisma.clubJoinInvite.update({
       where: { id: invite.id },
       data: { usedAt: new Date() },
     });
 
-    // ── Write guest timeline milestone ────────────────────────────────────────
     await prisma.guestMemory.create({
       data: {
         restaurantId,
@@ -172,10 +164,7 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
         category: 'MILESTONE',
         source: 'AUTO_DETECTED',
         headline: 'הצטרף לאיירון קלאב',
-        context:
-          source === 'RESERVATION_LINK'
-            ? 'הצטרפות דרך קישור הזמנה'
-            : 'הצטרפות דרך משוב ביקור',
+        context: source === 'RESERVATION_LINK' ? 'הצטרפות דרך קישור הזמנה' : 'הצטרפות דרך משוב ביקור',
         emotionalWeight: 5,
         occurredAt: new Date(),
         addedBy: 'CLUB',
@@ -188,10 +177,14 @@ router.post('/join/:token', validate(JoinSchema), async (req: Request, res: Resp
   }
 });
 
-// ─── POST /api/restaurants/:restaurantId/club/invites  (MANAGER+) ────────────
+// ─── Invite management router — mounted at /api/restaurants/:restaurantId/club ─
+// Handles POST /invites and GET /invites
 
-router.post(
-  '/restaurants/:restaurantId/club/invites',
+export const joinInviteRouter = Router({ mergeParams: true });
+
+// POST /api/restaurants/:restaurantId/club/invites
+joinInviteRouter.post(
+  '/invites',
   authenticate,
   requireRole('MANAGER'),
   validate(CreateInviteSchema),
@@ -224,10 +217,9 @@ router.post(
   },
 );
 
-// ─── GET /api/restaurants/:restaurantId/club/invites  (MANAGER+) ─────────────
-
-router.get(
-  '/restaurants/:restaurantId/club/invites',
+// GET /api/restaurants/:restaurantId/club/invites
+joinInviteRouter.get(
+  '/invites',
   authenticate,
   requireRole('MANAGER'),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -272,4 +264,5 @@ router.get(
   },
 );
 
-export default router;
+// Default export kept for backward compat — exports the public router
+export default joinPublicRouter;
