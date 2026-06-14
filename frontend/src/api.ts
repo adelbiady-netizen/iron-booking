@@ -398,8 +398,112 @@ export const api = {
       }),
     stats: (restaurantId: string) =>
       request<import('./types').ClubStats>(`/restaurants/${restaurantId}/club/stats`),
-    pendingApprovals: (restaurantId: string) =>
-      request<import('./types').PendingApproval[]>(`/restaurants/${restaurantId}/club/pending-approvals`),
+    pendingApprovals: (restaurantId: string, type?: string) => {
+      const qs = type ? `?type=${type}` : '';
+      return request<import('./types').PendingApproval[]>(`/restaurants/${restaurantId}/club/pending-approvals${qs}`);
+    },
+    invites: (restaurantId: string) =>
+      request<import('./types').ClubJoinInvite[]>(`/restaurants/${restaurantId}/club/invites`),
+    createInvite: (restaurantId: string, body: {
+      guestId?: string; guestName?: string; guestPhone?: string; reservationId?: string; expiresInDays?: number;
+    }) =>
+      request<{ invite: import('./types').ClubJoinInvite; joinUrl: string }>(`/restaurants/${restaurantId}/club/invites`, {
+        method: 'POST', body: JSON.stringify(body),
+      }),
+  },
+
+  join: {
+    get: (token: string) =>
+      request<{ restaurantName: string; restaurantSlug: string; guestName: string | null; alreadyJoined: boolean; expired: boolean }>(
+        `/join/${token}`
+      ),
+    submit: (token: string, body: {
+      firstName: string; lastName: string; phone?: string;
+      birthday?: string; anniversary?: string;
+      smsConsent?: boolean; marketingConsent?: boolean;
+    }) =>
+      request<{ ok: boolean; membershipId: string }>(`/join/${token}`, { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  recovery: {
+    list: (restaurantId: string, params?: { status?: string; priority?: string; page?: number; limit?: number }) => {
+      const qs = params ? new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+      ).toString() : '';
+      return request<import('./types').RecoveryCaseList>(`/restaurants/${restaurantId}/recovery/cases${qs ? `?${qs}` : ''}`);
+    },
+    getCase: (restaurantId: string, caseId: string) =>
+      request<import('./types').RecoveryCase>(`/restaurants/${restaurantId}/recovery/cases/${caseId}`),
+    createCase: (restaurantId: string, body: {
+      guestId: string; description: string; priority?: string; assignedTo?: string; dueDate?: string; reservationId?: string;
+    }) =>
+      request<import('./types').RecoveryCase>(`/restaurants/${restaurantId}/recovery/cases`, {
+        method: 'POST', body: JSON.stringify(body),
+      }),
+    updateCase: (restaurantId: string, caseId: string, body: Partial<{
+      status: string; priority: string; assignedTo: string | null; dueDate: string | null; description: string;
+    }>) =>
+      request<import('./types').RecoveryCase>(`/restaurants/${restaurantId}/recovery/cases/${caseId}`, {
+        method: 'PATCH', body: JSON.stringify(body),
+      }),
+    addAction: (restaurantId: string, caseId: string, body: { actorName: string; note: string }) =>
+      request<{ action: import('./types').RecoveryAction; case: import('./types').RecoveryCase }>(
+        `/restaurants/${restaurantId}/recovery/cases/${caseId}/actions`,
+        { method: 'POST', body: JSON.stringify(body) }
+      ),
+    stats: (restaurantId: string) =>
+      request<import('./types').RecoveryStats>(`/restaurants/${restaurantId}/recovery/stats`),
+  },
+
+  alerts: {
+    center: (restaurantId: string) =>
+      request<import('./types').AlertCenter>(`/restaurants/${restaurantId}/alerts/center`),
+    read: (restaurantId: string, alertId: string) =>
+      request<{ ok: boolean }>(`/restaurants/${restaurantId}/alerts/${alertId}/read`, { method: 'PATCH' }),
+    dismiss: (restaurantId: string, alertId: string) =>
+      request<{ ok: boolean }>(`/restaurants/${restaurantId}/alerts/${alertId}/dismiss`, { method: 'PATCH' }),
+    dismissAll: (restaurantId: string, type?: string) =>
+      request<{ count: number }>(`/restaurants/${restaurantId}/alerts/dismiss-all`, {
+        method: 'POST', body: JSON.stringify(type ? { type } : {}),
+      }),
+  },
+
+  messaging: {
+    summary: (params?: { restaurantId?: string; month?: string }) => {
+      const qs = params ? new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+      ).toString() : '';
+      return request<import('./types').MessagingSummary>(`/messaging/analytics/summary${qs ? `?${qs}` : ''}`);
+    },
+    byRestaurant: () =>
+      request<import('./types').MessagingByRestaurant[]>(`/messaging/analytics/by-restaurant`),
+    daily: (params?: { restaurantId?: string; days?: number }) => {
+      const qs = params ? new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+      ).toString() : '';
+      return request<import('./types').MessagingDailyRow[]>(`/messaging/analytics/daily${qs ? `?${qs}` : ''}`);
+    },
+  },
+
+  momentQueue: {
+    list: (restaurantId: string, type?: string, status?: string) => {
+      const qs = new URLSearchParams(
+        Object.fromEntries([['type', type], ['status', status]].filter(([, v]) => v !== undefined) as [string, string][])
+      ).toString();
+      return request<import('./types').MomentQueueItem[]>(
+        `/restaurants/${restaurantId}/intelligence/moments${qs ? `?${qs}` : ''}`
+      );
+    },
+    approve: (restaurantId: string, momentId: string, finalMessage?: string) =>
+      request<import('./types').MomentQueueItem>(
+        `/restaurants/${restaurantId}/intelligence/moments/${momentId}/review`,
+        { method: 'POST', body: JSON.stringify({ action: 'approve', finalMessage }) }
+      ),
+    reject: (restaurantId: string, momentId: string) =>
+      request<import('./types').MomentQueueItem>(
+        `/restaurants/${restaurantId}/intelligence/moments/${momentId}/review`,
+        { method: 'POST', body: JSON.stringify({ action: 'reject' }) }
+      ),
   },
 
   feedback: {

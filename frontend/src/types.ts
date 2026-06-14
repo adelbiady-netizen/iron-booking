@@ -64,6 +64,120 @@ export interface PendingApproval {
   guest?: { id: string; firstName: string; lastName: string; phone: string | null };
 }
 
+export interface ClubJoinInvite {
+  id: string;
+  restaurantId: string;
+  token: string;
+  guestName: string | null;
+  guestPhone: string | null;
+  guestId: string | null;
+  reservationId: string | null;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
+  joinUrl?: string;
+  status?: 'USED' | 'EXPIRED' | 'PENDING';
+}
+
+export type RecoveryPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+export type RecoveryStatus = 'OPEN' | 'CONTACTED' | 'RESOLVED';
+
+export interface RecoveryAction {
+  id: string;
+  recoveryCaseId: string;
+  actorName: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface RecoveryCase {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  reservationId: string | null;
+  description: string;
+  status: RecoveryStatus;
+  priority: RecoveryPriority;
+  assignedTo: string | null;
+  dueDate: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  guest?: {
+    id: string; firstName: string; lastName: string;
+    phone: string | null; visitCount: number;
+    vipScore: number | null; isVip: boolean;
+  };
+  reservation?: { date: string; time: string; guestName: string } | null;
+  actions?: RecoveryAction[];
+  _count?: { openCases: number };
+}
+
+export interface RecoveryCaseList {
+  data: RecoveryCase[];
+  meta: { total: number; page: number; limit: number; openCount: number; contactedCount: number };
+}
+
+export interface RecoveryStats {
+  open: number;
+  contacted: number;
+  resolved: number;
+  criticalOpen: number;
+  assignees: Array<{ name: string; openCount: number }>;
+}
+
+export type AlertType =
+  | 'SILENT_GUEST' | 'BIRTHDAY_SOON' | 'ANNIVERSARY_SOON'
+  | 'HIGH_NOSHOW' | 'RECOVERY_OPEN' | 'FEEDBACK_NEGATIVE' | 'VIP_AT_RISK';
+
+export interface AlertCenter {
+  critical: GuestAlertRecord[];
+  attention: GuestAlertRecord[];
+  upcoming: GuestAlertRecord[];
+  totalCount: number;
+  unreadCount: number;
+}
+
+export interface MessagingSummary {
+  totalSent: number;
+  totalDelivered: number;
+  totalFailed: number;
+  deliveryRate: number;
+  estimatedCost: number;
+  byCategory: Record<string, { sent: number; delivered: number; failed: number }>;
+  byChannel: Record<string, { sent: number; delivered: number; failed: number }>;
+}
+
+export interface MessagingByRestaurant {
+  restaurantId: string;
+  restaurantName: string;
+  sent: number;
+  delivered: number;
+  failed: number;
+  deliveryRate: number;
+}
+
+export interface MessagingDailyRow {
+  date: string;
+  sent: number;
+  delivered: number;
+  failed: number;
+}
+
+export interface MomentQueueItem {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  type: string;
+  status: string;
+  draftMessage: string;
+  finalMessage: string | null;
+  scheduledFor: string | null;
+  sentAt: string | null;
+  createdAt: string;
+  guest?: { id: string; firstName: string; lastName: string; phone: string | null };
+}
+
 // ─── Reservation status ───────────────────────────────────────────────────────
 
 export type ReservationStatus =
@@ -743,8 +857,8 @@ export interface CallLogItem {
 // ─── Guest Intelligence Center ────────────────────────────────────────────────
 
 export type MemoryCategory = 'CELEBRATION' | 'RECOVERY' | 'EMOTIONAL_MOMENT' | 'MILESTONE' | 'PREFERENCE' | 'GROUP_EVENT';
-export type AlertType = 'SILENT_GUEST' | 'BIRTHDAY_SOON' | 'ANNIVERSARY_SOON' | 'HIGH_NOSHOW' | 'RECOVERY_OPEN';
-export type RecoveryStatus = 'OPEN' | 'CONTACTED' | 'RESOLVED';
+// AlertType and RecoveryStatus defined near top of file — kept here as reference
+// AlertType: see line ~129; RecoveryStatus: see line ~83
 export type MomentType = 'LONG_RETURN' | 'BIRTHDAY_ECHO' | 'ANNIVERSARY_ECHO' | 'RECOVERY_SEALED';
 export type MomentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SENT';
 
@@ -767,6 +881,7 @@ export interface GuestMemoryRecord {
 
 export interface GuestAlertRecord {
   id: string;
+  restaurantId?: string;
   guestId: string;
   type: AlertType;
   headline: string;
@@ -775,6 +890,12 @@ export interface GuestAlertRecord {
   isDismissed: boolean;
   expiresAt?: string | null;
   createdAt: string;
+  guest?: {
+    id: string; firstName: string; lastName: string;
+    phone: string | null; visitCount: number;
+    vipScore: number | null; isVip: boolean;
+  };
+  openRecoveryCases?: number;
 }
 
 export interface RecoveryActionRecord {

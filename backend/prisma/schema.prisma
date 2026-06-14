@@ -134,6 +134,7 @@ model Restaurant {
   morningBriefs             MorningBrief[]
   guestFeedback             GuestFeedback[]
   clubMembers               ClubMember[]
+  clubJoinInvites           ClubJoinInvite[]
 
   @@map("restaurants")
 }
@@ -1046,12 +1047,20 @@ enum AlertType {
   HIGH_NOSHOW       // 3+ no-shows
   RECOVERY_OPEN     // has an unresolved recovery case
   FEEDBACK_NEGATIVE // post-visit negative feedback received
+  VIP_AT_RISK       // VIP guest showing silent/churn signals
 }
 
 enum RecoveryStatus {
   OPEN       // incident identified, no action yet
   CONTACTED  // staff reached out
   RESOLVED   // guest returned / confirmed recovered
+}
+
+enum RecoveryPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL   // VIP or loyal guest — escalated automatically
 }
 
 enum MomentType {
@@ -1137,20 +1146,27 @@ model GuestAlert {
 }
 
 model RecoveryCase {
-  id           String         @id @default(uuid())
-  restaurantId String
-  guestId      String
+  id            String           @id @default(uuid())
+  restaurantId  String
+  guestId       String
   reservationId String?
-  description  String         // what went wrong
-  status       RecoveryStatus @default(OPEN)
-  resolvedAt   DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  description   String           // what went wrong
+  status        RecoveryStatus   @default(OPEN)
+  priority      RecoveryPriority @default(NORMAL)
+  assignedTo    String?          // staff name responsible for follow-up
+  dueDate       DateTime?        // expected resolution date
+  resolvedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
-  restaurant  Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  guest       Guest           @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  reservation Reservation?    @relation(fields: [reservationId], references: [id])
+  restaurant  Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest       Guest            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  reservation Reservation?     @relation(fields: [reservationId], references: [id])
   actions     RecoveryAction[]
+
+  @@index([restaurantId, status])
+  @@index([restaurantId, assignedTo])
+  @@map("recovery_cases")
 }
 
 model RecoveryAction {
@@ -1161,6 +1177,8 @@ model RecoveryAction {
   createdAt      DateTime @default(now())
 
   case RecoveryCase @relation(fields: [recoveryCaseId], references: [id], onDelete: Cascade)
+
+  @@map("recovery_actions")
 }
 
 model MomentQueue {
@@ -1253,4 +1271,28 @@ model ClubMember {
   @@index([restaurantId])
   @@index([restaurantId, status])
   @@map("club_members")
+}
+
+// ─── Club Join Invite ─────────────────────────────────────────────────────────
+// Token sent to a guest (via SMS, QR, or link) to invite them to join the club.
+// One token per invite; a guest can have multiple invites over time.
+
+model ClubJoinInvite {
+  id           String    @id @default(uuid())
+  restaurantId String
+  token        String    @unique
+  // Pre-fill hints (from reservation data — not personally stored until guest submits)
+  guestName    String?
+  guestPhone   String?
+  guestId      String?   // set if we already have a Guest record
+  reservationId String?
+  // Lifecycle
+  expiresAt    DateTime
+  usedAt       DateTime? // null = not yet joined
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@map("club_join_invites")
 }

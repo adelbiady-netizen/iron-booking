@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api';
 import type { ClubMember, ClubStats, PendingApproval, ClubMemberStatus } from '../types';
+import RecoveryWorkspace from './RecoveryWorkspace';
 
 type Tab = 'members' | 'recovery' | 'approvals' | 'alerts';
 
@@ -39,10 +40,11 @@ function fmtMonthDay(mmdd: string | null | undefined): string {
 
 interface Props {
   restaurantId: string;
+  actorName: string;
   onBack: () => void;
 }
 
-export default function ClubCenterPage({ restaurantId, onBack }: Props) {
+export default function ClubCenterPage({ restaurantId, actorName, onBack }: Props) {
   const [tab, setTab] = useState<Tab>('members');
   const [stats, setStats] = useState<ClubStats | null>(null);
   const [members, setMembers] = useState<ClubMember[]>([]);
@@ -296,25 +298,15 @@ export default function ClubCenterPage({ restaurantId, onBack }: Props) {
         </div>
       )}
 
-      {/* Recovery tab — placeholder for Phase 2 */}
+      {/* Recovery workspace */}
       {tab === 'recovery' && (
-        <div className="p-4">
-          <div className="text-center py-16 text-iron-muted/40">
-            <p className="text-3xl mb-3">🔧</p>
-            <p className="text-sm font-medium">ניהול שחזור</p>
-            <p className="text-xs mt-1">זמין בגרסה הבאה</p>
-          </div>
-        </div>
+        <RecoveryWorkspace restaurantId={restaurantId} actorName={actorName} />
       )}
 
-      {/* Alerts tab — placeholder for Phase 2 */}
+      {/* Alerts tab — birthday + pending approvals combined */}
       {tab === 'alerts' && (
-        <div className="p-4">
-          <div className="text-center py-16 text-iron-muted/40">
-            <p className="text-3xl mb-3">🔔</p>
-            <p className="text-sm font-medium">התראות קלאב</p>
-            <p className="text-xs mt-1">זמין בגרסה הבאה</p>
-          </div>
+        <div className="p-4 space-y-3">
+          <BirthdayApprovals restaurantId={restaurantId} />
         </div>
       )}
 
@@ -427,6 +419,94 @@ function MemberDetail({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Birthday Approvals ─────────────────────────────────────────────────────────
+
+function BirthdayApprovals({ restaurantId }: { restaurantId: string }) {
+  const [items, setItems] = useState<import('../types').MomentQueueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const all = await api.momentQueue.list(restaurantId, 'BIRTHDAY_ECHO', 'PENDING');
+      setItems(all);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [restaurantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleApprove(id: string) {
+    try {
+      await api.momentQueue.approve(restaurantId, id, editing[id]);
+      setItems(prev => prev.filter(i => i.id !== id));
+    } catch { /* ignore */ }
+  }
+
+  async function handleReject(id: string) {
+    try {
+      await api.momentQueue.reject(restaurantId, id);
+      setItems(prev => prev.filter(i => i.id !== id));
+    } catch { /* ignore */ }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="w-6 h-6 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-16 text-iron-muted/40">
+        <p className="text-3xl mb-3">🎂</p>
+        <p className="text-sm font-medium">אין הודעות יום הולדת ממתינות</p>
+        <p className="text-xs mt-1">המנוע יסרוק מחדש בבוקר</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-iron-muted font-medium uppercase tracking-wider">הודעות יום הולדת ממתינות לאישור</p>
+      {items.map(item => (
+        <div key={item.id} className="bg-iron-card border border-iron-border/60 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">{item.guest?.firstName} {item.guest?.lastName}</p>
+              <p className="text-xs text-iron-muted">{item.guest?.phone ?? '—'}</p>
+            </div>
+            <span className="text-[10px] bg-pink-100 text-pink-700 rounded-full px-2 py-0.5 font-semibold">יום הולדת</span>
+          </div>
+          <textarea
+            className="w-full bg-iron-surface border border-iron-border rounded-lg px-3 py-2 text-sm resize-none min-h-[80px] text-iron-text"
+            value={editing[item.id] ?? item.draftMessage}
+            onChange={e => setEditing(prev => ({ ...prev, [item.id]: e.target.value }))}
+            dir="rtl"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleApprove(item.id)}
+              className="flex-1 bg-iron-green hover:bg-iron-green-light text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+            >
+              שלח
+            </button>
+            <button
+              onClick={() => handleReject(item.id)}
+              className="flex-1 bg-iron-card border border-iron-border text-iron-muted text-sm py-2 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+            >
+              דחה
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

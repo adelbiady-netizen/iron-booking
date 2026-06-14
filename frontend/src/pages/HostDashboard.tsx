@@ -1985,6 +1985,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       <>
         <ClubCenterPage
           restaurantId={auth.user.restaurant.id}
+          actorName={`${auth.user.firstName} ${auth.user.lastName}`.trim()}
           onBack={() => setActivePage('dashboard')}
         />
         <ToastContainer toasts={toasts} onRemove={removeToast} />

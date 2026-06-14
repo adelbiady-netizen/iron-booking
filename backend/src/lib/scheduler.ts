@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { sendReservationReminders } from './reminder';
 import { runIntelligenceTick, sendApprovedMoments } from '../modules/intelligence/engine';
+import { runBirthdayEngine } from './birthdayEngine';
 
 // Next tick starts only after the previous tick fully finishes (recursive setTimeout).
 // This eliminates overlap by design, but the shouldStop flag + kill-switch check are
@@ -82,11 +83,13 @@ async function runSchedulerTick(dryRun: boolean, allowlist: string[] | null): Pr
           console.error(`[scheduler] ${restaurant.name} | FAILED reservations: ${result.failed.join(', ')}`);
         }
 
-        // Guest Intelligence: run nightly at 06:00 local time, send approved moments every tick
+        // Guest Intelligence + Birthday Engine: run nightly at 06:00 local time
         try {
           if (localTime >= '06:00' && localTime < '06:10') {
             await runIntelligenceTick(restaurant.id);
             console.log(`[scheduler] ${restaurant.name} | intelligence tick done`);
+            const bday = await runBirthdayEngine(restaurant.id);
+            console.log(`[scheduler] ${restaurant.name} | birthday engine | queued=${bday.queued} skipped=${bday.skipped}`);
           }
           await sendApprovedMoments(restaurant.id);
         } catch (gicErr) {

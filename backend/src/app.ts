@@ -23,6 +23,10 @@ import smsRouter           from './modules/sms/router';
 import intelligenceRouter  from './modules/intelligence/router';
 import feedbackRouter      from './modules/feedback/router';
 import clubRouter          from './modules/club/router';
+import clubJoinRouter      from './modules/club/joinRouter';
+import recoveryRouter      from './modules/recovery/router';
+import alertsRouter        from './modules/alerts/router';
+import messagingAnalytics  from './modules/messaging/analyticsRouter';
 
 const app = express();
 
@@ -110,8 +114,13 @@ app.use('/api/admin/hub',           guestHubAdminRouter);
 app.use('/api/call-logs',           callLogsRouter);
 app.use('/api/sms',                 smsRouter);
 app.use('/api/restaurants/:restaurantId/intelligence', intelligenceRouter);
-app.use('/api/feedback', feedbackRouter);
-app.use('/api/restaurants/:restaurantId/club', clubRouter);
+app.use('/api/feedback',                                   feedbackRouter);
+app.use('/api/join',                                       clubJoinRouter);
+app.use('/api/restaurants/:restaurantId/club',             clubRouter);
+app.use('/api/restaurants/:restaurantId/club',             clubJoinRouter);
+app.use('/api/restaurants/:restaurantId/recovery',         recoveryRouter);
+app.use('/api/restaurants/:restaurantId/alerts',           alertsRouter);
+app.use('/api/messaging/analytics',                        messagingAnalytics);
 
 app.use((_req, res) => {
   res.status(404).json({

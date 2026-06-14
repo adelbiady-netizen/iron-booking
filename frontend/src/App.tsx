@@ -18,6 +18,7 @@ import GuestHubPage        from './features/guestHub/GuestHubPage';
 import GuestHubQrRedirect  from './features/guestHub/GuestHubQrRedirect';
 import GuestHubPreviewPage from './features/guestHub/GuestHubPreviewPage';
 import FeedbackPage from './pages/FeedbackPage';
+import JoinPage from './pages/JoinPage';
 import type { AuthState, UserRole } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -229,6 +230,10 @@ export default function App() {
   if (path.startsWith('/f/')) {
     const token = path.split('/')[2];
     if (token) return <FeedbackPage token={token} />;
+  }
+  if (path.startsWith('/join/')) {
+    const token = path.split('/')[2];
+    if (token) return <JoinPage token={token} />;
   }
   if (path.startsWith('/book/')) {
     const slug = path.split('/')[2];
