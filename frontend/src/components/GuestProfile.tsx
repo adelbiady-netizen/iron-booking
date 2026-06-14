@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { GuestDetail, GuestIntelligence, GuestMemoryRecord, GuestAlertRecord, RecoveryCaseRecord, ReservationStatus } from '../types';
 import { api } from '../api';
+import { operationalTags, guestOriginLabel, isImportNote } from '../utils/displayHelpers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -402,7 +403,8 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
     try {
       const g = await api.guests.getById(guestId);
       setGuest(g);
-      setNotesVal(g.internalNotes ?? '');
+      // Don't pre-fill textarea with import metadata — hosts should start with a blank slate
+      setNotesVal(g.internalNotes && !isImportNote(g.internalNotes) ? g.internalNotes : '');
     } catch { /* noop */ }
   }, [guestId]);
 
@@ -596,28 +598,31 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
                     )}
                   </Section>
 
-                  {(guest.allergies.length > 0 || guest.tags.length > 0) && (
-                    <Section title="אלרגיות ותגיות">
-                      {guest.allergies.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {guest.allergies.map(a => (
-                            <span key={a} className="text-[11px] px-2 py-0.5 rounded-full bg-status-danger/12 border border-status-danger/25 text-status-danger font-medium">
-                              ⚠ {a}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {guest.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {guest.tags.map(tag => (
-                            <span key={tag} className="text-[11px] px-2 py-0.5 rounded-full bg-iron-border/20 border border-iron-border/35 text-iron-muted/80">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </Section>
-                  )}
+                  {(() => {
+                    const visTags = operationalTags(guest.tags);
+                    return (guest.allergies.length > 0 || visTags.length > 0) ? (
+                      <Section title="אלרגיות ותגיות">
+                        {guest.allergies.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {guest.allergies.map(a => (
+                              <span key={a} className="text-[11px] px-2 py-0.5 rounded-full bg-status-danger/12 border border-status-danger/25 text-status-danger font-medium">
+                                ⚠ {a}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {visTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {visTags.map(tag => (
+                              <span key={tag} className="text-[11px] px-2 py-0.5 rounded-full bg-iron-border/20 border border-iron-border/35 text-iron-muted/80">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </Section>
+                    ) : null;
+                  })()}
 
                   <Section title="סטטוס">
                     <div className="flex items-center justify-between">
@@ -697,7 +702,7 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
                             {savingNotes ? 'שומר...' : 'שמור'}
                           </button>
                           <button
-                            onClick={() => { setEditNotes(false); setNotesVal(guest.internalNotes ?? ''); }}
+                            onClick={() => { setEditNotes(false); setNotesVal(guest.internalNotes && !isImportNote(guest.internalNotes) ? guest.internalNotes : ''); }}
                             className="text-[11px] px-3 py-1.5 rounded-lg border border-iron-border/50 text-iron-muted hover:text-iron-text transition-colors"
                           >
                             ביטול
@@ -706,15 +711,28 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
                       </div>
                     ) : (
                       <div onClick={() => setEditNotes(true)} className="cursor-pointer group">
-                        {guest.internalNotes ? (
-                          <p className="text-[13px] text-iron-text group-hover:text-iron-text/80 transition-colors">
-                            {guest.internalNotes}
-                          </p>
-                        ) : (
-                          <p className="text-[12px] text-iron-muted/45 italic group-hover:text-iron-muted/60 transition-colors">
-                            לחץ להוספת הערה...
-                          </p>
-                        )}
+                        {(() => {
+                          const isImport = guest.internalNotes && isImportNote(guest.internalNotes);
+                          const hostNote = !isImport ? guest.internalNotes : null;
+                          const originLabel = guestOriginLabel(guest.tags, guest.internalNotes);
+                          if (hostNote) {
+                            return (
+                              <p className="text-[13px] text-iron-text group-hover:text-iron-text/80 transition-colors">
+                                {hostNote}
+                              </p>
+                            );
+                          }
+                          return (
+                            <>
+                              <p className="text-[12px] text-iron-muted/45 italic group-hover:text-iron-muted/60 transition-colors">
+                                לחץ להוספת הערה...
+                              </p>
+                              {originLabel && (
+                                <p className="text-[10px] text-iron-muted/40 mt-1">{originLabel}</p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </Section>

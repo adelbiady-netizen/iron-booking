@@ -3,6 +3,7 @@ import type { GuestLookupResult, ReservationStatus } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { fmtHostTime, normalizeTime } from '../utils/time';
+import { operationalTags, guestOriginLabel, isImportNote } from '../utils/displayHelpers';
 
 interface Props {
   phone: string;
@@ -133,21 +134,32 @@ export default function CallDrawer({
                     )}
                   </div>
 
-                  {guest.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-0.5">
-                      {guest.tags.map(tag => (
-                        <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-iron-card border border-iron-border rounded-md text-iron-muted">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {guest.internalNotes && (
-                    <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 rounded-lg px-2.5 py-1.5">
-                      {guest.internalNotes}
-                    </p>
-                  )}
+                  {(() => {
+                    const visibleTags = operationalTags(guest.tags);
+                    const originLabel = guestOriginLabel(guest.tags, guest.internalNotes);
+                    const hostNote    = guest.internalNotes && !isImportNote(guest.internalNotes) ? guest.internalNotes : null;
+                    return (
+                      <>
+                        {visibleTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {visibleTags.map(tag => (
+                              <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-iron-card border border-iron-border rounded-md text-iron-muted">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {hostNote && (
+                          <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 rounded-lg px-2.5 py-1.5">
+                            {hostNote}
+                          </p>
+                        )}
+                        {originLabel && (
+                          <p className="text-[10px] text-iron-muted/50 pt-0.5">{originLabel}</p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Today's reservation — prominent */}

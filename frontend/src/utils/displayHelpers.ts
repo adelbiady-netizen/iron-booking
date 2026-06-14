@@ -57,3 +57,37 @@ export function formatFloorObjLabel(label: string, locale: 'en' | 'he'): string 
   if (locale === 'he') return FLOOR_OBJ_LABELS_HE[label] ?? label;
   return label;
 }
+
+// ─── Guest source / import metadata filtering ─────────────────────────────────
+// Import scripts write raw job names (e.g. "tabit_import_deli_italiano_2026_v2")
+// into guest.tags and "Merged from Tabit CRM export..." into guest.internalNotes.
+// Restaurant-facing screens must never show these — use the helpers below instead.
+
+const IMPORT_TAG_PREFIXES = ['tabit_import', 'crm_import', 'import_'];
+const IMPORT_NOTE_MARKERS = ['Merged from Tabit', 'tabit_import', 'Source: tabit', 'Source: crm_import'];
+
+export function isImportTag(tag: string): boolean {
+  const lower = tag.toLowerCase();
+  return IMPORT_TAG_PREFIXES.some(prefix => lower.startsWith(prefix));
+}
+
+export function isImportNote(note: string): boolean {
+  return IMPORT_NOTE_MARKERS.some(marker => note.includes(marker));
+}
+
+/** Returns guest-facing (operational) tags — strips import/migration identifiers. */
+export function operationalTags(tags: string[]): string[] {
+  return tags.filter(t => !isImportTag(t));
+}
+
+/**
+ * Returns a friendly Hebrew origin label for the call panel / guest card.
+ * Inspects tags + internalNotes to detect CRM imports.
+ * Returns null when origin is unknown / not worth surfacing.
+ */
+export function guestOriginLabel(tags: string[], internalNotes: string | null): string | null {
+  const hasImportTag  = tags.some(isImportTag);
+  const hasImportNote = internalNotes ? isImportNote(internalNotes) : false;
+  if (hasImportTag || hasImportNote) return 'נוצר מייבוא CRM';
+  return null;
+}
