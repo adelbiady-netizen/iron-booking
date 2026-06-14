@@ -543,6 +543,16 @@ export const api = {
       request<MomentRecord>(`/restaurants/${restaurantId}/intelligence/moments/${momentId}/review`, { method: 'POST', body: JSON.stringify(body) }),
     getMorningBrief: (restaurantId: string) =>
       request<MorningBriefRecord>(`/restaurants/${restaurantId}/intelligence/morning-brief`),
+    backfillV2: (restaurantId: string, dryRun: boolean) =>
+      request<{
+        total: number;
+        processed: number;
+        errors: number;
+        errorDetails: Array<{ guestId: string; error: string }>;
+        labelDistribution: Record<string, number>;
+        scoreStats: { scored: number; avgLoyalty: number; avgEngagement: number; maxLoyalty: number | null; minLoyalty: number | null };
+        dryRun?: boolean;
+      }>(`/restaurants/${restaurantId}/intelligence/backfill-v2${dryRun ? '?dryRun=true' : ''}`, { method: 'POST' }),
   },
 
   admin: {

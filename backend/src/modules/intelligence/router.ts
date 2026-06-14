@@ -132,6 +132,7 @@ router.get('/morning-brief', async (req, res) => {
 // Processes in batches of 50. Returns count + label distribution.
 router.post('/backfill-v2', requireRole('RESTAURANT_ADMIN', 'ADMIN', 'OWNER', 'SUPER_ADMIN'), async (req, res) => {
   const restaurantId = rid(req);
+  const dryRun = req.query['dryRun'] === 'true';
   const BATCH = 50;
 
   // Verify caller has access to this restaurant
@@ -156,7 +157,9 @@ router.post('/backfill-v2', requireRole('RESTAURANT_ADMIN', 'ADMIN', 'OWNER', 'S
       const batch = allGuests.slice(i, i + BATCH);
       await Promise.all(batch.map(async ({ id: guestId }) => {
         try {
-          await computeLoyaltyScore(restaurantId, guestId);
+          if (!dryRun) {
+            await computeLoyaltyScore(restaurantId, guestId);
+          }
           processed++;
         } catch (err) {
           errors.push({ guestId, error: err instanceof Error ? err.message : String(err) });
@@ -190,7 +193,8 @@ router.post('/backfill-v2', requireRole('RESTAURANT_ADMIN', 'ADMIN', 'OWNER', 'S
       total,
       processed,
       errors: errors.length,
-      errorDetails: errors.slice(0, 10), // cap to first 10
+      errorDetails: errors.slice(0, 10),
+      dryRun,
       labelDistribution: labelDist,
       scoreStats: {
         scored: scoreStats._count.loyaltyScore,

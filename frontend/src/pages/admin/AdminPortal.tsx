@@ -372,7 +372,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [layoutBusy, setLayoutBusy] = useState(false);
 
   // ── Group state (SUPER_ADMIN only) ───────────────────────────────────────────
-  const [sidebarTab,      setSidebarTab]      = useState<'locations' | 'groups' | 'sms'>('locations');
+  const [sidebarTab,      setSidebarTab]      = useState<'locations' | 'groups' | 'sms' | 'intelligence'>('locations');
   const [groups,          setGroups]          = useState<AdminGroup[]>([]);
   const [groupsLoading,   setGroupsLoading]   = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -430,6 +430,19 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [smsDetail,       setSmsDetail]       = useState<SmsUsageDetail | null>(null);
   const [smsDetailId,     setSmsDetailId]     = useState<string | null>(null);
   const [smsDetailLoading, setSmsDetailLoading] = useState(false);
+
+  // GIC V2 Backfill (SUPER_ADMIN only)
+  type BackfillResult = {
+    total: number; processed: number; errors: number;
+    errorDetails: Array<{ guestId: string; error: string }>;
+    labelDistribution: Record<string, number>;
+    scoreStats: { scored: number; avgLoyalty: number; avgEngagement: number; maxLoyalty: number | null; minLoyalty: number | null };
+    dryRun?: boolean;
+  };
+  const [backfillRestaurantId, setBackfillRestaurantId] = useState('');
+  const [backfillBusy,         setBackfillBusy]         = useState(false);
+  const [backfillResult,       setBackfillResult]       = useState<BackfillResult | null>(null);
+  const [backfillError,        setBackfillError]        = useState<string | null>(null);
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
@@ -3198,6 +3211,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 onClick={openSmsUsage}
                 className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'sms' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
               >SMS</button>
+              <button
+                onClick={() => { setSidebarTab('intelligence'); setView('splash'); setSelectedId(null); setSelectedGroupId(null); setBackfillResult(null); setBackfillError(null); }}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'intelligence' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
+              >GIC</button>
             </div>
           )}
 
@@ -3267,6 +3284,146 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               )}
             </div>
           </>)}
+
+          {/* Intelligence / GIC V2 Backfill panel (SUPER_ADMIN sidebar) */}
+          {sidebarTab === 'intelligence' && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-5" dir="rtl">
+              <div>
+                <p className="text-xs font-semibold text-iron-green uppercase tracking-wide mb-1">GIC V2 Backfill</p>
+                <p className="text-xs text-iron-muted">חישוב מחדש של loyaltyScore, engagementScore, gicLabel לכל האורחים במסעדה. לא שולח SMS. לא יוצר התראות.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">בחר מסעדה</label>
+                <select
+                  className="w-full text-sm bg-iron-card border border-iron-border rounded-lg px-3 py-2 text-iron-text"
+                  value={backfillRestaurantId}
+                  onChange={e => { setBackfillRestaurantId(e.target.value); setBackfillResult(null); setBackfillError(null); }}
+                >
+                  <option value="">— בחר —</option>
+                  {restaurants.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  disabled={!backfillRestaurantId || backfillBusy}
+                  onClick={async () => {
+                    if (!backfillRestaurantId) return;
+                    setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
+                    try {
+                      const r = await api.intelligence.backfillV2(backfillRestaurantId, true);
+                      setBackfillResult(r);
+                    } catch (e) {
+                      setBackfillError(e instanceof Error ? e.message : String(e));
+                    } finally { setBackfillBusy(false); }
+                  }}
+                  className="flex-1 px-3 py-2 border border-iron-border rounded text-xs font-medium text-iron-text hover:bg-iron-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {backfillBusy ? '...' : 'Dry Run'}
+                </button>
+                <button
+                  disabled={!backfillRestaurantId || backfillBusy}
+                  onClick={async () => {
+                    if (!backfillRestaurantId) return;
+                    if (!window.confirm('להריץ backfill אמיתי ולכתוב לכל האורחים?')) return;
+                    setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
+                    try {
+                      const r = await api.intelligence.backfillV2(backfillRestaurantId, false);
+                      setBackfillResult(r);
+                    } catch (e) {
+                      setBackfillError(e instanceof Error ? e.message : String(e));
+                    } finally { setBackfillBusy(false); }
+                  }}
+                  className="flex-1 px-3 py-2 bg-iron-green text-black rounded text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {backfillBusy ? '...' : 'הרץ Backfill'}
+                </button>
+              </div>
+
+              {backfillBusy && (
+                <div className="flex items-center gap-2 text-xs text-iron-muted">
+                  <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+                  <span>מעבד אורחים...</span>
+                </div>
+              )}
+
+              {backfillError && (
+                <div className="text-xs text-red-400 bg-red-900/20 border border-red-900/30 rounded p-3">{backfillError}</div>
+              )}
+
+              {backfillResult && (
+                <div className="space-y-3">
+                  <div className={`text-xs font-semibold px-2 py-1 rounded inline-block ${backfillResult.dryRun ? 'bg-yellow-900/30 text-yellow-400' : 'bg-green-900/30 text-green-400'}`}>
+                    {backfillResult.dryRun ? 'DRY RUN — לא נכתב כלום' : 'BACKFILL הושלם'}
+                  </div>
+
+                  <dl className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-iron-card rounded p-2">
+                      <dt className="text-iron-muted">סה״כ אורחים</dt>
+                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.total}</dd>
+                    </div>
+                    <div className="bg-iron-card rounded p-2">
+                      <dt className="text-iron-muted">עובדו</dt>
+                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.processed}</dd>
+                    </div>
+                    <div className="bg-iron-card rounded p-2">
+                      <dt className="text-iron-muted">שגיאות</dt>
+                      <dd className={`font-semibold text-sm mt-0.5 ${backfillResult.errors > 0 ? 'text-red-400' : 'text-iron-text'}`}>{backfillResult.errors}</dd>
+                    </div>
+                    <div className="bg-iron-card rounded p-2">
+                      <dt className="text-iron-muted">ממוצע נאמנות</dt>
+                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.scoreStats.avgLoyalty}</dd>
+                    </div>
+                    <div className="bg-iron-card rounded p-2">
+                      <dt className="text-iron-muted">מקסימום</dt>
+                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.scoreStats.maxLoyalty ?? '—'}</dd>
+                    </div>
+                    <div className="bg-iron-card rounded p-2">
+                      <dt className="text-iron-muted">מינימום</dt>
+                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.scoreStats.minLoyalty ?? '—'}</dd>
+                    </div>
+                  </dl>
+
+                  {Object.keys(backfillResult.labelDistribution).length > 0 && (
+                    <div>
+                      <p className="text-xs text-iron-muted mb-2">התפלגות תוויות</p>
+                      <div className="space-y-1">
+                        {Object.entries(backfillResult.labelDistribution)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([label, count]) => {
+                            const pct = backfillResult.total > 0 ? Math.round(count / backfillResult.total * 100) : 0;
+                            const HE: Record<string, string> = { VIP: 'VIP', LOYAL: 'נאמן', VIP_CANDIDATE: 'מועמד VIP', HIGH_ENGAGEMENT: 'מעורב מאוד', RECOVERED: 'חזר אלינו', AT_RISK: 'בסיכון', SILENT: 'לא חזר', CRM_MEMBER: 'חבר CRM', NEEDS_ATTENTION: 'דורש מעקב', NEW: 'חדש' };
+                            return (
+                              <div key={label} className="flex items-center gap-2 text-xs">
+                                <span className="w-28 text-iron-muted shrink-0">{HE[label] ?? label}</span>
+                                <div className="flex-1 bg-iron-border rounded-full h-1.5">
+                                  <div className="bg-iron-green h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="w-10 text-right text-iron-text">{count} <span className="text-iron-muted">({pct}%)</span></span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {backfillResult.errorDetails.length > 0 && (
+                    <div>
+                      <p className="text-xs text-iron-muted mb-1">שגיאות (עד 10):</p>
+                      <div className="space-y-1">
+                        {backfillResult.errorDetails.map((e, i) => (
+                          <div key={i} className="text-xs text-red-400 font-mono bg-iron-card rounded px-2 py-1">{e.guestId}: {e.error}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>}
 
         {/* Main content */}
@@ -3278,7 +3435,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   <p className="text-iron-muted text-sm">
                     {sidebarTab === 'groups'
                       ? (groups.length === 0 ? T.admin.noGroupsHint : 'Select a group or create a new one')
-                      : (restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate)}
+                      : sidebarTab === 'intelligence'
+                        ? 'בחר מסעדה בסרגל הצד להרצת GIC V2 Backfill'
+                        : (restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate)}
                   </p>
                 </div>
               </div>
