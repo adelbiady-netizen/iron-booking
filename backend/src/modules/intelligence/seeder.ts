@@ -15,7 +15,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
     where: { restaurantId, draftMessage: { contains: '[DEMO]' } },
   });
   await prisma.guestAlert.deleteMany({
-    where: { restaurantId, note: { contains: '[DEMO]' } },
+    where: { restaurantId, context: { contains: '[DEMO]' } },
   });
   await prisma.recoveryCase.deleteMany({
     where: { restaurantId, description: { contains: '[DEMO]' } },
@@ -64,7 +64,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
         guestId: g.id,
         type: 'BIRTHDAY_SOON',
         headline: `יום הולדת בעוד ${i + 2} ימים`,
-        note: `${g.firstName} חוגג/ת יום הולדת ב-${daysFromNow(i + 2).toLocaleDateString('he-IL')} [DEMO]`,
+        context: `${g.firstName} חוגג/ת יום הולדת ב-${daysFromNow(i + 2).toLocaleDateString('he-IL')} [DEMO]`,
         expiresAt: daysFromNow(8),
       },
     });
@@ -94,7 +94,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
         guestId: g.id,
         type: 'ANNIVERSARY_SOON',
         headline: `יום נישואין בעוד ${i + 3} ימים`,
-        note: `${g.firstName} ו${g.lastName || 'בן/בת הזוג'} — יום נישואין ב-${daysFromNow(i + 3).toLocaleDateString('he-IL')} [DEMO]`,
+        context: `${g.firstName} ו${g.lastName || 'בן/בת הזוג'} — יום נישואין ב-${daysFromNow(i + 3).toLocaleDateString('he-IL')} [DEMO]`,
         expiresAt: daysFromNow(9),
       },
     });
@@ -135,7 +135,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
         guestId: g.id,
         type: 'SILENT_GUEST',
         headline: `לא ביקר/ה ${absenceDays[i]} ימים`,
-        note: `${g.firstName} לא חזר/ה כבר ${absenceDays[i]} יום (ממוצע ביקורים: 21 יום) [DEMO]`,
+        context: `${g.firstName} לא חזר/ה כבר ${absenceDays[i]} יום (ממוצע ביקורים: 21 יום) [DEMO]`,
         expiresAt: daysFromNow(30),
       },
     });
@@ -165,7 +165,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
       guestId: recoveryGuest1.id,
       type: 'RECOVERY_OPEN',
       headline: 'תיק שחזור פתוח — נוצר קשר',
-      note: `[DEMO]`,
+      context: `[DEMO]`,
       expiresAt: daysFromNow(60),
     },
   });
@@ -187,7 +187,7 @@ export async function seedIntelligenceDemo(restaurantId: string) {
       guestId: recoveryGuest2.id,
       type: 'RECOVERY_OPEN',
       headline: 'תיק שחזור פתוח — ממתין לטיפול',
-      note: `[DEMO]`,
+      context: `[DEMO]`,
       expiresAt: daysFromNow(60),
     },
   });
@@ -299,7 +299,7 @@ export async function clearIntelligenceDemo(restaurantId: string) {
     where: { restaurantId, draftMessage: { contains: '[DEMO]' } },
   });
   await prisma.guestAlert.deleteMany({
-    where: { restaurantId, note: { contains: '[DEMO]' } },
+    where: { restaurantId, context: { contains: '[DEMO]' } },
   });
   const cases = await prisma.recoveryCase.findMany({
     where: { restaurantId, description: { contains: '[DEMO]' } },
