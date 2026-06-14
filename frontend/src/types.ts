@@ -952,6 +952,11 @@ export interface MorningBriefRecord {
   };
 }
 
+export type GicLabel =
+  | 'VIP' | 'LOYAL' | 'VIP_CANDIDATE' | 'HIGH_ENGAGEMENT'
+  | 'RECOVERED' | 'AT_RISK' | 'SILENT' | 'NEEDS_ATTENTION'
+  | 'CRM_MEMBER' | 'NEW';
+
 export interface GuestIntelligence {
   guest: {
     id: string;
@@ -960,6 +965,10 @@ export interface GuestIntelligence {
     nextExpectedVisitDate?: string | null;
     silentScore?: number | null;
     vipScore?: number | null;
+    // V2 scoring
+    loyaltyScore?: number | null;
+    engagementScore?: number | null;
+    gicLabel?: GicLabel | null;
     gicComputedAt?: string | null;
   } | null;
   memories: GuestMemoryRecord[];

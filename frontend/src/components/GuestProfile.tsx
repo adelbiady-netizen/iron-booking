@@ -155,12 +155,34 @@ function AlertBadge({ alert, onDismiss }: { alert: GuestAlertRecord; onDismiss: 
 
 // ─── Guest Intelligence Panel (always-visible header strip) ─────────────────
 
-function loyaltyTier(visits: number): { label: string; cls: string } {
+// V1 fallback — used only when gicLabel is not yet computed (first run, or old guest)
+function loyaltyTierFromVisits(visits: number): { label: string; cls: string } {
   if (visits >= 25) return { label: 'נאמן מאוד', cls: 'text-status-warning bg-status-warning/14 border-status-warning/28' };
   if (visits >= 13) return { label: 'נאמן',      cls: 'text-iron-green-light bg-iron-green/12 border-iron-green/25' };
   if (visits >= 6)  return { label: 'קבוע',      cls: 'text-iron-green-light bg-iron-green/10 border-iron-green/20' };
   if (visits >= 3)  return { label: 'מוכר',      cls: 'text-iron-muted/70 bg-iron-border/15 border-iron-border/28' };
   return              { label: 'חדש',            cls: 'text-iron-muted/50 bg-iron-border/10 border-iron-border/20' };
+}
+
+// V2 — translates computed gicLabel to Hebrew display + styling
+import type { GicLabel } from '../types';
+
+const GIC_LABEL_MAP: Record<GicLabel, { label: string; cls: string }> = {
+  VIP:              { label: 'VIP',               cls: 'text-status-warning  bg-status-warning/14  border-status-warning/28' },
+  LOYAL:            { label: 'נאמן',              cls: 'text-iron-green-light bg-iron-green/12    border-iron-green/25'      },
+  VIP_CANDIDATE:    { label: 'מועמד VIP',         cls: 'text-status-warning  bg-status-warning/10  border-status-warning/20' },
+  HIGH_ENGAGEMENT:  { label: 'מעורב מאוד',        cls: 'text-iron-green-light bg-iron-green/14    border-iron-green/28'      },
+  RECOVERED:        { label: 'חזר אלינו',         cls: 'text-iron-green-light bg-iron-green/10    border-iron-green/20'      },
+  AT_RISK:          { label: 'זקוק לתשומת לב',   cls: 'text-status-danger   bg-red-900/10        border-red-900/20'         },
+  SILENT:           { label: 'לא חזר',            cls: 'text-orange-400      bg-orange-900/10     border-orange-900/20'      },
+  NEEDS_ATTENTION:  { label: 'דורש מעקב',         cls: 'text-orange-400      bg-orange-900/10     border-orange-900/20'      },
+  CRM_MEMBER:       { label: 'חבר CRM',           cls: 'text-iron-green-light bg-iron-green/10    border-iron-green/20'      },
+  NEW:              { label: 'חדש',               cls: 'text-iron-muted/50   bg-iron-border/10    border-iron-border/20'     },
+};
+
+function loyaltyTier(visits: number, gicLabel?: GicLabel | null): { label: string; cls: string } {
+  if (gicLabel && GIC_LABEL_MAP[gicLabel]) return GIC_LABEL_MAP[gicLabel];
+  return loyaltyTierFromVisits(visits);
 }
 
 function silentRisk(score: number | null | undefined): { label: string; cls: string } | null {
@@ -183,7 +205,7 @@ function IntelPanel({ guest, intel }: { guest: GuestDetail; intel: GuestIntellig
   const alerts   = intel?.alerts ?? [];
   const memories = intel?.memories ?? [];
 
-  const tier   = loyaltyTier(guest.visitCount);
+  const tier   = loyaltyTier(guest.visitCount, gicStats?.gicLabel);
   const silent = silentRisk(gicStats?.silentScore);
 
   const recoveryAlert    = alerts.find(a => a.type === 'RECOVERY_OPEN');
@@ -770,16 +792,24 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
                   {/* GIC stats strip */}
                   {gicStats && (
                     <div className="flex gap-3 mb-4 flex-wrap">
+                      {/* V2 loyalty score — primary metric */}
+                      {gicStats.loyaltyScore !== null && gicStats.loyaltyScore !== undefined && (
+                        <div className="rounded-xl bg-iron-card border border-iron-green/20 px-3 py-2 text-center">
+                          <div className="text-[18px] font-black tabular-nums text-iron-green-light">{gicStats.loyaltyScore}</div>
+                          <div className="text-[9px] text-iron-muted/50 uppercase tracking-wider">נאמנות V2</div>
+                        </div>
+                      )}
+                      {gicStats.engagementScore !== null && gicStats.engagementScore !== undefined && (
+                        <div className="rounded-xl bg-iron-card border border-iron-border/25 px-3 py-2 text-center">
+                          <div className="text-[18px] font-black tabular-nums text-iron-text">{gicStats.engagementScore}</div>
+                          <div className="text-[9px] text-iron-muted/50 uppercase tracking-wider">מעורבות</div>
+                        </div>
+                      )}
+                      {/* V1 scores — preserved for context */}
                       {gicStats.silentScore !== null && gicStats.silentScore !== undefined && (
                         <div className="rounded-xl bg-iron-card border border-iron-border/25 px-3 py-2 text-center">
                           <div className="text-[18px] font-black tabular-nums text-iron-text">{gicStats.silentScore}</div>
                           <div className="text-[9px] text-iron-muted/50 uppercase tracking-wider">ציון שקט</div>
-                        </div>
-                      )}
-                      {gicStats.vipScore !== null && gicStats.vipScore !== undefined && (
-                        <div className="rounded-xl bg-iron-card border border-iron-border/25 px-3 py-2 text-center">
-                          <div className="text-[18px] font-black tabular-nums text-status-warning">{gicStats.vipScore}</div>
-                          <div className="text-[9px] text-iron-muted/50 uppercase tracking-wider">ציון VIP</div>
                         </div>
                       )}
                       {gicStats.nextExpectedVisitDate && (

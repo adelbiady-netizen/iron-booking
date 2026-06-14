@@ -335,9 +335,14 @@ model Guest {
   firstVisitAt          DateTime?
   avgVisitIntervalDays  Float?     // personal visit rhythm
   nextExpectedVisitDate DateTime?  // lastVisitAt + avgVisitIntervalDays
-  silentScore           Int?       // 0–100, higher = more at risk
-  vipScore              Int?       // 0–100
+  silentScore           Int?       // 0–100, higher = more at risk (V1 — preserved)
+  vipScore              Int?       // 0–100 (V1 — preserved for backward compat)
   gicComputedAt         DateTime?  // when scores were last refreshed
+
+  // V2 multi-factor scoring
+  loyaltyScore    Int?    // 0–100: multi-signal loyalty score (replaces vipScore long-term)
+  engagementScore Int?    // 0–100: breadth of engagement signals fired
+  gicLabel        String? // classification: VIP | LOYAL | VIP_CANDIDATE | HIGH_ENGAGEMENT | RECOVERED | AT_RISK | SILENT | NEEDS_ATTENTION | CRM_MEMBER | NEW
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
