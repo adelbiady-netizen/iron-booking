@@ -4,6 +4,7 @@ import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
+import { isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 
 function waitMins(addedAt: string, opNow: number): number {
   return Math.floor((opNow - new Date(addedAt).getTime()) / 60_000);
@@ -420,7 +421,9 @@ export default function WaitlistPanel({
                 </div>
                 <div className="text-[11px] text-iron-muted space-y-0.5">
                   <div>
-                    {guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}
+                    {isCrmImportWithNoHistory(guestHint.visitCount, guestHint.tags, guestHint.internalNotes)
+                      ? <span className="italic text-iron-muted/60">{CRM_NO_HISTORY_LABEL}</span>
+                      : <>{guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}</>}
                     {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
                     {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
                   </div>

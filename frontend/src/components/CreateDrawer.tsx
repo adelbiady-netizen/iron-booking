@@ -7,6 +7,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import FloorTablePicker from './FloorTablePicker';
 import { getDefaultDuration } from '../utils/duration';
+import { isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import MiniCalendar from './MiniCalendar';
 
 type Mode = 'reservation' | 'walkin';
@@ -667,7 +668,9 @@ export default function CreateDrawer({
                       </div>
                       <div className="text-[11px] text-iron-muted space-y-0.5">
                         <div>
-                          {guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}
+                          {isCrmImportWithNoHistory(guestHint.visitCount, guestHint.tags, guestHint.internalNotes)
+                            ? <span className="italic text-iron-muted/60">{CRM_NO_HISTORY_LABEL}</span>
+                            : <>{guestHint.visitCount} visit{guestHint.visitCount !== 1 ? 's' : ''}</>}
                           {guestHint.noShowCount > 0 && <span className="text-orange-400"> · {guestHint.noShowCount} no-show{guestHint.noShowCount !== 1 ? 's' : ''}</span>}
                           {guestHint.lastVisitAt && <span> · last {new Date(guestHint.lastVisitAt).toLocaleDateString()}</span>}
                         </div>
@@ -1099,7 +1102,9 @@ export default function CreateDrawer({
                     </div>
                     <div className="text-[11px] text-iron-muted space-y-0.5">
                       <div>
-                        {wiGuestHint.visitCount} visit{wiGuestHint.visitCount !== 1 ? 's' : ''}
+                        {isCrmImportWithNoHistory(wiGuestHint.visitCount, wiGuestHint.tags, wiGuestHint.internalNotes)
+                          ? <span className="italic text-iron-muted/60">{CRM_NO_HISTORY_LABEL}</span>
+                          : <>{wiGuestHint.visitCount} visit{wiGuestHint.visitCount !== 1 ? 's' : ''}</>}
                         {wiGuestHint.noShowCount > 0 && <span className="text-orange-400"> · {wiGuestHint.noShowCount} no-show{wiGuestHint.noShowCount !== 1 ? 's' : ''}</span>}
                         {wiGuestHint.lastVisitAt && <span> · last {new Date(wiGuestHint.lastVisitAt).toLocaleDateString()}</span>}
                       </div>

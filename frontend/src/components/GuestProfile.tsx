@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { GuestDetail, GuestIntelligence, GuestMemoryRecord, GuestAlertRecord, RecoveryCaseRecord, ReservationStatus } from '../types';
 import { api } from '../api';
-import { operationalTags, guestOriginLabel, isImportNote } from '../utils/displayHelpers';
+import { operationalTags, guestOriginLabel, isImportNote, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -202,9 +202,13 @@ function IntelPanel({ guest, intel }: { guest: GuestDetail; intel: GuestIntellig
     <div className="space-y-2">
       {/* ── Row 1: loyalty + last visit + silent risk ── */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${tier.cls}`}>
-          {guest.visitCount} ביקורים · {tier.label}
-        </span>
+        {isCrmImportWithNoHistory(guest.visitCount, guest.tags, guest.internalNotes) ? (
+          <span className="text-[11px] text-iron-muted/60 italic px-2 py-0.5">{CRM_NO_HISTORY_LABEL}</span>
+        ) : (
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${tier.cls}`}>
+            {guest.visitCount} ביקורים · {tier.label}
+          </span>
+        )}
 
         <span className="text-iron-muted/50 text-[11px]">
           ·

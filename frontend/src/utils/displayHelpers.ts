@@ -91,3 +91,20 @@ export function guestOriginLabel(tags: string[], internalNotes: string | null): 
   if (hasImportTag || hasImportNote) return 'נוצר מייבוא CRM';
   return null;
 }
+
+/**
+ * True when a guest was imported from CRM and has no Iron Booking visit history.
+ * Once the guest makes a real reservation (visitCount > 0), returns false —
+ * so their real visit count is shown normally.
+ */
+export function isCrmImportWithNoHistory(
+  visitCount: number,
+  tags: string[],
+  internalNotes: string | null,
+): boolean {
+  if (visitCount > 0) return false;
+  return tags.some(isImportTag) || (internalNotes ? isImportNote(internalNotes) : false);
+}
+
+/** Label shown instead of "0 visits" for CRM-imported guests with no history. */
+export const CRM_NO_HISTORY_LABEL = 'היסטוריית ביקורים לא זמינה';

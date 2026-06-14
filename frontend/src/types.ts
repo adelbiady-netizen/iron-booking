@@ -226,6 +226,7 @@ export interface Guest {
   lastName: string;
   isVip: boolean;
   tags: string[];
+  internalNotes?: string | null;
   visitCount?: number;
   noShowCount?: number;
 }
@@ -624,6 +625,8 @@ export interface GuestListItem {
   cancelCount: number;
   lastVisitAt: string | null;
   createdAt: string;
+  tags: string[];
+  internalNotes: string | null;
 }
 
 export interface GuestDetail extends GuestListItem {

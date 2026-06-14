@@ -3,7 +3,7 @@ import type { GuestLookupResult, ReservationStatus } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { fmtHostTime, normalizeTime } from '../utils/time';
-import { operationalTags, guestOriginLabel, isImportNote } from '../utils/displayHelpers';
+import { operationalTags, guestOriginLabel, isImportNote, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 
 interface Props {
   phone: string;
@@ -52,7 +52,8 @@ export default function CallDrawer({
   const recentRes  = guest && guest !== 'loading' ? (guest.recentReservations ?? []) : [];
   const todayRes   = recentRes.find(r => r.date.slice(0, 10) === today && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
   const lastRes    = recentRes.find(r => r.date.slice(0, 10) < today  && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
-  const isFrequent = guest && guest !== 'loading' && !guest.isVip && guest.visitCount >= FREQUENT_THRESHOLD;
+  const isFrequent = guest && guest !== 'loading' && !guest.isVip && guest.visitCount >= FREQUENT_THRESHOLD
+    && !isCrmImportWithNoHistory(guest.visitCount, guest.tags, guest.internalNotes);
 
   return (
     <>
@@ -125,7 +126,11 @@ export default function CallDrawer({
                   </div>
 
                   <div className="flex items-center gap-3 text-xs text-iron-muted">
-                    <span>{T.callDrawer.visits(guest.visitCount)}</span>
+                    {isCrmImportWithNoHistory(guest.visitCount, guest.tags, guest.internalNotes) ? (
+                      <span className="text-iron-muted/50 italic">{CRM_NO_HISTORY_LABEL}</span>
+                    ) : (
+                      <span>{T.callDrawer.visits(guest.visitCount)}</span>
+                    )}
                     {guest.noShowCount > 0 && (
                       <>
                         <span className="text-iron-border">·</span>

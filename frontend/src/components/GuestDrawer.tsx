@@ -8,7 +8,7 @@ import SmartTablePicker from './SmartTablePicker';
 import type React from 'react';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
-import { formatReservationSource } from '../utils/displayHelpers';
+import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { fmtHostTime, normalizeTime } from '../utils/time';
 
@@ -1559,7 +1559,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </p>
               <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`.trim()} />
               {res.guest.visitCount != null && (
-                <Row label={T.guestDrawer.rowVisits}   value={String(res.guest.visitCount)} />
+                isCrmImportWithNoHistory(res.guest.visitCount, res.guest.tags ?? [], res.guest.internalNotes ?? null)
+                  ? <Row label={T.guestDrawer.rowVisits} value={CRM_NO_HISTORY_LABEL} />
+                  : <Row label={T.guestDrawer.rowVisits} value={String(res.guest.visitCount)} />
               )}
               {res.guest.noShowCount != null && res.guest.noShowCount > 0 && (
                 <Row label={T.guestDrawer.rowNoShows} value={String(res.guest.noShowCount)} warn />

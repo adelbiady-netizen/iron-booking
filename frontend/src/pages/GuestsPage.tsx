@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { GuestDetail, GuestListItem } from '../types';
 import { api } from '../api';
+import { isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 
 interface Props {
   onBack: () => void;
@@ -130,8 +131,10 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                 <td className="px-4 py-2.5 text-iron-muted hidden md:table-cell">
                   {g.email ?? '—'}
                 </td>
-                <td className="px-4 py-2.5 text-iron-text text-right tabular-nums">
-                  {g.visitCount}
+                <td className="px-4 py-2.5 text-right tabular-nums">
+                  {isCrmImportWithNoHistory(g.visitCount, g.tags, g.internalNotes)
+                    ? <span className="text-iron-muted/50 text-xs italic">CRM</span>
+                    : <span className="text-iron-text">{g.visitCount}</span>}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">
                   <span className={g.noShowCount > 0 ? 'text-status-danger' : 'text-iron-muted'}>
@@ -220,7 +223,9 @@ export default function GuestsPage({ onBack, initialSearch = '' }: Props) {
                   <h4 className="text-iron-muted text-xs uppercase tracking-wide font-medium mb-2">Visit History</h4>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-iron-bg rounded-lg px-3 py-2 text-center">
-                      <p className="text-iron-text font-semibold text-lg tabular-nums">{profile.visitCount}</p>
+                      {isCrmImportWithNoHistory(profile.visitCount, profile.tags, profile.internalNotes)
+                        ? <p className="text-iron-muted/60 text-xs italic leading-tight pt-1">{CRM_NO_HISTORY_LABEL}</p>
+                        : <p className="text-iron-text font-semibold text-lg tabular-nums">{profile.visitCount}</p>}
                       <p className="text-iron-muted text-xs">Visits</p>
                     </div>
                     <div className="bg-iron-bg rounded-lg px-3 py-2 text-center">
