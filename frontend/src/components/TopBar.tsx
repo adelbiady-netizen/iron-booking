@@ -35,6 +35,7 @@ interface Props {
   onThemeChange: () => void;
   onAdminPortal?: () => void;
   onGuestsPage?: () => void;
+  guestsPageEnabled?: boolean;
   onIntelligencePage?: () => void;
   onSwitchHost?: () => void;
   onBulkConfirm?: () => void;
@@ -95,6 +96,7 @@ export default function TopBar({
   theme, onThemeChange,
   onAdminPortal,
   onGuestsPage,
+  guestsPageEnabled = true,
   onIntelligencePage,
   onSwitchHost,
   sseStatus,
@@ -347,12 +349,21 @@ export default function TopBar({
       {/* User / session */}
       <div className="flex items-center gap-1">
         {onGuestsPage && (
-          <button
-            onClick={onGuestsPage}
-            className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
-          >
-            {T.topBar.guestsButton}
-          </button>
+          guestsPageEnabled ? (
+            <button
+              onClick={onGuestsPage}
+              className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
+            >
+              {T.topBar.guestsButton}
+            </button>
+          ) : (
+            <span
+              title="מודול אורחים לא פעיל"
+              className="text-iron-muted/30 text-[11px] font-medium px-2.5 py-1.5 rounded-lg cursor-not-allowed select-none"
+            >
+              {T.topBar.guestsButton}
+            </span>
+          )
         )}
         {onIntelligencePage && (
           <button

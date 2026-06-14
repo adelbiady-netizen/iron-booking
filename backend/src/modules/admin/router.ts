@@ -459,6 +459,8 @@ const UpdateSettingsSchema = z.object({
   // Link telephony — numeric ring-group IDs owned by this restaurant (e.g. ["205","206"]).
   // Used by the Link webhook to route incoming calls to this restaurant.
   linkGroupIds:              z.array(z.string().trim().regex(/^\d+$/, 'Link group IDs must be numeric')).max(50).optional(),
+  // Feature flags
+  guestsPageEnabled:         z.boolean().optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings

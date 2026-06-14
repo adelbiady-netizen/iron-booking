@@ -1926,7 +1926,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setActivePage('intelligence');
   }, []);
 
-  if (activePage === 'guests') {
+  const canAccessGuests =
+    auth.user.restaurant?.settings?.guestsPageEnabled !== false &&
+    !(['HOST', 'SERVER'] as const).includes(auth.user.role as 'HOST' | 'SERVER');
+
+  if (activePage === 'guests' && canAccessGuests) {
     return (
       <>
         <GuestsPage
@@ -2258,6 +2262,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onThemeChange={onThemeChange}
         onAdminPortal={onAdminPortal}
         onGuestsPage={handleGuestsPage}
+        guestsPageEnabled={canAccessGuests}
         onIntelligencePage={handleIntelligencePage}
         onSwitchHost={onSwitchHost}
         sseStatus={sseStatus}

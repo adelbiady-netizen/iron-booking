@@ -165,6 +165,7 @@ export interface AuthUser {
       openingHour?: string;
       closingHour?: string;
       defaultTurnMinutes?: number;
+      guestsPageEnabled?: boolean;
       [key: string]: unknown;
     };
     operatingHours?: OperatingHourRecord[];

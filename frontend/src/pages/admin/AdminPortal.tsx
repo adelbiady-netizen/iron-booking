@@ -1503,6 +1503,35 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           </div>
         )}
 
+        {/* Feature flags */}
+        {isSuperAdmin && (
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <h3 className="font-medium mb-4">Feature flags</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-iron-text">Guests CRM</p>
+                <p className="text-xs text-iron-muted mt-0.5">Enable or disable the Guests page for this restaurant</p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 cursor-pointer accent-iron-green"
+                  checked={s.guestsPageEnabled !== false}
+                  onChange={async (e) => {
+                    try {
+                      await api.admin.restaurants.settings(selectedId!, { guestsPageEnabled: e.target.checked });
+                      await loadDetail(selectedId!);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                />
+                <span className="text-sm text-iron-text">{s.guestsPageEnabled !== false ? 'Enabled' : 'Disabled'}</span>
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Weekly Schedule */}
         {editSchedule ? (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">

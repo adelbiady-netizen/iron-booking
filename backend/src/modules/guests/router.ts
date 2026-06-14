@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { z } from 'zod';
 import * as service from './service';
+import { prisma } from '../../lib/prisma';
+import { ForbiddenError } from '../../lib/errors';
 
 const router = Router();
 router.use(authenticate);
@@ -38,9 +40,19 @@ const SearchQuerySchema = z.object({
 
 type SearchQuery = z.infer<typeof SearchQuerySchema>;
 
-// GET /guests
-router.get('/', validate(SearchQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
+// GET /guests — guarded by:
+//   1. restaurant feature flag (guestsPageEnabled, default true)
+//   2. minimum role: MANAGER (HOST and SERVER are denied)
+router.get('/', requireRole('MANAGER'), validate(SearchQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: req.auth.restaurantId },
+      select: { settings: true },
+    });
+    const settings = (restaurant?.settings ?? {}) as Record<string, unknown>;
+    if (settings.guestsPageEnabled === false) {
+      throw new ForbiddenError('מודול אורחים לא פעיל');
+    }
     const result = await service.searchGuests(req.auth.restaurantId, req.query as unknown as SearchQuery);
     res.json(result);
   } catch (err) { next(err); }
