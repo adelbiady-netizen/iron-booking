@@ -1,7 +1,9 @@
 import { Router, Request } from 'express';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requireRole } from '../../middleware/auth';
 import * as svc from './service';
 import { seedIntelligenceDemo, clearIntelligenceDemo } from './seeder';
+import { computeLoyaltyScore } from './engine';
+import { prisma } from '../../lib/prisma';
 
 const router = Router({ mergeParams: true });
 
@@ -121,6 +123,86 @@ router.get('/morning-brief', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /restaurants/:restaurantId/intelligence/backfill-v2
+// ADMIN/SUPER_ADMIN only. Recomputes loyaltyScore, engagementScore, gicLabel for all guests.
+// Does NOT send SMS. Does NOT create alerts. Does NOT touch V1 scores.
+// Processes in batches of 50. Returns count + label distribution.
+router.post('/backfill-v2', requireRole('RESTAURANT_ADMIN', 'ADMIN', 'OWNER', 'SUPER_ADMIN'), async (req, res) => {
+  const restaurantId = rid(req);
+  const BATCH = 50;
+
+  // Verify caller has access to this restaurant
+  if (req.auth.role !== 'SUPER_ADMIN' && req.auth.restaurantId !== restaurantId) {
+    res.status(403).json({ error: 'Access denied: restaurant is not yours' });
+    return;
+  }
+
+  try {
+    // Fetch all guest IDs for this restaurant (no reservation filter — include CRM-only guests)
+    const allGuests = await prisma.guest.findMany({
+      where: { restaurantId },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const total = allGuests.length;
+    let processed = 0;
+    const errors: Array<{ guestId: string; error: string }> = [];
+
+    for (let i = 0; i < allGuests.length; i += BATCH) {
+      const batch = allGuests.slice(i, i + BATCH);
+      await Promise.all(batch.map(async ({ id: guestId }) => {
+        try {
+          await computeLoyaltyScore(restaurantId, guestId);
+          processed++;
+        } catch (err) {
+          errors.push({ guestId, error: err instanceof Error ? err.message : String(err) });
+        }
+      }));
+    }
+
+    // Label distribution after backfill
+    const distribution = await prisma.guest.groupBy({
+      by: ['gicLabel'],
+      where: { restaurantId },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    const labelDist: Record<string, number> = {};
+    for (const row of distribution) {
+      labelDist[row.gicLabel ?? 'null'] = row._count.id;
+    }
+
+    // Score ranges for a quick sanity check
+    const scoreStats = await prisma.guest.aggregate({
+      where: { restaurantId, loyaltyScore: { not: null } },
+      _avg: { loyaltyScore: true, engagementScore: true },
+      _max: { loyaltyScore: true },
+      _min: { loyaltyScore: true },
+      _count: { loyaltyScore: true },
+    });
+
+    res.json({
+      total,
+      processed,
+      errors: errors.length,
+      errorDetails: errors.slice(0, 10), // cap to first 10
+      labelDistribution: labelDist,
+      scoreStats: {
+        scored: scoreStats._count.loyaltyScore,
+        avgLoyalty: Math.round((scoreStats._avg.loyaltyScore ?? 0) * 10) / 10,
+        avgEngagement: Math.round((scoreStats._avg.engagementScore ?? 0) * 10) / 10,
+        maxLoyalty: scoreStats._max.loyaltyScore,
+        minLoyalty: scoreStats._min.loyaltyScore,
+      },
+    });
+  } catch (err) {
+    console.error('[backfill-v2]', err);
+    res.status(500).json({ error: 'Backfill failed', detail: String(err) });
   }
 });
 
