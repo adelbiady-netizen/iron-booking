@@ -140,6 +140,64 @@ export default function CallDrawer({
                     const hostNote    = guest.internalNotes && !isImportNote(guest.internalNotes) ? guest.internalNotes : null;
                     return (
                       <>
+                        {/* Club membership badge */}
+                        {guest.clubMembership && (
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border bg-iron-green/15 border-iron-green/35 text-iron-green-light font-semibold tracking-wide">
+                              ♦ IRON CLUB
+                            </span>
+                            {guest.clubMembership.status !== 'ACTIVE' && (
+                              <span className="text-[10px] text-iron-muted/60">({guest.clubMembership.status === 'PAUSED' ? 'מושהה' : 'יצא'})</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Birthday proximity warning */}
+                        {guest.upcomingBirthdayDays !== null && (
+                          <p className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border ${
+                            guest.upcomingBirthdayDays <= 3
+                              ? 'bg-status-warning/15 border-status-warning/35 text-status-warning'
+                              : 'bg-iron-bg border-iron-border/60 text-iron-muted'
+                          }`}>
+                            🎂 {guest.upcomingBirthdayDays === 0
+                              ? 'יום הולדת היום!'
+                              : guest.upcomingBirthdayDays === 1
+                                ? 'יום הולדת מחר'
+                                : `יום הולדת בעוד ${guest.upcomingBirthdayDays} ימים`}
+                          </p>
+                        )}
+
+                        {/* Open recovery case indicator */}
+                        {guest.openRecoveryCaseCount > 0 && (
+                          <p className="text-xs font-medium px-2.5 py-1.5 rounded-lg border bg-red-500/10 border-red-500/30 text-red-400">
+                            ⚠ תיק שירות פתוח
+                          </p>
+                        )}
+
+                        {/* Allergies */}
+                        {guest.allergies.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {guest.allergies.map(a => (
+                              <span key={a} className="text-[10px] px-1.5 py-0.5 bg-red-500/10 border border-red-500/25 rounded-md text-red-400">
+                                {a}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Preferences */}
+                        {(guest.preferences.seatingPref || guest.preferences.dietaryNotes) && (
+                          <div className="text-[11px] text-iron-muted space-y-0.5 pt-0.5">
+                            {guest.preferences.seatingPref && (
+                              <p>📍 {guest.preferences.seatingPref}</p>
+                            )}
+                            {guest.preferences.dietaryNotes && (
+                              <p>🍽 {guest.preferences.dietaryNotes}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Operational tags */}
                         {visibleTags.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-0.5">
                             {visibleTags.map(tag => (

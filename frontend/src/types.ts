@@ -664,6 +664,11 @@ export interface GuestLookupResult {
   visitCount: number;
   noShowCount: number;
   lastVisitAt: string | null;
+  // Extended intelligence fields
+  clubMembership: { status: ClubMemberStatus; joinDate: string } | null;
+  openRecoveryCaseCount: number;
+  upcomingBirthdayDays: number | null;   // null = no birthday or >30 days away
+  preferences: { seatingPref: string | null; dietaryNotes: string | null };
   recentReservations?: Array<{
     id: string;
     date: string;

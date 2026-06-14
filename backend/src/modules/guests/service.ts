@@ -200,7 +200,7 @@ export async function lookupGuestByPhone(restaurantId: string, rawPhone: string)
     ? { OR: [{ phone: normalized }, { phone: alt }] }
     : { phone: normalized };
 
-  return prisma.guest.findFirst({
+  const guest = await prisma.guest.findFirst({
     where: { restaurantId, ...phoneFilter },
     select: {
       id: true,
@@ -210,6 +210,7 @@ export async function lookupGuestByPhone(restaurantId: string, rawPhone: string)
       allergies: true,
       tags: true,
       internalNotes: true,
+      preferences: true,
       visitCount: true,
       noShowCount: true,
       lastVisitAt: true,
@@ -226,8 +227,55 @@ export async function lookupGuestByPhone(restaurantId: string, rawPhone: string)
           table: { select: { name: true } },
         },
       },
+      clubMemberships: {
+        where: { restaurantId },
+        take: 1,
+        select: { status: true, birthday: true, joinDate: true },
+      },
+      recoveryCases: {
+        where: { restaurantId, status: { in: ['OPEN', 'CONTACTED'] } },
+        select: { id: true },
+      },
     },
   });
+
+  if (!guest) return null;
+
+  const clubMember = guest.clubMemberships[0] ?? null;
+  const openRecoveryCaseCount = guest.recoveryCases.length;
+
+  // Compute days until birthday (from ClubMember.birthday "MM-DD")
+  let upcomingBirthdayDays: number | null = null;
+  if (clubMember?.birthday) {
+    const today = new Date();
+    const [mm, dd] = clubMember.birthday.split('-').map(Number);
+    const thisYear = new Date(today.getFullYear(), mm - 1, dd);
+    let diff = Math.ceil((thisYear.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) {
+      const nextYear = new Date(today.getFullYear() + 1, mm - 1, dd);
+      diff = Math.ceil((nextYear.getTime() - today.getTime()) / 86400000);
+    }
+    if (diff <= 30) upcomingBirthdayDays = diff;
+  }
+
+  const prefs = (guest.preferences as Record<string, unknown>) ?? {};
+
+  return {
+    ...guest,
+    clubMembership: clubMember ? { status: clubMember.status, joinDate: clubMember.joinDate } : null,
+    openRecoveryCaseCount,
+    upcomingBirthdayDays,
+    preferences: {
+      seatingPref:   typeof prefs['seatingPref']   === 'string' ? prefs['seatingPref']   : null,
+      dietaryNotes:  typeof prefs['dietaryNotes']  === 'string' ? prefs['dietaryNotes']  : null,
+    },
+    // rename reservations → recentReservations for API consistency
+    recentReservations: guest.reservations,
+    // strip raw fields not needed on client
+    clubMemberships: undefined,
+    recoveryCases: undefined,
+    reservations: undefined,
+  };
 }
 
 export async function mergeGuests(restaurantId: string, primaryId: string, duplicateId: string) {
