@@ -460,8 +460,11 @@ const UpdateSettingsSchema = z.object({
   // Used by the Link webhook to route incoming calls to this restaurant.
   linkGroupIds:              z.array(z.string().trim().regex(/^\d+$/, 'Link group IDs must be numeric')).max(50).optional(),
   // Feature flags
-  guestsPageEnabled:         z.boolean().optional(),
-  feedbackEnabled:           z.boolean().optional(),
+  guestsPageEnabled:          z.boolean().optional(),
+  // IRON CLUB
+  ironClubEnabled:            z.boolean().optional(),
+  ironClubTier:               z.enum(['NONE', 'STARTER', 'MEMBER', 'INTELLIGENCE', 'LUXURY']).optional(),
+  feedbackApprovalRequired:   z.boolean().optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings

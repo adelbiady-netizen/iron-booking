@@ -63,6 +63,11 @@ model Restaurant {
   //   ── Reminders (Phase 5A — Iron Messaging) ───────────────────────────────
   //   reminderEnabled: boolean          (default true — set false to disable all reminder sends)
   //   reminderLeadMinutes: number       (minutes ahead to include in bulk reminder window; default 60)
+  //
+  //   ── IRON CLUB ────────────────────────────────────────────────────────────
+  //   ironClubEnabled: boolean          (master switch — false disables ALL club sub-modules)
+  //   ironClubTier: IronClubTier        ('NONE' | 'STARTER' | 'MEMBER' | 'INTELLIGENCE' | 'LUXURY')
+  //   feedbackApprovalRequired: boolean (default true — feedback SMS requires MANAGER approval before send)
   // }
 
   // Link telephony DID — the number the system routes calls to for this restaurant.
@@ -128,6 +133,7 @@ model Restaurant {
   momentQueue               MomentQueue[]
   morningBriefs             MorningBrief[]
   guestFeedback             GuestFeedback[]
+  clubMembers               ClubMember[]
 
   @@map("restaurants")
 }
@@ -344,6 +350,7 @@ model Guest {
   recoveryCases   RecoveryCase[]
   momentQueue     MomentQueue[]
   feedback        GuestFeedback[]
+  clubMemberships ClubMember[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -928,50 +935,71 @@ model OnlineBookingRestriction {
 // are available (Phase 2).
 
 model MessageLog {
-  id                String          @id @default(uuid())
+  id                String               @id @default(uuid())
   restaurantId      String
   reservationId     String?
   guestId           String?
+  clubMemberId      String?              // set when message is club-context (birthday, anniversary, etc.)
   phone             String
   messageType       MessageType
-  channel           MessageChannel  @default(SMS)
+  channel           MessageChannel       @default(SMS)
   provider          MessageProvider
-  senderName        String? // alphanumeric sender shown to the guest (e.g. "NAJMA"); null for MOCK
-  status            MessageStatus   @default(PENDING)
+  senderName        String?              // alphanumeric sender shown to the guest; null for MOCK
+  status            MessageStatus        @default(PENDING)
   providerMessageId String?
   errorMessage      String?
-  costAgorot        Int? // provider-reported cost in agorot (1/100 ILS); null if not reported
+  costAgorot        Int?                 // provider-reported cost in agorot (1/100 ILS)
+  segmentCount      Int?                 // SMS segment count (for billing; 1 segment ≈ 160 chars)
   body              String
+  // Approval queue — set when feedbackApprovalRequired or future club message rules require it
+  approvalRequired  Boolean              @default(false)
+  approvalStatus    MessageApprovalStatus @default(AUTO_SENT)
+  approvedBy        String?              // userId of approver
+  approvedAt        DateTime?
+  scheduledFor      DateTime?            // when to actually dispatch (null = immediate)
   sentAt            DateTime?
   deliveredAt       DateTime?
   failedAt          DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
-  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  reservation Reservation? @relation(fields: [reservationId], references: [id])
-  guest       Guest?       @relation(fields: [guestId], references: [id])
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  reservation  Reservation? @relation(fields: [reservationId], references: [id])
+  guest        Guest?       @relation(fields: [guestId], references: [id])
+  clubMember   ClubMember?  @relation(fields: [clubMemberId], references: [id])
 
   @@index([restaurantId])
   @@index([restaurantId, messageType])
+  @@index([restaurantId, approvalStatus])
   @@index([reservationId])
   @@map("message_logs")
 }
 
 enum MessageType {
+  // Reservation lifecycle
   CONFIRMATION
   CONFIRMATION_REQUEST
   REMINDER
   TABLE_READY
   WAITLIST
+  RESERVATION_RECEIVED
+  // Club / IRON CLUB
+  FEEDBACK_REQUEST
+  BIRTHDAY
+  ANNIVERSARY
+  WIN_BACK
+  RECOVERY_OUTREACH
+  VIP_OUTREACH
+  BROADCAST
+  // System
   MANUAL
   SYSTEM
-  RESERVATION_RECEIVED
-  FEEDBACK_REQUEST
 }
 
 enum MessageChannel {
   SMS
+  WHATSAPP
+  EMAIL
 }
 
 enum MessageProvider {
@@ -981,9 +1009,18 @@ enum MessageProvider {
 
 enum MessageStatus {
   PENDING
+  QUEUED_FOR_APPROVAL
   SENT
   DELIVERED
   FAILED
+  REJECTED
+}
+
+enum MessageApprovalStatus {
+  AUTO_SENT         // no approval required — sent immediately
+  PENDING_APPROVAL  // waiting for a manager to approve
+  APPROVED          // approved, will be sent at scheduledFor or immediately
+  REJECTED          // manager rejected, will not be sent
 }
 
 // ─── Guest Intelligence Center ────────────────────────────────────────────────
@@ -1022,6 +1059,31 @@ enum MomentType {
   BIRTHDAY_ECHO        // first visit near birthday
   ANNIVERSARY_ECHO     // first visit near anniversary
   RECOVERY_SEALED      // guest returned after bad experience
+  FEEDBACK_REQUEST     // post-visit feedback invitation (requires approval if feedbackApprovalRequired)
+}
+
+enum IronClubTier {
+  NONE           // club not active for this restaurant
+  STARTER        // feedback collection + basic alerts
+  MEMBER         // + ClubMember enrollment + recovery workflow
+  INTELLIGENCE   // + VIP scoring + MomentQueue outbound
+  LUXURY         // + gifts + birthday/anniversary automation + full campaign suite
+}
+
+enum ClubJoinSource {
+  HOST_STAFF
+  RESERVATION_LINK
+  FEEDBACK_FLOW
+  QR_CODE
+  WEBSITE
+  IMPORT
+  MANUAL
+}
+
+enum ClubMemberStatus {
+  ACTIVE
+  PAUSED
+  OPTED_OUT
 }
 
 enum MomentStatus {
@@ -1159,4 +1221,36 @@ enum FeedbackSentiment {
   EXCELLENT
   GOOD
   BAD
+}
+
+// ─── IRON CLUB ────────────────────────────────────────────────────────────────
+// Per-restaurant club membership. A guest may hold memberships at multiple
+// restaurants; uniqueness is scoped to (restaurantId, guestId).
+
+model ClubMember {
+  id                String           @id @default(uuid())
+  restaurantId      String
+  guestId           String
+  joinDate          DateTime         @default(now())
+  source            ClubJoinSource
+  // Personal dates (MM-DD format — year intentionally omitted for privacy)
+  birthday          String?          // "MM-DD"
+  anniversary       String?          // "MM-DD"
+  // Consent flags — explicit opt-in required before any club messaging
+  marketingConsent  Boolean          @default(false)
+  smsConsent        Boolean          @default(false)
+  emailConsent      Boolean          @default(false)
+  status            ClubMemberStatus @default(ACTIVE)
+  notes             String?          // internal staff notes
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest       Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  messageLogs MessageLog[]
+
+  @@unique([restaurantId, guestId])
+  @@index([restaurantId])
+  @@index([restaurantId, status])
+  @@map("club_members")
 }

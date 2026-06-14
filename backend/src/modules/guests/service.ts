@@ -72,6 +72,10 @@ export async function getGuest(restaurantId: string, id: string) {
         take: 20,
         include: { table: { select: { name: true } } },
       },
+      clubMemberships: {
+        where: { restaurantId },
+        take: 1,
+      },
     },
   });
   if (!g || g.restaurantId !== restaurantId) throw new NotFoundError('Guest', id);

@@ -1,3 +1,71 @@
+// ─── IRON CLUB ───────────────────────────────────────────────────────────────
+
+export type IronClubTier = 'NONE' | 'STARTER' | 'MEMBER' | 'INTELLIGENCE' | 'LUXURY';
+
+export type ClubJoinSource =
+  | 'HOST_STAFF'
+  | 'RESERVATION_LINK'
+  | 'FEEDBACK_FLOW'
+  | 'QR_CODE'
+  | 'WEBSITE'
+  | 'IMPORT'
+  | 'MANUAL';
+
+export type ClubMemberStatus = 'ACTIVE' | 'PAUSED' | 'OPTED_OUT';
+
+export interface ClubMember {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  joinDate: string;
+  source: ClubJoinSource;
+  birthday: string | null;   // "MM-DD"
+  anniversary: string | null;
+  marketingConsent: boolean;
+  smsConsent: boolean;
+  emailConsent: boolean;
+  status: ClubMemberStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  guest?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    email: string | null;
+    visitCount: number;
+    vipScore: number | null;
+    isVip: boolean;
+    lastVisitAt: string | null;
+    firstVisitAt?: string | null;
+    silentScore?: number | null;
+    allergies?: string[];
+    tags?: string[];
+    internalNotes?: string | null;
+  };
+}
+
+export interface ClubStats {
+  total: number;
+  active: number;
+  optedOut: number;
+  paused: number;
+}
+
+export interface PendingApproval {
+  id: string;
+  restaurantId: string;
+  guestId: string;
+  type: string;
+  status: string;
+  draftMessage: string;
+  createdAt: string;
+  guest?: { id: string; firstName: string; lastName: string; phone: string | null };
+}
+
+// ─── Reservation status ───────────────────────────────────────────────────────
+
 export type ReservationStatus =
   | 'PENDING'
   | 'CONFIRMED'
@@ -166,7 +234,9 @@ export interface AuthUser {
       closingHour?: string;
       defaultTurnMinutes?: number;
       guestsPageEnabled?: boolean;
-      feedbackEnabled?: boolean;
+      ironClubEnabled?: boolean;
+      ironClubTier?: IronClubTier;
+      feedbackApprovalRequired?: boolean;
       [key: string]: unknown;
     };
     operatingHours?: OperatingHourRecord[];
@@ -447,6 +517,7 @@ export interface GuestDetail extends GuestListItem {
   tags: string[];
   preferences: Record<string, unknown>;
   internalNotes: string | null;
+  clubMembership?: ClubMember | null;
   reservations: Array<{
     id: string;
     date: string;

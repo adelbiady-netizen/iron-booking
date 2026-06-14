@@ -632,6 +632,51 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
                     </div>
                   </Section>
 
+                  {/* IRON CLUB membership card */}
+                  {guest.clubMembership && (
+                    <Section title="♦ IRON CLUB">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-iron-muted">סטטוס חברות</span>
+                          <span className={`text-[11px] font-semibold rounded-full px-2 py-0.5 ${
+                            guest.clubMembership.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                            guest.clubMembership.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-600'
+                          }`}>
+                            {guest.clubMembership.status === 'ACTIVE' ? 'פעיל' :
+                             guest.clubMembership.status === 'PAUSED' ? 'מושהה' : 'יצא'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-iron-muted">תאריך הצטרפות</span>
+                          <span className="text-[12px] text-iron-text">
+                            {new Date(guest.clubMembership.joinDate).toLocaleDateString('he-IL')}
+                          </span>
+                        </div>
+                        {guest.clubMembership.birthday && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] text-iron-muted">🎂 יום הולדת</span>
+                            <span className="text-[12px] text-iron-text">{guest.clubMembership.birthday.split('-').reverse().join('/')}</span>
+                          </div>
+                        )}
+                        {guest.clubMembership.anniversary && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] text-iron-muted">💍 יום נישואין</span>
+                            <span className="text-[12px] text-iron-text">{guest.clubMembership.anniversary.split('-').reverse().join('/')}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap mt-1">
+                          {guest.clubMembership.smsConsent && (
+                            <span className="text-[10px] bg-iron-card border border-iron-border/30 rounded-full px-2 py-0.5 text-iron-muted/70">SMS ✓</span>
+                          )}
+                          {guest.clubMembership.marketingConsent && (
+                            <span className="text-[10px] bg-iron-card border border-iron-border/30 rounded-full px-2 py-0.5 text-iron-muted/70">שיווק ✓</span>
+                          )}
+                        </div>
+                      </div>
+                    </Section>
+                  )}
+
                   <Section title="הערות פנימיות">
                     {editNotes ? (
                       <div className="space-y-2">

@@ -369,6 +369,39 @@ export const api = {
       request<GuestDetail>(`/guests/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   },
 
+  club: {
+    members: (restaurantId: string, params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+      const qs = params ? new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+      ).toString() : '';
+      return request<{ data: import('./types').ClubMember[]; meta: { total: number; page: number; limit: number } }>(
+        `/restaurants/${restaurantId}/club/members${qs ? `?${qs}` : ''}`
+      );
+    },
+    getMember: (restaurantId: string, memberId: string) =>
+      request<import('./types').ClubMember>(`/restaurants/${restaurantId}/club/members/${memberId}`),
+    addMember: (restaurantId: string, body: {
+      guestId: string; source: import('./types').ClubJoinSource;
+      birthday?: string; anniversary?: string;
+      marketingConsent?: boolean; smsConsent?: boolean; emailConsent?: boolean; notes?: string;
+    }) =>
+      request<import('./types').ClubMember>(`/restaurants/${restaurantId}/club/members`, {
+        method: 'POST', body: JSON.stringify(body),
+      }),
+    updateMember: (restaurantId: string, memberId: string, body: Partial<{
+      birthday: string | null; anniversary: string | null;
+      marketingConsent: boolean; smsConsent: boolean; emailConsent: boolean;
+      status: import('./types').ClubMemberStatus; notes: string | null;
+    }>) =>
+      request<import('./types').ClubMember>(`/restaurants/${restaurantId}/club/members/${memberId}`, {
+        method: 'PATCH', body: JSON.stringify(body),
+      }),
+    stats: (restaurantId: string) =>
+      request<import('./types').ClubStats>(`/restaurants/${restaurantId}/club/stats`),
+    pendingApprovals: (restaurantId: string) =>
+      request<import('./types').PendingApproval[]>(`/restaurants/${restaurantId}/club/pending-approvals`),
+  },
+
   feedback: {
     get: (token: string) =>
       request<{

@@ -22,6 +22,7 @@ import callLogsRouter      from './modules/calls/router';
 import smsRouter           from './modules/sms/router';
 import intelligenceRouter  from './modules/intelligence/router';
 import feedbackRouter      from './modules/feedback/router';
+import clubRouter          from './modules/club/router';
 
 const app = express();
 
@@ -110,6 +111,7 @@ app.use('/api/call-logs',           callLogsRouter);
 app.use('/api/sms',                 smsRouter);
 app.use('/api/restaurants/:restaurantId/intelligence', intelligenceRouter);
 app.use('/api/feedback', feedbackRouter);
+app.use('/api/restaurants/:restaurantId/club', clubRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

@@ -20,6 +20,7 @@ import LayoutEditor from '../components/LayoutEditor';
 import LockTableModal from '../components/LockTableModal';
 import GuestsPage from './GuestsPage';
 import IntelligencePage from './IntelligencePage';
+import ClubCenterPage from './ClubCenterPage';
 import HostsSettingsPage from './HostsSettingsPage';
 import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
@@ -195,7 +196,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
-  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity' | 'intelligence'>('dashboard');
+  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity' | 'intelligence' | 'club'>('dashboard');
   const [layoutMode,                  setLayoutMode]                  = useState(false);
   const [createMode,                  setCreateMode]                  = useState<CreateMode | null>(null);
   const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
@@ -1975,6 +1976,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }
 
+  const canAccessClub =
+    !!auth.user.restaurant?.settings?.ironClubEnabled &&
+    !(['HOST', 'SERVER'] as const).includes(auth.user.role as 'HOST' | 'SERVER');
+
+  if (activePage === 'club' && canAccessClub && auth.user.restaurant?.id) {
+    return (
+      <>
+        <ClubCenterPage
+          restaurantId={auth.user.restaurant.id}
+          onBack={() => setActivePage('dashboard')}
+        />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
   if (layoutMode) {
     return (
       <LayoutEditor
@@ -2110,6 +2127,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
               >
                 {T.hostDashboard.hostsBtn}
+              </button>
+            )}
+            {canAccessClub && (
+              <button
+                onClick={() => { setShowMoreMenu(false); setActivePage('club'); }}
+                className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors flex items-center gap-1.5"
+              >
+                <span>♦</span> IRON CLUB
               </button>
             )}
             <button

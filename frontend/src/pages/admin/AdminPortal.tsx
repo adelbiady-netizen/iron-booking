@@ -1503,8 +1503,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           </div>
         )}
 
-        {/* Feature flags */}
+        {/* Feature flags + IRON CLUB */}
         {isSuperAdmin && (
+          <>
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <h3 className="font-medium mb-4">Feature flags</h3>
             <div className="flex items-center justify-between">
@@ -1529,31 +1530,75 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <span className="text-sm text-iron-text">{s.guestsPageEnabled !== false ? 'Enabled' : 'Disabled'}</span>
               </label>
             </div>
+          </div>
 
-            {/* Feedback */}
+          {/* ── IRON CLUB ── */}
+          <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4 mt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-base">♦</span>
+              <h3 className="font-medium text-iron-text text-sm">IRON CLUB</h3>
+            </div>
+
+            {/* Master switch */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-iron-text">Emotional Feedback</p>
-                <p className="text-xs text-iron-muted mt-0.5">Send post-visit SMS feedback requests to guests</p>
+                <p className="text-sm text-iron-text">מופעל</p>
+                <p className="text-xs text-iron-muted mt-0.5">הפעלת כל מודולי IRON CLUB למסעדה זו</p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 cursor-pointer accent-iron-green"
-                  checked={s.feedbackEnabled !== false}
+                <input type="checkbox" className="w-4 h-4 cursor-pointer accent-iron-green"
+                  checked={!!s.ironClubEnabled}
                   onChange={async (e) => {
-                    try {
-                      await api.admin.restaurants.settings(selectedId!, { feedbackEnabled: e.target.checked });
-                      await loadDetail(selectedId!);
-                    } catch {
-                      // ignore
-                    }
+                    try { await api.admin.restaurants.settings(selectedId!, { ironClubEnabled: e.target.checked }); await loadDetail(selectedId!); } catch { /* ignore */ }
                   }}
                 />
-                <span className="text-sm text-iron-text">{s.feedbackEnabled !== false ? 'Enabled' : 'Disabled'}</span>
+                <span className="text-sm text-iron-text">{s.ironClubEnabled ? 'פעיל' : 'כבוי'}</span>
               </label>
             </div>
+
+            {/* Tier selector */}
+            {!!s.ironClubEnabled && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-iron-text">רמת קלאב</p>
+                    <p className="text-xs text-iron-muted mt-0.5">קובע אילו יכולות זמינות למסעדה</p>
+                  </div>
+                  <select
+                    className="text-sm bg-iron-card border border-iron-border rounded-lg px-3 py-1.5 text-iron-text"
+                    value={(s.ironClubTier as string) ?? 'STARTER'}
+                    onChange={async (e) => {
+                      try { await api.admin.restaurants.settings(selectedId!, { ironClubTier: e.target.value as 'NONE' | 'STARTER' | 'MEMBER' | 'INTELLIGENCE' | 'LUXURY' }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                    }}
+                  >
+                    <option value="NONE">NONE — ללא גישה</option>
+                    <option value="STARTER">STARTER — משוב + התראות</option>
+                    <option value="MEMBER">MEMBER — + חברות + שחזור</option>
+                    <option value="INTELLIGENCE">INTELLIGENCE — + VIP + תור הודעות</option>
+                    <option value="LUXURY">LUXURY — + מתנות + אוטומציה מלאה</option>
+                  </select>
+                </div>
+
+                {/* Feedback approval mode */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-iron-text">אישור הודעות משוב</p>
+                    <p className="text-xs text-iron-muted mt-0.5">דורש אישור מנהל לפני שליחת SMS משוב</p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 cursor-pointer accent-iron-green"
+                      checked={s.feedbackApprovalRequired !== false}
+                      onChange={async (e) => {
+                        try { await api.admin.restaurants.settings(selectedId!, { feedbackApprovalRequired: e.target.checked }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                      }}
+                    />
+                    <span className="text-sm text-iron-text">{s.feedbackApprovalRequired !== false ? 'נדרש אישור' : 'שליחה אוטומטית'}</span>
+                  </label>
+                </div>
+              </>
+            )}
           </div>
+          </>
         )}
 
         {/* Weekly Schedule */}
