@@ -152,6 +152,117 @@ function AlertBadge({ alert, onDismiss }: { alert: GuestAlertRecord; onDismiss: 
   );
 }
 
+// ─── Guest Intelligence Panel (always-visible header strip) ─────────────────
+
+function loyaltyTier(visits: number): { label: string; cls: string } {
+  if (visits >= 25) return { label: 'נאמן מאוד', cls: 'text-status-warning bg-status-warning/14 border-status-warning/28' };
+  if (visits >= 13) return { label: 'נאמן',      cls: 'text-iron-green-light bg-iron-green/12 border-iron-green/25' };
+  if (visits >= 6)  return { label: 'קבוע',      cls: 'text-iron-green-light bg-iron-green/10 border-iron-green/20' };
+  if (visits >= 3)  return { label: 'מוכר',      cls: 'text-iron-muted/70 bg-iron-border/15 border-iron-border/28' };
+  return              { label: 'חדש',            cls: 'text-iron-muted/50 bg-iron-border/10 border-iron-border/20' };
+}
+
+function silentRisk(score: number | null | undefined): { label: string; cls: string } | null {
+  if (!score || score < 30) return null;
+  if (score >= 80) return { label: `בסיכון גבוה · ${score}`, cls: 'text-status-danger bg-red-900/12 border-red-900/25' };
+  if (score >= 60) return { label: `בסיכון · ${score}`,      cls: 'text-orange-400 bg-orange-900/12 border-orange-900/25' };
+  return                   { label: `במעקב · ${score}`,      cls: 'text-iron-muted/70 bg-iron-border/15 border-iron-border/25' };
+}
+
+function daysAgoLabel(iso: string | null): string {
+  if (!iso) return 'טרם ביקר';
+  const days = Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days === 0) return 'ביקר היום';
+  if (days === 1) return 'ביקר אתמול';
+  return `לפני ${days} ימים`;
+}
+
+function IntelPanel({ guest, intel }: { guest: GuestDetail; intel: GuestIntelligence | null }) {
+  const gicStats = intel?.guest;
+  const alerts   = intel?.alerts ?? [];
+  const memories = intel?.memories ?? [];
+
+  const tier   = loyaltyTier(guest.visitCount);
+  const silent = silentRisk(gicStats?.silentScore);
+
+  const recoveryAlert    = alerts.find(a => a.type === 'RECOVERY_OPEN');
+  const birthdayAlert    = alerts.find(a => a.type === 'BIRTHDAY_SOON');
+  const anniversaryAlert = alerts.find(a => a.type === 'ANNIVERSARY_SOON');
+
+  // best memory to preview: preference first, then highest emotional weight
+  const topMemory = memories.find(m => m.category === 'PREFERENCE')
+    ?? (memories.length > 0
+        ? memories.reduce((best, m) => m.emotionalWeight > best.emotionalWeight ? m : best)
+        : null);
+
+  const hasAlertRow = !!(recoveryAlert || birthdayAlert || anniversaryAlert);
+
+  return (
+    <div className="space-y-2">
+      {/* ── Row 1: loyalty + last visit + silent risk ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${tier.cls}`}>
+          {guest.visitCount} ביקורים · {tier.label}
+        </span>
+
+        <span className="text-iron-muted/50 text-[11px]">
+          ·
+        </span>
+        <span className="text-iron-muted/60 text-[11px] font-medium">
+          {daysAgoLabel(guest.lastVisitAt)}
+        </span>
+
+        {silent && (
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1 ${silent.cls}`}>
+            <span className="text-[10px]">⚠️</span>
+            {silent.label}
+          </span>
+        )}
+
+        {guest.noShowCount > 0 && (
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-orange-900/10 border-orange-900/20 text-orange-400">
+            {guest.noShowCount}× לא הגיע
+          </span>
+        )}
+      </div>
+
+      {/* ── Row 2: urgent alert signals (read-only, non-dismissible) ── */}
+      {hasAlertRow && (
+        <div className="flex flex-col gap-1.5">
+          {recoveryAlert && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border bg-red-900/10 border-red-900/22 text-status-danger">
+              <span className="text-[13px] leading-none shrink-0">🔧</span>
+              <span className="text-[12px] font-semibold">{recoveryAlert.headline}</span>
+            </div>
+          )}
+          {birthdayAlert && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border bg-status-warning/10 border-status-warning/22 text-status-warning">
+              <span className="text-[13px] leading-none shrink-0">🎂</span>
+              <span className="text-[12px] font-semibold">{birthdayAlert.headline}</span>
+            </div>
+          )}
+          {anniversaryAlert && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border bg-pink-900/10 border-pink-900/22 text-pink-400">
+              <span className="text-[13px] leading-none shrink-0">💍</span>
+              <span className="text-[12px] font-semibold">{anniversaryAlert.headline}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Row 3: top memory preview ── */}
+      {topMemory && (
+        <div className="flex items-center gap-1.5 py-0.5">
+          <span className="text-[14px] leading-none shrink-0">{MEMORY_ICON[topMemory.category] ?? '📌'}</span>
+          <span className="text-iron-muted/65 text-[11px] truncate">{topMemory.headline}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function RecoverySection({
   cases,
   restaurantId,
@@ -413,19 +524,8 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
               )}
 
               {!loading && guest && (
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  <StatChip label="ביקורים" value={guest.visitCount} />
-                  {guest.noShowCount > 0 && (
-                    <StatChip label="לא הגיעו" value={guest.noShowCount} warn />
-                  )}
-                  {guest.cancelCount > 0 && (
-                    <StatChip label="ביטולים" value={guest.cancelCount} muted />
-                  )}
-                  {gicStats?.avgVisitIntervalDays && (
-                    <span className="text-iron-muted/45 text-[11px]">
-                      כל ~{Math.round(gicStats.avgVisitIntervalDays)} ימים
-                    </span>
-                  )}
+                <div className="mt-2.5">
+                  <IntelPanel guest={guest} intel={intel} />
                 </div>
               )}
             </div>
@@ -438,15 +538,6 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
               ×
             </button>
           </div>
-
-          {/* Alerts banner (top of header, dismissible) */}
-          {alerts.length > 0 && (
-            <div className="mb-3 space-y-1">
-              {alerts.slice(0, 3).map(a => (
-                <AlertBadge key={a.id} alert={a} onDismiss={dismissAlert} />
-              ))}
-            </div>
-          )}
 
           {/* Tabs */}
           <div className="flex items-end gap-0 border-b border-iron-border/40 -mx-5 px-5 overflow-x-auto">
@@ -600,6 +691,15 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
               {/* ── זיכרונות ── */}
               {tab === 'memory' && (
                 <div>
+                  {/* Dismissible alerts */}
+                  {alerts.length > 0 && (
+                    <div className="mb-3 space-y-1.5">
+                      {alerts.map(a => (
+                        <AlertBadge key={a.id} alert={a} onDismiss={dismissAlert} />
+                      ))}
+                    </div>
+                  )}
+
                   {/* GIC stats strip */}
                   {gicStats && (
                     <div className="flex gap-3 mb-4 flex-wrap">
@@ -701,18 +801,6 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
 
 // ─── Small atoms ──────────────────────────────────────────────────────────────
 
-function StatChip({ label, value, warn, muted }: { label: string; value: number; warn?: boolean; muted?: boolean }) {
-  return (
-    <div className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${
-      warn  ? 'bg-orange-900/15 border-orange-900/25 text-orange-400' :
-      muted ? 'bg-iron-border/15 border-iron-border/25 text-iron-muted/60' :
-              'bg-iron-green/12 border-iron-green/25 text-iron-green-light'
-    }`}>
-      <span className="font-black tabular-nums">{value}</span>
-      <span className="font-medium opacity-80">{label}</span>
-    </div>
-  );
-}
 
 function Section({ title, children }: { title: string; children: import('react').ReactNode }) {
   return (
