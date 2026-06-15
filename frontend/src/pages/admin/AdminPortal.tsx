@@ -2836,9 +2836,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     ];
     const MEMBER_STATUS_HE: Record<string, string> = { ACTIVE: 'פעיל', PAUSED: 'מושהה', OPTED_OUT: 'ביטל' };
     const MEMBER_STATUS_COLOR: Record<string, string> = {
-      ACTIVE: 'text-iron-green bg-iron-green/10',
-      PAUSED: 'text-status-warning bg-status-warning/10',
-      OPTED_OUT: 'text-iron-muted bg-iron-border',
+      ACTIVE: 'text-iron-green bg-iron-green/10 border border-iron-green/20',
+      PAUSED: 'text-status-warning bg-status-warning/10 border border-status-warning/20',
+      OPTED_OUT: 'text-iron-muted bg-iron-border border border-iron-border',
     };
     const ALERT_TYPE_HE: Record<string, string> = {
       FEEDBACK_NEGATIVE: 'משוב שלילי', VIP_AT_RISK: 'VIP בסיכון', HIGH_NOSHOW: 'אי-הופעות רבות',
@@ -2846,39 +2846,45 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       BIRTHDAY_SOON: 'יום הולדת קרוב', ANNIVERSARY_SOON: 'יובל קרוב',
     };
     const MOMENT_STATUS_HE: Record<string, string> = {
-      DRAFT: 'טיוטה', PENDING: 'ממתין', SENT: 'נשלח', APPROVED: 'אושר',
+      DRAFT: 'טיוטה', PENDING: 'ממתין לשליחה', SENT: 'נשלח', APPROVED: 'אושר',
       REJECTED: 'נדחה', SCHEDULED: 'מתוזמן', CANCELLED: 'בוטל',
     };
     const MOMENT_STATUS_COLOR: Record<string, string> = {
-      DRAFT: 'text-iron-muted bg-iron-border', PENDING: 'text-status-warning bg-status-warning/10',
-      SENT: 'text-iron-green bg-iron-green/10', APPROVED: 'text-status-reserved bg-status-reserved/10',
-      REJECTED: 'text-status-danger bg-status-danger/10',
-      SCHEDULED: 'text-status-reserved bg-status-reserved/10', CANCELLED: 'text-iron-muted bg-iron-border',
+      DRAFT: 'text-iron-muted bg-iron-border border border-iron-border',
+      PENDING: 'text-status-warning bg-status-warning/10 border border-status-warning/20',
+      SENT: 'text-iron-green bg-iron-green/10 border border-iron-green/20',
+      APPROVED: 'text-status-reserved bg-status-reserved/10 border border-status-reserved/20',
+      REJECTED: 'text-status-danger bg-status-danger/10 border border-status-danger/20',
+      SCHEDULED: 'text-status-reserved bg-status-reserved/10 border border-status-reserved/20',
+      CANCELLED: 'text-iron-muted bg-iron-border border border-iron-border',
     };
     const SOURCE_HE: Record<string, string> = {
       HOST_STAFF: 'צוות', RESERVATION_LINK: 'לינק הזמנה', FEEDBACK_FLOW: 'טופס משוב',
-      QR_CODE: 'QR', WEBSITE: 'אתר', IMPORT: 'ייבוא', MANUAL: 'ידני',
+      QR_CODE: 'QR קוד', WEBSITE: 'אתר', IMPORT: 'ייבוא', MANUAL: 'ידני',
     };
 
     const Spinner = () => (
       <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin shrink-0" />
     );
     const LoadingRow = () => (
-      <div className="flex items-center justify-center gap-2 text-iron-muted text-sm py-16">
-        <Spinner /><span>טוען...</span>
+      <div className="flex items-center justify-center gap-2 text-iron-muted text-sm py-20">
+        <Spinner /><span>טוען נתונים...</span>
       </div>
     );
     const EmptyRow = ({ msg }: { msg: string }) => (
-      <p className="text-center text-iron-muted text-sm py-16">{msg}</p>
+      <p className="text-center text-iron-muted text-sm py-20">{msg}</p>
     );
     const ErrorRow = ({ msg }: { msg: string }) => (
-      <div className="text-xs text-red-400 bg-red-900/20 border border-red-900/30 rounded p-3 m-4">{msg}</div>
+      <div className="m-4 text-xs text-red-400 bg-red-900/20 border border-red-900/30 rounded-lg p-4 flex items-start gap-2">
+        <span className="shrink-0 mt-0.5">⚠</span><span>{msg}</span>
+      </div>
     );
     const NoRestaurant = () => (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-2xl">🏪</p>
-          <p className="text-iron-muted text-sm">בחר מסעדה בסרגל הצד</p>
+        <div className="text-center space-y-3">
+          <p className="text-3xl">🏪</p>
+          <p className="text-iron-text font-medium text-sm">בחר מסעדה</p>
+          <p className="text-iron-muted text-xs">בחר מסעדה בסרגל הצד כדי לצפות בנתוני IRON CLUB</p>
         </div>
       </div>
     );
@@ -2888,43 +2894,104 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       if (!backfillRestaurantId) return <NoRestaurant />;
       if (icLoading) return <LoadingRow />;
       if (icError) return <ErrorRow msg={icError} />;
-      const stats = [
-        { label: 'חברי מועדון', value: icClubStats?.total ?? '—', sub: `${icClubStats?.active ?? 0} פעילים`, color: 'text-iron-green' },
-        { label: 'מושהים / ביטלו', value: (icClubStats?.paused ?? 0) + (icClubStats?.optedOut ?? 0), sub: `${icClubStats?.optedOut ?? 0} ביטלו לחלוטין`, color: 'text-iron-muted' },
-        { label: 'התראות פתוחות', value: icAlerts?.unreadCount ?? '—', sub: `${icAlerts?.critical.length ?? 0} קריטיות`, color: 'text-status-danger' },
-        { label: 'מקרי שחזור', value: (icRecovStats?.open ?? 0) + (icRecovStats?.contacted ?? 0), sub: `${icRecovStats?.criticalOpen ?? 0} קריטיים`, color: 'text-status-warning' },
-        { label: 'מקרים נסגרו', value: icRecovStats?.resolved ?? '—', sub: 'טופלו עד כה', color: 'text-iron-text' },
-        { label: 'אירועים קרובים', value: icAlerts?.upcoming.length ?? '—', sub: 'ימי הולדת ויובלים', color: 'text-status-reserved' },
+      const kpis = [
+        {
+          label: 'חברים רשומים',
+          help: 'מספר האורחים שהצטרפו למועדון',
+          value: icClubStats?.total ?? '—',
+          sub: `מתוכם ${icClubStats?.active ?? 0} פעילים`,
+          color: 'text-iron-green',
+          border: 'border-iron-green/20',
+        },
+        {
+          label: 'לא פעילים',
+          help: 'מושהים או ביטלו הצטרפות',
+          value: (icClubStats?.paused ?? 0) + (icClubStats?.optedOut ?? 0),
+          sub: `${icClubStats?.optedOut ?? 0} הסירו את עצמם`,
+          color: 'text-iron-muted',
+          border: 'border-iron-border',
+        },
+        {
+          label: 'דורשות טיפול',
+          help: 'התראות שטרם טופלו — לחץ על "התראות" לפרטים',
+          value: icAlerts?.unreadCount ?? '—',
+          sub: `${icAlerts?.critical.length ?? 0} קריטיות`,
+          color: (icAlerts?.critical.length ?? 0) > 0 ? 'text-status-danger' : 'text-iron-text',
+          border: (icAlerts?.critical.length ?? 0) > 0 ? 'border-status-danger/20' : 'border-iron-border',
+        },
+        {
+          label: 'אורחים בסיכון',
+          help: 'אורחים שלא חזרו זמן רב או שנפגעו מאירוע — מחכים לפנייה',
+          value: (icRecovStats?.open ?? 0) + (icRecovStats?.contacted ?? 0),
+          sub: `${icRecovStats?.criticalOpen ?? 0} דחופים`,
+          color: (icRecovStats?.criticalOpen ?? 0) > 0 ? 'text-status-warning' : 'text-iron-text',
+          border: (icRecovStats?.criticalOpen ?? 0) > 0 ? 'border-status-warning/20' : 'border-iron-border',
+        },
+        {
+          label: 'אורחים שחזרו',
+          help: 'מקרים שטופלו בהצלחה — אורח שחזר אחרי מעקב',
+          value: icRecovStats?.resolved ?? '—',
+          sub: 'טופלו בהצלחה',
+          color: 'text-iron-text',
+          border: 'border-iron-border',
+        },
+        {
+          label: 'אירועים השבוע',
+          help: 'ימי הולדת ויובלים של אורחים — מוצג בלשונית "אירועים"',
+          value: icAlerts?.upcoming.length ?? '—',
+          sub: 'ימי הולדת ויובלים',
+          color: 'text-status-reserved',
+          border: 'border-status-reserved/20',
+        },
       ];
       return (
-        <div className="p-6 space-y-6 overflow-y-auto h-full" dir="rtl">
+        <div className="p-5 space-y-6 overflow-y-auto h-full" dir="rtl">
           <div className="grid grid-cols-3 gap-3">
-            {stats.map(c => (
-              <div key={c.label} className="bg-iron-card border border-iron-border rounded-lg p-4">
-                <p className="text-[11px] text-iron-muted mb-1">{c.label}</p>
-                <p className={`text-2xl font-bold ${c.color}`}>{c.value}</p>
-                <p className="text-[11px] text-iron-muted mt-0.5">{c.sub}</p>
+            {kpis.map(c => (
+              <div key={c.label} className={`bg-iron-card border ${c.border} rounded-lg p-4 group relative`}>
+                <p className="text-[11px] text-iron-muted mb-0.5 leading-tight">{c.label}</p>
+                <p className={`text-2xl font-bold mt-1 ${c.color}`}>{c.value}</p>
+                <p className="text-[10px] text-iron-muted/70 mt-1 leading-tight">{c.sub}</p>
+                <p className="text-[10px] text-iron-muted/40 mt-2 leading-snug hidden group-hover:block">{c.help}</p>
               </div>
             ))}
           </div>
           {icAlerts && icAlerts.critical.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-status-danger uppercase tracking-wide mb-2">⚠ קריטי</p>
+              <p className="text-xs font-semibold text-status-danger mb-3 flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-status-danger" />
+                התראות קריטיות — דורשות טיפול מיידי
+              </p>
               <div className="space-y-2">
                 {icAlerts.critical.slice(0, 5).map(a => (
-                  <div key={a.id} className="flex items-start gap-2 text-xs bg-red-900/10 border border-red-900/20 rounded-lg p-3">
-                    <div className="flex-1">
-                      <p className="text-iron-text font-medium">{a.headline}</p>
-                      {a.context && <p className="text-iron-muted mt-0.5">{a.context}</p>}
-                      {a.guest && <p className="text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}{a.guest.visitCount > 0 ? ` · ${a.guest.visitCount} ביקורים` : ''}</p>}
+                  <div key={a.id} className="flex items-start gap-3 text-xs bg-red-900/10 border border-red-900/25 rounded-lg p-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-iron-text font-semibold leading-snug">{a.headline}</p>
+                      {a.context && <p className="text-iron-muted mt-0.5 leading-snug">{a.context}</p>}
+                      {a.guest && (
+                        <p className="text-iron-muted mt-1">
+                          {a.guest.firstName} {a.guest.lastName}
+                          {a.guest.visitCount > 0 && <span className="text-iron-muted/60"> · {a.guest.visitCount} ביקורים</span>}
+                        </p>
+                      )}
                     </div>
-                    <span className="text-[10px] text-iron-muted/60 shrink-0 mt-0.5">{ALERT_TYPE_HE[a.type] ?? a.type}</span>
+                    <span className="text-[10px] text-status-danger/70 shrink-0 font-medium mt-0.5 bg-red-900/20 px-1.5 py-0.5 rounded">
+                      {ALERT_TYPE_HE[a.type] ?? a.type}
+                    </span>
                   </div>
                 ))}
+                {icAlerts.critical.length > 5 && (
+                  <p className="text-xs text-iron-muted text-center py-1">ועוד {icAlerts.critical.length - 5} — ראה לשונית "התראות"</p>
+                )}
               </div>
             </div>
           )}
-          {(!icClubStats && !icRecovStats && !icAlerts) && <EmptyRow msg="אין נתונים — הרץ עדכון ניקוד לאתחול" />}
+          {(!icClubStats && !icRecovStats && !icAlerts) && (
+            <div className="text-center py-10 space-y-2">
+              <p className="text-iron-muted text-sm">אין נתונים עדיין</p>
+              <p className="text-iron-muted/60 text-xs">לחץ על "עדכון ניקוד" כדי לאתחל את IRON CLUB עבור מסעדה זו</p>
+            </div>
+          )}
         </div>
       );
     };
@@ -2941,56 +3008,80 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             const g = m.guest;
             if (!g) return false;
             return `${g.firstName} ${g.lastName}`.toLowerCase().includes(q) ||
-              (g.phone ?? '').includes(q) || (g.email ?? '').toLowerCase().includes(q);
+              (g.phone ?? '').includes(q) || ((g as { email?: string | null }).email ?? '').toLowerCase().includes(q);
           })
         : all;
+      const activeCount  = all.filter(m => m.status === 'ACTIVE').length;
+      const pausedCount  = all.filter(m => m.status === 'PAUSED').length;
+      const optedCount   = all.filter(m => m.status === 'OPTED_OUT').length;
       return (
         <div className="flex flex-col h-full" dir="rtl">
-          <div className="px-4 pt-3 pb-2 border-b border-iron-border flex items-center gap-3 shrink-0">
-            <input
-              className="flex-1 bg-iron-card border border-iron-border rounded px-3 py-1.5 text-sm text-iron-text placeholder:text-iron-muted"
-              placeholder="חיפוש לפי שם, טלפון..."
-              value={icMemberSearch}
-              onChange={e => setIcMemberSearch(e.target.value)}
-            />
-            <span className="text-xs text-iron-muted shrink-0">{filtered.length} / {all.length}</span>
+          {/* Header bar */}
+          <div className="px-4 pt-3 pb-2.5 border-b border-iron-border shrink-0 space-y-2">
+            <div className="flex items-center gap-3">
+              <input
+                className="flex-1 bg-iron-card border border-iron-border rounded-lg px-3 py-1.5 text-sm text-iron-text placeholder:text-iron-muted focus:outline-none focus:border-iron-green/50 transition-colors"
+                placeholder="חיפוש לפי שם, טלפון..."
+                value={icMemberSearch}
+                onChange={e => setIcMemberSearch(e.target.value)}
+              />
+              <span className="text-xs text-iron-muted shrink-0 tabular-nums">{filtered.length} / {all.length}</span>
+            </div>
+            {!q && all.length > 0 && (
+              <div className="flex items-center gap-3 text-[11px] text-iron-muted">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-iron-green inline-block" />{activeCount} פעילים</span>
+                {pausedCount > 0 && <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-status-warning inline-block" />{pausedCount} מושהים</span>}
+                {optedCount > 0 && <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-iron-muted inline-block" />{optedCount} ביטלו</span>}
+              </div>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto">
+          {/* List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-iron-border/50">
             {filtered.length === 0
               ? <EmptyRow msg={q ? 'לא נמצאו חברים התואמים לחיפוש' : 'אין חברי מועדון'} />
-              : (
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-iron-bg z-10">
-                    <tr className="border-b border-iron-border text-iron-muted">
-                      <th className="text-right px-4 py-2.5 font-medium">שם</th>
-                      <th className="text-right px-4 py-2.5 font-medium">טלפון</th>
-                      <th className="text-right px-4 py-2.5 font-medium">סטטוס</th>
-                      <th className="text-right px-4 py-2.5 font-medium">ביקורים</th>
-                      <th className="text-right px-4 py-2.5 font-medium">מקור</th>
-                      <th className="text-right px-4 py-2.5 font-medium">הצטרף</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map(m => {
-                      const g = m.guest;
-                      return (
-                        <tr key={m.id} className="border-b border-iron-border/50 hover:bg-iron-card/50 transition-colors">
-                          <td className="px-4 py-2.5 text-iron-text font-medium">{g ? `${g.firstName} ${g.lastName}` : '—'}</td>
-                          <td className="px-4 py-2.5 text-iron-muted" dir="ltr">{g?.phone ?? '—'}</td>
-                          <td className="px-4 py-2.5">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${MEMBER_STATUS_COLOR[m.status] ?? 'text-iron-muted'}`}>
+              : filtered.map(m => {
+                  const g = m.guest;
+                  const gExt = g as { email?: string | null; visitCount?: number };
+                  const fullName = g ? `${g.firstName} ${g.lastName}`.trim() : '—';
+                  const visits = gExt?.visitCount;
+                  const hasBirthday = !!m.birthday;
+                  return (
+                    <div key={m.id} className="px-4 py-3 hover:bg-iron-card/40 transition-colors">
+                      <div className="flex items-start gap-3">
+                        {/* Avatar initials */}
+                        <div className="w-8 h-8 rounded-full bg-iron-card border border-iron-border flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-[11px] font-semibold text-iron-text">
+                            {g ? (g.firstName[0] ?? '') + (g.lastName[0] ?? '') : '?'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {/* Row 1: name + status */}
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-semibold text-iron-text leading-tight">{fullName}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${MEMBER_STATUS_COLOR[m.status] ?? 'text-iron-muted bg-iron-border border border-iron-border'}`}>
                               {MEMBER_STATUS_HE[m.status] ?? m.status}
                             </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-iron-muted">{(g as { visitCount?: number })?.visitCount ?? '—'}</td>
-                          <td className="px-4 py-2.5 text-iron-muted">{SOURCE_HE[m.source] ?? m.source}</td>
-                          <td className="px-4 py-2.5 text-iron-muted">{new Date(m.joinDate).toLocaleDateString('he-IL')}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )
+                          </div>
+                          {/* Row 2: phone */}
+                          {g?.phone && (
+                            <p className="text-xs text-iron-muted" dir="ltr">{g.phone}</p>
+                          )}
+                          {/* Row 3: meta */}
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            {visits !== undefined && visits > 0 && (
+                              <span className="text-[11px] text-iron-muted">{visits} ביקורים</span>
+                            )}
+                            <span className="text-[11px] text-iron-muted/60">הצטרף דרך {SOURCE_HE[m.source] ?? m.source}</span>
+                            <span className="text-[11px] text-iron-muted/60">{new Date(m.joinDate).toLocaleDateString('he-IL')}</span>
+                            {hasBirthday && (
+                              <span className="text-[11px] text-status-reserved">🎂 {m.birthday}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
             }
           </div>
         </div>
@@ -3004,13 +3095,57 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       if (icError) return <ErrorRow msg={icError} />;
       const center = icAlerts;
       if (!center) return <EmptyRow msg="אין נתונים" />;
-      const sections: Array<{ key: 'critical' | 'attention' | 'upcoming'; label: string; icon: string; colorClass: string; bgClass: string; borderClass: string }> = [
-        { key: 'critical',  label: 'קריטי',            icon: '🔴', colorClass: 'text-status-danger',   bgClass: 'bg-red-900/10',    borderClass: 'border-red-900/20' },
-        { key: 'attention', label: 'דורש תשומת לב',    icon: '🟡', colorClass: 'text-status-warning',  bgClass: 'bg-yellow-900/10', borderClass: 'border-yellow-900/20' },
-        { key: 'upcoming',  label: 'אירוע קרוב',       icon: '🔵', colorClass: 'text-status-reserved', bgClass: 'bg-blue-900/10',   borderClass: 'border-blue-900/20' },
+      const sections: Array<{
+        key: 'critical' | 'attention' | 'upcoming';
+        label: string;
+        sublabel: string;
+        dotColor: string;
+        headingColor: string;
+        bgClass: string;
+        borderClass: string;
+        dismissLabel: string;
+      }> = [
+        {
+          key: 'critical',
+          label: 'קריטי',
+          sublabel: 'דורש טיפול מיידי',
+          dotColor: 'bg-status-danger',
+          headingColor: 'text-status-danger',
+          bgClass: 'bg-red-900/8',
+          borderClass: 'border-red-900/25',
+          dismissLabel: 'טופל',
+        },
+        {
+          key: 'attention',
+          label: 'דורש תשומת לב',
+          sublabel: 'לא דחוף, אך מומלץ לטפל',
+          dotColor: 'bg-status-warning',
+          headingColor: 'text-status-warning',
+          bgClass: 'bg-yellow-900/8',
+          borderClass: 'border-yellow-900/20',
+          dismissLabel: 'טופל',
+        },
+        {
+          key: 'upcoming',
+          label: 'אירועים קרובים',
+          sublabel: 'ימי הולדת ויובלים',
+          dotColor: 'bg-status-reserved',
+          headingColor: 'text-status-reserved',
+          bgClass: 'bg-blue-900/8',
+          borderClass: 'border-blue-900/20',
+          dismissLabel: 'סגור',
+        },
       ];
       const total = center.critical.length + center.attention.length + center.upcoming.length;
-      if (total === 0) return <EmptyRow msg="אין התראות פעילות ✓" />;
+      if (total === 0) return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <p className="text-2xl">✓</p>
+            <p className="text-iron-text font-medium text-sm">אין התראות פעילות</p>
+            <p className="text-iron-muted text-xs">כל ההתראות טופלו</p>
+          </div>
+        </div>
+      );
       return (
         <div className="p-4 space-y-5 overflow-y-auto h-full" dir="rtl">
           {sections.map(s => {
@@ -3018,20 +3153,29 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             if (alerts.length === 0) return null;
             return (
               <div key={s.key}>
-                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${s.colorClass}`}>{s.icon} {s.label} ({alerts.length})</p>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${s.dotColor}`} />
+                  <p className={`text-xs font-semibold ${s.headingColor}`}>{s.label}</p>
+                  <span className={`text-[10px] ${s.headingColor} opacity-60`}>({alerts.length})</span>
+                  <span className="text-[10px] text-iron-muted/50 mr-1">{s.sublabel}</span>
+                </div>
                 <div className="space-y-2">
                   {alerts.map(a => (
-                    <div key={a.id} className={`${s.bgClass} border ${s.borderClass} rounded-lg p-3 flex items-start gap-3`}>
+                    <div key={a.id} className={`bg-iron-card border ${s.borderClass} rounded-lg p-3.5 flex items-start gap-3 group`}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-iron-text font-medium">{a.headline}</p>
-                        {a.context && <p className="text-[11px] text-iron-muted mt-0.5 leading-relaxed">{a.context}</p>}
+                        <p className="text-sm text-iron-text font-medium leading-snug">{a.headline}</p>
+                        {a.context && <p className="text-xs text-iron-muted mt-1 leading-relaxed">{a.context}</p>}
                         {a.guest && (
-                          <p className="text-[11px] text-iron-muted mt-1">
-                            {a.guest.firstName} {a.guest.lastName}
-                            {a.guest.visitCount > 0 && <span> · {a.guest.visitCount} ביקורים</span>}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <p className="text-xs text-iron-muted">
+                              {a.guest.firstName} {a.guest.lastName}
+                            </p>
+                            {a.guest.visitCount > 0 && (
+                              <span className="text-[11px] text-iron-muted/60 bg-iron-border px-1.5 py-0.5 rounded">{a.guest.visitCount} ביקורים</span>
+                            )}
+                          </div>
                         )}
-                        <p className="text-[10px] text-iron-muted/50 mt-1">{ALERT_TYPE_HE[a.type] ?? a.type}</p>
+                        <p className="text-[10px] text-iron-muted/40 mt-1.5">{ALERT_TYPE_HE[a.type] ?? a.type}</p>
                       </div>
                       <button
                         onClick={async () => {
@@ -3045,9 +3189,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             } : prev);
                           } catch { /* ignore */ }
                         }}
-                        className="text-iron-muted hover:text-status-danger text-xs transition-colors shrink-0 mt-0.5 p-1"
-                        title="סגור התראה"
-                      >✕</button>
+                        className="text-[11px] text-iron-muted border border-iron-border rounded px-2 py-1 hover:border-iron-green/40 hover:text-iron-green transition-colors shrink-0 mt-0.5 opacity-0 group-hover:opacity-100"
+                        title="סמן כטופל וסגור התראה"
+                      >
+                        {s.dismissLabel} ✓
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -3064,24 +3210,65 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       if (icLoading && !icMoments) return <LoadingRow />;
       if (icError) return <ErrorRow msg={icError} />;
       if (!icMoments || icMoments.length === 0) return <EmptyRow msg="אין מסרים" />;
+
+      // Group by status priority: PENDING → DRAFT → SENT → rest
+      const statusOrder = ['PENDING', 'DRAFT', 'SENT', 'APPROVED', 'SCHEDULED', 'REJECTED', 'CANCELLED'];
+      const grouped = statusOrder.map(s => ({
+        status: s,
+        items: icMoments.filter(m => m.status === s),
+      })).filter(g => g.items.length > 0);
+
       return (
-        <div className="p-4 space-y-2 overflow-y-auto h-full" dir="rtl">
-          {icMoments.map(m => (
-            <div key={m.id} className="bg-iron-card border border-iron-border rounded-lg p-3">
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-xs text-iron-text font-medium">{m.guest.firstName} {m.guest.lastName}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${MOMENT_STATUS_COLOR[m.status] ?? 'text-iron-muted bg-iron-border'}`}>
-                  {MOMENT_STATUS_HE[m.status] ?? m.status}
-                </span>
+        <div className="flex flex-col h-full" dir="rtl">
+          {/* Status bar */}
+          <div className="px-4 py-2.5 border-b border-iron-border shrink-0 flex items-center gap-3 overflow-x-auto">
+            {grouped.map(g => (
+              <span key={g.status} className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ${MOMENT_STATUS_COLOR[g.status] ?? 'text-iron-muted bg-iron-border border border-iron-border'}`}>
+                {MOMENT_STATUS_HE[g.status] ?? g.status} ({g.items.length})
+              </span>
+            ))}
+          </div>
+          {/* Cards */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {grouped.map(g => (
+              <div key={g.status}>
+                {grouped.length > 1 && (
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${
+                    g.status === 'PENDING' ? 'text-status-warning' :
+                    g.status === 'SENT' ? 'text-iron-green' :
+                    g.status === 'REJECTED' ? 'text-status-danger' : 'text-iron-muted'
+                  }`}>
+                    {MOMENT_STATUS_HE[g.status] ?? g.status}
+                  </p>
+                )}
+                <div className="space-y-2 mb-4">
+                  {g.items.map(m => (
+                    <div key={m.id} className="bg-iron-card border border-iron-border rounded-lg p-3.5">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <span className="text-sm font-semibold text-iron-text">{m.guest.firstName} {m.guest.lastName}</span>
+                          {m.guest.phone && <p className="text-xs text-iron-muted mt-0.5" dir="ltr">{m.guest.phone}</p>}
+                        </div>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${MOMENT_STATUS_COLOR[m.status] ?? 'text-iron-muted bg-iron-border border border-iron-border'}`}>
+                          {MOMENT_STATUS_HE[m.status] ?? m.status}
+                        </span>
+                      </div>
+                      <div className="bg-iron-bg rounded p-2.5 text-[11px] text-iron-muted leading-relaxed">
+                        {m.draftMessage}
+                      </div>
+                      {m.finalMessage && m.finalMessage !== m.draftMessage && (
+                        <div className="mt-2 bg-iron-green/5 border border-iron-green/20 rounded p-2.5 text-[11px] text-iron-green leading-relaxed">
+                          <span className="font-medium text-[10px] block mb-1 text-iron-green/70">נשלח:</span>
+                          {m.finalMessage}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-iron-muted/40 mt-2">{new Date(m.createdAt).toLocaleDateString('he-IL')}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="text-[11px] text-iron-muted leading-relaxed">{m.draftMessage}</p>
-              {m.finalMessage && m.finalMessage !== m.draftMessage && (
-                <p className="text-[11px] text-iron-green mt-1.5 leading-relaxed">✓ {m.finalMessage}</p>
-              )}
-              {m.guest.phone && <p className="text-[10px] text-iron-muted/50 mt-1.5" dir="ltr">{m.guest.phone}</p>}
-              <p className="text-[10px] text-iron-muted/40 mt-0.5">{new Date(m.createdAt).toLocaleDateString('he-IL')}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       );
     };
@@ -3091,64 +3278,113 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       if (!backfillRestaurantId) return <NoRestaurant />;
       if (icLoading && !icBrief && !icAlerts) return <LoadingRow />;
       if (icError) return <ErrorRow msg={icError} />;
-      const todayBirthdays  = icBrief?.content.birthdays    ?? [];
-      const todayAnniv      = icBrief?.content.anniversaries ?? [];
-      const vipArrivals     = icBrief?.content.vipArrivals  ?? [];
-      const upcoming        = icAlerts?.upcoming ?? [];
-      const bdayAlerts      = upcoming.filter(a => a.type === 'BIRTHDAY_SOON');
-      const annivAlerts     = upcoming.filter(a => a.type === 'ANNIVERSARY_SOON');
+      const todayBirthdays = icBrief?.content.birthdays    ?? [];
+      const todayAnniv     = icBrief?.content.anniversaries ?? [];
+      const vipArrivals    = icBrief?.content.vipArrivals  ?? [];
+      const upcomingAlerts = icAlerts?.upcoming ?? [];
+      const bdayAlerts     = upcomingAlerts.filter(a => a.type === 'BIRTHDAY_SOON');
+      const annivAlerts    = upcomingAlerts.filter(a => a.type === 'ANNIVERSARY_SOON');
       const hasAny = todayBirthdays.length + todayAnniv.length + vipArrivals.length + bdayAlerts.length + annivAlerts.length > 0;
-      if (!hasAny && (icBrief || icAlerts)) return <EmptyRow msg="אין אירועים קרובים" />;
-      if (!icBrief && !icAlerts) return <EmptyRow msg="אין נתונים" />;
-      const EventCard = ({ emoji, title, items }: { emoji: string; title: string; items: React.ReactNode[] }) => (
-        <div>
-          <p className="text-xs font-semibold text-iron-text uppercase tracking-wide mb-2">{emoji} {title}</p>
-          <div className="space-y-1.5">{items}</div>
+      if (!hasAny && (icBrief || upcomingAlerts.length >= 0)) return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <p className="text-2xl">🗓</p>
+            <p className="text-iron-text font-medium text-sm">אין אירועים קרובים</p>
+            <p className="text-iron-muted text-xs">ימי הולדת ויובלים של אורחים יופיעו כאן</p>
+          </div>
         </div>
       );
+      if (!icBrief && upcomingAlerts.length === 0) return <EmptyRow msg="אין נתונים" />;
+
+      const SectionHeader = ({ emoji, title, count, highlight }: { emoji: string; title: string; count: number; highlight?: boolean }) => (
+        <div className={`flex items-center gap-2 mb-2.5 pb-2 border-b ${highlight ? 'border-iron-green/20' : 'border-iron-border/50'}`}>
+          <span className="text-base">{emoji}</span>
+          <p className={`text-xs font-semibold ${highlight ? 'text-iron-green' : 'text-iron-text'}`}>{title}</p>
+          <span className="text-[10px] text-iron-muted">({count})</span>
+          {highlight && <span className="text-[10px] text-iron-green/60 bg-iron-green/10 px-1.5 py-0.5 rounded">היום</span>}
+        </div>
+      );
+
       return (
         <div className="p-4 space-y-6 overflow-y-auto h-full" dir="rtl">
-          {todayBirthdays.length > 0 && (
-            <EventCard emoji="🎂" title="ימי הולדת היום" items={todayBirthdays.map((b, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs bg-iron-card border border-iron-border rounded p-2.5">
-                <span className="text-iron-text font-medium flex-1">{b.name}</span>
-                <span className="text-iron-muted" dir="ltr">{b.time}</span>
-              </div>
-            ))} />
-          )}
-          {bdayAlerts.length > 0 && (
-            <EventCard emoji="🎂" title="ימי הולדת קרובים" items={bdayAlerts.map(a => (
-              <div key={a.id} className="text-xs bg-iron-card border border-iron-border rounded p-2.5">
-                <p className="text-iron-text">{a.headline}</p>
-                {a.guest && <p className="text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}</p>}
-              </div>
-            ))} />
-          )}
-          {todayAnniv.length > 0 && (
-            <EventCard emoji="💍" title="יובלים היום" items={todayAnniv.map((a, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs bg-iron-card border border-iron-border rounded p-2.5">
-                <span className="text-iron-text font-medium flex-1">{a.name}</span>
-                <span className="text-iron-muted" dir="ltr">{a.time}</span>
-              </div>
-            ))} />
-          )}
-          {annivAlerts.length > 0 && (
-            <EventCard emoji="💍" title="יובלים קרובים" items={annivAlerts.map(a => (
-              <div key={a.id} className="text-xs bg-iron-card border border-iron-border rounded p-2.5">
-                <p className="text-iron-text">{a.headline}</p>
-                {a.guest && <p className="text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}</p>}
-              </div>
-            ))} />
-          )}
+          {/* VIP today — top priority */}
           {vipArrivals.length > 0 && (
-            <EventCard emoji="⭐" title="VIP הלילה" items={vipArrivals.map((v, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs bg-iron-card border border-iron-border rounded p-2.5">
-                <span className="text-iron-text font-medium flex-1">{v.name}</span>
-                <span className="text-iron-muted" dir="ltr">{v.time}</span>
-                <span className="text-iron-muted">·</span>
-                <span className="text-iron-muted">{v.partySize} סועדים</span>
+            <div>
+              <SectionHeader emoji="⭐" title="VIP מגיעים הלילה" count={vipArrivals.length} highlight />
+              <div className="space-y-2">
+                {vipArrivals.map((v, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-iron-green/5 border border-iron-green/20 rounded-lg p-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-iron-text">{v.name}</p>
+                      <p className="text-xs text-iron-muted mt-0.5">{v.partySize} סועדים</p>
+                    </div>
+                    <span className="text-xs font-medium text-iron-green bg-iron-green/10 px-2 py-1 rounded" dir="ltr">{v.time}</span>
+                  </div>
+                ))}
               </div>
-            ))} />
+            </div>
+          )}
+          {/* Today's birthdays */}
+          {todayBirthdays.length > 0 && (
+            <div>
+              <SectionHeader emoji="🎂" title="ימי הולדת היום" count={todayBirthdays.length} highlight />
+              <div className="space-y-2">
+                {todayBirthdays.map((b, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-iron-card border border-iron-border rounded-lg p-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-iron-text">{b.name}</p>
+                    </div>
+                    <span className="text-xs text-iron-muted" dir="ltr">{b.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Upcoming birthdays */}
+          {bdayAlerts.length > 0 && (
+            <div>
+              <SectionHeader emoji="🎂" title="ימי הולדת השבוע" count={bdayAlerts.length} />
+              <div className="space-y-2">
+                {bdayAlerts.map(a => (
+                  <div key={a.id} className="bg-iron-card border border-iron-border rounded-lg p-3">
+                    <p className="text-sm font-medium text-iron-text">{a.headline}</p>
+                    {a.guest && <p className="text-xs text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}</p>}
+                    {a.context && <p className="text-xs text-iron-muted/70 mt-0.5">{a.context}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Today's anniversaries */}
+          {todayAnniv.length > 0 && (
+            <div>
+              <SectionHeader emoji="💍" title="יובלים היום" count={todayAnniv.length} highlight />
+              <div className="space-y-2">
+                {todayAnniv.map((a, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-iron-card border border-iron-border rounded-lg p-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-iron-text">{a.name}</p>
+                    </div>
+                    <span className="text-xs text-iron-muted" dir="ltr">{a.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Upcoming anniversaries */}
+          {annivAlerts.length > 0 && (
+            <div>
+              <SectionHeader emoji="💍" title="יובלים השבוע" count={annivAlerts.length} />
+              <div className="space-y-2">
+                {annivAlerts.map(a => (
+                  <div key={a.id} className="bg-iron-card border border-iron-border rounded-lg p-3">
+                    <p className="text-sm font-medium text-iron-text">{a.headline}</p>
+                    {a.guest && <p className="text-xs text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}</p>}
+                    {a.context && <p className="text-xs text-iron-muted/70 mt-0.5">{a.context}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       );
@@ -3158,10 +3394,32 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     const renderBackfill = () => {
       const HE: Record<string, string> = { VIP: 'VIP', LOYAL: 'נאמן', VIP_CANDIDATE: 'מועמד VIP', HIGH_ENGAGEMENT: 'מעורב מאוד', RECOVERED: 'חזר אלינו', AT_RISK: 'בסיכון', SILENT: 'לא חזר', CRM_MEMBER: 'חבר CRM', NEEDS_ATTENTION: 'דורש מעקב', NEW: 'חדש' };
       return (
-        <div className="p-6 max-w-lg space-y-5 overflow-y-auto h-full" dir="rtl">
-          <div>
-            <p className="text-xs font-semibold text-iron-green uppercase tracking-wide mb-1">עדכון ניקוד אורחים</p>
-            <p className="text-xs text-iron-muted">מחשב מחדש את ציון הנאמנות, ציון המעורבות ורמת החברות לכל האורחים. ללא שליחת הודעות.</p>
+        <div className="p-5 max-w-lg space-y-5 overflow-y-auto h-full" dir="rtl">
+          {/* Explanation panel */}
+          <div className="bg-iron-card border border-iron-border rounded-lg p-4 space-y-3">
+            <p className="text-sm font-semibold text-iron-text">עדכון ניקוד אורחים — מה זה?</p>
+            <div className="space-y-2 text-xs text-iron-muted leading-relaxed">
+              <div className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5 shrink-0">✓</span>
+                <span><strong className="text-iron-text">מה הפעולה עושה:</strong> מחשבת מחדש את ציון הנאמנות לכל אורח, על סמך מספר הביקורים, תדירות ההגעה, ומשוב שהשאיר.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5 shrink-0">✓</span>
+                <span><strong className="text-iron-text">על אילו אורחים:</strong> כל האורחים הרשומים במסעדה, כולל אורחים מיובאים מ-CRM.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-iron-green mt-0.5 shrink-0">✓</span>
+                <span><strong className="text-iron-text">מה מתעדכן:</strong> רמת החברות (VIP / נאמן / חדש / בסיכון וכד') ב-IRON CLUB — כך שהתראות ומסרים יהיו מדויקים יותר.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-status-danger mt-0.5 shrink-0">✕</span>
+                <span><strong className="text-iron-text">מה לא קורה:</strong> לא נשלחות הודעות SMS או WhatsApp. לא נוצרות הזמנות. לא מושפעת שום הגדרה אחרת.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-iron-muted mt-0.5 shrink-0">💡</span>
+                <span><strong className="text-iron-text">מתי להפעיל:</strong> אחרי ייבוא רשימת לקוחות מ-CRM, או אחת לחודש לרענון הנתונים.</span>
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-xs text-iron-muted mb-1">מסעדה</label>
