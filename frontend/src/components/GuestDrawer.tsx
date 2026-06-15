@@ -4,8 +4,7 @@ import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } fr
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal from './ReorganizeConflictModal';
 import GuestProfile from './GuestProfile';
-import SmartTablePicker from './SmartTablePicker';
-import type React from 'react';
+
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
@@ -118,21 +117,6 @@ function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnP
   );
 }
 
-// ─── Field ────────────────────────────────────────────────────────────────────
-
-interface FieldProps {
-  label: string;
-  children: React.ReactNode;
-}
-function Field({ label, children }: FieldProps) {
-  return (
-    <div className="space-y-1">
-      <label className="text-[10px] font-semibold uppercase tracking-[0.1em] text-iron-green-light/80">{label}</label>
-      {children}
-    </div>
-  );
-}
-
 const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green-light/80 focus:ring-1 focus:ring-iron-green/20 transition-colors';
 
 function isoToDDMMYYYY(iso: string): string {
@@ -225,7 +209,7 @@ interface Props {
   initialMode?: 'view' | 'edit';
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, initialMode }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, initialMode: _initialMode }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -238,7 +222,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   };
   const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
   const [res, setRes] = useState<Reservation>(init);
-  const [mode, setMode] = useState<Mode>(initialMode ?? 'view');
+  const [mode, setMode] = useState<Mode>('view');
 
   // Cross-date seating is forbidden. Same-day early arrivals are always allowed.
   const _todayStr = new Date().toISOString().slice(0, 10);
@@ -275,27 +259,39 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     _key: number;
   } | null>(null);
 
-  // Edit form state — initialised when entering edit mode
-  const [editName,       setEditName]       = useState('');
-  const [editPhone,      setEditPhone]      = useState('');
-  const [editDate,       setEditDate]       = useState('');
-  const [editDateDisplay, setEditDateDisplay] = useState('');
-  const [editTime,       setEditTime]       = useState('');
-  const [editParty,      setEditParty]      = useState('');
-  const [editDuration,   setEditDuration]   = useState(0);
-  const [originalDuration, setOriginalDuration] = useState(0);
-  const [editOccasion,   setEditOccasion]   = useState('');
-  const [editNotes,      setEditNotes]      = useState('');
-  const [editHostNotes,  setEditHostNotes]  = useState('');
-  const [editTableId,         setEditTableId]         = useState<string | null>(null);
-  const [editCombinedTableIds, setEditCombinedTableIds] = useState<string[]>([]);
-  const [pickingOnMap,         setPickingOnMap]         = useState(false);
-  const [pickingForAction,     setPickingForAction]     = useState<'seat' | 'move' | 'change-table' | null>(null);
-  const [showTablePicker,      setShowTablePicker]      = useState(false);
-  const [tableSuggestions,     setTableSuggestions]     = useState<BackendTableSuggestion[]>([]);
-  const [suggestBusy, setSuggestBusy] = useState(false);
+  // Edit form state — initialised immediately from init
+  const [editName,       setEditName]       = useState(init.guestName);
+  const [editPhone,      _setEditPhone]     = useState(init.guestPhone ?? ''); // read by saveEdit; no inline UI for phone
+  const [editDate,       setEditDate]       = useState(init.date.slice(0, 10));
+  const [editDateDisplay, setEditDateDisplay] = useState(isoToDDMMYYYY(init.date.slice(0, 10)));
+  const [editTime,       setEditTime]       = useState(init.time.slice(0, 5));
+  const [editParty,      _setEditParty]     = useState(String(init.partySize)); // read by saveEdit/dirty; no inline UI for party
+  const [editDuration,   setEditDuration]   = useState(init.duration);
+  const [editOccasion,   setEditOccasion]   = useState(init.occasion ?? '');
+  const [editNotes,      setEditNotes]      = useState(init.guestNotes ?? '');
+  const [editHostNotes,  setEditHostNotes]  = useState(init.hostNotes ?? '');
+  const [editTableId,          _setEditTableId]          = useState<string | null>(init.tableId ?? null);
+  const [editCombinedTableIds, _setEditCombinedTableIds] = useState<string[]>(init.combinedTableIds ?? []);
+  const pickingOnMap = false; // map-picker only available via action buttons now
+  const [pickingForAction,     setPickingForAction]      = useState<'seat' | 'move' | 'change-table' | null>(null);
+  const [tableSuggestions,     _setTableSuggestions]    = useState<BackendTableSuggestion[]>([]);
   const [smartSuggestion, setSmartSuggestion] = useState<SmartSuggestion>(null);
   const [smartLoading, setSmartLoading] = useState(false);
+
+  const dirty =
+    editName.trim() !== res.guestName ||
+    editPhone.trim() !== (res.guestPhone ?? '') ||
+    editParty !== String(res.partySize) ||
+    editDuration !== res.duration ||
+    editOccasion.trim() !== (res.occasion ?? '') ||
+    editNotes.trim() !== (res.guestNotes ?? '') ||
+    editHostNotes.trim() !== (res.hostNotes ?? '') ||
+    (res.status !== 'SEATED' && (
+      editDate !== res.date.slice(0, 10) ||
+      editTime !== res.time.slice(0, 5) ||
+      editTableId !== (res.tableId ?? null) ||
+      JSON.stringify([...editCombinedTableIds].sort()) !== JSON.stringify([...(res.combinedTableIds ?? [])].sort())
+    ));
 
   useEffect(() => {
     if (!['PENDING', 'CONFIRMED'].includes(res.status) || res.returnedToListAt) {
@@ -340,80 +336,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     prevIsArrivedRef.current = res.isArrived;
   }, [res.isArrived]);
 
-
-  function enterEdit() {
-    setEditName(res.guestName);
-    setEditPhone(res.guestPhone ?? '');
-    const iso = res.date.slice(0, 10);
-    setEditDate(iso);
-    setEditDateDisplay(isoToDDMMYYYY(iso));
-    setEditTime(res.time.slice(0, 5)); // normalize "12:00:00" → "12:00"
-    setEditParty(String(res.partySize));
-    setEditDuration(res.duration);
-    setOriginalDuration(res.duration);
-    setEditOccasion(res.occasion ?? '');
-    setEditNotes(res.guestNotes ?? '');
-    setEditHostNotes(res.hostNotes ?? '');
-    setEditTableId(res.tableId ?? null);
-    setEditCombinedTableIds(res.combinedTableIds ?? []);
-    setPickingOnMap(false);
-    setShowTablePicker(false);
-    setTableSuggestions([]);
-    setError(null);
-    setMode('edit');
-  }
-
-  function adjustDuration(delta: number) {
-    setEditDuration(prev => Math.min(480, Math.max(30, prev + delta)));
-  }
-
-  async function fetchTableSuggestions() {
-    const partySize = parseInt(editParty, 10);
-    if (!editDate || !editTime || isNaN(partySize) || partySize < 1) return;
-    setSuggestBusy(true);
-    try {
-      const suggestions = await api.tables.suggest({
-        date: editDate, time: editTime, partySize, duration: editDuration,
-        excludeReservationId: res.id,
-      });
-      setTableSuggestions(suggestions);
-    } catch {
-      setTableSuggestions([]);
-    } finally {
-      setSuggestBusy(false);
-    }
-  }
-
-  async function openMapPicker() {
-    setPickingOnMap(true);
-    setShowTablePicker(false);
-    // tableSuggestions is only populated when the inline picker opens first;
-    // direct "Select on map" clicks bypass that, so fetch fresh here if needed.
-    let sug = tableSuggestions;
-    if (sug.length === 0) {
-      const partySize = parseInt(editParty, 10);
-      if (editDate && editTime && !isNaN(partySize) && partySize >= 1) {
-        try {
-          sug = await api.tables.suggest({
-            date: editDate, time: editTime, partySize, duration: editDuration,
-            excludeReservationId: res.id,
-          });
-          setTableSuggestions(sug);
-        } catch { /* fall back to empty */ }
-      }
-    }
-    onPickTables?.(
-      [editTableId, ...editCombinedTableIds].filter(Boolean) as string[],
-      sug,
-      (ids) => {
-        setPickingOnMap(false);
-        if (ids !== null) {
-          setEditTableId(ids[0] ?? null);
-          setEditCombinedTableIds(ids.slice(1));
-        }
-      },
-    );
-  }
 
   async function openActionMapPicker(action: 'seat' | 'move' | 'change-table') {
     const currentIds = [res.tableId, ...(res.combinedTableIds ?? [])].filter(Boolean) as string[];
@@ -1176,7 +1098,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
               {/* Name + primary status — identity dominant row */}
               <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1">
-                <h2 className="text-iron-text font-black text-[34px] tracking-tight leading-none truncate min-w-0">{res.guestName}</h2>
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="text-iron-text font-black text-[34px] tracking-tight leading-none bg-transparent border-b border-transparent hover:border-iron-border/40 focus:border-iron-green/60 focus:outline-none w-full min-w-0 transition-colors"
+                  dir={dir}
+                />
                 {res.guest?.isVip && (
                   <span className="text-status-warning text-xs font-semibold bg-status-warning/14 px-2 py-0.5 rounded-full border border-status-warning/28 shrink-0">
                     {T.common.vip}
@@ -1296,14 +1223,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   כרטיס לקוח
                 </button>
               )}
-              {mode === 'view' && !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && (
-                <button
-                  onClick={enterEdit}
-                  className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-iron-border/55 text-iron-muted/70 hover:border-iron-green/55 hover:text-iron-text transition-colors touch-manipulation"
-                >
-                  ✏ {T.guestDrawer.editButton}
-                </button>
-              )}
               <button
                 onClick={onClose}
                 className="text-iron-muted/50 hover:text-iron-text w-8 h-8 flex items-center justify-center rounded-xl hover:bg-iron-border/20 transition-colors text-lg leading-none touch-manipulation"
@@ -1359,28 +1278,37 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             );
           })()}
 
-          {/* Operational context — host notes, guest notes, occasion */}
-          {(res.hostNotes || res.guestNotes || res.occasion) && (
-            <section className="space-y-2">
-              {res.hostNotes && (
-                <div className="px-3 py-2.5 rounded-lg bg-amber-900/10 border border-status-warning/25" style={{ borderLeftWidth: '2px', borderLeftColor: 'rgba(217,119,6,0.78)' }}>
-                  <p className="text-[10px] text-status-warning/70 font-semibold uppercase tracking-wider mb-0.5">Host note</p>
-                  <p className="text-amber-100/85 text-[13px] leading-relaxed">{res.hostNotes}</p>
-                </div>
-              )}
-              {res.guestNotes && (
-                <div className="px-3 py-2.5 rounded-lg bg-iron-card/80 border border-iron-border/75">
-                  <p className="text-[10px] text-iron-muted/70 font-semibold uppercase tracking-wider mb-0.5">Guest note</p>
-                  <p className="text-iron-text/90 text-[13px]">{res.guestNotes}</p>
-                </div>
-              )}
-              {res.occasion && (
-                <div className="px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25">
-                  <p className="text-iron-green-light text-xs font-semibold">{res.occasion}</p>
-                </div>
-              )}
-            </section>
-          )}
+          {/* Operational context — host notes, guest notes, occasion — always editable inline */}
+          <section className="space-y-2">
+            <div className="px-3 py-2.5 rounded-lg bg-amber-900/10 border border-status-warning/25 focus-within:border-status-warning/50 transition-colors">
+              <p className="text-[10px] text-status-warning/70 font-semibold uppercase tracking-wider mb-1">Host note</p>
+              <textarea
+                value={editHostNotes}
+                onChange={e => setEditHostNotes(e.target.value)}
+                placeholder="הוסף הערת מארח..."
+                rows={2}
+                className="w-full bg-transparent text-amber-100/85 text-[13px] leading-relaxed resize-none focus:outline-none placeholder:text-status-warning/25"
+              />
+            </div>
+            <div className="px-3 py-2.5 rounded-lg bg-iron-card/80 border border-iron-border/75 focus-within:border-iron-border transition-colors">
+              <p className="text-[10px] text-iron-muted/70 font-semibold uppercase tracking-wider mb-1">Guest note</p>
+              <textarea
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
+                placeholder="הוסף הערת אורח..."
+                rows={2}
+                className="w-full bg-transparent text-iron-text/90 text-[13px] leading-relaxed resize-none focus:outline-none placeholder:text-iron-muted/30"
+              />
+            </div>
+            <div className="px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25 focus-within:border-iron-green/50 transition-colors">
+              <input
+                value={editOccasion}
+                onChange={e => setEditOccasion(e.target.value)}
+                placeholder="אירוע מיוחד..."
+                className="w-full bg-transparent text-iron-green-light text-xs font-semibold focus:outline-none placeholder:text-iron-green/30"
+              />
+            </div>
+          </section>
 
           {/* Smart table suggestion */}
           {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
@@ -1467,6 +1395,48 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
+          {/* Date / time inline fields for non-SEATED */}
+          {res.status !== 'SEATED' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1">{T.guestDrawer.fieldDate}</div>
+                <input
+                  className="w-full bg-iron-bg border border-iron-border/45 rounded-lg px-2.5 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green/60 transition-colors"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="DD/MM/YYYY"
+                  maxLength={10}
+                  value={editDateDisplay}
+                  onChange={e => {
+                    let v = e.target.value.replace(/[^0-9/]/g, '');
+                    if (v.length === 2 && editDateDisplay.length <= 2 && !v.includes('/')) v += '/';
+                    if (v.length === 5 && editDateDisplay.length <= 5 && v.split('/').length === 2) v += '/';
+                    setEditDateDisplay(v);
+                    const iso = ddmmyyyyToIso(v);
+                    if (iso) { setEditDate(iso); onDateTimeChange?.(iso, editTime); }
+                  }}
+                />
+              </div>
+              <div>
+                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1">{T.guestDrawer.fieldTime}</div>
+                <input
+                  className="w-full bg-iron-bg border border-iron-border/45 rounded-lg px-2.5 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green/60 transition-colors"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="HH:MM"
+                  maxLength={5}
+                  value={editTime}
+                  onChange={e => {
+                    let v = e.target.value.replace(/[^0-9:]/g, '');
+                    if (v.length === 2 && editTime.length <= 2 && !v.includes(':')) v += ':';
+                    setEditTime(v);
+                    if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* ── Service zone: table + duration tiles, meta footer ─────────── */}
           <section className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
@@ -1492,19 +1462,24 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 )}
               </div>
 
-              {/* Duration tile with computed end time */}
+              {/* Duration tile with interactive +/- */}
               <div className="px-3.5 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}>
                 <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1.5">{T.guestDrawer.rowDuration}</div>
-                <div className="text-iron-text font-bold text-[15px] tabular-nums leading-tight">{T.guestDrawer.durationValue(res.duration)}</div>
-                <div className="text-iron-muted/50 text-[11px] tabular-nums mt-0.5">
-                  {(() => {
-                    const [rh, rm] = res.time.split(':').map(Number);
-                    const total = rh * 60 + rm + res.duration;
-                    const eh = Math.floor(total / 60) % 24;
-                    const em = total % 60;
-                    const endStr = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                    return `→ ${normalizeTime(endStr)}`;
-                  })()}
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setEditDuration(d => Math.max(30, d - 15))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">−</button>
+                  <div className="flex-1 text-center">
+                    <div className="text-iron-text font-bold text-[15px] tabular-nums leading-tight">{T.guestDrawer.durationValue(editDuration)}</div>
+                    <div className="text-iron-muted/50 text-[11px] tabular-nums">
+                      {(() => {
+                        const [rh, rm] = res.time.split(':').map(Number);
+                        const total = rh * 60 + rm + editDuration;
+                        const eh = Math.floor(total / 60) % 24;
+                        const em = total % 60;
+                        return `→ ${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+                      })()}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setEditDuration(d => Math.min(360, d + 15))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">+</button>
                 </div>
               </div>
 
@@ -1591,314 +1566,25 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               {T.guestDrawer.sectionActions}
             </p>
 
-            {mode === 'view' && (
-              pickingForAction ? (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-status-reserved/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
-                  <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
-                  <button
-                    type="button"
-                    onClick={() => { setPickingForAction(null); onPickTablesCancel?.(); }}
-                    className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
-                  >
-                    {T.common.cancel}
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <Actions />
-                </div>
-              )
-            )}
-
-            {mode === 'edit' && (
-              <div className="space-y-3">
-                <Field label={T.guestDrawer.fieldGuestName}>
-                  <input
-                    className={inputCls}
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    placeholder={T.guestDrawer.placeholderName}
-                  />
-                </Field>
-                <Field label={T.guestDrawer.fieldPhone}>
-                  <input
-                    className={inputCls}
-                    value={editPhone}
-                    onChange={e => setEditPhone(e.target.value)}
-                    placeholder={T.guestDrawer.placeholderPhone}
-                  />
-                </Field>
-
-                <Field label={T.guestDrawer.fieldPartySize}>
-                  <input
-                    className={inputCls}
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={editParty}
-                    onChange={e => {
-                      const v = e.target.value;
-                      setEditParty(v);
-                      const n = parseInt(v, 10);
-                      if (!isNaN(n) && n >= 1) setEditDuration(n >= 7 ? 120 : 90);
-                    }}
-                  />
-                </Field>
-
-                {/* Capacity advisory warning — shown for all statuses when a table is assigned */}
-                {(() => {
-                  const allIds = [editTableId, ...editCombinedTableIds].filter(Boolean) as string[];
-                  if (allIds.length === 0) return null;
-                  const party = parseInt(editParty, 10);
-                  if (isNaN(party) || party < 1) return null;
-                  const totalMax = allIds.reduce((sum, id) => {
-                    const t = tables.find(t => t.id === id);
-                    return sum + (t?.maxCovers ?? 0);
-                  }, 0);
-                  if (totalMax >= party) return null;
-                  return (
-                    <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-amber-900/10 border border-status-warning/25">
-                      <span className="text-status-warning shrink-0">⚠</span>
-                      <p className="text-status-warning text-xs">{T.guestDrawer.tableCapacityWarn(totalMax, party)}</p>
-                    </div>
-                  );
-                })()}
-
-                {/* Date / time / table — locked while seated */}
-                {res.status === 'SEATED' ? (
-                  <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 rounded-lg px-3 py-2">
-                    {T.guestDrawer.seatedEditNote}
-                  </p>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label={T.guestDrawer.fieldDate}>
-                        <input
-                          className={inputCls}
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="DD/MM/YYYY"
-                          maxLength={10}
-                          value={editDateDisplay}
-                          onChange={e => {
-                            let v = e.target.value.replace(/[^0-9/]/g, '');
-                            if (v.length === 2 && editDateDisplay.length <= 2 && !v.includes('/')) v += '/';
-                            if (v.length === 5 && editDateDisplay.length <= 5 && v.split('/').length === 2) v += '/';
-                            setEditDateDisplay(v);
-                            const iso = ddmmyyyyToIso(v);
-                            if (iso) { setEditDate(iso); onDateTimeChange?.(iso, editTime); }
-                          }}
-                        />
-                      </Field>
-                      <Field label={T.guestDrawer.fieldTime}>
-                        <input
-                          className={inputCls}
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="HH:MM"
-                          maxLength={5}
-                          value={editTime}
-                          onChange={e => {
-                            let v = e.target.value.replace(/[^0-9:]/g, '');
-                            if (v.length === 2 && editTime.length <= 2 && !v.includes(':')) v += ':';
-                            setEditTime(v);
-                            if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
-                          }}
-                        />
-                      </Field>
-                    </div>
-
-                    {/* Table reassignment */}
-                    <Field label={T.guestDrawer.fieldTable}>
-                      <div className="space-y-2">
-
-                        {/* Picking on map banner */}
-                        {pickingOnMap && (
-                          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-status-reserved/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
-                            <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
-                            <button
-                              type="button"
-                              onClick={() => { setPickingOnMap(false); onPickTablesCancel?.(); }}
-                              className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
-                            >
-                              {T.common.cancel}
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Current assignment row */}
-                        {!pickingOnMap && (
-                          <div className="flex items-center gap-2">
-                            {editTableId ? (
-                              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-iron-green/15 border border-iron-green/35 text-iron-green-light flex-1 truncate">
-                                {[editTableId, ...editCombinedTableIds]
-                                  .map(id => tables.find(t => t.id === id)?.name ?? id)
-                                  .join(' + ')}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-iron-muted italic flex-1">
-                                {T.guestDrawer.tableUnassigned}
-                              </span>
-                            )}
-                            {editTableId && !showTablePicker && (
-                              <button
-                                type="button"
-                                onClick={() => { setEditTableId(null); setEditCombinedTableIds([]); }}
-                                className="text-xs text-iron-muted hover:text-status-danger border border-iron-border/50 hover:border-red-900/40 px-2 py-1 rounded-md transition-colors shrink-0"
-                              >
-                                {T.guestDrawer.clearTable}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = !showTablePicker;
-                                setShowTablePicker(next);
-                                if (next) fetchTableSuggestions();
-                              }}
-                              className={`text-xs font-semibold px-3 py-1 rounded-md border transition-colors shrink-0 ${
-                                showTablePicker
-                                  ? 'text-iron-muted border-iron-border/50 hover:text-iron-text'
-                                  : 'bg-iron-green/20 border-iron-green/40 text-iron-green-light hover:bg-iron-green/30'
-                              }`}
-                            >
-                              {showTablePicker ? T.guestDrawer.backLink : T.guestDrawer.changeTable}
-                            </button>
-                            {onPickTables && !showTablePicker && (
-                              <button
-                                type="button"
-                                onClick={openMapPicker}
-                                className="text-xs px-2.5 py-1 rounded-md border border-status-reserved/40 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
-                              >
-                                {T.guestDrawer.selectOnMap}
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Inline picker */}
-                        {showTablePicker && (
-                          <SmartTablePicker
-                            tables={tables}
-                            suggestions={tableSuggestions}
-                            suggestBusy={suggestBusy}
-                            selectedId={editTableId}
-                            onPick={id => { setEditTableId(id); setEditCombinedTableIds([]); setShowTablePicker(false); }}
-                          />
-                        )}
-                      </div>
-                    </Field>
-
-                    {editTableId && editTableId === res.tableId && (editDate !== res.date.slice(0, 10) || editTime !== res.time || editParty !== String(res.partySize)) && (
-                      <p className="text-xs text-iron-muted bg-iron-bg border border-iron-border rounded-lg px-3 py-2">
-                        {T.guestDrawer.tableConflictNote}
-                      </p>
-                    )}
-                  </>
-                )}
-
-                <Field label={T.guestDrawer.fieldDuration}>
-                  {/* Quick adjust */}
-                  <div className="flex gap-1.5 mb-2">
-                    {([-15, +15, +30] as const).map(delta => (
-                      <button
-                        key={delta}
-                        type="button"
-                        disabled={busy}
-                        onClick={() => adjustDuration(delta)}
-                        className={`flex-1 text-xs py-1.5 rounded-md border transition-colors disabled:opacity-40 ${
-                          delta < 0
-                            ? 'border-red-900/30 text-status-danger hover:bg-red-900/15 active:bg-red-900/25'
-                            : 'border-iron-green/30 text-iron-green-light hover:bg-iron-green/10 active:bg-iron-green/20'
-                        }`}
-                      >
-                        {delta > 0 ? `+${delta}` : delta}m
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Current duration + delta */}
-                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-iron-bg border border-iron-border mb-1.5">
-                    <span className="text-iron-text text-sm font-semibold tabular-nums">
-                      {editDuration} min
-                    </span>
-                    {editDuration !== originalDuration && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-iron-muted text-[11px]">{T.guestDrawer.wasNMin(originalDuration)}</span>
-                        <span className={`text-xs font-semibold ${
-                          editDuration > originalDuration ? 'text-iron-green-light' : 'text-status-danger'
-                        }`}>
-                          {editDuration > originalDuration
-                            ? `+${editDuration - originalDuration}m`
-                            : `${editDuration - originalDuration}m`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Manual fallback */}
-                  <input
-                    className={inputCls}
-                    type="number"
-                    min={30}
-                    max={480}
-                    step={15}
-                    value={editDuration}
-                    onChange={e => {
-                      const v = e.target.valueAsNumber;
-                      if (!isNaN(v) && v > 0) setEditDuration(Math.min(480, Math.max(30, v)));
-                    }}
-                    placeholder={T.guestDrawer.placeholderMinutes}
-                  />
-                </Field>
-                <Field label={T.guestDrawer.fieldGuestNotes}>
-                  <textarea
-                    className={`${inputCls} resize-none`}
-                    rows={2}
-                    value={editNotes}
-                    onChange={e => setEditNotes(e.target.value)}
-                    placeholder={T.guestDrawer.placeholderNotes}
-                  />
-                </Field>
-                <Field label={T.guestDrawer.fieldHostNotes}>
-                  <textarea
-                    className={`${inputCls} resize-none`}
-                    rows={2}
-                    value={editHostNotes}
-                    onChange={e => setEditHostNotes(e.target.value)}
-                    placeholder={T.guestDrawer.placeholderHostNotes}
-                  />
-                </Field>
-                <Field label={T.guestDrawer.fieldOccasion}>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    value={editOccasion}
-                    onChange={e => setEditOccasion(e.target.value)}
-                    placeholder={T.guestDrawer.placeholderOccasion}
-                  />
-                </Field>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={saveEdit}
-                    disabled={busy}
-                    className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors disabled:opacity-40 active:scale-[0.97]"
-                    style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.14)' }}
-                  >
-                    {T.guestDrawer.saveChanges}
-                  </button>
-                  <button
-                    onClick={() => setMode('view')}
-                    disabled={busy}
-                    className="text-iron-muted text-xs hover:text-iron-text px-3 transition-colors"
-                  >
-                    {T.common.cancel}
-                  </button>
-                </div>
+            {pickingForAction ? (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-status-reserved/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+                <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
+                <button
+                  type="button"
+                  onClick={() => { setPickingForAction(null); onPickTablesCancel?.(); }}
+                  className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                >
+                  {T.common.cancel}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <Actions />
               </div>
             )}
+
+
 
             {mode === 'seat' && (
               <TablePicker
@@ -2057,6 +1743,20 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               </div>
             )}
           </section>
+
+          {dirty && (
+            <div className="sticky bottom-0 pt-3 pb-1 bg-gradient-to-t from-iron-elevated via-iron-elevated/95 to-transparent">
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={busy}
+                className="w-full text-sm font-semibold py-2.5 rounded-xl bg-iron-green-light border border-iron-green-light text-white hover:bg-iron-green transition-colors disabled:opacity-40 active:scale-[0.97]"
+                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.14)' }}
+              >
+                {busy ? '...' : T.guestDrawer.saveChanges}
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
