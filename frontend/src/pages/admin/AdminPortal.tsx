@@ -3,7 +3,7 @@ import { api, ApiError } from '../../api';
 import GuestHubCmsPanel from './GuestHubCmsPanel';
 import { useT } from '../../i18n/useT';
 import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
-import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport, ClubMember, ClubStats, AlertCenter, RecoveryStats, MomentRecord, MorningBriefRecord } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -17,6 +17,8 @@ interface WizardSettings {
   lastSeatingOffset: number; lateThresholdMinutes: number; noShowThresholdMinutes: number;
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
+
+type IcTab = 'overview' | 'members' | 'alerts' | 'messages' | 'events' | 'backfill';
 
 // Israeli mobile validation — accepts 05XXXXXXXX, +9725XXXXXXXX, or 9725XXXXXXXX
 // (spaces / dashes / parens ignored). Rejects landlines and malformed numbers,
@@ -444,6 +446,18 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [backfillResult,       setBackfillResult]       = useState<BackfillResult | null>(null);
   const [backfillError,        setBackfillError]        = useState<string | null>(null);
 
+  // IRON CLUB management center
+  const [icTab,          setIcTab]          = useState<IcTab>('overview');
+  const [icClubStats,    setIcClubStats]    = useState<ClubStats | null>(null);
+  const [icRecovStats,   setIcRecovStats]   = useState<RecoveryStats | null>(null);
+  const [icAlerts,       setIcAlerts]       = useState<AlertCenter | null>(null);
+  const [icMembers,      setIcMembers]      = useState<ClubMember[] | null>(null);
+  const [icMoments,      setIcMoments]      = useState<MomentRecord[] | null>(null);
+  const [icBrief,        setIcBrief]        = useState<MorningBriefRecord | null>(null);
+  const [icLoading,      setIcLoading]      = useState(false);
+  const [icError,        setIcError]        = useState<string | null>(null);
+  const [icMemberSearch, setIcMemberSearch] = useState('');
+
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
   const [brandingForm,   setBrandingForm]   = useState({ cuisine: '', primaryColor: '', accentColor: '', publicThemePreset: '', logoUrl: '', coverImageUrl: '', heroVideoUrl: '', buttonStyle: '', cardStyle: '', backgroundMood: '', backgroundColorHex: '', backgroundGradientHex: '', websiteUrl: '', instagramUrl: '', googleMapsUrl: '', wazeUrl: '' });
@@ -503,6 +517,46 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   // selectRestaurant is stable (only calls setState + loadDetail which is useCallback([]))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurants]);
+
+  // IRON CLUB — fetch data when restaurant or tab changes
+  useEffect(() => {
+    if (!backfillRestaurantId || sidebarTab !== 'intelligence' || icTab === 'backfill') return;
+    setIcLoading(true); setIcError(null);
+    const rid = backfillRestaurantId;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (icTab === 'overview') {
+          const [stats, recov, alerts] = await Promise.all([
+            api.club.stats(rid),
+            api.recovery.stats(rid),
+            api.alerts.center(rid),
+          ]);
+          if (!cancelled) { setIcClubStats(stats); setIcRecovStats(recov); setIcAlerts(alerts); }
+        } else if (icTab === 'members') {
+          const r = await api.club.members(rid);
+          if (!cancelled) setIcMembers(r.data);
+        } else if (icTab === 'alerts') {
+          const r = await api.alerts.center(rid);
+          if (!cancelled) setIcAlerts(r);
+        } else if (icTab === 'messages') {
+          const r = await api.intelligence.getMoments(rid);
+          if (!cancelled) setIcMoments(r);
+        } else if (icTab === 'events') {
+          const [brief, alerts] = await Promise.all([
+            api.intelligence.getMorningBrief(rid),
+            api.alerts.center(rid),
+          ]);
+          if (!cancelled) { setIcBrief(brief); setIcAlerts(alerts); }
+        }
+      } catch (e) {
+        if (!cancelled) setIcError(e instanceof Error ? e.message : 'שגיאה בטעינת הנתונים');
+      } finally {
+        if (!cancelled) setIcLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [backfillRestaurantId, icTab, sidebarTab]);
 
   const loadDetail = useCallback(async (id: string) => {
     setDetailBusy(true);
@@ -2771,6 +2825,461 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     );
   }
 
+  function renderIronClub() {
+    const IC_TABS: Array<{ key: IcTab; label: string }> = [
+      { key: 'overview',  label: 'סקירה' },
+      { key: 'members',   label: 'חברים' },
+      { key: 'alerts',    label: 'התראות' },
+      { key: 'messages',  label: 'מסרים' },
+      { key: 'events',    label: 'אירועים' },
+      { key: 'backfill',  label: 'עדכון ניקוד' },
+    ];
+    const MEMBER_STATUS_HE: Record<string, string> = { ACTIVE: 'פעיל', PAUSED: 'מושהה', OPTED_OUT: 'ביטל' };
+    const MEMBER_STATUS_COLOR: Record<string, string> = {
+      ACTIVE: 'text-iron-green bg-iron-green/10',
+      PAUSED: 'text-status-warning bg-status-warning/10',
+      OPTED_OUT: 'text-iron-muted bg-iron-border',
+    };
+    const ALERT_TYPE_HE: Record<string, string> = {
+      FEEDBACK_NEGATIVE: 'משוב שלילי', VIP_AT_RISK: 'VIP בסיכון', HIGH_NOSHOW: 'אי-הופעות רבות',
+      RECOVERY_OPEN: 'מקרה פתוח', SILENT_GUEST: 'אורח שקט',
+      BIRTHDAY_SOON: 'יום הולדת קרוב', ANNIVERSARY_SOON: 'יובל קרוב',
+    };
+    const MOMENT_STATUS_HE: Record<string, string> = {
+      DRAFT: 'טיוטה', PENDING: 'ממתין', SENT: 'נשלח', APPROVED: 'אושר',
+      REJECTED: 'נדחה', SCHEDULED: 'מתוזמן', CANCELLED: 'בוטל',
+    };
+    const MOMENT_STATUS_COLOR: Record<string, string> = {
+      DRAFT: 'text-iron-muted bg-iron-border', PENDING: 'text-status-warning bg-status-warning/10',
+      SENT: 'text-iron-green bg-iron-green/10', APPROVED: 'text-status-reserved bg-status-reserved/10',
+      REJECTED: 'text-status-danger bg-status-danger/10',
+      SCHEDULED: 'text-status-reserved bg-status-reserved/10', CANCELLED: 'text-iron-muted bg-iron-border',
+    };
+    const SOURCE_HE: Record<string, string> = {
+      HOST_STAFF: 'צוות', RESERVATION_LINK: 'לינק הזמנה', FEEDBACK_FLOW: 'טופס משוב',
+      QR_CODE: 'QR', WEBSITE: 'אתר', IMPORT: 'ייבוא', MANUAL: 'ידני',
+    };
+
+    const Spinner = () => (
+      <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin shrink-0" />
+    );
+    const LoadingRow = () => (
+      <div className="flex items-center justify-center gap-2 text-iron-muted text-sm py-16">
+        <Spinner /><span>טוען...</span>
+      </div>
+    );
+    const EmptyRow = ({ msg }: { msg: string }) => (
+      <p className="text-center text-iron-muted text-sm py-16">{msg}</p>
+    );
+    const ErrorRow = ({ msg }: { msg: string }) => (
+      <div className="text-xs text-red-400 bg-red-900/20 border border-red-900/30 rounded p-3 m-4">{msg}</div>
+    );
+    const NoRestaurant = () => (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <p className="text-2xl">🏪</p>
+          <p className="text-iron-muted text-sm">בחר מסעדה בסרגל הצד</p>
+        </div>
+      </div>
+    );
+
+    // ── סקירה ──────────────────────────────────────────────────
+    const renderOverview = () => {
+      if (!backfillRestaurantId) return <NoRestaurant />;
+      if (icLoading) return <LoadingRow />;
+      if (icError) return <ErrorRow msg={icError} />;
+      const stats = [
+        { label: 'חברי מועדון', value: icClubStats?.total ?? '—', sub: `${icClubStats?.active ?? 0} פעילים`, color: 'text-iron-green' },
+        { label: 'מושהים / ביטלו', value: (icClubStats?.paused ?? 0) + (icClubStats?.optedOut ?? 0), sub: `${icClubStats?.optedOut ?? 0} ביטלו לחלוטין`, color: 'text-iron-muted' },
+        { label: 'התראות פתוחות', value: icAlerts?.unreadCount ?? '—', sub: `${icAlerts?.critical.length ?? 0} קריטיות`, color: 'text-status-danger' },
+        { label: 'מקרי שחזור', value: (icRecovStats?.open ?? 0) + (icRecovStats?.contacted ?? 0), sub: `${icRecovStats?.criticalOpen ?? 0} קריטיים`, color: 'text-status-warning' },
+        { label: 'מקרים נסגרו', value: icRecovStats?.resolved ?? '—', sub: 'טופלו עד כה', color: 'text-iron-text' },
+        { label: 'אירועים קרובים', value: icAlerts?.upcoming.length ?? '—', sub: 'ימי הולדת ויובלים', color: 'text-status-reserved' },
+      ];
+      return (
+        <div className="p-6 space-y-6 overflow-y-auto h-full" dir="rtl">
+          <div className="grid grid-cols-3 gap-3">
+            {stats.map(c => (
+              <div key={c.label} className="bg-iron-card border border-iron-border rounded-lg p-4">
+                <p className="text-[11px] text-iron-muted mb-1">{c.label}</p>
+                <p className={`text-2xl font-bold ${c.color}`}>{c.value}</p>
+                <p className="text-[11px] text-iron-muted mt-0.5">{c.sub}</p>
+              </div>
+            ))}
+          </div>
+          {icAlerts && icAlerts.critical.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-status-danger uppercase tracking-wide mb-2">⚠ קריטי</p>
+              <div className="space-y-2">
+                {icAlerts.critical.slice(0, 5).map(a => (
+                  <div key={a.id} className="flex items-start gap-2 text-xs bg-red-900/10 border border-red-900/20 rounded-lg p-3">
+                    <div className="flex-1">
+                      <p className="text-iron-text font-medium">{a.headline}</p>
+                      {a.context && <p className="text-iron-muted mt-0.5">{a.context}</p>}
+                      {a.guest && <p className="text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}{a.guest.visitCount > 0 ? ` · ${a.guest.visitCount} ביקורים` : ''}</p>}
+                    </div>
+                    <span className="text-[10px] text-iron-muted/60 shrink-0 mt-0.5">{ALERT_TYPE_HE[a.type] ?? a.type}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {(!icClubStats && !icRecovStats && !icAlerts) && <EmptyRow msg="אין נתונים — הרץ עדכון ניקוד לאתחול" />}
+        </div>
+      );
+    };
+
+    // ── חברים ──────────────────────────────────────────────────
+    const renderMembers = () => {
+      if (!backfillRestaurantId) return <NoRestaurant />;
+      if (icLoading && !icMembers) return <LoadingRow />;
+      if (icError) return <ErrorRow msg={icError} />;
+      const all = icMembers ?? [];
+      const q = icMemberSearch.toLowerCase().trim();
+      const filtered = q
+        ? all.filter(m => {
+            const g = m.guest;
+            if (!g) return false;
+            return `${g.firstName} ${g.lastName}`.toLowerCase().includes(q) ||
+              (g.phone ?? '').includes(q) || (g.email ?? '').toLowerCase().includes(q);
+          })
+        : all;
+      return (
+        <div className="flex flex-col h-full" dir="rtl">
+          <div className="px-4 pt-3 pb-2 border-b border-iron-border flex items-center gap-3 shrink-0">
+            <input
+              className="flex-1 bg-iron-card border border-iron-border rounded px-3 py-1.5 text-sm text-iron-text placeholder:text-iron-muted"
+              placeholder="חיפוש לפי שם, טלפון..."
+              value={icMemberSearch}
+              onChange={e => setIcMemberSearch(e.target.value)}
+            />
+            <span className="text-xs text-iron-muted shrink-0">{filtered.length} / {all.length}</span>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {filtered.length === 0
+              ? <EmptyRow msg={q ? 'לא נמצאו חברים התואמים לחיפוש' : 'אין חברי מועדון'} />
+              : (
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-iron-bg z-10">
+                    <tr className="border-b border-iron-border text-iron-muted">
+                      <th className="text-right px-4 py-2.5 font-medium">שם</th>
+                      <th className="text-right px-4 py-2.5 font-medium">טלפון</th>
+                      <th className="text-right px-4 py-2.5 font-medium">סטטוס</th>
+                      <th className="text-right px-4 py-2.5 font-medium">ביקורים</th>
+                      <th className="text-right px-4 py-2.5 font-medium">מקור</th>
+                      <th className="text-right px-4 py-2.5 font-medium">הצטרף</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(m => {
+                      const g = m.guest;
+                      return (
+                        <tr key={m.id} className="border-b border-iron-border/50 hover:bg-iron-card/50 transition-colors">
+                          <td className="px-4 py-2.5 text-iron-text font-medium">{g ? `${g.firstName} ${g.lastName}` : '—'}</td>
+                          <td className="px-4 py-2.5 text-iron-muted" dir="ltr">{g?.phone ?? '—'}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${MEMBER_STATUS_COLOR[m.status] ?? 'text-iron-muted'}`}>
+                              {MEMBER_STATUS_HE[m.status] ?? m.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-iron-muted">{(g as { visitCount?: number })?.visitCount ?? '—'}</td>
+                          <td className="px-4 py-2.5 text-iron-muted">{SOURCE_HE[m.source] ?? m.source}</td>
+                          <td className="px-4 py-2.5 text-iron-muted">{new Date(m.joinDate).toLocaleDateString('he-IL')}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )
+            }
+          </div>
+        </div>
+      );
+    };
+
+    // ── התראות ─────────────────────────────────────────────────
+    const renderAlerts = () => {
+      if (!backfillRestaurantId) return <NoRestaurant />;
+      if (icLoading && !icAlerts) return <LoadingRow />;
+      if (icError) return <ErrorRow msg={icError} />;
+      const center = icAlerts;
+      if (!center) return <EmptyRow msg="אין נתונים" />;
+      const sections: Array<{ key: 'critical' | 'attention' | 'upcoming'; label: string; icon: string; colorClass: string; bgClass: string; borderClass: string }> = [
+        { key: 'critical',  label: 'קריטי',            icon: '🔴', colorClass: 'text-status-danger',   bgClass: 'bg-red-900/10',    borderClass: 'border-red-900/20' },
+        { key: 'attention', label: 'דורש תשומת לב',    icon: '🟡', colorClass: 'text-status-warning',  bgClass: 'bg-yellow-900/10', borderClass: 'border-yellow-900/20' },
+        { key: 'upcoming',  label: 'אירוע קרוב',       icon: '🔵', colorClass: 'text-status-reserved', bgClass: 'bg-blue-900/10',   borderClass: 'border-blue-900/20' },
+      ];
+      const total = center.critical.length + center.attention.length + center.upcoming.length;
+      if (total === 0) return <EmptyRow msg="אין התראות פעילות ✓" />;
+      return (
+        <div className="p-4 space-y-5 overflow-y-auto h-full" dir="rtl">
+          {sections.map(s => {
+            const alerts = center[s.key];
+            if (alerts.length === 0) return null;
+            return (
+              <div key={s.key}>
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${s.colorClass}`}>{s.icon} {s.label} ({alerts.length})</p>
+                <div className="space-y-2">
+                  {alerts.map(a => (
+                    <div key={a.id} className={`${s.bgClass} border ${s.borderClass} rounded-lg p-3 flex items-start gap-3`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-iron-text font-medium">{a.headline}</p>
+                        {a.context && <p className="text-[11px] text-iron-muted mt-0.5 leading-relaxed">{a.context}</p>}
+                        {a.guest && (
+                          <p className="text-[11px] text-iron-muted mt-1">
+                            {a.guest.firstName} {a.guest.lastName}
+                            {a.guest.visitCount > 0 && <span> · {a.guest.visitCount} ביקורים</span>}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-iron-muted/50 mt-1">{ALERT_TYPE_HE[a.type] ?? a.type}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.alerts.dismiss(backfillRestaurantId, a.id);
+                            setIcAlerts(prev => prev ? {
+                              ...prev,
+                              [s.key]: (prev[s.key] as typeof alerts).filter(x => x.id !== a.id),
+                              totalCount: prev.totalCount - 1,
+                              unreadCount: Math.max(0, prev.unreadCount - 1),
+                            } : prev);
+                          } catch { /* ignore */ }
+                        }}
+                        className="text-iron-muted hover:text-status-danger text-xs transition-colors shrink-0 mt-0.5 p-1"
+                        title="סגור התראה"
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    // ── מסרים ──────────────────────────────────────────────────
+    const renderMessages = () => {
+      if (!backfillRestaurantId) return <NoRestaurant />;
+      if (icLoading && !icMoments) return <LoadingRow />;
+      if (icError) return <ErrorRow msg={icError} />;
+      if (!icMoments || icMoments.length === 0) return <EmptyRow msg="אין מסרים" />;
+      return (
+        <div className="p-4 space-y-2 overflow-y-auto h-full" dir="rtl">
+          {icMoments.map(m => (
+            <div key={m.id} className="bg-iron-card border border-iron-border rounded-lg p-3">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-xs text-iron-text font-medium">{m.guest.firstName} {m.guest.lastName}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${MOMENT_STATUS_COLOR[m.status] ?? 'text-iron-muted bg-iron-border'}`}>
+                  {MOMENT_STATUS_HE[m.status] ?? m.status}
+                </span>
+              </div>
+              <p className="text-[11px] text-iron-muted leading-relaxed">{m.draftMessage}</p>
+              {m.finalMessage && m.finalMessage !== m.draftMessage && (
+                <p className="text-[11px] text-iron-green mt-1.5 leading-relaxed">✓ {m.finalMessage}</p>
+              )}
+              {m.guest.phone && <p className="text-[10px] text-iron-muted/50 mt-1.5" dir="ltr">{m.guest.phone}</p>}
+              <p className="text-[10px] text-iron-muted/40 mt-0.5">{new Date(m.createdAt).toLocaleDateString('he-IL')}</p>
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    // ── אירועים ────────────────────────────────────────────────
+    const renderEvents = () => {
+      if (!backfillRestaurantId) return <NoRestaurant />;
+      if (icLoading && !icBrief && !icAlerts) return <LoadingRow />;
+      if (icError) return <ErrorRow msg={icError} />;
+      const todayBirthdays  = icBrief?.content.birthdays    ?? [];
+      const todayAnniv      = icBrief?.content.anniversaries ?? [];
+      const vipArrivals     = icBrief?.content.vipArrivals  ?? [];
+      const upcoming        = icAlerts?.upcoming ?? [];
+      const bdayAlerts      = upcoming.filter(a => a.type === 'BIRTHDAY_SOON');
+      const annivAlerts     = upcoming.filter(a => a.type === 'ANNIVERSARY_SOON');
+      const hasAny = todayBirthdays.length + todayAnniv.length + vipArrivals.length + bdayAlerts.length + annivAlerts.length > 0;
+      if (!hasAny && (icBrief || icAlerts)) return <EmptyRow msg="אין אירועים קרובים" />;
+      if (!icBrief && !icAlerts) return <EmptyRow msg="אין נתונים" />;
+      const EventCard = ({ emoji, title, items }: { emoji: string; title: string; items: React.ReactNode[] }) => (
+        <div>
+          <p className="text-xs font-semibold text-iron-text uppercase tracking-wide mb-2">{emoji} {title}</p>
+          <div className="space-y-1.5">{items}</div>
+        </div>
+      );
+      return (
+        <div className="p-4 space-y-6 overflow-y-auto h-full" dir="rtl">
+          {todayBirthdays.length > 0 && (
+            <EventCard emoji="🎂" title="ימי הולדת היום" items={todayBirthdays.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs bg-iron-card border border-iron-border rounded p-2.5">
+                <span className="text-iron-text font-medium flex-1">{b.name}</span>
+                <span className="text-iron-muted" dir="ltr">{b.time}</span>
+              </div>
+            ))} />
+          )}
+          {bdayAlerts.length > 0 && (
+            <EventCard emoji="🎂" title="ימי הולדת קרובים" items={bdayAlerts.map(a => (
+              <div key={a.id} className="text-xs bg-iron-card border border-iron-border rounded p-2.5">
+                <p className="text-iron-text">{a.headline}</p>
+                {a.guest && <p className="text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}</p>}
+              </div>
+            ))} />
+          )}
+          {todayAnniv.length > 0 && (
+            <EventCard emoji="💍" title="יובלים היום" items={todayAnniv.map((a, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs bg-iron-card border border-iron-border rounded p-2.5">
+                <span className="text-iron-text font-medium flex-1">{a.name}</span>
+                <span className="text-iron-muted" dir="ltr">{a.time}</span>
+              </div>
+            ))} />
+          )}
+          {annivAlerts.length > 0 && (
+            <EventCard emoji="💍" title="יובלים קרובים" items={annivAlerts.map(a => (
+              <div key={a.id} className="text-xs bg-iron-card border border-iron-border rounded p-2.5">
+                <p className="text-iron-text">{a.headline}</p>
+                {a.guest && <p className="text-iron-muted mt-0.5">{a.guest.firstName} {a.guest.lastName}</p>}
+              </div>
+            ))} />
+          )}
+          {vipArrivals.length > 0 && (
+            <EventCard emoji="⭐" title="VIP הלילה" items={vipArrivals.map((v, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs bg-iron-card border border-iron-border rounded p-2.5">
+                <span className="text-iron-text font-medium flex-1">{v.name}</span>
+                <span className="text-iron-muted" dir="ltr">{v.time}</span>
+                <span className="text-iron-muted">·</span>
+                <span className="text-iron-muted">{v.partySize} סועדים</span>
+              </div>
+            ))} />
+          )}
+        </div>
+      );
+    };
+
+    // ── עדכון ניקוד (backfill) ─────────────────────────────────
+    const renderBackfill = () => {
+      const HE: Record<string, string> = { VIP: 'VIP', LOYAL: 'נאמן', VIP_CANDIDATE: 'מועמד VIP', HIGH_ENGAGEMENT: 'מעורב מאוד', RECOVERED: 'חזר אלינו', AT_RISK: 'בסיכון', SILENT: 'לא חזר', CRM_MEMBER: 'חבר CRM', NEEDS_ATTENTION: 'דורש מעקב', NEW: 'חדש' };
+      return (
+        <div className="p-6 max-w-lg space-y-5 overflow-y-auto h-full" dir="rtl">
+          <div>
+            <p className="text-xs font-semibold text-iron-green uppercase tracking-wide mb-1">עדכון ניקוד אורחים</p>
+            <p className="text-xs text-iron-muted">מחשב מחדש את ציון הנאמנות, ציון המעורבות ורמת החברות לכל האורחים. ללא שליחת הודעות.</p>
+          </div>
+          <div>
+            <label className="block text-xs text-iron-muted mb-1">מסעדה</label>
+            <select
+              className="w-full text-sm bg-iron-card border border-iron-border rounded-lg px-3 py-2 text-iron-text"
+              value={backfillRestaurantId}
+              onChange={e => { setBackfillRestaurantId(e.target.value); setBackfillResult(null); setBackfillError(null); }}
+            >
+              <option value="">— בחר —</option>
+              {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              disabled={!backfillRestaurantId || backfillBusy}
+              onClick={async () => {
+                if (!backfillRestaurantId) return;
+                setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
+                try { setBackfillResult(await api.intelligence.backfillV2(backfillRestaurantId, true)); }
+                catch (e) { setBackfillError(e instanceof Error ? e.message : String(e)); }
+                finally { setBackfillBusy(false); }
+              }}
+              className="flex-1 px-3 py-2 border border-iron-border rounded text-xs font-medium text-iron-text hover:bg-iron-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {backfillBusy ? <span className="flex items-center gap-1.5 justify-center"><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />סימולציה...</span> : 'סימולציה'}
+            </button>
+            <button
+              disabled={!backfillRestaurantId || backfillBusy}
+              onClick={async () => {
+                if (!backfillRestaurantId) return;
+                if (!window.confirm('להריץ עדכון ניקוד אמיתי ולעדכן את כל האורחים?')) return;
+                setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
+                try { setBackfillResult(await api.intelligence.backfillV2(backfillRestaurantId, false)); }
+                catch (e) { setBackfillError(e instanceof Error ? e.message : String(e)); }
+                finally { setBackfillBusy(false); }
+              }}
+              className="flex-1 px-3 py-2 bg-iron-green text-black rounded text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {backfillBusy ? <span className="flex items-center gap-1.5 justify-center"><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />מעדכן...</span> : 'עדכן ניקוד אורחים'}
+            </button>
+          </div>
+          {backfillBusy && <div className="flex items-center gap-2 text-xs text-iron-muted"><Spinner /><span>מעבד אורחים...</span></div>}
+          {backfillError && <div className="text-xs text-red-400 bg-red-900/20 border border-red-900/30 rounded p-3">{backfillError}</div>}
+          {backfillResult && (
+            <div className="space-y-3">
+              <div className={`text-xs font-semibold px-2 py-1 rounded inline-block ${backfillResult.dryRun ? 'bg-yellow-900/30 text-yellow-400' : 'bg-green-900/30 text-green-400'}`}>
+                {backfillResult.dryRun ? 'סימולציה — לא בוצעו שינויים' : '✓ עדכון ניקוד הושלם'}
+              </div>
+              <dl className="grid grid-cols-3 gap-2 text-xs">
+                {[['סה״כ אורחים', backfillResult.total], ['עובדו', backfillResult.processed], ['שגיאות', backfillResult.errors]].map(([k, v]) => (
+                  <div key={String(k)} className="bg-iron-card rounded p-2">
+                    <dt className="text-iron-muted">{k}</dt>
+                    <dd className={`font-semibold text-sm mt-0.5 ${k === 'שגיאות' && Number(v) > 0 ? 'text-red-400' : 'text-iron-text'}`}>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              {Object.keys(backfillResult.labelDistribution).length > 0 && (
+                <div>
+                  <p className="text-xs text-iron-muted mb-2">התפלגות רמות חברות</p>
+                  <div className="space-y-1">
+                    {Object.entries(backfillResult.labelDistribution).sort((a, b) => b[1] - a[1]).map(([label, count]) => {
+                      const pct = backfillResult.total > 0 ? Math.round(count / backfillResult.total * 100) : 0;
+                      return (
+                        <div key={label} className="flex items-center gap-2 text-xs">
+                          <span className="w-28 text-iron-muted shrink-0">{HE[label] ?? label}</span>
+                          <div className="flex-1 bg-iron-border rounded-full h-1.5"><div className="bg-iron-green h-1.5 rounded-full" style={{ width: `${pct}%` }} /></div>
+                          <span className="w-14 text-right text-iron-text">{count} <span className="text-iron-muted">({pct}%)</span></span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {backfillResult.errorDetails.length > 0 && (
+                <div>
+                  <p className="text-xs text-iron-muted mb-1">שגיאות:</p>
+                  {backfillResult.errorDetails.map((e, i) => (
+                    <div key={i} className="text-xs text-red-400 font-mono bg-iron-card rounded px-2 py-1 mb-1">{e.guestId}: {e.error}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const tabContentMap: Record<IcTab, () => React.ReactNode> = {
+      overview: renderOverview, members: renderMembers, alerts: renderAlerts,
+      messages: renderMessages, events: renderEvents, backfill: renderBackfill,
+    };
+
+    return (
+      <div className="flex-1 flex flex-col h-full overflow-hidden" dir="rtl">
+        {/* Sub-tab nav */}
+        <div className="border-b border-iron-border flex items-center px-2 shrink-0 bg-iron-bg">
+          {IC_TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setIcTab(t.key)}
+              className={`px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
+                icTab === t.key
+                  ? 'text-iron-green border-iron-green'
+                  : 'text-iron-muted hover:text-iron-text border-transparent'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {tabContentMap[icTab]()}
+        </div>
+      </div>
+    );
+  }
+
   function renderSmsUsage() {
     const rows = smsUsage?.restaurants ?? [];
     return (
@@ -3285,143 +3794,23 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </div>
           </>)}
 
-          {/* IRON CLUB — Backfill panel (SUPER_ADMIN sidebar) */}
+          {/* IRON CLUB — compact restaurant selector in sidebar */}
           {sidebarTab === 'intelligence' && (
-            <div className="flex-1 overflow-y-auto p-4 space-y-5" dir="rtl">
-              <div>
-                <p className="text-xs font-semibold text-iron-green uppercase tracking-wide mb-1">IRON CLUB — עדכון ניקוד</p>
-                <p className="text-xs text-iron-muted">מחשב מחדש את ציון הנאמנות, ציון המעורבות ורמת החברות לכל האורחים במסעדה. ללא שליחת הודעות.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs text-iron-muted mb-1">בחר מסעדה</label>
-                <select
-                  className="w-full text-sm bg-iron-card border border-iron-border rounded-lg px-3 py-2 text-iron-text"
-                  value={backfillRestaurantId}
-                  onChange={e => { setBackfillRestaurantId(e.target.value); setBackfillResult(null); setBackfillError(null); }}
-                >
-                  <option value="">— בחר —</option>
-                  {restaurants.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  disabled={!backfillRestaurantId || backfillBusy}
-                  onClick={async () => {
-                    if (!backfillRestaurantId) return;
-                    setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
-                    try {
-                      const r = await api.intelligence.backfillV2(backfillRestaurantId, true);
-                      setBackfillResult(r);
-                    } catch (e) {
-                      setBackfillError(e instanceof Error ? e.message : String(e));
-                    } finally { setBackfillBusy(false); }
-                  }}
-                  className="flex-1 px-3 py-2 border border-iron-border rounded text-xs font-medium text-iron-text hover:bg-iron-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  {backfillBusy ? <span className="flex items-center gap-1.5 justify-center"><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />סימולציה...</span> : 'סימולציה'}
-                </button>
-                <button
-                  disabled={!backfillRestaurantId || backfillBusy}
-                  onClick={async () => {
-                    if (!backfillRestaurantId) return;
-                    if (!window.confirm('להריץ Backfill מודיעין אמיתי ולעדכן את כל האורחים?')) return;
-                    setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
-                    try {
-                      const r = await api.intelligence.backfillV2(backfillRestaurantId, false);
-                      setBackfillResult(r);
-                    } catch (e) {
-                      setBackfillError(e instanceof Error ? e.message : String(e));
-                    } finally { setBackfillBusy(false); }
-                  }}
-                  className="flex-1 px-3 py-2 bg-iron-green text-black rounded text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  {backfillBusy ? <span className="flex items-center gap-1.5 justify-center"><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />מעדכן...</span> : 'עדכן ניקוד אורחים'}
-                </button>
-              </div>
-
-              {backfillBusy && (
-                <div className="flex items-center gap-2 text-xs text-iron-muted">
-                  <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
-                  <span>מעבד אורחים...</span>
-                </div>
-              )}
-
-              {backfillError && (
-                <div className="text-xs text-red-400 bg-red-900/20 border border-red-900/30 rounded p-3">{backfillError}</div>
-              )}
-
-              {backfillResult && (
-                <div className="space-y-3">
-                  <div className={`text-xs font-semibold px-2 py-1 rounded inline-block ${backfillResult.dryRun ? 'bg-yellow-900/30 text-yellow-400' : 'bg-green-900/30 text-green-400'}`}>
-                    {backfillResult.dryRun ? 'סימולציה — לא בוצעו שינויים' : '✓ עדכון ניקוד הושלם'}
-                  </div>
-
-                  <dl className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-iron-card rounded p-2">
-                      <dt className="text-iron-muted">סה״כ אורחים</dt>
-                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.total}</dd>
-                    </div>
-                    <div className="bg-iron-card rounded p-2">
-                      <dt className="text-iron-muted">עובדו</dt>
-                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.processed}</dd>
-                    </div>
-                    <div className="bg-iron-card rounded p-2">
-                      <dt className="text-iron-muted">שגיאות</dt>
-                      <dd className={`font-semibold text-sm mt-0.5 ${backfillResult.errors > 0 ? 'text-red-400' : 'text-iron-text'}`}>{backfillResult.errors}</dd>
-                    </div>
-                    <div className="bg-iron-card rounded p-2">
-                      <dt className="text-iron-muted">ממוצע נאמנות</dt>
-                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.scoreStats.avgLoyalty}</dd>
-                    </div>
-                    <div className="bg-iron-card rounded p-2">
-                      <dt className="text-iron-muted">מקסימום</dt>
-                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.scoreStats.maxLoyalty ?? '—'}</dd>
-                    </div>
-                    <div className="bg-iron-card rounded p-2">
-                      <dt className="text-iron-muted">מינימום</dt>
-                      <dd className="text-iron-text font-semibold text-sm mt-0.5">{backfillResult.scoreStats.minLoyalty ?? '—'}</dd>
-                    </div>
-                  </dl>
-
-                  {Object.keys(backfillResult.labelDistribution).length > 0 && (
-                    <div>
-                      <p className="text-xs text-iron-muted mb-2">התפלגות תוויות</p>
-                      <div className="space-y-1">
-                        {Object.entries(backfillResult.labelDistribution)
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([label, count]) => {
-                            const pct = backfillResult.total > 0 ? Math.round(count / backfillResult.total * 100) : 0;
-                            const HE: Record<string, string> = { VIP: 'VIP', LOYAL: 'נאמן', VIP_CANDIDATE: 'מועמד VIP', HIGH_ENGAGEMENT: 'מעורב מאוד', RECOVERED: 'חזר אלינו', AT_RISK: 'בסיכון', SILENT: 'לא חזר', CRM_MEMBER: 'חבר CRM', NEEDS_ATTENTION: 'דורש מעקב', NEW: 'חדש' };
-                            return (
-                              <div key={label} className="flex items-center gap-2 text-xs">
-                                <span className="w-28 text-iron-muted shrink-0">{HE[label] ?? label}</span>
-                                <div className="flex-1 bg-iron-border rounded-full h-1.5">
-                                  <div className="bg-iron-green h-1.5 rounded-full" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="w-10 text-right text-iron-text">{count} <span className="text-iron-muted">({pct}%)</span></span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-
-                  {backfillResult.errorDetails.length > 0 && (
-                    <div>
-                      <p className="text-xs text-iron-muted mb-1">שגיאות (עד 10):</p>
-                      <div className="space-y-1">
-                        {backfillResult.errorDetails.map((e, i) => (
-                          <div key={i} className="text-xs text-red-400 font-mono bg-iron-card rounded px-2 py-1">{e.guestId}: {e.error}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="p-3 border-b border-iron-border shrink-0" dir="rtl">
+              <p className="text-[10px] font-semibold text-iron-green uppercase tracking-wide mb-1.5">IRON CLUB</p>
+              <select
+                className="w-full text-sm bg-iron-card border border-iron-border rounded-lg px-3 py-2 text-iron-text"
+                value={backfillRestaurantId}
+                onChange={e => {
+                  setBackfillRestaurantId(e.target.value);
+                  setBackfillResult(null); setBackfillError(null);
+                  setIcClubStats(null); setIcRecovStats(null); setIcAlerts(null);
+                  setIcMembers(null); setIcMoments(null); setIcBrief(null);
+                }}
+              >
+                <option value="">— בחר מסעדה —</option>
+                {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
             </div>
           )}
         </div>}
@@ -3429,33 +3818,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* Main content */}
         <PanelErrorBoundary resetKey={`${view}-${selectedId ?? ''}-${selectedGroupId ?? ''}`}>
           <div className="flex-1 overflow-hidden flex">
-            {view === 'splash' && sidebarTab === 'intelligence' && (
-              <div className="flex-1 flex items-center justify-center p-10" dir="rtl">
-                <div className="max-w-md w-full space-y-6">
-                  <div>
-                    <p className="text-[11px] font-semibold text-iron-green uppercase tracking-[0.15em] mb-2">IRON CLUB</p>
-                    <h2 className="text-xl font-semibold text-iron-text mb-2">ניקוד אורחים חכם</h2>
-                    <p className="text-sm text-iron-muted leading-relaxed">
-                      מערכת IRON CLUB מנתחת את היסטוריית הביקורים של כל אורח ומשייכת לו ציון נאמנות, ציון מעורבות ורמת חברות — VIP, נאמן, בסיכון ועוד.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'VIP', desc: 'ביקורים תכופים + הוצאה גבוהה' },
-                      { label: 'נאמן', desc: 'חוזר באופן קבוע' },
-                      { label: 'בסיכון', desc: 'לא חזר זמן רב' },
-                      { label: 'חדש', desc: 'ביקור ראשון עד שלישי' },
-                    ].map(({ label, desc }) => (
-                      <div key={label} className="bg-iron-card border border-iron-border rounded-lg p-3">
-                        <p className="text-xs font-semibold text-iron-text mb-0.5">{label}</p>
-                        <p className="text-[11px] text-iron-muted">{desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-iron-muted/60 text-center">בחר מסעדה בסרגל הצד לעדכון הניקוד</p>
-                </div>
-              </div>
-            )}
+            {view === 'splash' && sidebarTab === 'intelligence' && renderIronClub()}
             {view === 'splash' && sidebarTab !== 'intelligence' && (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
