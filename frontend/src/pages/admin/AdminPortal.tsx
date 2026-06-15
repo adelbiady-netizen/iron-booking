@@ -30,9 +30,9 @@ function isValidIsraeliMobile(raw: string): boolean {
 type SmsTplType = 'RESERVATION_RECEIVED' | 'CONFIRMATION_REQUEST' | 'REMINDER';
 
 const SMS_TPL_TYPES: Array<{ key: SmsTplType; label: string; hasLink: boolean }> = [
-  { key: 'RESERVATION_RECEIVED', label: 'Reservation received', hasLink: false },
-  { key: 'CONFIRMATION_REQUEST', label: 'Confirmation request', hasLink: true  },
-  { key: 'REMINDER',             label: 'Reminder',             hasLink: true  },
+  { key: 'RESERVATION_RECEIVED', label: 'קבלת הזמנה',   hasLink: false },
+  { key: 'CONFIRMATION_REQUEST', label: 'בקשת אישור',   hasLink: true  },
+  { key: 'REMINDER',             label: 'תזכורת',       hasLink: true  },
 ];
 
 const SMS_TPL_VARS = ['{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}', '{reservationDuration}'];
@@ -68,7 +68,7 @@ interface OnlineRestriction {
 
 interface RestrictionForm { date: string; fullDay: boolean; startTime: string; endTime: string; reason: string; guestMessage: string; }
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map(d => ({
   dayOfWeek: d, isOpen: d !== 0, openTime: '11:00', closeTime: '22:00', lastSeating: '21:00',
@@ -275,13 +275,13 @@ class PanelErrorBoundary extends React.Component<{ children: ReactNode; resetKey
             <div className="w-10 h-10 rounded-lg bg-red-900/30 border border-status-danger/30 flex items-center justify-center mx-auto">
               <span className="text-status-danger text-lg font-bold">!</span>
             </div>
-            <p className="text-iron-text font-semibold text-sm">Panel error</p>
+            <p className="text-iron-text font-semibold text-sm">שגיאת פאנל</p>
             <p className="text-iron-muted text-xs font-mono break-all leading-relaxed">{this.state.message}</p>
             <button
               onClick={() => this.setState({ hasError: false, message: '' })}
               className="px-5 py-2.5 rounded-lg bg-iron-green hover:bg-iron-green-light text-white text-sm font-semibold transition-colors"
             >
-              Retry
+              נסה שוב
             </button>
           </div>
         </div>
@@ -724,7 +724,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       });
       setDetail(d => d ? { ...d, ultramsgInstanceId: result.ultramsgInstanceId, whatsappPhone: result.whatsappPhone, tokenSet: result.tokenSet } : d);
       setEditWhatsapp(false);
-      showToast('WhatsApp credentials saved');
+      showToast('פרטי WhatsApp נשמרו');
     } catch (err) {
       setWhatsappError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -737,7 +737,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     setWhatsappTestBusy(true);
     try {
       await api.admin.restaurants.testWhatsapp(selectedId);
-      showToast('Test message sent');
+      showToast('הודעת בדיקה נשלחה');
     } catch (err) {
       setWhatsappError(err instanceof Error ? err.message : 'Test failed');
     } finally {
@@ -761,7 +761,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       const updated = await api.admin.restaurants.settings(selectedId, payload);
       setDetail(d => d ? { ...d, settings: updated.settings } : d);
       setEditSms(false);
-      showToast('SMS settings saved');
+      showToast('הגדרות SMS נשמרו');
     } catch (err) {
       setSmsError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -784,7 +784,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setLinkGroupsInput(ids.join(', '));
       const r = await api.admin.telephony.unresolvedGroups();
       setUnresolvedGroups(r.groups);
-      showToast('Link group IDs saved');
+      showToast('קבוצות Link נשמרו');
     } catch (err) {
       setLinkGroupsError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -811,7 +811,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       });
       const updated = await api.admin.restaurants.settings(selectedId, { smsTemplates });
       setDetail(d => d ? { ...d, settings: updated.settings } : d);
-      showToast('SMS templates saved');
+      showToast('תבניות SMS נשמרו');
     } catch (err) {
       setSmsTplError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -917,7 +917,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating,
       })));
       setEditSchedule(false);
-      showToast('Schedule saved');
+      showToast('לוח זמנים נשמר');
     } catch (err) {
       setScheduleError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -947,7 +947,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setRestrictions(updated);
       setShowAddRestriction(false);
       setRestrictionForm(DEFAULT_RESTRICTION_FORM);
-      showToast('Restriction added');
+      showToast('הגבלה נוספה');
     } catch (err) {
       setRestrictionError(err instanceof Error ? err.message : 'Failed to add restriction');
     } finally {
@@ -1007,7 +1007,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         wazeUrl:       result.wazeUrl,
       } : d);
       setEditBranding(false);
-      showToast('Branding saved');
+      showToast('מיתוג נשמר');
     } catch (err) {
       setBrandingError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -1198,7 +1198,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <Input
             value={wizardBasic.name}
             onChange={e => handleNameChange(e.target.value)}
-            placeholder="e.g. The Grand Brasserie"
+            placeholder="לדוג׳ The Grand Brasserie"
             required
           />
         </Field>
@@ -1206,12 +1206,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <Input
             value={wizardBasic.slug}
             onChange={e => setWizardBasic(b => ({ ...b, slug: e.target.value }))}
-            placeholder="e.g. grand-brasserie"
+            placeholder="לדוג׳ grand-brasserie"
             pattern="[a-z0-9-]+"
-            title="Lowercase letters, numbers and hyphens only"
+            title="אותיות קטנות, ספרות ומקפים בלבד"
             required
           />
-          <p className="text-xs text-iron-muted mt-1">Used in API and internal references</p>
+          <p className="text-xs text-iron-muted mt-1">משמש ב-API ולזיהוי פנימי</p>
         </Field>
         <Field label={T.admin.fieldTimezone}>
           <Input
@@ -1222,14 +1222,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={T.admin.fieldPhone}>
-            <Input value={wizardBasic.phone} onChange={e => setWizardBasic(b => ({ ...b, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+            <Input value={wizardBasic.phone} onChange={e => setWizardBasic(b => ({ ...b, phone: e.target.value }))} placeholder="+972 50 000 0000" />
           </Field>
           <Field label={T.admin.fieldEmail}>
             <Input type="email" value={wizardBasic.email} onChange={e => setWizardBasic(b => ({ ...b, email: e.target.value }))} placeholder="info@restaurant.com" />
           </Field>
         </div>
         <Field label={T.admin.fieldAddress}>
-          <Input value={wizardBasic.address} onChange={e => setWizardBasic(b => ({ ...b, address: e.target.value }))} placeholder="123 Main St, City, State" />
+          <Input value={wizardBasic.address} onChange={e => setWizardBasic(b => ({ ...b, address: e.target.value }))} placeholder="רח׳ הראשי 1, עיר" />
         </Field>
       </div>
     );
@@ -1293,10 +1293,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       <div className="space-y-4">
         {wizardRestaurantId && (
           <p className="text-xs text-status-warning bg-status-warning/10 rounded px-3 py-2">
-            Location added — fix the errors below to add the first user, or skip.
+            מסעדה נוצרה — תקן/י את השגיאות למטה להוספת משתמש ראשון, או דלג/י.
           </p>
         )}
-        <p className="text-sm text-iron-muted">Create the first staff member for this restaurant. You can skip this and add users later.</p>
+        <p className="text-sm text-iron-muted">צור/י את איש הצוות הראשון במסעדה. ניתן לדלג ולהוסיף משתמשים מאוחר יותר.</p>
         <div className="grid grid-cols-2 gap-3">
           <Field label={T.admin.fieldFirstName} error={fe.firstName}>
             <Input value={wizardUser.firstName} onChange={set('firstName')} />
@@ -1403,9 +1403,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* Counts row */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Users',        value: T.admin.users(detail._count.users) },
-            { label: 'Tables',       value: T.admin.tables(detail._count.tables) },
-            { label: 'Reservations', value: T.admin.reservations(detail._count.reservations) },
+            { label: 'משתמשים',   value: T.admin.users(detail._count.users) },
+            { label: 'שולחנות',   value: T.admin.tables(detail._count.tables) },
+            { label: 'הזמנות',    value: T.admin.reservations(detail._count.reservations) },
           ].map(({ label, value }) => (
             <div key={label} className="bg-iron-surface rounded-lg p-4 border border-iron-border">
               <div className="text-xs text-iron-muted mb-1">{label}</div>
@@ -1432,18 +1432,18 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">Details</h3>
+              <h3 className="font-medium">פרטים</h3>
               {isSuperAdmin && <button onClick={() => setEditInfo(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {[
-                ['Name',     detail.name],
-                ['Slug',     detail.slug],
-                ['Timezone', detail.timezone],
-                ['Phone',    detail.phone ?? '—'],
-                ['Email',    detail.email ?? '—'],
-                ['Address',  detail.address ?? '—'],
-                ['Created',  new Date(detail.createdAt).toLocaleDateString()],
+                ['שם',        detail.name],
+                ['Slug',      detail.slug],
+                ['אזור זמן',  detail.timezone],
+                ['טלפון',     detail.phone ?? '—'],
+                ['אימייל',    detail.email ?? '—'],
+                ['כתובת',     detail.address ?? '—'],
+                ['נוצר',      new Date(detail.createdAt).toLocaleDateString()],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-iron-muted text-xs mb-0.5">{k}</dt>
@@ -1459,7 +1459,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-medium text-sm mb-1">{T.admin.sampleLayoutBtn}</h3>
-              <p className="text-xs text-iron-muted">Seeds 2 sections and 8 default tables. Deletes any existing tables.</p>
+              <p className="text-xs text-iron-muted">יוצר 2 אזורים ו-8 שולחנות ברירת מחדל. מוחק שולחנות קיימים.</p>
             </div>
             <button
               onClick={handleSampleLayout}
@@ -1493,19 +1493,19 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">Service settings</h3>
+              <h3 className="font-medium">הגדרות שירות</h3>
               {isSuperAdmin && <button onClick={() => { setWizardSettings(settingsForm); setEditSettings(true); }} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {[
-                ['Default turn time',   `${s.defaultTurnMinutes ?? 90}m`],
-                ['Slot interval',       `${s.slotIntervalMinutes ?? 30}m`],
-                ['Max party size',      String(s.maxPartySize ?? 20)],
-                ['Auto-confirm',        s.autoConfirm ? 'Yes' : 'No'],
-                ['Turn buffer',         `${s.bufferBetweenTurnsMinutes ?? 15}m`],
-                ['Last seating offset', `${s.lastSeatingOffset ?? 60}m`],
-                ['Late threshold',      `${s.lateThresholdMinutes ?? 5}m`],
-                ['No-show threshold',   `${s.noShowThresholdMinutes ?? 15}m`],
+                ['זמן ישיבה ברירת מחדל', `${s.defaultTurnMinutes ?? 90}דק׳`],
+                ['מרווח בין סלוטים',     `${s.slotIntervalMinutes ?? 30}דק׳`],
+                ['גודל מסיבה מקסימלי',  String(s.maxPartySize ?? 20)],
+                ['אישור אוטומטי',        s.autoConfirm ? 'כן' : 'לא'],
+                ['חיץ בין תורות',        `${s.bufferBetweenTurnsMinutes ?? 15}דק׳`],
+                ['קיזוז ישיבה אחרונה',  `${s.lastSeatingOffset ?? 60}דק׳`],
+                ['סף איחור',            `${s.lateThresholdMinutes ?? 5}דק׳`],
+                ['סף אי-הופעה',         `${s.noShowThresholdMinutes ?? 15}דק׳`],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-iron-muted text-xs mb-0.5">{k}</dt>
@@ -1520,11 +1520,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {isSuperAdmin && (
           <>
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
-            <h3 className="font-medium mb-4">Feature flags</h3>
+            <h3 className="font-medium mb-4">תכונות</h3>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-iron-text">Guests CRM</p>
-                <p className="text-xs text-iron-muted mt-0.5">Enable or disable the Guests page for this restaurant</p>
+                <p className="text-sm text-iron-text">אורחים CRM</p>
+                <p className="text-xs text-iron-muted mt-0.5">הפעלה/כיבוי של דף האורחים למסעדה זו</p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -1540,7 +1540,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     }
                   }}
                 />
-                <span className="text-sm text-iron-text">{s.guestsPageEnabled !== false ? 'Enabled' : 'Disabled'}</span>
+                <span className="text-sm text-iron-text">{s.guestsPageEnabled !== false ? 'פעיל' : 'כבוי'}</span>
               </label>
             </div>
           </div>
@@ -1617,16 +1617,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* Weekly Schedule */}
         {editSchedule ? (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
-            <h3 className="font-medium">Weekly Schedule</h3>
+            <h3 className="font-medium">לוח שבועי</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-iron-muted border-b border-iron-border">
-                    <th className="pb-2 pr-4 font-normal w-24">Day</th>
-                    <th className="pb-2 pr-4 font-normal w-12">Open</th>
-                    <th className="pb-2 pr-4 font-normal">Service starts</th>
-                    <th className="pb-2 pr-4 font-normal">Closes</th>
-                    <th className="pb-2 font-normal">Last seating</th>
+                    <th className="pb-2 pr-4 font-normal w-24">יום</th>
+                    <th className="pb-2 pr-4 font-normal w-12">פתוח</th>
+                    <th className="pb-2 pr-4 font-normal">פתיחת הזמנות</th>
+                    <th className="pb-2 pr-4 font-normal">סגירה</th>
+                    <th className="pb-2 font-normal">ישיבה אחרונה</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1673,7 +1673,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-iron-muted">Service starts = first booking slot on the public page. Last seating = last reservation allowed.</p>
+            <p className="text-[11px] text-iron-muted">פתיחת הזמנות = סלוט ראשון בדף הציבורי. ישיבה אחרונה = ההזמנה האחרונה המותרת.</p>
             {scheduleError && <p className="text-xs text-status-danger">{scheduleError}</p>}
             <div className="flex gap-3 pt-1">
               <button onClick={handleSaveSchedule} disabled={scheduleBusy} className={btnPrimary}>{scheduleBusy ? T.admin.saveBusy : T.admin.saveBtn}</button>
@@ -1683,7 +1683,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">Weekly Schedule</h3>
+              <h3 className="font-medium">לוח שבועי</h3>
               {isSuperAdmin && <button onClick={() => setEditSchedule(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
             </div>
             <div className="space-y-1.5 text-sm">
@@ -1691,8 +1691,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <div key={row.dayOfWeek} className="flex items-baseline gap-3">
                   <span className="text-iron-muted text-xs w-24 shrink-0">{DAY_NAMES[row.dayOfWeek]}</span>
                   {row.isOpen
-                    ? <span className="text-iron-text">{row.openTime} – {row.closeTime} <span className="text-iron-muted text-xs">last seating {row.lastSeating}</span></span>
-                    : <span className="text-iron-muted italic text-xs">Closed</span>}
+                    ? <span className="text-iron-text">{row.openTime} – {row.closeTime} <span className="text-iron-muted text-xs">ישיבה אחרונה {row.lastSeating}</span></span>
+                    : <span className="text-iron-muted italic text-xs">סגור</span>}
                 </div>
               ))}
             </div>
@@ -1702,21 +1702,21 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* Online Booking Restrictions */}
         <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
           <div className="flex items-center justify-between mb-1">
-            <h3 className="font-medium">Online Booking Restrictions</h3>
+            <h3 className="font-medium">הגבלות הזמנה מקוונת</h3>
             {!showAddRestriction && (
               <button
                 onClick={() => { setShowAddRestriction(true); setRestrictionError(null); }}
                 className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-              >+ Add rule</button>
+              >+ הוסף כלל</button>
             )}
           </div>
           <p className="text-[11px] text-iron-muted mb-4">
-            Blocks online guest booking for specific dates or time windows.
-            Staff can still create reservations manually from this dashboard.
+            חוסם הזמנות מקוונות לתאריכים או חלונות זמן ספציפיים.
+            הצוות יכול עדיין ליצור הזמנות ידנית מלוח הבקרה.
           </p>
 
           {restrictions.length === 0 && !showAddRestriction && (
-            <p className="text-xs text-iron-muted italic">No active restrictions.</p>
+            <p className="text-xs text-iron-muted italic">אין הגבלות פעילות.</p>
           )}
 
           {restrictions.length > 0 && (
@@ -1727,7 +1727,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-iron-text font-medium">{r.date}</span>
                       <span dir="ltr" className="text-xs text-iron-muted bg-iron-surface px-1.5 py-0.5 rounded">
-                        {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : 'Full day'}
+                        {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : 'כל היום'}
                       </span>
                     </div>
                     {r.reason && <p className="text-xs text-iron-muted mt-0.5">{r.reason}</p>}
@@ -1748,7 +1748,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           {showAddRestriction && (
             <div className="border-t border-iron-border/50 pt-4 mt-2 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Date *">
+                <Field label="תאריך *">
                   <Input
                     type="date"
                     value={restrictionForm.date}
@@ -1763,19 +1763,19 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     onChange={e => setRestrictionForm(f => ({ ...f, fullDay: e.target.checked }))}
                     className="w-4 h-4 cursor-pointer accent-iron-green"
                   />
-                  <label htmlFor="restrictionFullDay" className="text-sm text-iron-text cursor-pointer select-none">Full day</label>
+                  <label htmlFor="restrictionFullDay" className="text-sm text-iron-text cursor-pointer select-none">כל היום</label>
                 </div>
               </div>
               {!restrictionForm.fullDay && (
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Start time *">
+                  <Field label="שעת התחלה *">
                     <Input
                       type="time"
                       value={restrictionForm.startTime}
                       onChange={e => setRestrictionForm(f => ({ ...f, startTime: e.target.value }))}
                     />
                   </Field>
-                  <Field label="End time *">
+                  <Field label="שעת סיום *">
                     <Input
                       type="time"
                       value={restrictionForm.endTime}
@@ -1784,30 +1784,30 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   </Field>
                 </div>
               )}
-              <Field label="Reason (internal — not shown to guests)">
+              <Field label="סיבה (פנימי — לא מוצג לאורחים)">
                 <Input
                   value={restrictionForm.reason}
                   onChange={e => setRestrictionForm(f => ({ ...f, reason: e.target.value }))}
-                  placeholder="Private event, staff training, kitchen closed…"
+                  placeholder="אירוע פרטי, הכשרת צוות, מטבח סגור…"
                 />
               </Field>
-              <Field label="Guest message (optional — shown in booking widget if set)">
+              <Field label="הודעה לאורח (אופציונלי — מוצגת בווידג׳ט אם מוגדרת)">
                 <Input
                   value={restrictionForm.guestMessage}
                   maxLength={200}
                   onChange={e => setRestrictionForm(f => ({ ...f, guestMessage: e.target.value }))}
-                  placeholder="Online booking unavailable for this date. Please call us to reserve."
+                  placeholder="הזמנה מקוונת אינה זמינה לתאריך זה. צרו קשר בטלפון."
                 />
               </Field>
               {restrictionError && <p className="text-xs text-status-danger">{restrictionError}</p>}
               <div className="flex gap-3 pt-1">
                 <button onClick={handleCreateRestriction} disabled={restrictionCreateBusy} className={btnPrimary}>
-                  {restrictionCreateBusy ? 'Adding…' : 'Add rule'}
+                  {restrictionCreateBusy ? 'מוסיף…' : 'הוסף כלל'}
                 </button>
                 <button
                   onClick={() => { setShowAddRestriction(false); setRestrictionForm(DEFAULT_RESTRICTION_FORM); setRestrictionError(null); }}
                   className={btnSecondary}
-                >Cancel</button>
+                >{T.admin.cancelBtn}</button>
               </div>
             </div>
           )}
@@ -1816,7 +1816,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* WhatsApp Integration */}
         {editWhatsapp ? (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
-            <h3 className="font-medium">WhatsApp Integration</h3>
+            <h3 className="font-medium">חיבור WhatsApp</h3>
             <Field label="UltraMsg Instance ID">
               <Input
                 value={whatsappForm.instanceId}
@@ -1824,7 +1824,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 placeholder="instance123456"
               />
             </Field>
-            <Field label="UltraMsg Token (leave blank to keep existing)">
+            <Field label="UltraMsg Token (השאר ריק לשמירת הקיים)">
               <Input
                 type="password"
                 value={whatsappForm.token}
@@ -1832,7 +1832,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 placeholder="••••••••"
               />
             </Field>
-            <Field label="Test Phone Number (international format, e.g. +972501234567)">
+            <Field label="מספר טלפון לבדיקה (פורמט בינלאומי, לדוג׳ +972501234567)">
               <Input
                 value={whatsappForm.phone}
                 onChange={e => setWhatsappForm(f => ({ ...f, phone: e.target.value }))}
@@ -1848,7 +1848,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">WhatsApp Integration</h3>
+              <h3 className="font-medium">חיבור WhatsApp</h3>
               {isSuperAdmin && <button
                 onClick={() => { setEditWhatsapp(true); setWhatsappError(null); }}
                 className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
@@ -1857,22 +1857,22 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Instance ID</dt>
-                <dd className="text-iron-text">{detail?.ultramsgInstanceId ?? <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text">{detail?.ultramsgInstanceId ?? <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Token</dt>
-                <dd className="text-iron-text">{detail?.tokenSet ? '••••••••' : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text">{detail?.tokenSet ? '••••••••' : <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Test phone</dt>
-                <dd className="text-iron-text">{detail?.whatsappPhone ?? <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">טלפון לבדיקה</dt>
+                <dd className="text-iron-text">{detail?.whatsappPhone ?? <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Status</dt>
+                <dt className="text-iron-muted text-xs mb-0.5">סטטוס</dt>
                 <dd>
                   {detail?.ultramsgInstanceId && detail?.tokenSet
-                    ? <span className="text-iron-green text-xs font-medium">Configured</span>
-                    : <span className="text-status-warning text-xs font-medium">Not configured — messages will not send</span>}
+                    ? <span className="text-iron-green text-xs font-medium">מוגדר</span>
+                    : <span className="text-status-warning text-xs font-medium">לא מוגדר — הודעות לא יישלחו</span>}
                 </dd>
               </div>
             </dl>
@@ -1883,7 +1883,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   onClick={handleTestWhatsapp}
                   disabled={whatsappTestBusy}
                   className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg disabled:opacity-50"
-                >{whatsappTestBusy ? 'Sending…' : 'Send test message'}</button>
+                >{whatsappTestBusy ? 'שולח…' : 'שלח הודעת בדיקה'}</button>
               </div>
             )}
           </div>
@@ -1892,26 +1892,26 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* SMS Service */}
         {editSms ? (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
-            <h3 className="font-medium">SMS Service</h3>
+            <h3 className="font-medium">שירות SMS</h3>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={smsForm.enabled}
                 onChange={e => setSmsForm(f => ({ ...f, enabled: e.target.checked }))}
               />
-              Enable SMS for this restaurant
+              הפעל SMS למסעדה זו
             </label>
-            <Field label="Provider">
+            <Field label="ספק">
               <select
                 value={smsForm.provider}
                 onChange={e => setSmsForm(f => ({ ...f, provider: e.target.value }))}
                 className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-sm text-iron-text"
               >
-                <option value="MOCK">MOCK (testing — does not send)</option>
-                <option value="INFORU">InforU (live)</option>
+                <option value="MOCK">MOCK (בדיקות — לא שולח)</option>
+                <option value="INFORU">InforU (חי)</option>
               </select>
             </Field>
-            <Field label="Sender name (must be pre-approved with InforU, max 11 chars)">
+            <Field label="שם שולח (חייב להיות מאושר מראש ב-InforU, עד 11 תווים)">
               <Input
                 value={smsForm.senderName}
                 onChange={e => setSmsForm(f => ({ ...f, senderName: e.target.value.slice(0, 11) }))}
@@ -1927,7 +1927,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">SMS Service</h3>
+              <h3 className="font-medium">שירות SMS</h3>
               {isSuperAdmin && <button
                 onClick={() => { setEditSms(true); setSmsError(null); }}
                 className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
@@ -1935,20 +1935,20 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Status</dt>
+                <dt className="text-iron-muted text-xs mb-0.5">סטטוס</dt>
                 <dd>
                   {smsForm.enabled
-                    ? <span className="text-iron-green text-xs font-medium">Enabled</span>
-                    : <span className="text-status-warning text-xs font-medium">Disabled — no SMS will send</span>}
+                    ? <span className="text-iron-green text-xs font-medium">פעיל</span>
+                    : <span className="text-status-warning text-xs font-medium">כבוי — SMS לא יישלחו</span>}
                 </dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Provider</dt>
-                <dd className="text-iron-text">{smsForm.provider}{smsForm.provider === 'MOCK' && <span className="text-iron-muted"> (test only)</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">ספק</dt>
+                <dd className="text-iron-text">{smsForm.provider}{smsForm.provider === 'MOCK' && <span className="text-iron-muted"> (בדיקות בלבד)</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Sender name</dt>
-                <dd className="text-iron-text">{smsForm.senderName || <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">שם שולח</dt>
+                <dd className="text-iron-text">{smsForm.senderName || <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
             </dl>
             {isSuperAdmin && smsForm.enabled && (() => {
@@ -1957,7 +1957,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               return (
                 <div className="pt-3 border-t border-iron-border/60">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-iron-muted">Test phone:</span>
+                    <span className="text-xs text-iron-muted">טלפון לבדיקה:</span>
                     <input
                       value={smsTestPhone}
                       onChange={e => setSmsTestPhone(e.target.value)}
@@ -1968,25 +1968,25 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       onClick={handleTestSms}
                       disabled={smsTestBusy || trimmed.length === 0 || invalid}
                       className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg disabled:opacity-50"
-                    >{smsTestBusy ? 'Sending…' : 'Send test SMS'}</button>
+                    >{smsTestBusy ? 'שולח…' : 'שלח SMS בדיקה'}</button>
                   </div>
-                  <p className="text-[11px] text-iron-muted mt-1">Israeli mobile only — 05XXXXXXXX or +9725XXXXXXXX. Landlines are rejected by the provider.</p>
-                  {invalid && <p className="text-xs text-status-danger mt-1">Not a valid Israeli mobile number.</p>}
+                  <p className="text-[11px] text-iron-muted mt-1">מספר ישראלי בלבד — 05XXXXXXXX או +9725XXXXXXXX. קווים ארציים נדחים על ידי הספק.</p>
+                  {invalid && <p className="text-xs text-status-danger mt-1">מספר נייד ישראלי לא תקין.</p>}
                   {smsError && <p className="text-xs text-status-danger mt-1">{smsError}</p>}
 
                   {smsTestResult && (
                     <div className={`mt-3 rounded-lg border p-3 text-xs ${smsTestResult.ok ? 'border-iron-green/40 bg-iron-green/5' : 'border-status-danger/40 bg-status-danger/5'}`}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`font-semibold ${smsTestResult.ok ? 'text-iron-green' : 'text-status-danger'}`}>
-                          {smsTestResult.ok ? '✓ SENT' : '✕ ' + smsTestResult.status}
+                          {smsTestResult.ok ? '✓ נשלח' : '✕ ' + smsTestResult.status}
                         </span>
                         <span className="text-iron-muted">→ {smsTestResult.to}</span>
                       </div>
                       {smsTestResult.providerMessageId && (
-                        <div className="text-iron-muted">providerMessageId: <span className="text-iron-text font-mono">{smsTestResult.providerMessageId}</span></div>
+                        <div className="text-iron-muted">מזהה ספק: <span className="text-iron-text font-mono">{smsTestResult.providerMessageId}</span></div>
                       )}
                       {smsTestResult.error && (
-                        <div className="text-status-danger mt-0.5">provider response: {smsTestResult.error}</div>
+                        <div className="text-status-danger mt-0.5">תגובת ספק: {smsTestResult.error}</div>
                       )}
                     </div>
                   )}
@@ -2000,14 +2000,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {isSuperAdmin && (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
             <div>
-              <h3 className="font-medium">Link Telephony — Group IDs</h3>
-              <p className="text-xs text-iron-muted mt-0.5">Comma-separated numeric Link ring-group IDs routed to this restaurant (e.g. 205, 206, 207). Incoming calls on these groups appear in this restaurant's call log.</p>
+              <h3 className="font-medium">Link Telephony — מספרי קבוצה</h3>
+              <p className="text-xs text-iron-muted mt-0.5">מזהי קבוצות Link מופרדים בפסיק (לדוג׳ 205, 206, 207). שיחות נכנסות לקבוצות אלו יופיעו ביומן השיחות של המסעדה.</p>
             </div>
-            <Field label="Link Group IDs">
+            <Field label="מזהי קבוצות Link">
               <Input
                 value={linkGroupsInput}
                 onChange={e => setLinkGroupsInput(e.target.value)}
-                placeholder="e.g. 205, 206, 207"
+                placeholder="לדוג׳ 205, 206, 207"
               />
             </Field>
             {linkGroupsError && <p className="text-xs text-status-danger">{linkGroupsError}</p>}
@@ -2016,7 +2016,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </div>
             {unresolvedGroups.filter(g => !g.assignedTo).length > 0 && (
               <div className="pt-3 border-t border-iron-border/60">
-                <p className="text-xs text-iron-muted mb-2">Unresolved Link groups seen in call logs (not yet assigned to any restaurant). Click to add to this restaurant:</p>
+                <p className="text-xs text-iron-muted mb-2">קבוצות Link לא משויכות שנצפו ביומן השיחות. לחץ להוספה למסעדה זו:</p>
                 <div className="flex flex-wrap gap-2">
                   {unresolvedGroups.filter(g => !g.assignedTo).map(g => (
                     <button
@@ -2039,12 +2039,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {isSuperAdmin && smsForm.enabled && (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-5">
             <div>
-              <h3 className="font-medium">SMS Message Templates</h3>
-              <p className="text-xs text-iron-muted mt-0.5">Per message type: a main template (with variables) plus a free-text add-on appended on a new line. Leave the main blank to keep the built-in default (which adapts to guest language).</p>
+              <h3 className="font-medium">תבניות הודעות SMS</h3>
+              <p className="text-xs text-iron-muted mt-0.5">לכל סוג הודעה: תבנית ראשית (עם משתנים) ותוספת טקסט חופשי בשורה נפרדת. השאר ריק לשמירה על ברירת המחדל המובנית (שמתאימה לשפת האורח).</p>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
-              <span className="text-[11px] text-iron-muted mr-1">Variables:</span>
+              <span className="text-[11px] text-iron-muted me-1">משתנים:</span>
               {SMS_TPL_VARS.map(v => (
                 <code key={v} className="text-[11px] bg-iron-bg border border-iron-border rounded px-1.5 py-0.5 text-iron-green">{v}</code>
               ))}
@@ -2054,10 +2054,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <div key={key} className="border-t border-iron-border/60 pt-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-iron-text">{label}</span>
-                  {!smsTplForm[key].main.trim() && <span className="text-[10px] text-iron-muted bg-iron-bg rounded px-1.5 py-0.5">using default</span>}
+                  {!smsTplForm[key].main.trim() && <span className="text-[10px] text-iron-muted bg-iron-bg rounded px-1.5 py-0.5">ברירת מחדל</span>}
                 </div>
                 <div>
-                  <label className="text-[11px] text-iron-muted">Main template{hasLink ? '' : ' (no confirmation link for this type)'}</label>
+                  <label className="text-[11px] text-iron-muted">תבנית ראשית{hasLink ? '' : ' (אין קישור אישור לסוג זה)'}</label>
                   <textarea
                     value={smsTplForm[key].main}
                     onChange={e => setSmsTplForm(f => ({ ...f, [key]: { ...f[key], main: e.target.value } }))}
@@ -2068,7 +2068,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-iron-muted">Add-on (free text — parking, policy, notes; optional)</label>
+                  <label className="text-[11px] text-iron-muted">תוספת (טקסט חופשי — חניה, מדיניות, הערות; אופציונלי)</label>
                   <textarea
                     value={smsTplForm[key].addon}
                     onChange={e => setSmsTplForm(f => ({ ...f, [key]: { ...f[key], addon: e.target.value } }))}
@@ -2079,7 +2079,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-iron-muted">Preview</label>
+                  <label className="text-[11px] text-iron-muted">תצוגה מקדימה</label>
                   <pre dir="auto" className="w-full mt-1 bg-iron-bg/60 border border-iron-border/60 rounded px-2 py-1.5 text-xs text-iron-text whitespace-pre-wrap font-sans">{previewSmsTemplate(key)}</pre>
                 </div>
               </div>
@@ -2104,17 +2104,17 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                 {/* Brand Identity */}
                 <section>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Brand Identity</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">זהות מותג</p>
 
                   {/* Cuisine */}
                   <div className="mb-6">
-                    <p className="text-xs text-iron-text font-medium mb-0.5">Cuisine type</p>
-                    <p className="text-[11px] text-iron-muted mb-2">Shown on the Guest Hub under the restaurant name. Use a short descriptor like "Italian · Fine Dining" or "Mediterranean · Casual".</p>
+                    <p className="text-xs text-iron-text font-medium mb-0.5">סוג מטבח</p>
+                    <p className="text-[11px] text-iron-muted mb-2">מוצג ב-Guest Hub מתחת לשם המסעדה. השתמש בתיאור קצר כמו "איטלקי · גורמה" או "ים תיכוני · קז׳ואל".</p>
                     <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                       <input
                         value={brandingForm.cuisine}
                         onChange={e => setBrandingForm(f => ({ ...f, cuisine: e.target.value }))}
-                        placeholder="e.g. Italian · Fine Dining"
+                        placeholder="לדוג׳ איטלקי · גורמה"
                         maxLength={80}
                         className="flex-1 bg-transparent text-sm text-iron-text placeholder-iron-muted/30 focus:outline-none"
                       />
@@ -2137,8 +2137,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-iron-text font-medium mb-0.5">Logo</p>
-                      <p className="text-[11px] text-iron-muted mb-2.5">PNG · SVG · WEBP · transparent background recommended</p>
+                      <p className="text-xs text-iron-text font-medium mb-0.5">לוגו</p>
+                      <p className="text-[11px] text-iron-muted mb-2.5">PNG · SVG · WEBP · רקע שקוף מומלץ</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <label className={`inline-flex items-center gap-1.5 text-xs border border-iron-border rounded-lg px-3 py-1.5 cursor-pointer ${logoUpload.progress !== null ? 'opacity-50 pointer-events-none' : 'hover:bg-iron-bg text-iron-muted hover:text-iron-text'}`}>
                           <input type="file" accept="image/png,image/svg+xml,image/webp,image/jpeg" className="hidden"
@@ -2160,15 +2160,15 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                               }
                             }}
                           />
-                          {logoUpload.progress !== null ? `${logoUpload.progress}%` : '↑ Upload'}
+                          {logoUpload.progress !== null ? `${logoUpload.progress}%` : '↑ העלה'}
                         </label>
                         {brandingForm.logoUrl && (
-                          <button type="button" onClick={() => { setBrandingForm(f => ({ ...f, logoUrl: '' })); setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); }} className="text-[11px] text-iron-muted hover:text-status-danger transition-colors">Remove</button>
+                          <button type="button" onClick={() => { setBrandingForm(f => ({ ...f, logoUrl: '' })); setLogoPreview(p => { if (p) URL.revokeObjectURL(p); return null; }); }} className="text-[11px] text-iron-muted hover:text-status-danger transition-colors">הסר</button>
                         )}
                       </div>
                       {logoUpload.progress !== null && <div className="h-1 bg-iron-border rounded-full overflow-hidden mt-2"><div className="h-full bg-iron-green rounded-full transition-all" style={{ width: `${logoUpload.progress}%` }} /></div>}
                       {logoUpload.error && <p className="text-[11px] text-status-danger mt-1">{logoUpload.error}</p>}
-                      <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">Or paste a public URL:</p>
+                      <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">או הדבק כתובת URL ציבורית:</p>
                       <Input value={brandingForm.logoUrl} onChange={e => setBrandingForm(f => ({ ...f, logoUrl: e.target.value }))} placeholder="https://…" />
                     </div>
                   </div>
@@ -2176,14 +2176,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   {/* Colors */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-[11px] text-iron-muted mb-2">Primary color</p>
+                      <p className="text-[11px] text-iron-muted mb-2">צבע ראשי</p>
                       <div className="flex items-center gap-2">
                         <input type="color" value={brandingForm.primaryColor || '#22C55E'} onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
                         <Input value={brandingForm.primaryColor} onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))} placeholder="#22C55E" className="font-mono text-xs" />
                       </div>
                     </div>
                     <div>
-                      <p className="text-[11px] text-iron-muted mb-2">Accent color</p>
+                      <p className="text-[11px] text-iron-muted mb-2">צבע הדגשה</p>
                       <div className="flex items-center gap-2">
                         <input type="color" value={brandingForm.accentColor || '#22C55E'} onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
                         <Input value={brandingForm.accentColor} onChange={e => setBrandingForm(f => ({ ...f, accentColor: e.target.value }))} placeholder="#45D4BE" className="font-mono text-xs" />
@@ -2194,19 +2194,19 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                 {/* Hero Media */}
                 <section>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Hero Media</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">מדיה ראשית</p>
 
                   {!cloudinaryConfigured() && (
                     <div className="rounded-xl border border-status-warning/20 bg-status-warning/5 px-4 py-3 text-xs text-status-warning/80 mb-5 space-y-1">
-                      <p className="font-medium text-status-warning">Image upload not configured</p>
-                      <p className="text-status-warning/70">Add <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_CLOUD_NAME</code> and <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_UPLOAD_PRESET</code> to Vercel and redeploy. Until then, paste URLs directly.</p>
+                      <p className="font-medium text-status-warning">העלאת תמונות לא מוגדרת</p>
+                      <p className="text-status-warning/70">הוסף <code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_CLOUD_NAME</code> ו-<code className="font-mono bg-black/20 px-1 rounded">VITE_CLOUDINARY_UPLOAD_PRESET</code> ל-Vercel ופרס מחדש. בינתיים, הדבק כתובות URL ישירות.</p>
                     </div>
                   )}
 
                   {/* Cover image */}
                   <div className="mb-5">
-                    <p className="text-xs text-iron-text font-medium mb-0.5">Cover image</p>
-                    <p className="text-[11px] text-iron-muted mb-3">Fills the cinematic hero section on the public page. Minimum 1200 px wide.</p>
+                    <p className="text-xs text-iron-text font-medium mb-0.5">תמונת שער</p>
+                    <p className="text-[11px] text-iron-muted mb-3">ממלאת את אזור ה-Hero בדף הציבורי. מינימום 1200 פיקסל רוחב.</p>
                     <div
                       className="relative rounded-xl overflow-hidden border mb-3 group"
                       style={{ height: 180, background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
@@ -2216,7 +2216,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-iron-muted/30">
                           <svg viewBox="0 0 24 24" className="w-8 h-8 mb-1.5" fill="none" stroke="currentColor" strokeWidth={1.2}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="9.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                          <span className="text-xs">No cover image</span>
+                          <span className="text-xs">אין תמונת שער</span>
                         </div>
                       )}
                       <label className={`absolute inset-0 flex items-end justify-center pb-4 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${coverUpload.progress !== null ? 'pointer-events-none' : ''}`}>
@@ -2239,7 +2239,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             }
                           }}
                         />
-                        <span className="text-white text-xs font-medium bg-black/60 rounded-lg px-4 py-2">{coverUpload.progress !== null ? `Uploading ${coverUpload.progress}%` : '↑ Upload cover image'}</span>
+                        <span className="text-white text-xs font-medium bg-black/60 rounded-lg px-4 py-2">{coverUpload.progress !== null ? `מעלה ${coverUpload.progress}%` : '↑ העלה תמונת שער'}</span>
                       </label>
                       {coverUpload.progress !== null && (
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
@@ -2248,25 +2248,25 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       )}
                     </div>
                   {coverUpload.error && <p className="text-[11px] text-status-danger mt-2">{coverUpload.error}</p>}
-                    <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">Or paste a public URL:</p>
+                    <p className="text-[10px] text-iron-muted/50 mt-3 mb-1">או הדבק כתובת URL ציבורית:</p>
                     <Input value={brandingForm.coverImageUrl} onChange={e => setBrandingForm(f => ({ ...f, coverImageUrl: e.target.value }))} placeholder="https://…" className="text-xs" />
                   </div>
 
                   {/* Hero video */}
                   <div>
-                    <p className="text-xs text-iron-text font-medium mb-0.5">Hero video</p>
-                    <p className="text-[11px] text-iron-muted mb-2">Muted autoplay on public page. Falls back to cover image when unavailable.</p>
+                    <p className="text-xs text-iron-text font-medium mb-0.5">וידאו ראשי</p>
+                    <p className="text-[11px] text-iron-muted mb-2">הפעלה אוטומטית ללא קול בדף הציבורי. חוזר לתמונת שער כאשר לא זמין.</p>
                     <Input value={brandingForm.heroVideoUrl} onChange={e => setBrandingForm(f => ({ ...f, heroVideoUrl: e.target.value }))} placeholder="https://cdn.example.com/hero.mp4" className="text-xs" />
                   </div>
                 </section>
 
                 {/* Theme & Colors */}
                 <section>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Theme &amp; Colors</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">ערכת נושא וצבעים</p>
 
                   {/* Theme preset visual cards */}
                   <div className="mb-7">
-                    <p className="text-xs text-iron-text font-medium mb-3">Theme preset</p>
+                    <p className="text-xs text-iron-text font-medium mb-3">ערכת נושא</p>
                     <div className="grid grid-cols-4 gap-2">
                       {([
                         { value: '',              label: 'Iron',      bg: 'linear-gradient(135deg,#10161e,#080c14)', accent: '#22C55E' },
@@ -2304,7 +2304,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                   {/* Background mood */}
                   <div className="mb-6">
-                    <p className="text-xs text-iron-text font-medium mb-3">Background mood</p>
+                    <p className="text-xs text-iron-text font-medium mb-3">אווירת רקע</p>
                     <div className="grid grid-cols-5 gap-2">
                       {([
                         { value: 'dark',     label: 'Dark',     bg: 'linear-gradient(135deg,#101520,#080a10)' },
@@ -2331,15 +2331,15 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                   {/* Custom background */}
                   <div>
-                    <p className="text-xs text-iron-text font-medium mb-1">Custom background <span className="text-iron-muted font-normal text-[11px]">(overrides mood preset)</span></p>
+                    <p className="text-xs text-iron-text font-medium mb-1">רקע מותאם אישית <span className="text-iron-muted font-normal text-[11px]">(עוקף את אווירת הרקע)</span></p>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <p className="text-[10px] text-iron-muted mb-1.5">Base color</p>
+                        <p className="text-[10px] text-iron-muted mb-1.5">צבע בסיס</p>
                         <div className="flex items-center gap-2">
                           <input type="color" value={brandingForm.backgroundColorHex || '#0b0f18'} onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
                           <Input value={brandingForm.backgroundColorHex} onChange={e => setBrandingForm(f => ({ ...f, backgroundColorHex: e.target.value }))} placeholder="#0b0f18" className="font-mono text-xs" />
                           {brandingForm.backgroundColorHex && (
-                            <button type="button" onClick={() => setBrandingForm(f => ({ ...f, backgroundColorHex: '', backgroundGradientHex: '' }))} className="text-iron-muted hover:text-iron-text text-xs shrink-0" title="Clear">✕</button>
+                            <button type="button" onClick={() => setBrandingForm(f => ({ ...f, backgroundColorHex: '', backgroundGradientHex: '' }))} className="text-iron-muted hover:text-iron-text text-xs shrink-0" title="נקה">✕</button>
                           )}
                         </div>
                         {brandingForm.backgroundColorHex && (() => {
@@ -2349,11 +2349,11 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             const v = parseInt(c, 16) / 255;
                             return acc + (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i];
                           }, 0);
-                          return lum > 0.12 ? <p className="text-[11px] text-status-warning mt-1">⚠ Too light — white text may be unreadable</p> : null;
+                          return lum > 0.12 ? <p className="text-[11px] text-status-warning mt-1">⚠ בהיר מדי — טקסט לבן עשוי להיות בלתי קריא</p> : null;
                         })()}
                       </div>
                       <div>
-                        <p className="text-[10px] text-iron-muted mb-1.5">Gradient end (optional)</p>
+                        <p className="text-[10px] text-iron-muted mb-1.5">צבע סיום גרדיאנט (אופציונלי)</p>
                         <div className="flex items-center gap-2">
                           <input type="color" value={brandingForm.backgroundGradientHex || brandingForm.backgroundColorHex || '#080a10'} onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))} className="w-8 h-8 rounded-lg border border-iron-border bg-transparent cursor-pointer shrink-0" />
                           <Input value={brandingForm.backgroundGradientHex} onChange={e => setBrandingForm(f => ({ ...f, backgroundGradientHex: e.target.value }))} placeholder="#080a10" className="font-mono text-xs" />
@@ -2368,10 +2368,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                 {/* Style */}
                 <section>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Style</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">סגנון</p>
                   <div className="space-y-5">
                     <StyleTileGroup
-                      label="Button style"
+                      label="סגנון כפתור"
                       value={brandingForm.buttonStyle}
                       onChange={v => setBrandingForm(f => ({ ...f, buttonStyle: v }))}
                       options={[
@@ -2382,7 +2382,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       ]}
                     />
                     <StyleTileGroup
-                      label="Card style"
+                      label="סגנון כרטיס"
                       value={brandingForm.cardStyle}
                       onChange={v => setBrandingForm(f => ({ ...f, cardStyle: v }))}
                       options={[
@@ -2397,7 +2397,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                 {/* Social & Navigation */}
                 <section>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">Social &amp; Navigation</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-5">רשתות חברתיות וניווט</p>
                   <div className="space-y-2">
                     {([
                       { key: 'websiteUrl',    label: 'Website',     placeholder: 'https://yourrestaurant.com', icon: <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> },
@@ -2426,7 +2426,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
               {/* ── RIGHT: Phone mockup preview ─────────────────────────────── */}
               <div className="w-[220px] shrink-0 sticky top-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-4">Live preview</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-iron-green/70 mb-4">תצוגה מקדימה</p>
                 <div
                   className="relative rounded-[32px] overflow-hidden mx-auto"
                   style={{
@@ -2469,82 +2469,82 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   setBrandingError(null);
                 }}
                 className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text"
-              >Reset branding</button>
+              >איפוס מיתוג</button>
               <button onClick={() => { setEditBranding(false); setBrandingError(null); }} className={btnSecondary}>{T.admin.cancelBtn}</button>
               {detail?.slug && (
-                <a href={`/book/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text">Preview public page ↗</a>
+                <a href={`/book/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs border border-iron-border rounded px-3 py-1.5 hover:bg-iron-bg text-iron-muted hover:text-iron-text">תצוגה מקדימה ↗</a>
               )}
             </div>
           </div>
         ) : (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">Public Page Branding</h3>
+              <h3 className="font-medium">מיתוג דף ציבורי</h3>
               <div className="flex items-center gap-2">
                 {detail?.slug && (
-                  <a href={`/book/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">Preview ↗</a>
+                  <a href={`/book/${detail.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">תצוגה מקדימה ↗</a>
                 )}
                 {isSuperAdmin && <button onClick={() => { setEditBranding(true); setBrandingError(null); }} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">{T.admin.editBtn}</button>}
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Primary color</dt>
+                <dt className="text-iron-muted text-xs mb-0.5">צבע ראשי</dt>
                 <dd className="flex items-center gap-2">
-                  {detail?.primaryColor ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.primaryColor }} /><span className="text-iron-text font-mono text-xs">{detail.primaryColor}</span></> : <span className="text-iron-muted italic">Iron default</span>}
+                  {detail?.primaryColor ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.primaryColor }} /><span className="text-iron-text font-mono text-xs">{detail.primaryColor}</span></> : <span className="text-iron-muted italic">ברירת מחדל</span>}
                 </dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Accent color</dt>
+                <dt className="text-iron-muted text-xs mb-0.5">צבע הדגשה</dt>
                 <dd className="flex items-center gap-2">
-                  {detail?.accentColor ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.accentColor }} /><span className="text-iron-text font-mono text-xs">{detail.accentColor}</span></> : <span className="text-iron-muted italic">Not set</span>}
+                  {detail?.accentColor ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.accentColor }} /><span className="text-iron-text font-mono text-xs">{detail.accentColor}</span></> : <span className="text-iron-muted italic">לא מוגדר</span>}
                 </dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Theme preset</dt>
-                <dd className="text-iron-text capitalize">{detail?.publicThemePreset ?? <span className="text-iron-muted italic">None</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">ערכת נושא</dt>
+                <dd className="text-iron-text capitalize">{detail?.publicThemePreset ?? <span className="text-iron-muted italic">ללא</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Button style</dt>
-                <dd className="text-iron-text capitalize">{detail?.buttonStyle ?? <span className="text-iron-muted italic">Default</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">סגנון כפתור</dt>
+                <dd className="text-iron-text capitalize">{detail?.buttonStyle ?? <span className="text-iron-muted italic">ברירת מחדל</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Card style</dt>
+                <dt className="text-iron-muted text-xs mb-0.5">סגנון כרטיס</dt>
                 <dd className="text-iron-text capitalize">{detail?.cardStyle ?? <span className="text-iron-muted italic">Glass</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Background mood</dt>
-                <dd className="text-iron-text capitalize">{detail?.backgroundMood ?? <span className="text-iron-muted italic">Dark</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">אווירת רקע</dt>
+                <dd className="text-iron-text capitalize">{detail?.backgroundMood ?? <span className="text-iron-muted italic">כהה</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Custom background</dt>
+                <dt className="text-iron-muted text-xs mb-0.5">רקע מותאם</dt>
                 <dd className="flex items-center gap-2">
-                  {detail?.backgroundColorHex ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.backgroundGradientHex ? `linear-gradient(168deg,${detail.backgroundColorHex},${detail.backgroundGradientHex})` : detail.backgroundColorHex }} /><span className="text-iron-text font-mono text-xs">{detail.backgroundColorHex}{detail.backgroundGradientHex ? ` → ${detail.backgroundGradientHex}` : ''}</span></> : <span className="text-iron-muted italic">Not set</span>}
+                  {detail?.backgroundColorHex ? <><span className="w-4 h-4 rounded-full border border-iron-border shrink-0" style={{ background: detail.backgroundGradientHex ? `linear-gradient(168deg,${detail.backgroundColorHex},${detail.backgroundGradientHex})` : detail.backgroundColorHex }} /><span className="text-iron-text font-mono text-xs">{detail.backgroundColorHex}{detail.backgroundGradientHex ? ` → ${detail.backgroundGradientHex}` : ''}</span></> : <span className="text-iron-muted italic">לא מוגדר</span>}
                 </dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Logo</dt>
-                <dd>{detail?.logoUrl ? <img src={detail.logoUrl} alt="logo" className="h-6 object-contain" /> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">לוגו</dt>
+                <dd>{detail?.logoUrl ? <img src={detail.logoUrl} alt="logo" className="h-6 object-contain" /> : <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div className="col-span-2">
-                <dt className="text-iron-muted text-xs mb-0.5">Cover image</dt>
-                <dd>{detail?.coverImageUrl ? <div className="mt-1 rounded-md overflow-hidden border border-iron-border" style={{ height: 64 }}><img src={detail.coverImageUrl} alt="cover" className="w-full h-full object-cover" /></div> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">תמונת שער</dt>
+                <dd>{detail?.coverImageUrl ? <div className="mt-1 rounded-md overflow-hidden border border-iron-border" style={{ height: 64 }}><img src={detail.coverImageUrl} alt="cover" className="w-full h-full object-cover" /></div> : <span className="text-iron-muted italic">לא מוגדרת</span>}</dd>
               </div>
               <div>
-                <dt className="text-iron-muted text-xs mb-0.5">Website</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.websiteUrl ? <a href={detail.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.websiteUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dt className="text-iron-muted text-xs mb-0.5">אתר</dt>
+                <dd className="text-iron-text text-xs truncate">{detail?.websiteUrl ? <a href={detail.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.websiteUrl}</a> : <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Instagram</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.instagramUrl ? <a href={detail.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.instagramUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.instagramUrl ? <a href={detail.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.instagramUrl}</a> : <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Google Maps</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.googleMapsUrl ? <a href={detail.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.googleMapsUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.googleMapsUrl ? <a href={detail.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.googleMapsUrl}</a> : <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
               <div>
                 <dt className="text-iron-muted text-xs mb-0.5">Waze</dt>
-                <dd className="text-iron-text text-xs truncate">{detail?.wazeUrl ? <a href={detail.wazeUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.wazeUrl}</a> : <span className="text-iron-muted italic">Not set</span>}</dd>
+                <dd className="text-iron-text text-xs truncate">{detail?.wazeUrl ? <a href={detail.wazeUrl} target="_blank" rel="noopener noreferrer" className="text-status-reserved hover:underline">{detail.wazeUrl}</a> : <span className="text-iron-muted italic">לא מוגדר</span>}</dd>
               </div>
             </dl>
           </div>
@@ -2553,13 +2553,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* Restaurant Portal Access */}
         <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
           <div className="mb-4">
-            <h3 className="font-medium mb-1">Restaurant Portal Access</h3>
-            <p className="text-[11px] text-iron-muted">These controls decide what the restaurant can manage inside its own portal.</p>
+            <h3 className="font-medium mb-1">הרשאות פורטל</h3>
+            <p className="text-[11px] text-iron-muted">הגדרות אלו קובעות מה המסעדה יכולה לנהל בפורטל שלה.</p>
           </div>
           <div className="space-y-3">
             {([
-              { key: 'canManageOperatingHours'     as const, label: 'Manage Operating Hours' },
-              { key: 'canManageOnlineRestrictions' as const, label: 'Manage Online Booking Restrictions' },
+              { key: 'canManageOperatingHours'     as const, label: 'ניהול שעות פעילות' },
+              { key: 'canManageOnlineRestrictions' as const, label: 'ניהול הגבלות הזמנה מקוונת' },
             ] as const).map(({ key, label }) => {
               const enabled = detail?.portalPermissions?.[key] ?? false;
               return (
@@ -2598,7 +2598,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </thead>
             <tbody>
               {users.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-iron-muted text-sm">No users yet</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-iron-muted text-sm">אין משתמשים עדיין</td></tr>
               ) : users.map(u => (
                 <tr key={u.id} className="border-b border-iron-border last:border-0 hover:bg-iron-bg">
                   <td className="px-4 py-3 font-medium">{u.firstName} {u.lastName}</td>
@@ -2778,8 +2778,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold">SMS Usage</h2>
-              <p className="text-iron-muted text-sm mt-0.5">How many SMS each restaurant actually sent.</p>
+              <h2 className="text-lg font-semibold">ניצול SMS</h2>
+              <p className="text-iron-muted text-sm mt-0.5">כמה SMS כל מסעדה שלחה בפועל.</p>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -2800,15 +2800,15 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-iron-surface rounded-lg p-4 border border-iron-border">
                   <div className="text-2xl font-semibold text-iron-green">{smsUsage?.totals.sent ?? 0}</div>
-                  <div className="text-xs text-iron-muted mt-1">Sent ({smsUsage?.month ?? '—'})</div>
+                  <div className="text-xs text-iron-muted mt-1">נשלחו ({smsUsage?.month ?? '—'})</div>
                 </div>
                 <div className="bg-iron-surface rounded-lg p-4 border border-iron-border">
                   <div className="text-2xl font-semibold text-status-danger">{smsUsage?.totals.failed ?? 0}</div>
-                  <div className="text-xs text-iron-muted mt-1">Failed</div>
+                  <div className="text-xs text-iron-muted mt-1">נכשלו</div>
                 </div>
                 <div className="bg-iron-surface rounded-lg p-4 border border-iron-border">
                   <div className="text-2xl font-semibold text-iron-muted">{smsUsage?.totals.mock ?? 0}</div>
-                  <div className="text-xs text-iron-muted mt-1">Mock (not live)</div>
+                  <div className="text-xs text-iron-muted mt-1">Mock (בדיקות)</div>
                 </div>
               </div>
 
@@ -2816,16 +2816,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-iron-muted border-b border-iron-border">
-                      <th className="px-4 py-3 font-medium">Restaurant</th>
+                      <th className="px-4 py-3 font-medium">מסעדה</th>
                       <th className="px-4 py-3 font-medium">SMS</th>
-                      <th className="px-4 py-3 font-medium text-right">Sent</th>
-                      <th className="px-4 py-3 font-medium text-right">Failed</th>
+                      <th className="px-4 py-3 font-medium text-right">נשלחו</th>
+                      <th className="px-4 py-3 font-medium text-right">נכשלו</th>
                       <th className="px-4 py-3 font-medium text-right">Mock</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.length === 0 ? (
-                      <tr><td colSpan={5} className="px-4 py-6 text-center text-iron-muted">No restaurants</td></tr>
+                      <tr><td colSpan={5} className="px-4 py-6 text-center text-iron-muted">אין מסעדות</td></tr>
                     ) : rows.map(r => (
                       <React.Fragment key={r.restaurantId}>
                         <tr
@@ -2834,12 +2834,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                         >
                           <td className="px-4 py-3">
                             <div className="font-medium text-iron-text">{smsDetailId === r.restaurantId ? '▾' : '▸'} {r.name}</div>
-                            {r.smsSenderName && <div className="text-xs text-iron-muted ml-4">sender: {r.smsSenderName}</div>}
+                            {r.smsSenderName && <div className="text-xs text-iron-muted ms-4">שולח: {r.smsSenderName}</div>}
                           </td>
                           <td className="px-4 py-3">
                             {r.smsEnabled
-                              ? <span className="text-iron-green text-xs font-medium">{r.smsProvider === 'INFORU' ? 'Live' : 'Enabled (test)'}</span>
-                              : <span className="text-iron-muted text-xs">Off</span>}
+                              ? <span className="text-iron-green text-xs font-medium">{r.smsProvider === 'INFORU' ? 'חי' : 'פעיל (בדיקות)'}</span>
+                              : <span className="text-iron-muted text-xs">כבוי</span>}
                           </td>
                           <td className="px-4 py-3 text-right tabular-nums font-medium">{r.sent}</td>
                           <td className="px-4 py-3 text-right tabular-nums text-status-danger">{r.failed || ''}</td>
@@ -2855,24 +2855,24 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                               ) : (
                                 <div className="space-y-4">
                                   <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-iron-muted mb-2">Breakdown by type ({smsDetail.month})</p>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-iron-muted mb-2">פירוט לפי סוג ({smsDetail.month})</p>
                                     {smsDetail.byType.length === 0 ? (
-                                      <p className="text-xs text-iron-muted">No messages this month.</p>
+                                      <p className="text-xs text-iron-muted">אין הודעות החודש.</p>
                                     ) : (
                                       <div className="flex flex-wrap gap-2">
                                         {smsDetail.byType.map(t => (
                                           <span key={t.messageType} className="text-xs bg-iron-surface border border-iron-border rounded px-2 py-1">
                                             {t.messageType}: <span className="text-iron-green">{t.sent}</span>
-                                            {t.failed > 0 && <span className="text-status-danger"> / {t.failed} failed</span>}
+                                            {t.failed > 0 && <span className="text-status-danger"> / {t.failed} נכשלו</span>}
                                           </span>
                                         ))}
                                       </div>
                                     )}
                                   </div>
                                   <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-iron-muted mb-2">Latest messages</p>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-iron-muted mb-2">הודעות אחרונות</p>
                                     {smsDetail.latest.length === 0 ? (
-                                      <p className="text-xs text-iron-muted">No messages logged.</p>
+                                      <p className="text-xs text-iron-muted">אין הודעות מתועדות.</p>
                                     ) : (
                                       <div className="space-y-1">
                                         {smsDetail.latest.map(m => (
@@ -2939,27 +2939,27 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         {/* Tonight aggregate bar */}
         <div className="rounded-xl border border-iron-border bg-iron-surface px-5 py-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-iron-muted uppercase tracking-wide">Tonight</span>
+            <span className="text-xs font-semibold text-iron-muted uppercase tracking-wide">הלילה</span>
             {groupDetail.restaurants.length > 0 && (
-              <span className="text-xs text-iron-muted">{groupDetail.restaurants.length} location{groupDetail.restaurants.length !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-iron-muted">{groupDetail.restaurants.length} סניף{groupDetail.restaurants.length !== 1 ? 'ים' : ''}</span>
             )}
           </div>
           {tonightLoading ? (
             <div className="flex items-center gap-2 text-xs text-iron-muted">
               <div className="w-3 h-3 border border-iron-muted border-t-transparent rounded-full animate-spin" />
-              Loading…
+              טוען…
             </div>
           ) : !hasActivity ? (
-            <p className="text-sm text-iron-muted">Quiet tonight</p>
+            <p className="text-sm text-iron-muted">שקט הלילה</p>
           ) : (
             <div className="flex items-center gap-4 flex-wrap">
-              <span className="text-sm font-semibold">{totalBooked} <span className="font-normal text-iron-muted text-xs">booked</span></span>
-              <span className="text-sm font-semibold text-iron-green">{totalSeated} <span className="font-normal text-iron-muted text-xs">seated</span></span>
+              <span className="text-sm font-semibold">{totalBooked} <span className="font-normal text-iron-muted text-xs">הוזמנו</span></span>
+              <span className="text-sm font-semibold text-iron-green">{totalSeated} <span className="font-normal text-iron-muted text-xs">יושבים</span></span>
               {totalUpcoming > 0 && (
-                <span className="text-sm font-semibold text-status-reserved">{totalUpcoming} <span className="font-normal text-iron-muted text-xs">arriving soon</span></span>
+                <span className="text-sm font-semibold text-status-reserved">{totalUpcoming} <span className="font-normal text-iron-muted text-xs">מגיעים בקרוב</span></span>
               )}
               {totalLate > 0 && (
-                <span className="text-sm font-semibold text-status-warning">{totalLate} <span className="font-normal text-iron-muted text-xs">late</span></span>
+                <span className="text-sm font-semibold text-status-warning">{totalLate} <span className="font-normal text-iron-muted text-xs">מאחרים</span></span>
               )}
             </div>
           )}
@@ -3014,7 +3014,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                           )}
                         </>
                       ) : s ? (
-                        <span className="text-xs text-iron-muted/50">quiet</span>
+                        <span className="text-xs text-iron-muted/50">שקט</span>
                       ) : null}
                     </div>
 
@@ -3032,13 +3032,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             onClick={() => { selectRestaurant(r.id); setOpenActionsId(null); }}
                             className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2"
                           >
-                            <span className="text-iron-muted text-xs">⚙</span> View Details
+                            <span className="text-iron-muted text-xs">⚙</span> פרטי מסעדה
                           </button>
                           <button
                             onClick={() => { selectRestaurant(r.id, 'settings'); setOpenActionsId(null); }}
                             className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2"
                           >
-                            <span className="text-iron-muted text-xs">✎</span> Location Settings
+                            <span className="text-iron-muted text-xs">✎</span> הגדרות סניף
                           </button>
                           <div className="border-t border-iron-border my-1" />
                           <a
@@ -3048,17 +3048,17 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             onClick={() => setOpenActionsId(null)}
                             className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2 block"
                           >
-                            <span className="text-iron-muted text-xs">↗</span> Open Booking Page
+                            <span className="text-iron-muted text-xs">↗</span> פתח דף הזמנות
                           </a>
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(bookingUrl);
-                              showToast('Booking URL copied');
+                              showToast('לינק הועתק');
                               setOpenActionsId(null);
                             }}
                             className="w-full text-left px-4 py-2.5 hover:bg-iron-bg text-iron-text flex items-center gap-2"
                           >
-                            <span className="text-iron-muted text-xs">⧉</span> Copy Booking URL
+                            <span className="text-iron-muted text-xs">⧉</span> העתק לינק הזמנה
                           </button>
                         </div>
                       )}
@@ -3121,7 +3121,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     <span className="text-xs text-iron-muted ml-2">{u.email}</span>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded ${u.isActive ? 'bg-iron-green/20 text-iron-green' : 'bg-red-900/20 text-status-danger'}`}>
-                    {u.isActive ? 'Active' : 'Inactive'}
+                    {u.isActive ? 'פעיל' : 'לא פעיל'}
                   </span>
                 </div>
               ))}
@@ -3165,14 +3165,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       <div className="flex items-center justify-between px-6 py-3 border-b border-iron-border bg-iron-surface flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="font-bold">Iron Booking</span>
-          <span className="text-xs px-2 py-0.5 bg-iron-green/20 text-iron-green rounded font-medium">Admin</span>
+          <span className="text-xs px-2 py-0.5 bg-iron-green/20 text-iron-green rounded font-medium">מנהל</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-iron-muted">{auth.user.email ?? ''}</span>
           <button
             onClick={() => setHqTheme(t => t === 'dark' ? 'light' : 'dark')}
             className="w-8 h-8 flex items-center justify-center rounded-lg border border-iron-border text-iron-muted hover:text-iron-text hover:bg-iron-bg transition-colors text-base"
-            title={hqTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={hqTheme === 'dark' ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}
           >
             {hqTheme === 'dark' ? '☀' : '☾'}
           </button>
@@ -3181,7 +3181,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               onClick={onDashboard}
               className="text-sm text-iron-muted hover:text-iron-text px-3 py-1.5 rounded hover:bg-iron-bg border border-iron-border"
             >
-              View Dashboard
+              לוח בקרה
             </button>
           )}
           <button
@@ -3214,7 +3214,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               <button
                 onClick={() => { setSidebarTab('intelligence'); setView('splash'); setSelectedId(null); setSelectedGroupId(null); setBackfillResult(null); setBackfillError(null); }}
                 className={`flex-1 py-2 text-xs font-medium transition-colors ${sidebarTab === 'intelligence' ? 'text-iron-green border-b-2 border-iron-green' : 'text-iron-muted hover:text-iron-text'}`}
-              >GIC</button>
+              >IRON CLUB</button>
             </div>
           )}
 
@@ -3245,7 +3245,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   >
                     <div className="font-medium text-sm truncate">{r.name}</div>
                     <div className="text-xs text-iron-muted mt-0.5">
-                      {r._count.users}u · {r._count.tables}t · {r._count.reservations}r
+                      {r._count.users}מ · {r._count.tables}ש · {r._count.reservations}ה
                       {r.groupId && <span className="ml-1 text-iron-green/70">●</span>}
                     </div>
                   </button>
@@ -3278,18 +3278,18 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     }`}
                   >
                     <div className="font-medium text-sm truncate">{g.name}</div>
-                    <div className="text-xs text-iron-muted mt-0.5">{g._count.restaurants} locations · {g._count.users} admins</div>
+                    <div className="text-xs text-iron-muted mt-0.5">{g._count.restaurants} סניפים · {g._count.users} מנהלים</div>
                   </button>
                 ))
               )}
             </div>
           </>)}
 
-          {/* Intelligence / GIC V2 Backfill panel (SUPER_ADMIN sidebar) */}
+          {/* IRON CLUB — Backfill panel (SUPER_ADMIN sidebar) */}
           {sidebarTab === 'intelligence' && (
             <div className="flex-1 overflow-y-auto p-4 space-y-5" dir="rtl">
               <div>
-                <p className="text-xs font-semibold text-iron-green uppercase tracking-wide mb-1">GIC V2 Backfill</p>
+                <p className="text-xs font-semibold text-iron-green uppercase tracking-wide mb-1">IRON CLUB — Backfill מודיעין</p>
                 <p className="text-xs text-iron-muted">חישוב מחדש של loyaltyScore, engagementScore, gicLabel לכל האורחים במסעדה. לא שולח SMS. לא יוצר התראות.</p>
               </div>
 
@@ -3322,13 +3322,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   }}
                   className="flex-1 px-3 py-2 border border-iron-border rounded text-xs font-medium text-iron-text hover:bg-iron-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  {backfillBusy ? '...' : 'Dry Run'}
+                  {backfillBusy ? '...' : 'הרצת בדיקה'}
                 </button>
                 <button
                   disabled={!backfillRestaurantId || backfillBusy}
                   onClick={async () => {
                     if (!backfillRestaurantId) return;
-                    if (!window.confirm('להריץ backfill אמיתי ולכתוב לכל האורחים?')) return;
+                    if (!window.confirm('להריץ Backfill מודיעין אמיתי ולעדכן את כל האורחים?')) return;
                     setBackfillBusy(true); setBackfillResult(null); setBackfillError(null);
                     try {
                       const r = await api.intelligence.backfillV2(backfillRestaurantId, false);
@@ -3339,7 +3339,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   }}
                   className="flex-1 px-3 py-2 bg-iron-green text-black rounded text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  {backfillBusy ? '...' : 'הרץ Backfill'}
+                  {backfillBusy ? '...' : 'הרץ Backfill מודיעין'}
                 </button>
               </div>
 
@@ -3357,7 +3357,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               {backfillResult && (
                 <div className="space-y-3">
                   <div className={`text-xs font-semibold px-2 py-1 rounded inline-block ${backfillResult.dryRun ? 'bg-yellow-900/30 text-yellow-400' : 'bg-green-900/30 text-green-400'}`}>
-                    {backfillResult.dryRun ? 'DRY RUN — לא נכתב כלום' : 'BACKFILL הושלם'}
+                    {backfillResult.dryRun ? 'הרצת בדיקה — לא נכתב כלום' : 'Backfill מודיעין הושלם'}
                   </div>
 
                   <dl className="grid grid-cols-2 gap-2 text-xs">
@@ -3434,9 +3434,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <div className="text-center">
                   <p className="text-iron-muted text-sm">
                     {sidebarTab === 'groups'
-                      ? (groups.length === 0 ? T.admin.noGroupsHint : 'Select a group or create a new one')
+                      ? (groups.length === 0 ? T.admin.noGroupsHint : 'בחר קבוצה או צור קבוצה חדשה')
                       : sidebarTab === 'intelligence'
-                        ? 'בחר מסעדה בסרגל הצד להרצת GIC V2 Backfill'
+                        ? 'בחר מסעדה בסרגל הצד להרצת Backfill מודיעין'
                         : (restaurants.length === 0 ? T.admin.noRestaurantsHint : T.admin.selectOrCreate)}
                   </p>
                 </div>
