@@ -61,7 +61,7 @@ export default function CallDrawer({
       <div className="fixed inset-0 bg-black/55 z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <aside className={`fixed right-0 top-0 h-full w-80 bg-iron-elevated border-l border-iron-border/60 z-50 flex flex-col animate-toast${highlight ? ' animate-call-ping' : ''}`} style={{ boxShadow: '-8px 0 48px rgba(0,0,0,0.56)' }}>
+      <aside className={`fixed left-0 top-0 h-full w-80 bg-iron-elevated border-r border-iron-border/60 z-50 flex flex-col animate-toast${highlight ? ' animate-call-ping' : ''}`} style={{ boxShadow: '8px 0 48px rgba(0,0,0,0.56)' }}>
 
         {/* Header */}
         <div className="px-5 py-4 border-b border-iron-border/40 shrink-0 flex items-center justify-between" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>

@@ -1300,7 +1300,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   onClick={enterEdit}
                   className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-iron-border/55 text-iron-muted/70 hover:border-iron-green/55 hover:text-iron-text transition-colors touch-manipulation"
                 >
-                  {T.guestDrawer.editButton}
+                  ✏ {T.guestDrawer.editButton}
                 </button>
               )}
               <button
