@@ -149,6 +149,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [insights,     setInsights]     = useState<FloorInsight[]>([]);
   const [allTables,    setAllTables]    = useState<Table[]>([]);
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
+  const [openDrawerInEdit,  setOpenDrawerInEdit]  = useState(false);
   const [highlightId,       setHighlightId]       = useState<string | null>(null);
   const [hoveredResId,      setHoveredResId]      = useState<string | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -581,6 +582,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const handlePanelSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
     setQuickTable(null);
+    setOpenDrawerInEdit(enriched.status === 'SEATED');
     setSelectedRes(enriched);
     // Sync board time when the host opens a reservation for inspection so the floor map
     // context matches the drawer. Includes SEATED so a live guest's table renders at the
@@ -2477,12 +2479,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       </BoardErrorBoundary>
 
       {selectedRes && !createMode && (
-        <DrawerErrorBoundary key={selectedRes.id} onClose={() => setSelectedRes(null)}>
+        <DrawerErrorBoundary key={selectedRes.id} onClose={() => { setSelectedRes(null); setOpenDrawerInEdit(false); }}>
           <GuestDrawer
             reservation={selectedRes}
+            initialMode={openDrawerInEdit ? 'edit' : 'view'}
             tables={allTables}
             allReservations={reservations}
-            onClose={() => setSelectedRes(null)}
+            onClose={() => { setSelectedRes(null); setOpenDrawerInEdit(false); }}
             onUpdated={handleUpdated}
             onSuccess={showToast}
             onTableLockChange={handleTableLockChange}

@@ -222,9 +222,10 @@ interface Props {
   onOptimisticSeatRollback?: (resId: string) => void;
   /** Optimistic mark-arrived: updates global state immediately so the panel card jumps to top. */
   onMarkArrived?: (r: Reservation) => void;
+  initialMode?: 'view' | 'edit';
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, initialMode }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -237,7 +238,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   };
   const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
   const [res, setRes] = useState<Reservation>(init);
-  const [mode, setMode] = useState<Mode>('view');
+  const [mode, setMode] = useState<Mode>(initialMode ?? 'view');
 
   // Cross-date seating is forbidden. Same-day early arrivals are always allowed.
   const _todayStr = new Date().toISOString().slice(0, 10);
