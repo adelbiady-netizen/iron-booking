@@ -261,11 +261,11 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
   // Edit form state — initialised immediately from init
   const [editName,       setEditName]       = useState(init.guestName);
-  const [editPhone,      _setEditPhone]     = useState(init.guestPhone ?? ''); // read by saveEdit; no inline UI for phone
+  const [editPhone,      setEditPhone]      = useState(init.guestPhone ?? '');
   const [editDate,       setEditDate]       = useState(init.date.slice(0, 10));
   const [editDateDisplay, setEditDateDisplay] = useState(isoToDDMMYYYY(init.date.slice(0, 10)));
   const [editTime,       setEditTime]       = useState(init.time.slice(0, 5));
-  const [editParty,      _setEditParty]     = useState(String(init.partySize)); // read by saveEdit/dirty; no inline UI for party
+  const [editParty,      setEditParty]      = useState(String(init.partySize));
   const [editDuration,   setEditDuration]   = useState(init.duration);
   const [editOccasion,   setEditOccasion]   = useState(init.occasion ?? '');
   const [editNotes,      setEditNotes]      = useState(init.guestNotes ?? '');
@@ -624,8 +624,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const btnAmber  = 'bg-status-warning/15 border-status-warning/30 text-status-warning hover:bg-status-warning/25';
   const btnRed    = 'bg-red-900/15 border-red-900/25 text-status-danger hover:bg-red-900/25';
   const btnNeutral= 'bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30';
-  const btnSuccess= 'bg-status-success/15 border-status-success/30 text-status-success hover:bg-status-success/25';
-  const btnIndigo = 'bg-status-info/15 border-status-info/30 text-status-info hover:bg-status-info/25';
 
   const assignedTable   = res.tableId ? tables.find(t => t.id === res.tableId) ?? null : null;
   const tableIsLocked   = assignedTable?.locked ?? false;
@@ -808,45 +806,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {isFutureReservation && (
           <p className="text-xs text-iron-muted mt-1.5 px-0.5">{T.guestDrawer.seatFutureDisabled}</p>
         )}
-        {/* Secondary */}
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          <ActionBtn
-            label={
-              !res.tableId
-                ? T.guestDrawer.actionChooseTable
-                : (res.combinedTableIds?.length ?? 0) > 0
-                  ? T.guestDrawer.actionChangeCombination
-                  : T.guestDrawer.actionChangeTable
-            }
-            cls={btnIndigo}
-            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
-            disabled={busy}
-          />
-          {res.guestPhone && !res.isConfirmedByGuest && (
-            <ActionBtn
-              label={T.guestDrawer.actionSendSms}
-              cls={btnBlue}
-              onClick={handleSendConfirmation}
-              disabled={busy}
-            />
-          )}
-          {!res.isArrived && (
-            <ActionBtn
-              label={T.guestDrawer.actionMarkArrived}
-              cls={btnSuccess}
-              onClick={handleMarkArrived}
-              disabled={busy}
-            />
-          )}
-          {res.isArrived && (
-            <ActionBtn
-              label={T.guestDrawer.actionUndoArrival}
-              cls={btnNeutral}
-              onClick={() => run(() => api.reservations.unmarkArrived(res.id), T.guestDrawer.actionUndoArrival)}
-              disabled={busy}
-            />
-          )}
-        </div>
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
           <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
@@ -865,11 +824,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             primary
             onClick={() => {
               if (!res.tableId) {
-                // No table assigned — must pick one before seating
                 if (onPickTables) openActionMapPicker('seat');
                 else setMode('seat');
               } else {
-                // Table assigned — seat immediately; conflict guard fires if needed
                 seatWithReorganizeCheck(res.tableId, res.combinedTableIds ?? [], T.guestDrawer.toastSeated(res.guestName, tableName(res.tableId)));
               }
             }}
@@ -882,42 +839,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         )}
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
-          <ActionBtn
-            label={
-              !res.tableId
-                ? T.guestDrawer.actionChooseTable
-                : (res.combinedTableIds?.length ?? 0) > 0
-                  ? T.guestDrawer.actionChangeCombination
-                  : T.guestDrawer.actionChangeTable
-            }
-            cls={btnIndigo}
-            onClick={() => onPickTables ? openActionMapPicker('change-table') : setMode('change-table')}
-            disabled={busy}
-          />
-          {res.guestPhone && !res.isConfirmedByGuest && (
-            <ActionBtn
-              label={T.guestDrawer.actionSendSms}
-              cls={btnBlue}
-              onClick={handleSendConfirmation}
-              disabled={busy}
-            />
-          )}
-          {!res.isArrived && (
-            <ActionBtn
-              label={T.guestDrawer.actionMarkArrived}
-              cls={btnSuccess}
-              onClick={handleMarkArrived}
-              disabled={busy}
-            />
-          )}
-          {res.isArrived && (
-            <ActionBtn
-              label={T.guestDrawer.actionUndoArrival}
-              cls={btnNeutral}
-              onClick={() => run(() => api.reservations.unmarkArrived(res.id), T.guestDrawer.actionUndoArrival)}
-              disabled={busy}
-            />
-          )}
           <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber} onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
         </div>
         {/* Destructive */}
@@ -1114,11 +1035,35 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 </span>
               </div>
 
-              {/* Reservation facts — time · party · table */}
+              {/* Reservation facts — time (editable) · party (editable) · table */}
               <div dir="ltr" className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="text-iron-green-light font-black tabular-nums leading-none shrink-0" style={{ fontSize: '26px', letterSpacing: '-0.04em' }}>{normalizeTime(res.time)}</span>
+                {res.status === 'SEATED' ? (
+                  <span className="text-iron-green-light font-black tabular-nums leading-none shrink-0" style={{ fontSize: '26px', letterSpacing: '-0.04em' }}>{normalizeTime(res.time)}</span>
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="HH:MM"
+                    maxLength={5}
+                    value={editTime}
+                    onChange={e => {
+                      let v = e.target.value.replace(/[^0-9:]/g, '');
+                      if (v.length === 2 && editTime.length <= 2 && !v.includes(':')) v += ':';
+                      setEditTime(v);
+                      if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
+                    }}
+                    className="text-iron-green-light font-black tabular-nums leading-none bg-transparent border-b border-transparent hover:border-iron-green/40 focus:border-iron-green/70 focus:outline-none w-[4.5rem] transition-colors"
+                    style={{ fontSize: '26px', letterSpacing: '-0.04em' }}
+                  />
+                )}
                 <span className="text-iron-border/35 leading-none">·</span>
-                <span className="text-iron-text font-bold text-[17px] shrink-0">{T.common.guests(res.partySize)}</span>
+                {/* Party size — inline counter */}
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setEditParty(p => String(Math.max(1, parseInt(p,10) - 1)))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">−</button>
+                  <span className="text-iron-text font-bold text-[17px] tabular-nums min-w-[1.5rem] text-center">{editParty}</span>
+                  <button type="button" onClick={() => setEditParty(p => String(Math.min(99, parseInt(p,10) + 1)))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">+</button>
+                  <span className="text-iron-text/60 text-[13px] font-medium ms-0.5">אורחים</span>
+                </div>
                 {res.table && (
                   <>
                     <span className="text-iron-border/40 leading-none">·</span>
@@ -1131,40 +1076,66 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 )}
               </div>
 
-              {/* Phone — primary contact block */}
+              {/* Phone — editable input + call button */}
               <div dir="ltr" className="mb-2.5">
-                {res.guestPhone ? (
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-lg bg-iron-bg border border-iron-border/55 focus-within:border-iron-green/55 transition-colors min-w-0">
+                    <span className="text-iron-muted/55 text-[13px] leading-none shrink-0">☎</span>
+                    <input
+                      type="tel"
+                      dir="ltr"
+                      value={editPhone}
+                      onChange={e => setEditPhone(e.target.value)}
+                      placeholder="מספר טלפון"
+                      className="flex-1 bg-transparent text-[16px] font-mono font-semibold text-iron-text/95 tabular-nums leading-none focus:outline-none placeholder:text-iron-muted/30 min-w-0"
+                    />
+                  </div>
+                  {editPhone && (
                     <a
-                      href={`tel:${res.guestPhone}`}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-iron-bg border border-iron-border/55 hover:border-iron-green/55 hover:bg-iron-green/[0.07] transition-colors group flex-1 min-w-0"
+                      href={`tel:${editPhone}`}
                       onClick={e => e.stopPropagation()}
+                      className="text-[11px] font-semibold px-2.5 py-2 rounded-lg border bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text hover:border-iron-border/70 transition-colors shrink-0"
+                      title="חייג"
                     >
-                      <span className="text-iron-muted/55 text-[13px] leading-none shrink-0">☎</span>
-                      <span className="text-[18px] font-mono font-semibold text-iron-text/95 group-hover:text-iron-green-light transition-colors tabular-nums leading-none truncate">
-                        {(() => {
-                          const d = res.guestPhone!.replace(/\D/g, '');
-                          if (d.length === 12 && d.startsWith('972')) return `+972 ${d.slice(3,5)} · ${d.slice(5,8)} · ${d.slice(8)}`;
-                          if (d.length === 10 && d.startsWith('0'))   return `${d.slice(0,3)} · ${d.slice(3,6)} · ${d.slice(6)}`;
-                          return res.guestPhone;
-                        })()}
-                      </span>
+                      חייג
                     </a>
+                  )}
+                  {editPhone && (
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(res.guestPhone!);
-                        setPhoneCopied(true);
-                        setTimeout(() => setPhoneCopied(false), 1500);
-                      }}
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(editPhone); setPhoneCopied(true); setTimeout(() => setPhoneCopied(false), 1500); }}
                       className={`text-[11px] font-semibold px-2.5 py-2 rounded-lg border transition-colors touch-manipulation shrink-0 ${phoneCopied ? 'bg-iron-green/15 border-iron-green/40 text-iron-green-light' : 'bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text hover:border-iron-border/70'}`}
-                      title="Copy phone number"
                     >
                       {phoneCopied ? '✓' : 'Copy'}
                     </button>
-                  </div>
-                ) : (
-                  <span className="text-iron-muted/55 text-sm font-medium italic">No phone on file</span>
-                )}
+                  )}
+                </div>
+              </div>
+
+              {/* Notes inline — host note + guest note in header */}
+              <div className="space-y-2 mb-2">
+                <div className="px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/25 focus-within:border-status-warning/50 transition-colors">
+                  <p className="text-[9px] text-status-warning/60 font-semibold uppercase tracking-wider mb-0.5">הערת מסעדה</p>
+                  <textarea
+                    value={editHostNotes}
+                    onChange={e => setEditHostNotes(e.target.value)}
+                    placeholder="הוסף הערת מארח..."
+                    rows={1}
+                    className="w-full bg-transparent text-amber-100/85 text-[12px] leading-relaxed resize-none focus:outline-none placeholder:text-status-warning/25"
+                    style={{ fieldSizing: 'content' } as React.CSSProperties}
+                  />
+                </div>
+                <div className="px-3 py-2 rounded-lg bg-iron-card/80 border border-iron-border/75 focus-within:border-iron-border transition-colors">
+                  <p className="text-[9px] text-iron-muted/60 font-semibold uppercase tracking-wider mb-0.5">הערת לקוח</p>
+                  <textarea
+                    value={editNotes}
+                    onChange={e => setEditNotes(e.target.value)}
+                    placeholder="הוסף הערת אורח..."
+                    rows={1}
+                    className="w-full bg-transparent text-iron-text/90 text-[12px] leading-relaxed resize-none focus:outline-none placeholder:text-iron-muted/30"
+                    style={{ fieldSizing: 'content' } as React.CSSProperties}
+                  />
+                </div>
               </div>
 
               {/* Arrival urgency — compact header indicator for immediate visibility */}
@@ -1278,37 +1249,16 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             );
           })()}
 
-          {/* Operational context — host notes, guest notes, occasion — always editable inline */}
-          <section className="space-y-2">
-            <div className="px-3 py-2.5 rounded-lg bg-amber-900/10 border border-status-warning/25 focus-within:border-status-warning/50 transition-colors">
-              <p className="text-[10px] text-status-warning/70 font-semibold uppercase tracking-wider mb-1">Host note</p>
-              <textarea
-                value={editHostNotes}
-                onChange={e => setEditHostNotes(e.target.value)}
-                placeholder="הוסף הערת מארח..."
-                rows={2}
-                className="w-full bg-transparent text-amber-100/85 text-[13px] leading-relaxed resize-none focus:outline-none placeholder:text-status-warning/25"
-              />
-            </div>
-            <div className="px-3 py-2.5 rounded-lg bg-iron-card/80 border border-iron-border/75 focus-within:border-iron-border transition-colors">
-              <p className="text-[10px] text-iron-muted/70 font-semibold uppercase tracking-wider mb-1">Guest note</p>
-              <textarea
-                value={editNotes}
-                onChange={e => setEditNotes(e.target.value)}
-                placeholder="הוסף הערת אורח..."
-                rows={2}
-                className="w-full bg-transparent text-iron-text/90 text-[13px] leading-relaxed resize-none focus:outline-none placeholder:text-iron-muted/30"
-              />
-            </div>
-            <div className="px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25 focus-within:border-iron-green/50 transition-colors">
-              <input
-                value={editOccasion}
-                onChange={e => setEditOccasion(e.target.value)}
-                placeholder="אירוע מיוחד..."
-                className="w-full bg-transparent text-iron-green-light text-xs font-semibold focus:outline-none placeholder:text-iron-green/30"
-              />
-            </div>
-          </section>
+
+          {/* Occasion — inline editable */}
+          <div className="px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25 focus-within:border-iron-green/50 transition-colors">
+            <input
+              value={editOccasion}
+              onChange={e => setEditOccasion(e.target.value)}
+              placeholder="אירוע מיוחד..."
+              className="w-full bg-transparent text-iron-green-light text-xs font-semibold focus:outline-none placeholder:text-iron-green/30"
+            />
+          </div>
 
           {/* Smart table suggestion */}
           {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
