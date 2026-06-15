@@ -4,12 +4,63 @@ import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } fr
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal from './ReorganizeConflictModal';
 import GuestProfile from './GuestProfile';
+import MiniCalendar from './MiniCalendar';
 
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { fmtHostTime, normalizeTime } from '../utils/time';
+
+// ─── Time slot constants ──────────────────────────────────────────────────────
+
+const TIME_SLOTS: string[] = Array.from({ length: 28 }, (_, i) => {
+  const h = Math.floor(i / 2) + 10;
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${String(h).padStart(2, '0')}:${m}`;
+});
+
+function snapToSlot(time: string): string {
+  if (TIME_SLOTS.includes(time)) return time;
+  const [hStr, mStr] = time.split(':');
+  const total = parseInt(hStr, 10) * 60 + parseInt(mStr ?? '0', 10);
+  return TIME_SLOTS.reduce((best, slot) => {
+    const [sh, sm] = slot.split(':');
+    const slotTotal = parseInt(sh, 10) * 60 + parseInt(sm, 10);
+    const [bh, bm] = best.split(':');
+    const bestTotal = parseInt(bh, 10) * 60 + parseInt(bm, 10);
+    return Math.abs(total - slotTotal) < Math.abs(total - bestTotal) ? slot : best;
+  }, TIME_SLOTS[0]);
+}
+
+// ─── Form field components (CreateDrawer style) ───────────────────────────────
+
+function GDLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-iron-muted text-[10px] font-semibold uppercase tracking-widest mb-1">
+      {children}
+    </label>
+  );
+}
+
+function GDInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors ${props.className ?? ''}`}
+    />
+  );
+}
+
+function GDTextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      rows={2}
+      {...props}
+      className={`w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none ${props.className ?? ''}`}
+    />
+  );
+}
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
 
@@ -123,11 +174,6 @@ function isoToDDMMYYYY(iso: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
-}
-function ddmmyyyyToIso(v: string): string | null {
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return null;
-  const [d, m, y] = v.split('/');
-  return `${y}-${m}-${d}`;
 }
 
 // ─── Suggestion reason chips ──────────────────────────────────────────────────
@@ -263,13 +309,14 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [editName,       setEditName]       = useState(init.guestName);
   const [editPhone,      setEditPhone]      = useState(init.guestPhone ?? '');
   const [editDate,       setEditDate]       = useState(init.date.slice(0, 10));
-  const [editDateDisplay, setEditDateDisplay] = useState(isoToDDMMYYYY(init.date.slice(0, 10)));
+  const [_editDateDisplay, setEditDateDisplay] = useState(isoToDDMMYYYY(init.date.slice(0, 10)));
   const [editTime,       setEditTime]       = useState(init.time.slice(0, 5));
   const [editParty,      setEditParty]      = useState(String(init.partySize));
   const [editDuration,   setEditDuration]   = useState(init.duration);
   const [editOccasion,   setEditOccasion]   = useState(init.occasion ?? '');
   const [editNotes,      setEditNotes]      = useState(init.guestNotes ?? '');
   const [editHostNotes,  setEditHostNotes]  = useState(init.hostNotes ?? '');
+  const [_durationManual,      setDurationManual]        = useState(false);
   const [editTableId,          _setEditTableId]          = useState<string | null>(init.tableId ?? null);
   const [editCombinedTableIds, _setEditCombinedTableIds] = useState<string[]>(init.combinedTableIds ?? []);
   const pickingOnMap = false; // map-picker only available via action buttons now
@@ -1016,129 +1063,24 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         <div className="px-5 pt-5 pb-4 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.15) 0%, rgba(0,0,0,0.04) 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 16px 48px rgba(0,0,0,0.52)' }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0 pe-3">
-
-              {/* Name + primary status — identity dominant row */}
-              <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1">
+              {/* Name + status */}
+              <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1.5">
                 <input
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   className="text-iron-text font-black text-[34px] tracking-tight leading-none bg-transparent border-b border-transparent hover:border-iron-border/40 focus:border-iron-green/60 focus:outline-none w-full min-w-0 transition-colors"
                   dir={dir}
                 />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mb-2">
                 {res.guest?.isVip && (
-                  <span className="text-status-warning text-xs font-semibold bg-status-warning/14 px-2 py-0.5 rounded-full border border-status-warning/28 shrink-0">
-                    {T.common.vip}
-                  </span>
+                  <span className="text-status-warning text-xs font-semibold bg-status-warning/14 px-2 py-0.5 rounded-full border border-status-warning/28 shrink-0">{T.common.vip}</span>
                 )}
                 <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${STATUS_PILL[res.status]}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
               </div>
-
-              {/* Reservation facts — time (editable) · party (editable) · table */}
-              <div dir="ltr" className="flex items-center gap-2 mb-2 flex-wrap">
-                {res.status === 'SEATED' ? (
-                  <span className="text-iron-green-light font-black tabular-nums leading-none shrink-0" style={{ fontSize: '26px', letterSpacing: '-0.04em' }}>{normalizeTime(res.time)}</span>
-                ) : (
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="HH:MM"
-                    maxLength={5}
-                    value={editTime}
-                    onChange={e => {
-                      let v = e.target.value.replace(/[^0-9:]/g, '');
-                      if (v.length === 2 && editTime.length <= 2 && !v.includes(':')) v += ':';
-                      setEditTime(v);
-                      if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
-                    }}
-                    className="text-iron-green-light font-black tabular-nums leading-none bg-transparent border-b border-transparent hover:border-iron-green/40 focus:border-iron-green/70 focus:outline-none w-[4.5rem] transition-colors"
-                    style={{ fontSize: '26px', letterSpacing: '-0.04em' }}
-                  />
-                )}
-                <span className="text-iron-border/35 leading-none">·</span>
-                {/* Party size — inline counter */}
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => setEditParty(p => String(Math.max(1, parseInt(p,10) - 1)))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">−</button>
-                  <span className="text-iron-text font-bold text-[17px] tabular-nums min-w-[1.5rem] text-center">{editParty}</span>
-                  <button type="button" onClick={() => setEditParty(p => String(Math.min(99, parseInt(p,10) + 1)))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">+</button>
-                  <span className="text-iron-text/60 text-[13px] font-medium ms-0.5">אורחים</span>
-                </div>
-                {res.table && (
-                  <>
-                    <span className="text-iron-border/40 leading-none">·</span>
-                    <span className="text-iron-text/65 text-[13px] font-medium">
-                      {res.combinedTableIds.length
-                        ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
-                        : res.table.name}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Phone — editable input + call button */}
-              <div dir="ltr" className="mb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-lg bg-iron-bg border border-iron-border/55 focus-within:border-iron-green/55 transition-colors min-w-0">
-                    <span className="text-iron-muted/55 text-[13px] leading-none shrink-0">☎</span>
-                    <input
-                      type="tel"
-                      dir="ltr"
-                      value={editPhone}
-                      onChange={e => setEditPhone(e.target.value)}
-                      placeholder="מספר טלפון"
-                      className="flex-1 bg-transparent text-[16px] font-mono font-semibold text-iron-text/95 tabular-nums leading-none focus:outline-none placeholder:text-iron-muted/30 min-w-0"
-                    />
-                  </div>
-                  {editPhone && (
-                    <a
-                      href={`tel:${editPhone}`}
-                      onClick={e => e.stopPropagation()}
-                      className="text-[11px] font-semibold px-2.5 py-2 rounded-lg border bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text hover:border-iron-border/70 transition-colors shrink-0"
-                      title="חייג"
-                    >
-                      חייג
-                    </a>
-                  )}
-                  {editPhone && (
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(editPhone); setPhoneCopied(true); setTimeout(() => setPhoneCopied(false), 1500); }}
-                      className={`text-[11px] font-semibold px-2.5 py-2 rounded-lg border transition-colors touch-manipulation shrink-0 ${phoneCopied ? 'bg-iron-green/15 border-iron-green/40 text-iron-green-light' : 'bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text hover:border-iron-border/70'}`}
-                    >
-                      {phoneCopied ? '✓' : 'Copy'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Notes inline — host note + guest note in header */}
-              <div className="space-y-2 mb-2">
-                <div className="px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/25 focus-within:border-status-warning/50 transition-colors">
-                  <p className="text-[9px] text-status-warning/60 font-semibold uppercase tracking-wider mb-0.5">הערת מסעדה</p>
-                  <textarea
-                    value={editHostNotes}
-                    onChange={e => setEditHostNotes(e.target.value)}
-                    placeholder="הוסף הערת מארח..."
-                    rows={1}
-                    className="w-full bg-transparent text-amber-100/85 text-[12px] leading-relaxed resize-none focus:outline-none placeholder:text-status-warning/25"
-                    style={{ fieldSizing: 'content' } as React.CSSProperties}
-                  />
-                </div>
-                <div className="px-3 py-2 rounded-lg bg-iron-card/80 border border-iron-border/75 focus-within:border-iron-border transition-colors">
-                  <p className="text-[9px] text-iron-muted/60 font-semibold uppercase tracking-wider mb-0.5">הערת לקוח</p>
-                  <textarea
-                    value={editNotes}
-                    onChange={e => setEditNotes(e.target.value)}
-                    placeholder="הוסף הערת אורח..."
-                    rows={1}
-                    className="w-full bg-transparent text-iron-text/90 text-[12px] leading-relaxed resize-none focus:outline-none placeholder:text-iron-muted/30"
-                    style={{ fieldSizing: 'content' } as React.CSSProperties}
-                  />
-                </div>
-              </div>
-
-              {/* Arrival urgency — compact header indicator for immediate visibility */}
+              {/* Arrival urgency */}
               {isLiveView && nowTime && (() => {
                 const aState = arrivalState(res.time, res.status, nowTime);
                 if (!aState) return null;
@@ -1147,7 +1089,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   ARRIVING_SOON: { cls: 'bg-status-warning/12 border-status-warning/22 text-status-warning', label: T.arrival.arrivingSoon },
                   DUE_NOW:       { cls: 'bg-status-warning/20 border-status-warning/38 text-status-warning', label: T.arrival.dueNow },
                   LATE:          { cls: 'bg-orange-900/16 border-orange-500/30 text-orange-400', label: T.arrival.lateMin(minsLate) },
-                  NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-status-danger/30 text-status-danger',         label: T.arrival.noShowRisk },
+                  NO_SHOW_RISK:  { cls: 'bg-red-900/20 border-status-danger/30 text-status-danger', label: T.arrival.noShowRisk },
                 }[aState];
                 return (
                   <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border mb-2 ${cfg.cls}`}>
@@ -1156,51 +1098,21 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                   </div>
                 );
               })()}
-
-              {/* Contextual state badges — secondary operational flags */}
+              {/* Contextual badges */}
               {(res.returnedToListAt || res.reorganizeAt || (res.isRunningLate && res.status !== 'SEATED') || res.isConfirmedByGuest) && (
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {res.returnedToListAt && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">
-                      {T.guestDrawer.returnedToList}
-                    </span>
-                  )}
-                  {res.reorganizeAt && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-status-warning/10 border-status-warning/30 text-status-warning font-medium">
-                      {T.guestDrawer.reorganizeBadge}
-                    </span>
-                  )}
-                  {res.isRunningLate && res.status !== 'SEATED' && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">
-                      {T.guestDrawer.runningLate}
-                    </span>
-                  )}
-                  {res.isConfirmedByGuest && (
-                    <span className="text-[11px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">
-                      {T.guestDrawer.guestConfirmed}
-                    </span>
-                  )}
+                  {res.returnedToListAt && <span className="text-[11px] px-2 py-0.5 rounded-full border bg-purple-500/10 border-purple-500/30 text-purple-400 font-medium">{T.guestDrawer.returnedToList}</span>}
+                  {res.reorganizeAt && <span className="text-[11px] px-2 py-0.5 rounded-full border bg-status-warning/10 border-status-warning/30 text-status-warning font-medium">{T.guestDrawer.reorganizeBadge}</span>}
+                  {res.isRunningLate && res.status !== 'SEATED' && <span className="text-[11px] px-2 py-0.5 rounded-full border bg-orange-500/10 border-orange-500/30 text-orange-400 font-medium">{T.guestDrawer.runningLate}</span>}
+                  {res.isConfirmedByGuest && <span className="text-[11px] px-1.5 py-px rounded border bg-iron-green/15 border-iron-green/30 text-iron-green-light font-medium">{T.guestDrawer.guestConfirmed}</span>}
                 </div>
               )}
-
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {mode === 'view' && res.guestId && (
-                <button
-                  onClick={() => setShowProfile(true)}
-                  className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-iron-border/55 text-iron-muted/70 hover:border-status-reserved/55 hover:text-status-reserved transition-colors touch-manipulation"
-                  title="כרטיס לקוח"
-                >
-                  כרטיס לקוח
-                </button>
+              {res.guestId && (
+                <button onClick={() => setShowProfile(true)} className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-iron-border/55 text-iron-muted/70 hover:border-status-reserved/55 hover:text-status-reserved transition-colors touch-manipulation">כרטיס לקוח</button>
               )}
-              <button
-                onClick={onClose}
-                className="text-iron-muted/50 hover:text-iron-text w-8 h-8 flex items-center justify-center rounded-xl hover:bg-iron-border/20 transition-colors text-lg leading-none touch-manipulation"
-                aria-label="Close"
-              >
-                ×
-              </button>
+              <button onClick={onClose} className="text-iron-muted/50 hover:text-iron-text w-8 h-8 flex items-center justify-center rounded-xl hover:bg-iron-border/20 transition-colors text-lg leading-none touch-manipulation" aria-label="Close">×</button>
             </div>
           </div>
         </div>
@@ -1250,15 +1162,160 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           })()}
 
 
-          {/* Occasion — inline editable */}
-          <div className="px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/25 focus-within:border-iron-green/50 transition-colors">
-            <input
-              value={editOccasion}
-              onChange={e => setEditOccasion(e.target.value)}
-              placeholder="אירוע מיוחד..."
-              className="w-full bg-transparent text-iron-green-light text-xs font-semibold focus:outline-none placeholder:text-iron-green/30"
-            />
+          {/* ── Form fields — CreateDrawer style ── */}
+          <div className="space-y-4">
+
+            {/* Phone */}
+            <div>
+              <GDLabel>{T.guestDrawer.fieldPhone ?? 'טלפון'}</GDLabel>
+              <div className="flex gap-2">
+                <GDInput
+                  type="tel"
+                  dir="ltr"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  placeholder="מספר טלפון"
+                  className="flex-1"
+                />
+                {editPhone && (
+                  <a href={`tel:${editPhone}`} onClick={e => e.stopPropagation()}
+                    className="text-[11px] font-semibold px-2.5 py-2 rounded-lg border bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text transition-colors shrink-0">
+                    חייג
+                  </a>
+                )}
+                {editPhone && (
+                  <button type="button" onClick={() => { navigator.clipboard.writeText(editPhone); setPhoneCopied(true); setTimeout(() => setPhoneCopied(false), 1500); }}
+                    className={`text-[11px] font-semibold px-2.5 py-2 rounded-lg border transition-colors touch-manipulation shrink-0 ${phoneCopied ? 'bg-iron-green/15 border-iron-green/40 text-iron-green-light' : 'bg-iron-bg border-iron-border/45 text-iron-muted/80 hover:text-iron-text hover:border-iron-border/70'}`}>
+                    {phoneCopied ? '✓' : 'Copy'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Party size */}
+            <div>
+              <GDLabel>{T.guestDrawer.fieldPartySize ?? 'מספר אורחים'}</GDLabel>
+              <GDInput
+                type="number"
+                min={1}
+                max={100}
+                value={editParty}
+                onChange={e => setEditParty(e.target.value)}
+              />
+            </div>
+
+            {/* Date — MiniCalendar, only for non-SEATED */}
+            {res.status !== 'SEATED' && (
+              <div>
+                <GDLabel>{T.guestDrawer.fieldDate ?? 'תאריך'}</GDLabel>
+                <MiniCalendar
+                  value={editDate}
+                  onValueChange={d => {
+                    setEditDate(d);
+                    const parts = d.split('-');
+                    setEditDateDisplay(`${parts[2]}/${parts[1]}/${parts[0]}`);
+                    onDateTimeChange?.(d, editTime);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Time — select dropdown */}
+            {res.status !== 'SEATED' && (
+              <div>
+                <GDLabel>{T.guestDrawer.fieldTime ?? 'שעה'}</GDLabel>
+                <select
+                  value={snapToSlot(editTime)}
+                  onChange={e => {
+                    setEditTime(e.target.value);
+                    onDateTimeChange?.(editDate, e.target.value);
+                  }}
+                  className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green transition-colors"
+                >
+                  {TIME_SLOTS.map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Duration — presets + manual */}
+            <div>
+              <GDLabel>{T.guestDrawer.fieldDuration ?? 'משך'}</GDLabel>
+              <div className="flex gap-1 mb-1.5">
+                {([90, 120] as const).map(preset => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => { setEditDuration(preset); setDurationManual(true); }}
+                    className={`flex-1 text-xs py-2 rounded-lg border font-medium transition-colors ${
+                      editDuration === preset
+                        ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light'
+                        : 'border-iron-border text-iron-muted hover:text-iron-text'
+                    }`}
+                  >
+                    {preset === 90 ? T.createDrawer.durationPreset90 : T.createDrawer.durationPreset120}
+                  </button>
+                ))}
+              </div>
+              <GDInput
+                type="number"
+                min={30}
+                max={480}
+                step={15}
+                value={editDuration}
+                onChange={e => { setEditDuration(parseInt(e.target.value, 10) || 90); setDurationManual(true); }}
+                placeholder="90"
+              />
+            </div>
+
+            {/* Host notes */}
+            <div>
+              <GDLabel>הערות מסעדה</GDLabel>
+              <GDTextArea
+                value={editHostNotes}
+                onChange={e => setEditHostNotes(e.target.value)}
+                placeholder="הערות פנימיות..."
+              />
+            </div>
+
+            {/* Guest notes */}
+            <div>
+              <GDLabel>הערות אורח</GDLabel>
+              <GDTextArea
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
+                placeholder="אלרגיות, בקשות מיוחדות..."
+              />
+            </div>
+
+            {/* Occasion */}
+            <div>
+              <GDLabel>אירוע מיוחד</GDLabel>
+              <GDInput
+                value={editOccasion}
+                onChange={e => setEditOccasion(e.target.value)}
+                placeholder="יום הולדת, יום נישואין..."
+              />
+            </div>
+
           </div>
+
+          {/* ── Table display / service info ── */}
+          {res.table && (
+            <div className="pt-2 border-t border-iron-border/30">
+              <GDLabel>שולחן</GDLabel>
+              <div className="px-3 py-2.5 rounded-lg bg-iron-bg border border-iron-border/55 text-iron-text text-sm font-medium">
+                {res.combinedTableIds.length
+                  ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
+                  : res.table.name}
+                {res.table.section?.name && <span className="text-iron-muted/50 text-xs ms-2">{res.table.section.name}</span>}
+              </div>
+              {res.status === 'SEATED' && res.seatedAt && (
+                <p className="text-iron-muted/50 text-[11px] tabular-nums mt-1">{T.guestDrawer.rowSeatedAt}: {fmtHostTime(res.seatedAt)}</p>
+              )}
+            </div>
+          )}
 
           {/* Smart table suggestion */}
           {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
@@ -1345,111 +1402,17 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
-          {/* Date / time inline fields for non-SEATED */}
-          {res.status !== 'SEATED' && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1">{T.guestDrawer.fieldDate}</div>
-                <input
-                  className="w-full bg-iron-bg border border-iron-border/45 rounded-lg px-2.5 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green/60 transition-colors"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="DD/MM/YYYY"
-                  maxLength={10}
-                  value={editDateDisplay}
-                  onChange={e => {
-                    let v = e.target.value.replace(/[^0-9/]/g, '');
-                    if (v.length === 2 && editDateDisplay.length <= 2 && !v.includes('/')) v += '/';
-                    if (v.length === 5 && editDateDisplay.length <= 5 && v.split('/').length === 2) v += '/';
-                    setEditDateDisplay(v);
-                    const iso = ddmmyyyyToIso(v);
-                    if (iso) { setEditDate(iso); onDateTimeChange?.(iso, editTime); }
-                  }}
-                />
-              </div>
-              <div>
-                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1">{T.guestDrawer.fieldTime}</div>
-                <input
-                  className="w-full bg-iron-bg border border-iron-border/45 rounded-lg px-2.5 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green/60 transition-colors"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="HH:MM"
-                  maxLength={5}
-                  value={editTime}
-                  onChange={e => {
-                    let v = e.target.value.replace(/[^0-9:]/g, '');
-                    if (v.length === 2 && editTime.length <= 2 && !v.includes(':')) v += ':';
-                    setEditTime(v);
-                    if (/^\d{2}:\d{2}$/.test(v)) onDateTimeChange?.(editDate, v);
-                  }}
-                />
-              </div>
+          {/* Secondary meta: date (non-today), source */}
+          {(res.date.slice(0, 10) !== _todayStr || res.source) && (
+            <div className="flex items-center gap-x-3 px-0.5 flex-wrap gap-y-1">
+              {res.date.slice(0, 10) !== _todayStr && (
+                <span className="text-iron-muted/50 text-[11px] tabular-nums">{res.date.slice(0, 10)}</span>
+              )}
+              {res.source && (
+                <span className="text-iron-muted/45 text-[11px]">{formatReservationSource(res.source, locale)}</span>
+              )}
             </div>
           )}
-
-          {/* ── Service zone: table + duration tiles, meta footer ─────────── */}
-          <section className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-
-              {/* Table tile */}
-              <div className="px-3.5 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}>
-                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1.5">{T.guestDrawer.rowTable}</div>
-                {!res.table ? (
-                  <div className={`text-[13px] font-medium ${res.tableId ? 'text-iron-muted/55' : 'text-iron-muted/45 italic'}`}>
-                    {res.tableId ? '…' : T.guestDrawer.tableUnassigned}
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-iron-text font-bold text-[15px] leading-tight">
-                      {res.combinedTableIds.length
-                        ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
-                        : res.table.name}
-                    </div>
-                    {res.table.section?.name && (
-                      <div className="text-iron-muted/50 text-[11px] mt-0.5">{res.table.section.name}</div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Duration tile with interactive +/- */}
-              <div className="px-3.5 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.055)', boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.24)' }}>
-                <div className="text-[10px] text-iron-muted/50 font-semibold uppercase tracking-[0.12em] mb-1.5">{T.guestDrawer.rowDuration}</div>
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => setEditDuration(d => Math.max(30, d - 15))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">−</button>
-                  <div className="flex-1 text-center">
-                    <div className="text-iron-text font-bold text-[15px] tabular-nums leading-tight">{T.guestDrawer.durationValue(editDuration)}</div>
-                    <div className="text-iron-muted/50 text-[11px] tabular-nums">
-                      {(() => {
-                        const [rh, rm] = res.time.split(':').map(Number);
-                        const total = rh * 60 + rm + editDuration;
-                        const eh = Math.floor(total / 60) % 24;
-                        const em = total % 60;
-                        return `→ ${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
-                      })()}
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => setEditDuration(d => Math.min(360, d + 15))} className="text-iron-muted/60 hover:text-iron-text w-5 h-5 flex items-center justify-center rounded hover:bg-iron-border/20 transition-colors text-base leading-none">+</button>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Secondary meta: date (non-today), source, seated-at */}
-            {(res.date.slice(0, 10) !== _todayStr || res.source || (res.status === 'SEATED' && res.seatedAt)) && (
-              <div className="flex items-center gap-x-3 px-0.5 flex-wrap gap-y-1">
-                {res.date.slice(0, 10) !== _todayStr && (
-                  <span className="text-iron-muted/50 text-[11px] tabular-nums">{res.date.slice(0, 10)}</span>
-                )}
-                {res.source && (
-                  <span className="text-iron-muted/45 text-[11px]">{formatReservationSource(res.source, locale)}</span>
-                )}
-                {res.status === 'SEATED' && res.seatedAt && (
-                  <span className="text-iron-muted/55 text-[11px] tabular-nums">{T.guestDrawer.rowSeatedAt}: {fmtHostTime(res.seatedAt)}</span>
-                )}
-              </div>
-            )}
-          </section>
 
           {/* Other reservations at the same table */}
           {othersAtTable.length > 0 && (
