@@ -54,6 +54,18 @@ export default function App() {
     // Load auth from the correct store based on entry route.
     // /hq and /restaurant-admin use iron_hq_auth; everything else uses iron_auth.
     const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
+
+    if (!isHQ) {
+      // On any non-HQ route (including restaurant slug routes), sanitize iron_auth.
+      // If it somehow contains an HQ/admin role, it was stored there by mistake —
+      // clear it so the slug route renders HostSelectionScreen instead of redirecting to /hq.
+      const candidate = getStoredAuth();
+      const ADMIN_ROLES = ['SUPER_ADMIN', 'HQ_ADMIN', 'RESTAURANT_ADMIN'];
+      if (candidate && ADMIN_ROLES.includes(candidate.user.role)) {
+        clearAuth();
+      }
+    }
+
     const stored = isHQ ? getStoredHQAuth() : getStoredAuth();
     setSessionToken(stored?.token ?? null);
     setAuth(stored ?? null);
@@ -126,19 +138,25 @@ export default function App() {
   }
 
   function handleLogin(token: string, user: AuthState['user']) {
-    const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
-    if (isHQ) {
+    // Route to the correct auth store by role — never let HQ/admin roles pollute iron_auth.
+    if (user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN') {
       storeHQAuth(token, user);
-    } else {
-      storeAuth(token, user);
+      setSessionToken(token);
+      setAuth({ token, user });
+      window.location.replace('/hq');
+      return;
     }
+    if (user.role === 'RESTAURANT_ADMIN') {
+      storeHQAuth(token, user);
+      setSessionToken(token);
+      setAuth({ token, user });
+      window.location.replace('/restaurant-admin');
+      return;
+    }
+    // HOST / SERVER / MANAGER / OWNER / ADMIN — restaurant floor staff only.
+    storeAuth(token, user);
     setSessionToken(token);
     setAuth({ token, user });
-    if (user.role === 'RESTAURANT_ADMIN' && !window.location.pathname.startsWith('/restaurant-admin')) {
-      window.location.replace('/restaurant-admin');
-    } else if ((user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN') && window.location.pathname.startsWith('/restaurant-admin')) {
-      window.location.replace('/hq');
-    }
   }
 
   function handleLogout() {
