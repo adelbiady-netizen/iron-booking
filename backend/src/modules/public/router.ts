@@ -6,6 +6,26 @@ const router = Router();
 
 router.use('/book', bookingRouter);
 
+// ─── GET /api/public/restaurant/:slug ───────────────────────────────────────
+// Minimal read-only lookup used by the tenant entry page to validate a slug
+// before showing the login form. Returns only safe display fields — no PII,
+// no settings, no internal IDs beyond the restaurant UUID needed for PIN login.
+router.get('/restaurant/:slug', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { slug } = req.params;
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+      select: { id: true, name: true, slug: true, logoUrl: true, primaryColor: true },
+    });
+    if (!restaurant) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Restaurant not found' } });
+    }
+    res.json(restaurant);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET /api/public/hosts?restaurantId=xxx ──────────────────────────────────
 // Returns active hosts that have a PIN set — used by the Host Selection Screen.
 // No authentication required; returns only display fields (no PINs or emails).

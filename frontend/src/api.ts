@@ -285,6 +285,8 @@ export const api = {
       }),
     unseat: (id: string) =>
       request<Reservation>(`/reservations/${id}/unseat`, { method: 'POST' }),
+    unseatKeepTable: (id: string) =>
+      request<Reservation>(`/reservations/${id}/unseat-keep-table`, { method: 'POST' }),
     unconfirm: (id: string) =>
       request<Reservation>(`/reservations/${id}/unconfirm`, { method: 'POST' }),
     undo: (id: string) =>
@@ -794,6 +796,11 @@ export const api = {
   },
 
   public: {
+    getRestaurantBySlug: (slug: string) =>
+      publicRequest<{ id: string; name: string; slug: string; logoUrl: string | null; primaryColor: string | null }>(
+        `/public/restaurant/${encodeURIComponent(slug)}`
+      ),
+
     getHosts: (restaurantId: string) =>
       publicRequest<Array<{ id: string; firstName: string; lastName: string; avatarUrl: string | null; role: string }>>(`/public/hosts?restaurantId=${encodeURIComponent(restaurantId)}`),
 

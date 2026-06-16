@@ -19,8 +19,9 @@ export default function HQLoginPage({ onLogin }: Props) {
     setLoading(true);
     try {
       const r = await api.auth.login(email.trim(), password);
-      if (r.user.role !== 'SUPER_ADMIN') {
-        setError('You are not authorized for HQ access. Contact your system administrator.');
+      const HQ_ROLES = ['SUPER_ADMIN', 'HQ_ADMIN'];
+      if (!HQ_ROLES.includes(r.user.role)) {
+        setError('אין לך הרשאת גישה לפורטל HQ. פנה למנהל המערכת, או היכנס דרך קישור המסעדה שלך.');
         setPassword('');
         passwordRef.current?.focus();
         return;
@@ -32,7 +33,7 @@ export default function HQLoginPage({ onLogin }: Props) {
         msg.toLowerCase().includes('invalid') ||
         msg.toLowerCase().includes('unauthorized') ||
         msg.toLowerCase().includes('401');
-      setError(isWrongPassword ? 'Incorrect email or password.' : msg);
+      setError(isWrongPassword ? 'אימייל או סיסמה שגויים.' : msg);
       passwordRef.current?.select();
     } finally {
       setLoading(false);

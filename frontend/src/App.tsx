@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { api, getStoredAuth, clearAuth, storeAuth, getStoredHQAuth, storeHQAuth, clearHQAuth, setSessionToken } from './api';
-import LoginPage from './pages/LoginPage';
 import HQLoginPage from './pages/HQLoginPage';
-import HostDashboard from './pages/HostDashboard';
 import SetupPage from './pages/SetupPage';
 import AdminPortal from './pages/admin/AdminPortal';
 import RestaurantPortal from './pages/admin/RestaurantPortal';
 import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
 import WaitlistKioskPage from './pages/WaitlistKioskPage';
-import HostSelectionScreen from './pages/HostSelectionScreen';
+import RootPage from './pages/RootPage';
+import RestaurantEntryPage from './pages/RestaurantEntryPage';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import AccessibilityPage from './pages/legal/AccessibilityPage';
@@ -19,13 +18,12 @@ import GuestHubQrRedirect  from './features/guestHub/GuestHubQrRedirect';
 import GuestHubPreviewPage from './features/guestHub/GuestHubPreviewPage';
 import FeedbackPage from './pages/FeedbackPage';
 import JoinPage from './pages/JoinPage';
-import type { AuthState, UserRole } from './types';
+import type { AuthState } from './types';
 
 export type Theme = 'dark' | 'light';
 
 const ZOOM_MIN  = 75;
 const ZOOM_MAX  = 150;
-const ZOOM_STEP = 10;
 
 function clampZoom(v: number) {
   return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v));
@@ -40,9 +38,7 @@ export default function App() {
   const [auth,             setAuth]             = useState<AuthState | null>(null);
   const [ready,            setReady]            = useState(false);
   const [bootstrapped,     setBootstrapped]     = useState(true);
-  // SUPER_ADMIN can toggle between AdminPortal and HostDashboard
-  const [adminView,        setAdminView]        = useState(true);
-  // When true, show LoginPage even if iron_restaurant_id is set (Manager Login from HostSelectionScreen)
+  // When true, show email login even if iron_restaurant_id is set (Manager Login from HostSelectionScreen)
   const [forceLoginPage,   setForceLoginPage]   = useState(false);
   const [zoom,  setZoom]  = useState<number>(() =>
     clampZoom(parseInt(localStorage.getItem('iron_zoom') ?? '100'))
@@ -138,7 +134,6 @@ export default function App() {
     }
     setSessionToken(token);
     setAuth({ token, user });
-    setAdminView(user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN');
     if (user.role === 'RESTAURANT_ADMIN' && !window.location.pathname.startsWith('/restaurant-admin')) {
       window.location.replace('/restaurant-admin');
     } else if ((user.role === 'SUPER_ADMIN' || user.role === 'HQ_ADMIN') && window.location.pathname.startsWith('/restaurant-admin')) {
@@ -155,7 +150,6 @@ export default function App() {
     }
     setSessionToken(null);
     setAuth(null);
-    setAdminView(true);
     setForceLoginPage(false);
   }
 
@@ -244,6 +238,50 @@ export default function App() {
     if (slug) return <WaitlistKioskPage slug={slug} />;
   }
 
+  // ── /{slug} — Restaurant-specific entry point ────────────────────────────
+  // Single-segment paths that aren't reserved routes are treated as restaurant
+  // slugs. The RestaurantEntryPage validates the slug against the backend before
+  // showing any login form, and enforces that the authenticated user belongs to
+  // that specific restaurant.
+  const RESERVED_SEGMENTS = new Set([
+    'hq', 'restaurant-admin', 'book', 'waitlist', 'r', 'r-preview', 'q',
+    'f', 'c', 'join', 'privacy', 'terms', 'accessibility', 'contact',
+    'confirm', 'guest-hub-demo',
+  ]);
+  const pathParts = path.split('/').filter(Boolean);
+  if (pathParts.length === 1 && !RESERVED_SEGMENTS.has(pathParts[0])) {
+    const slug = pathParts[0];
+    return (
+      <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <div style={{
+          transform: `scale(${scale})`,
+          transformOrigin: '0 0',
+          width:  `${100 / scale}%`,
+          height: `${100 / scale}%`,
+        }}>
+          <RestaurantEntryPage
+            slug={slug}
+            auth={auth}
+            ready={ready}
+            onLogin={(token, user) => {
+              setForceLoginPage(false);
+              handleLogin(token, user);
+            }}
+            onLogout={handleLogout}
+            onSwitchHost={localStorage.getItem('iron_restaurant_id') ? handleSwitchHost : undefined}
+            zoom={zoom}
+            onZoomChange={handleZoom}
+            theme={theme}
+            onThemeChange={toggleTheme}
+            forceLoginPage={forceLoginPage}
+            onForceLoginPage={() => setForceLoginPage(true)}
+            onClearForceLoginPage={() => setForceLoginPage(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── /hq — dedicated HQ portal (completely self-contained) ───────────────────
   if (path === '/hq') {
     // Wait for auth to be read from storage before deciding what to render
@@ -262,8 +300,8 @@ export default function App() {
 
     // Logged in but wrong role — redirect RESTAURANT_ADMIN to their portal;
     // other low-privilege roles see an access-denied screen without being signed out.
-    const HQ_ROLES: UserRole[] = ['SUPER_ADMIN', 'HQ_ADMIN'];
-    if (!HQ_ROLES.includes(auth.user.role)) {
+    const isHQRole = auth.user.role === 'SUPER_ADMIN' || auth.user.role === 'HQ_ADMIN';
+    if (!isHQRole) {
       if (auth.user.role === 'RESTAURANT_ADMIN') {
         window.location.replace('/restaurant-admin');
         return <></>;
@@ -356,32 +394,8 @@ export default function App() {
       );
     }
 
-    if (auth?.user.role === 'SUPER_ADMIN' || auth?.user.role === 'HQ_ADMIN') {
-      if (adminView) {
-        return (
-          <AdminPortal
-            auth={auth}
-            onLogout={handleLogout}
-            onDashboard={() => setAdminView(false)}
-          />
-        );
-      }
-      // SUPER_ADMIN viewing host dashboard — shows system restaurant (empty)
-      return (
-        <HostDashboard
-          auth={auth}
-          zoom={zoom}
-          zoomStep={ZOOM_STEP}
-          onZoomChange={handleZoom}
-          onLogout={handleLogout}
-          theme={theme}
-          onThemeChange={toggleTheme}
-          onAdminPortal={() => setAdminView(true)}
-        />
-      );
-    }
-
-    if (!auth && !bootstrapped) {
+    // First-time setup (no restaurant configured yet)
+    if (!bootstrapped) {
       return (
         <SetupPage
           onSetup={(token, user) => {
@@ -392,39 +406,14 @@ export default function App() {
       );
     }
 
-    if (!auth) {
-      const restaurantId = localStorage.getItem('iron_restaurant_id');
-      if (restaurantId && !forceLoginPage) {
-        return (
-          <HostSelectionScreen
-            restaurantId={restaurantId}
-            onLogin={handleLogin}
-            onManagerLogin={() => setForceLoginPage(true)}
-          />
-        );
-      }
-      return (
-        <LoginPage
-          onLogin={(token, user) => {
-            setForceLoginPage(false);
-            handleLogin(token, user);
-          }}
-        />
-      );
+    // Root / — no generic login. Redirect HQ users to /hq, everyone else sees
+    // the "use your restaurant link" landing page.
+    if (auth?.user.role === 'SUPER_ADMIN' || auth?.user.role === 'HQ_ADMIN') {
+      window.location.replace('/hq');
+      return <></>;
     }
 
-    return (
-      <HostDashboard
-        auth={auth}
-        zoom={zoom}
-        zoomStep={ZOOM_STEP}
-        onZoomChange={handleZoom}
-        onLogout={handleLogout}
-        onSwitchHost={localStorage.getItem('iron_restaurant_id') ? handleSwitchHost : undefined}
-        theme={theme}
-        onThemeChange={toggleTheme}
-      />
-    );
+    return <RootPage />;
   }
 
   return (
