@@ -12,7 +12,10 @@ router.use('/book', bookingRouter);
 // no settings, no internal IDs beyond the restaurant UUID needed for PIN login.
 router.get('/restaurant/:slug', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { slug } = req.params;
+    const slug = typeof req.params['slug'] === 'string' ? req.params['slug'] : '';
+    if (!slug) {
+      return res.status(400).json({ error: { code: 'MISSING_PARAM', message: 'slug required' } });
+    }
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
       select: { id: true, name: true, slug: true, logoUrl: true, primaryColor: true },
