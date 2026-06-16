@@ -1228,6 +1228,7 @@ model GuestFeedback {
   sentiment     FeedbackSentiment?
   freeText      String?
   tags          String[]          @default([])
+  openedAt      DateTime?
   submittedAt   DateTime?
   createdAt     DateTime          @default(now())
 
@@ -1300,4 +1301,22 @@ model ClubJoinInvite {
 
   @@index([restaurantId])
   @@map("club_join_invites")
+}
+
+// ─── HOSTESS TELEMETRY ────────────────────────────────────────────────────────
+// Lightweight operational event log. Fire-and-forget from frontend.
+// No dashboard yet — collecting data to understand real usage patterns.
+
+model HostEvent {
+  id           String   @id @default(uuid())
+  restaurantId String
+  hostName     String?
+  event        String
+  properties   Json?
+  sessionId    String?
+  createdAt    DateTime @default(now())
+
+  @@index([restaurantId, event])
+  @@index([restaurantId, createdAt])
+  @@map("host_events")
 }

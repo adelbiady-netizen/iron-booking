@@ -425,6 +425,8 @@ interface Props {
   // Table-first seating: right-click an AVAILABLE table to seat a waiting/arrived guest
   eligibleGuests?: TableFirstGuest[];
   onTableFirstSeat?: (table: FloorTable, guest: TableFirstGuest) => void;
+  // Walk-in from floor: right-click an available table → open walk-in drawer with table pre-selected
+  onWalkInHere?: (tableId: string, combinedIds: string[]) => void;
   // Swap mode — enter by right-clicking a seated table and choosing "Swap table"
   swapMode?: boolean;
   swapSourceId?: string | null;
@@ -482,6 +484,7 @@ export default function FloorBoard({
   inFlightIds,
   eligibleGuests = [],
   onTableFirstSeat,
+  onWalkInHere,
   swapMode = false,
   swapSourceId = null,
   onSwapTargetPick,
@@ -1541,7 +1544,8 @@ export default function FloorBoard({
         // Show table-first seating on AVAILABLE and RESERVED/RESERVED_SOON tables.
         // OCCUPIED and locked tables are still blocked. Backend handles future-reservation conflicts via reorganize modal.
         const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && eligibleGuests.length > 0;
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat;
+        const canWalkInHere = !!onWalkInHere && !isOccupied && !t.locked && isToday;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere;
 
         return (
           <>
@@ -1617,6 +1621,15 @@ export default function FloorBoard({
                     );
                   })}
                 </>
+              )}
+
+              {canWalkInHere && (
+                <button
+                  onClick={() => { onWalkInHere!(t.id, []); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-info hover:bg-status-info/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxWalkInHere}
+                </button>
               )}
 
               {canComplete && (

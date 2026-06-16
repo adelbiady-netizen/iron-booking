@@ -25,6 +25,10 @@ router.get('/:token', async (req: Request, res: Response, next: NextFunction) =>
       },
     });
     if (!fb) throw new NotFoundError('Feedback', p(req, 'token'));
+    // Track first open (funnel: sent → opened → submitted)
+    if (!fb.openedAt) {
+      await prisma.guestFeedback.update({ where: { id: fb.id }, data: { openedAt: new Date() } });
+    }
     res.json({
       restaurant: fb.restaurant,
       guestName: fb.reservation?.guestName ?? null,

@@ -9,6 +9,7 @@ import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased, arri
 import { optimisticExpectedEnd } from '../utils/time';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
+import { trackEvent } from '../utils/telemetry';
 import TopBar from '../components/TopBar';
 import FloorBoard from '../components/FloorBoard';
 import ReservationPanel from '../components/ReservationPanel';
@@ -169,14 +170,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [occupiedConflict, setOccupiedConflict] = useState<{
     occupiedBy: { id: string; guestName: string; time: string; partySize: number };
     resume: () => void;
-  } | null>(null);
-  const [pendingMove, setPendingMove] = useState<{
-    res: Reservation;
-    sourceTableName: string;
-    targetTableId: string;
-    targetCombinedIds: string[];
-    targetTableName: string;
-    busy: boolean;
   } | null>(null);
   const [swapSource, setSwapSource] = useState<{ res: Reservation; tableName: string } | null>(null);
   const [pendingSwap, setPendingSwap] = useState<{
@@ -357,6 +350,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         console.log('[call:sse] ③ typing detected — badge shown');
       } else {
         setIncomingCall(d);
+        trackEvent('calldrawer.opened', { phone: d.phone ? 'known' : 'unknown', status: d.status });
         console.log('[call:sse] ③ drawer opened', { status: d.status, callid });
       }
     },
@@ -581,6 +575,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handlePanelSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
+    trackEvent('guestdrawer.opened', { reservationId: enriched.id, status: enriched.status, source: enriched.source });
     setQuickTable(null);
     setOpenDrawerInEdit(enriched.status === 'SEATED');
     setSelectedRes(enriched);
@@ -620,6 +615,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleUpdated = useCallback((updated: Reservation) => {
     optimisticSeatSnapshotRef.current.delete(updated.id);
+    // Telemetry: track drawer-originated status changes
+    const prior = reservations.find(r => r.id === updated.id);
+    if (prior && prior.status !== updated.status) {
+      if (updated.status === 'CANCELLED')  trackEvent('reservation.cancelled',  { reservationId: updated.id, partySize: updated.partySize, source: updated.source, path: 'drawer' });
+      if (updated.status === 'NO_SHOW')    trackEvent('reservation.noshow',     { reservationId: updated.id, partySize: updated.partySize, source: updated.source });
+      if (updated.status === 'SEATED')     trackEvent('guest.seated',           { reservationId: updated.id, partySize: updated.partySize, source: updated.source, path: 'drawer' });
+      if (updated.status === 'COMPLETED')  trackEvent('reservation.completed',  { reservationId: updated.id, partySize: updated.partySize, source: updated.source, path: 'drawer' });
+    }
     setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
     setQuickTable(null);
     setSelectedRes(updated);
@@ -1273,6 +1276,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setInFlightIds(new Set(inFlightRef.current));
     try {
       const { reservation } = await api.waitlist.seat(entry.id, tableId);
+      trackEvent('waitlist.seated', { waitlistId: entry.id, partySize: entry.partySize, tableId: tableId ?? null });
       setReservations(prev => [...prev, reservation]);
       setRefreshKey(k => k + 1);
       setWaitlist(prev => prev.filter(e => e.id !== entry.id));
@@ -1470,6 +1474,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
       try {
         const updated = await api.reservations.seat(res.id, primaryId, false, secondaryIds, [], forceOverrideOccupied);
+        trackEvent('guest.seated', { reservationId: res.id, partySize: res.partySize, tableId: primaryId, source: res.source });
         setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
         setInsights(prev => prev.filter(i => i.tableId !== primaryId && i.reservationId !== res.id));
         const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
@@ -1589,6 +1594,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
     try {
       const updated = await api.reservations.complete(res.id);
+      trackEvent('reservation.completed', { reservationId: res.id, partySize: res.partySize, source: res.source });
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       showToast(T.guestDrawer.toastCompleted, 'success');
     } catch (err) {
@@ -1666,6 +1672,35 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [showToast]);
 
+  const handleUnmarkArrived = useCallback(async (res: Reservation) => {
+    if (inFlightRef.current.has(res.id)) return;
+    inFlightRef.current.add(res.id);
+    setInFlightIds(new Set(inFlightRef.current));
+    setReservations(prev => prev.map(r =>
+      r.id === res.id ? { ...r, isArrived: false, arrivedAt: null } : r
+    ));
+    try {
+      const updated = await api.reservations.unmarkArrived(res.id);
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      showToast('הגעה בוטלה', 'success');
+    } catch (err) {
+      setReservations(prev => prev.map(r => r.id === res.id ? res : r));
+      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+    } finally {
+      inFlightRef.current.delete(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
+    }
+  }, [showToast]);
+
+  const handlePanelCancel = useCallback(async (res: Reservation) => {
+    try {
+      await api.reservations.cancel(res.id);
+      trackEvent('reservation.cancelled', { reservationId: res.id, partySize: res.partySize, source: res.source, status: res.status, path: 'panel' });
+      setRefreshKey(k => k + 1);
+    }
+    catch (err) { showToast(err instanceof Error ? err.message : T.hostDashboard.toastCancelFail, 'error'); }
+  }, [showToast]);
+
   const handleSendSms = useCallback(async (res: Reservation) => {
     if (inFlightRef.current.has(res.id)) return;
     inFlightRef.current.add(res.id);
@@ -1704,24 +1739,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     handlePickTables(
       currentIds,
       sug,
-      (ids) => {
+      async (ids) => {
         if (!ids || ids.length === 0) return;
         const [primaryId, ...secondaryIds] = ids;
         const targetName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
-        const sourceName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
-        setPendingMove({
-          res,
-          sourceTableName: sourceName,
-          targetTableId: primaryId,
-          targetCombinedIds: secondaryIds,
-          targetTableName: targetName,
-          busy: false,
-        });
+        try {
+          const updated = await api.reservations.move(res.id, primaryId, undefined, secondaryIds);
+          trackEvent('reservation.moved', { reservationId: res.id, fromTableId: res.tableId, toTableId: primaryId });
+          setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+          setQuickTable(null);
+          showToast(T.guestDrawer.toastMoved(targetName));
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'CONFLICT') {
+            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+              setReorganizeConflict({
+                conflicts: det.conflicts,
+                pendingReservationId: res.id,
+                pendingTableId: primaryId,
+                pendingCombinedIds: secondaryIds,
+                tableName: targetName,
+                busy: false,
+                _key: ++reorganizeKeyRef.current,
+                pendingMoveResId: res.id,
+              });
+              return;
+            }
+          }
+          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+        }
       },
       'move',
       res.guestName,
     );
-  }, [handlePickTables, floorTables]);
+  }, [handlePickTables, floorTables, showToast]);
 
   const handleContextMenuSwap = useCallback((res: Reservation) => {
     const tableName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
@@ -1768,48 +1819,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [pendingSwap, showToast, setRefreshKey]);
 
-  const confirmMove = useCallback(async () => {
-    if (!pendingMove || pendingMove.busy) return;
-    setPendingMove(p => p && ({ ...p, busy: true }));
-    try {
-      const updated = await api.reservations.move(
-        pendingMove.res.id,
-        pendingMove.targetTableId,
-        undefined,
-        pendingMove.targetCombinedIds,
-      );
-      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-      showToast(T.guestDrawer.toastMoved(pendingMove.targetTableName));
-      setQuickTable(null);
-      setPendingMove(null);
-    } catch (err) {
-      if (err instanceof ApiError && err.code === 'CONFLICT') {
-        const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
-        if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
-          const { res, targetTableId, targetCombinedIds, targetTableName } = pendingMove;
-          setPendingMove(null);
-          setReorganizeConflict({
-            conflicts: det.conflicts,
-            pendingReservationId: res.id,
-            pendingTableId: targetTableId,
-            pendingCombinedIds: targetCombinedIds,
-            tableName: targetTableName,
-            busy: false,
-            _key: ++reorganizeKeyRef.current,
-            pendingMoveResId: res.id,
-          });
-          return;
-        }
-      }
-      setPendingMove(p => p ? { ...p, busy: false } : null);
-      showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
-    }
-  }, [pendingMove, showToast]);
-
   // Called after a reservation is created — update state optimistically and open it in the drawer.
   // No explicit setRefreshKey: SSE floor_updated fires for every mutation and triggers
   // the background refresh, same as handleUpdated. Avoids a double-fetch alongside SSE.
   const handleCreated = useCallback((created: Reservation) => {
+    const eventName = created.source === 'WALK_IN' ? 'walkin.created' : 'reservation.created';
+    trackEvent(eventName, { reservationId: created.id, partySize: created.partySize, source: created.source, hasTable: !!created.tableId, status: created.status });
     setCreateMode(null);
     setPreselectedTableId(null);
     setPreselectedCombinedTableIds([]);
@@ -2309,7 +2324,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         <div
           className="shrink-0 overflow-hidden border-e border-iron-border/40"
           style={{
-            width: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 320 : 0,
+            width: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 240 : 0,
             boxShadow: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '1px 0 0 rgba(255,255,255,0.05), 6px 0 28px rgba(0,0,0,0.55), 20px 0 60px rgba(0,0,0,0.35)' : 'none',
           }}
         >
@@ -2391,6 +2406,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuSwap={handleContextMenuSwap}
           eligibleGuests={eligibleGuests}
           onTableFirstSeat={handleTableFirstSeat}
+          onWalkInHere={(tableId, combinedIds) => {
+            setPreselectedTableId(tableId);
+            setPreselectedCombinedTableIds(combinedIds);
+            setCreateMode('walkin');
+          }}
           activeDrawerRes={selectedRes}
           inFlightIds={inFlightIds}
           swapMode={!!swapSource}
@@ -2468,7 +2488,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               allTables={allTables}
               onChooseTable={handleChooseTable}
               onMarkArrived={handleContextMenuArrive}
+              onUnmarkArrived={handleUnmarkArrived}
               onSendSms={handleSendSms}
+              onCancelReservation={handlePanelCancel}
               isLiveView={isLiveView}
               onHoverRow={handleHoverRow}
               onSmartAssign={() => setShowSmartAssign(true)}
@@ -2768,36 +2790,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           </div>
         </div>,
         document.body
-      )}
-
-      {/* Move-table confirmation — lightweight bottom-sheet style, no heavy modal */}
-      {pendingMove && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 pointer-events-none">
-          <div className="pointer-events-auto bg-iron-elevated border border-iron-border/60 rounded-xl px-5 py-4 shadow-2xl w-80">
-            <p className="text-sm font-semibold text-iron-text mb-1">
-              {T.floorBoard.moveConfirmTitle(pendingMove.res.guestName)}
-            </p>
-            <p className="text-xs text-iron-muted mb-4">
-              {T.floorBoard.moveConfirmBody(pendingMove.sourceTableName, pendingMove.targetTableName)}
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setPendingMove(null)}
-                disabled={pendingMove.busy}
-                className="px-3 py-1.5 text-xs text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-lg transition-colors disabled:opacity-40"
-              >
-                {T.floorBoard.pickModeCancel}
-              </button>
-              <button
-                onClick={confirmMove}
-                disabled={pendingMove.busy}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-status-warning rounded-lg transition-colors disabled:opacity-40"
-              >
-                {pendingMove.busy ? '…' : T.floorBoard.moveConfirmBtn}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Swap-table confirmation — lightweight bottom-sheet style */}

@@ -68,7 +68,9 @@ interface Props {
   allTables?: { id: string; name: string }[];
   onChooseTable?: (r: Reservation) => void;
   onMarkArrived?: (r: Reservation) => void;
+  onUnmarkArrived?: (r: Reservation) => void;
   onSendSms?: (r: Reservation) => void;
+  onCancelReservation?: (r: Reservation) => void;
   isLiveView?: boolean;
   onHoverRow?: (id: string | null) => void;
   onSmartAssign?: () => void;
@@ -80,7 +82,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onChooseTable, onMarkArrived, onSendSms, isLiveView, onHoverRow, onSmartAssign,
+  onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign,
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
@@ -90,6 +92,9 @@ export default function ReservationPanel({
   const [search, setSearch] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ res: Reservation; x: number; y: number } | null>(null);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [sentSmsIds, setSentSmsIds] = useState<Set<string>>(new Set());
+  const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
+  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -518,38 +523,65 @@ export default function ReservationPanel({
                       <span className="text-[9px] px-1 py-0.5 rounded font-semibold leading-none whitespace-nowrap" style={{ color: '#435B2A', backgroundColor: 'rgba(67,91,42,0.13)', border: '1px solid rgba(67,91,42,0.28)' }}>{T.reservationPanel.filterNoTable}</span>
                     )}
                   </div>
-                  {['PENDING', 'CONFIRMED'].includes(r.status) && (onChooseTable || onSendSms || (onMarkArrived && !r.isArrived)) && (
+                  {['PENDING', 'CONFIRMED'].includes(r.status) && (onCancelReservation || onSendSms || onMarkArrived) && (
                     <div className="shrink-0 flex items-center gap-0.5 ps-1">
                       {/* Inline action buttons — visible only when this row's menu is open */}
                       {openActionsId === r.id && (<>
-                        {onChooseTable && (
+                        {onCancelReservation && (
                           <button
                             type="button"
-                            onClick={e => { e.stopPropagation(); setOpenActionsId(null); onChooseTable(r); }}
-                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-info text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (pendingCancelId === r.id) {
+                                // Second click — confirmed
+                                if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+                                setPendingCancelId(null);
+                                setOpenActionsId(null);
+                                onCancelReservation(r);
+                              } else {
+                                // First click — arm
+                                if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+                                setPendingCancelId(r.id);
+                                cancelTimerRef.current = setTimeout(() => setPendingCancelId(null), 3000);
+                              }
+                            }}
+                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded text-white transition-[filter,background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap ${pendingCancelId === r.id ? 'bg-red-600 animate-pulse' : 'bg-status-danger hover:brightness-110'}`}
                             style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
                           >
-                            {r.table ? T.guestDrawer.actionChangeTable : T.guestDrawer.actionChooseTable}
+                            {pendingCancelId === r.id ? 'אישור?' : 'בטל הזמנה'}
                           </button>
                         )}
                         {onSendSms && r.guestPhone && !r.isConfirmedByGuest && (
                           <button
                             type="button"
-                            onClick={e => { e.stopPropagation(); setOpenActionsId(null); onSendSms(r); }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenActionsId(null);
+                              setSentSmsIds(prev => new Set(prev).add(r.id));
+                              onSendSms(r);
+                            }}
                             className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-reserved text-white hover:brightness-110 transition-[filter,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
                             style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
                           >
-                            {T.guestDrawer.actionSendSms}
+                            {sentSmsIds.has(r.id) ? 'שלח שוב' : T.guestDrawer.actionSendSms}
                           </button>
                         )}
-                        {onMarkArrived && !r.isArrived && (
+                        {onMarkArrived && (
                           <button
                             type="button"
-                            onClick={e => { e.stopPropagation(); setOpenActionsId(null); onMarkArrived(r); }}
-                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-iron-green text-white hover:bg-iron-green-light transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenActionsId(null);
+                              if (r.isArrived && onUnmarkArrived) {
+                                onUnmarkArrived(r);
+                              } else {
+                                onMarkArrived(r);
+                              }
+                            }}
+                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded text-white transition-[background-color,transform] duration-100 active:scale-[0.97] whitespace-nowrap ${r.isArrived ? 'bg-status-warning hover:brightness-110' : 'bg-iron-green hover:bg-iron-green-light'}`}
                             style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)' }}
                           >
-                            {T.reservationPanel.markArrivedBtn}
+                            {r.isArrived ? 'בטל הגעה' : T.reservationPanel.markArrivedBtn}
                           </button>
                         )}
                       </>)}
@@ -647,7 +679,7 @@ export default function ReservationPanel({
                         {r.occasion && (
                           <span className="text-[11px] text-iron-green-light/80 font-medium">{r.occasion}</span>
                         )}
-                        {r.guest?.tags && r.guest.tags.slice(0, 3).map(tag => (
+                        {r.guest?.tags && r.guest.tags.filter(t => !t.startsWith('tabit_import')).slice(0, 3).map(tag => (
                           <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full border border-iron-border/35 text-iron-muted/65 font-medium">{tag}</span>
                         ))}
                         {r.isConfirmedByGuest && (
@@ -717,7 +749,7 @@ export default function ReservationPanel({
             <button
               type="button"
               className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm text-iron-green-light font-medium hover:bg-iron-green/15 active:bg-iron-green/25 transition-colors cursor-pointer"
-              onClick={() => { onContextMenuSeat?.({ ...ctxMenu.res, tableId: null, combinedTableIds: [] }); setCtxMenu(null); }}
+              onClick={() => { onContextMenuSeat?.(ctxMenu.res); setCtxMenu(null); }}
             >
               <span className="text-base leading-none shrink-0">🍽️</span>
               <span>{ctxMenu.res.tableId ? T.reservationPanel.ctxSeat : T.reservationPanel.ctxQuickSeat}</span>

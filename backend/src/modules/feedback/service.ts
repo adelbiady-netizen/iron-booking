@@ -37,9 +37,9 @@ export async function generateFeedbackToken(
   const firstName = guestName.split(/\s+/)[0] ?? guestName;
   const message = `היי ${firstName}, תודה על ביקורך ב${restaurant.name}. נשמח לשמוע מה חשבת: ${url}`;
 
-  // Safe queue: default is approval-required.
-  // Set feedbackApprovalRequired = false in restaurant settings to enable auto-send.
-  const approvalRequired = settings.feedbackApprovalRequired !== false;
+  // Auto-send by default. Set feedbackApprovalRequired = true in restaurant settings
+  // to route through MomentQueue for manager approval before sending.
+  const approvalRequired = settings.feedbackApprovalRequired === true;
 
   if (approvalRequired) {
     // Route through MomentQueue — manager must approve before SMS fires
