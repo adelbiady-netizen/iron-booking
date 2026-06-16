@@ -69,17 +69,20 @@ export default function RestaurantEntryPage(props: Props) {
   }, [auth, info]);
 
   function wrapLogin(token: string, user: AuthUser) {
-    const restaurant = info as RestaurantInfo | null;
-    if (!restaurant || (restaurant as unknown as string) === 'not_found') return;
-    if (user.restaurant?.slug !== restaurant.slug) {
-      // Undo localStorage set done inside LoginPage/HostSelectionScreen
-      localStorage.removeItem('iron_restaurant_id');
-      setSlugMismatch(true);
-      return;
-    }
     setSlugMismatch(false);
     onClearForceLoginPage();
     onLogin(token, user);
+    // If they authenticated against a different restaurant, redirect to correct slug
+    const restaurant = info as RestaurantInfo | null;
+    if (restaurant && (restaurant as unknown as string) !== 'not_found') {
+      if (user.restaurant?.slug && user.restaurant.slug !== restaurant.slug) {
+        window.location.replace(`/${user.restaurant.slug}`);
+        return;
+      }
+    }
+    if (user.restaurant?.id) {
+      localStorage.setItem('iron_restaurant_id', user.restaurant.id);
+    }
   }
 
   async function submitEmail(e: React.FormEvent) {
