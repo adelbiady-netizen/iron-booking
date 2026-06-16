@@ -249,6 +249,57 @@ function NumInput({ value, onChange, min, max }: { value: number; onChange: (v: 
   );
 }
 
+// ─── Restaurant URL inventory block ──────────────────────────────────────────
+
+const BASE_URL = 'https://www.ironbooking.com';
+
+function CopyUrlRow({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = React.useState(false);
+  function copy() {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-iron-border/50 last:border-0">
+      <div className="min-w-0">
+        <p className="text-xs text-iron-muted mb-0.5">{label}</p>
+        <p className="text-xs font-mono text-iron-text truncate" dir="ltr">{url}</p>
+      </div>
+      <button
+        onClick={copy}
+        className="shrink-0 text-xs px-2.5 py-1 rounded border border-iron-border hover:bg-iron-bg text-iron-muted hover:text-iron-text transition-colors"
+      >
+        {copied ? '✓ הועתק' : 'העתק'}
+      </button>
+    </div>
+  );
+}
+
+function RestaurantUrlBlock({ restaurantSlug, guestHubSlug }: { restaurantSlug: string; guestHubSlug: string | null }) {
+  const slugMismatch = guestHubSlug !== null && guestHubSlug !== restaurantSlug;
+  return (
+    <div className="bg-iron-surface rounded-lg p-5 border border-iron-border" dir="rtl">
+      <h3 className="font-medium text-sm mb-3">קישורי מסעדה</h3>
+      <div className="space-y-0">
+        <CopyUrlRow label="כניסת צוות" url={`${BASE_URL}/${restaurantSlug}`} />
+        <CopyUrlRow label="הזמנות אונליין" url={`${BASE_URL}/book/${restaurantSlug}`} />
+        {guestHubSlug && (
+          <CopyUrlRow label="עמוד אורחים (QR)" url={`${BASE_URL}/r/${guestHubSlug}`} />
+        )}
+      </div>
+      {slugMismatch && (
+        <div className="mt-3 bg-status-warning/10 border border-status-warning/30 rounded-lg px-3 py-2.5">
+          <p className="text-xs text-status-warning leading-relaxed">
+            <span className="font-semibold">שים לב:</span> קישור עמוד האורחים שונה מקישור כניסת הצוות. זה תקין, אבל לצוות יש לשלוח רק את קישור כניסת הצוות.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Content-area error boundary ─────────────────────────────────────────────
 // Wraps the right-side content panel so a render crash (e.g. in GuestHubCmsPanel)
 // shows an inline error rather than escaping to the full-screen top-level boundary.
@@ -1507,6 +1558,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             </dl>
           </div>
         )}
+
+        {/* URL Inventory */}
+        <RestaurantUrlBlock
+          restaurantSlug={detail.slug}
+          guestHubSlug={detail.guestHubSlug}
+        />
 
         {/* Sample layout */}
         <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
@@ -3750,6 +3807,16 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     <div className="min-w-0 flex-1">
                       <span className="text-sm font-medium">{r.name}</span>
                       <span className="text-xs text-iron-muted ml-2">/{r.slug}</span>
+                      <a
+                        href={`${BASE_URL}/${r.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-iron-green/70 hover:text-iron-green ml-2 transition-colors"
+                        title="כניסת צוות"
+                        dir="ltr"
+                      >
+                        /{r.slug} ↗
+                      </a>
                     </div>
 
                     {/* Tonight chips */}

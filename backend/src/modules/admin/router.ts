@@ -166,7 +166,13 @@ router.get('/restaurants', authenticate, requireRole('RESTAURANT_ADMIN'), async 
       include: { _count: { select: { users: true, tables: true, reservations: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(rows);
+    // Attach guestHubSlug via separate query (GuestHub.restaurantId is a soft link, not a Prisma relation)
+    const hubs = await prisma.guestHub.findMany({
+      where: { restaurantId: { in: rows.map(r => r.id) } },
+      select: { restaurantId: true, slug: true },
+    });
+    const hubSlugByRestaurantId = new Map(hubs.map(h => [h.restaurantId, h.slug]));
+    res.json(rows.map(r => ({ ...r, guestHubSlug: hubSlugByRestaurantId.get(r.id) ?? null })));
   } catch (err) { next(err); }
 });
 
@@ -183,7 +189,11 @@ router.get('/restaurants/:id', authenticate, requireRole('RESTAURANT_ADMIN'), as
       },
     });
     if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
-    res.json(restaurant);
+    const hub = await prisma.guestHub.findFirst({
+      where: { restaurantId: restaurant.id },
+      select: { slug: true },
+    });
+    res.json({ ...restaurant, guestHubSlug: hub?.slug ?? null });
   } catch (err) { next(err); }
 });
 

@@ -373,6 +373,7 @@ export interface AdminRestaurant {
   settings: Record<string, unknown>;
   createdAt: string;
   _count: { users: number; tables: number; reservations: number };
+  guestHubSlug: string | null;
 }
 
 export interface AdminGroup {
