@@ -22,11 +22,13 @@ function getToken(): string | null {
   }
 }
 
+const TELEMETRY_URL = 'https://iron-booking.onrender.com/api/telemetry/events';
+
 export function trackEvent(event: string, properties?: Record<string, unknown>): void {
   const token = getToken();
   if (!token) return;
 
-  fetch('/api/telemetry/events', {
+  fetch(TELEMETRY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ event, properties, sessionId: getSessionId() }),
