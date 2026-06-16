@@ -82,7 +82,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign,
+  onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable,
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
@@ -523,8 +523,32 @@ export default function ReservationPanel({
                       <span className="text-[9px] px-1 py-0.5 rounded font-semibold leading-none whitespace-nowrap" style={{ color: '#435B2A', backgroundColor: 'rgba(67,91,42,0.13)', border: '1px solid rgba(67,91,42,0.28)' }}>{T.reservationPanel.filterNoTable}</span>
                     )}
                   </div>
-                  {['PENDING', 'CONFIRMED'].includes(r.status) && (onCancelReservation || onSendSms || onMarkArrived) && (
+                  {['PENDING', 'CONFIRMED'].includes(r.status) && (onCancelReservation || onSendSms || onMarkArrived || (!r.tableId && (onChooseTable || onContextMenuSeat))) && (
                     <div className="shrink-0 flex items-center gap-0.5 ps-1">
+                      {/* Quick seat / assign buttons — always visible when no table assigned */}
+                      {!r.tableId && (onChooseTable || onContextMenuSeat) && openActionsId !== r.id && (
+                        <div className="flex flex-col gap-0.5 pe-0.5">
+                          {onContextMenuSeat && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); onContextMenuSeat(r); }}
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded text-white transition-colors whitespace-nowrap"
+                              style={{ backgroundColor: '#435B2A', boxShadow: '0 1px 4px rgba(0,0,0,0.28)' }}
+                            >
+                              הושב
+                            </button>
+                          )}
+                          {onChooseTable && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-iron-green/40 text-iron-green hover:bg-iron-green/10 transition-colors whitespace-nowrap"
+                            >
+                              שבץ
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {/* Inline action buttons — visible only when this row's menu is open */}
                       {openActionsId === r.id && (<>
                         {onCancelReservation && (
@@ -651,7 +675,7 @@ export default function ReservationPanel({
                     {/* Row 2 — table assignment */}
                     <div className="flex items-center gap-1.5 mt-1.5">
                       {r.table ? (
-                        <span className="text-iron-text/55 text-[12px] font-medium leading-none">{r.table.name}</span>
+                        <span className="text-iron-text/55 text-[12px] font-medium leading-none">שולחן: {r.table.name}</span>
                       ) : (
                         (() => {
                           const urgent = minsUntil !== null && minsUntil >= 0 && minsUntil <= 30;
