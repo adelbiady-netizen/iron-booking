@@ -232,9 +232,8 @@ export default function RestaurantEntryPage(props: Props) {
     );
   }
 
-  // ── Not authenticated — PIN selection (returning device) ─────────────────
-  const storedRestaurantId = localStorage.getItem('iron_restaurant_id');
-  if (storedRestaurantId === restaurant.id && !forceLoginPage) {
+  // ── Not authenticated — always show PIN host selection ───────────────────
+  if (!forceLoginPage) {
     return (
       <HostSelectionScreen
         restaurantId={restaurant.id}
@@ -244,7 +243,7 @@ export default function RestaurantEntryPage(props: Props) {
     );
   }
 
-  // ── Not authenticated — branded email login ──────────────────────────────
+  // ── Manager email login (only reachable via "Manager login" link) ─────────
   return (
     <div className="h-full bg-iron-bg flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-sm">
@@ -264,7 +263,7 @@ export default function RestaurantEntryPage(props: Props) {
             </div>
           )}
           <p className="text-iron-text font-semibold text-xl">{restaurant.name}</p>
-          <p className="text-iron-muted text-sm mt-1">כניסת צוות</p>
+          <p className="text-iron-muted text-sm mt-1">כניסת מנהל</p>
         </div>
 
         <div className="bg-iron-card border border-iron-border rounded-xl p-6">
@@ -319,9 +318,12 @@ export default function RestaurantEntryPage(props: Props) {
           </form>
         </div>
 
-        <p className="text-center text-iron-muted text-xs mt-4">
-          Iron Booking · {restaurant.name}
-        </p>
+        <button
+          onClick={onClearForceLoginPage}
+          className="w-full text-center text-iron-muted text-xs mt-4 hover:text-iron-text transition-colors"
+        >
+          ← חזרה לבחירת עובד
+        </button>
       </div>
     </div>
   );
