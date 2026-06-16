@@ -59,6 +59,13 @@ export default function HostSelectionScreen({ restaurantId, onLogin, onManagerLo
       .finally(() => setLoading(false));
   }, [restaurantId]);
 
+  // Auto-fallback to email login when no staff have PINs set
+  useEffect(() => {
+    if (!loading && !loadErr && hosts.length === 0) {
+      onManagerLogin();
+    }
+  }, [loading, loadErr, hosts.length]);
+
   function selectHost(host: PublicHost) {
     setSelected(host);
     setPin('');
@@ -125,7 +132,13 @@ export default function HostSelectionScreen({ restaurantId, onLogin, onManagerLo
       {/* Error */}
       {!loading && loadErr && (
         <div className="text-center py-8">
-          <p className="text-status-danger text-sm">{T.hostSelection.loadError}</p>
+          <p className="text-status-danger text-sm mb-4">{T.hostSelection.loadError}</p>
+          <button
+            onClick={onManagerLogin}
+            className="bg-iron-card border border-iron-border rounded-lg px-4 py-2.5 text-iron-text text-sm hover:border-iron-green/50 transition-colors"
+          >
+            {T.hostSelection.managerLogin}
+          </button>
         </div>
       )}
 

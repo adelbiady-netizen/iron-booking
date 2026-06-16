@@ -891,7 +891,7 @@ export const THe = {
     subtitle:       'לחץ על שמך כדי להיכנס',
     noHosts:        'אין מארחים מוגדרים עדיין',
     noHostsHint:    'מנהל צריך להוסיף מארחים בהגדרות → מארחים.',
-    managerLogin:   'כניסת מנהל',
+    managerLogin:   'כניסת מנהל במייל וסיסמה',
     pinTitle:       (name: string) => `הזן קוד PIN עבור ${name}`,
     pinBack:        'חזרה',
     pinError:       'קוד PIN שגוי — נסה שוב',
