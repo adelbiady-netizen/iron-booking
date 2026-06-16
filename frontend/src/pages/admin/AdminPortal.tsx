@@ -1559,6 +1559,23 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           </div>
         )}
 
+        {/* Ghost restaurant warning */}
+        {detail._count.users === 0 && detail._count.tables === 0 && (
+          <div className="bg-status-warning/10 border border-status-warning/30 rounded-lg p-4" dir="rtl">
+            <p className="text-sm font-semibold text-status-warning mb-2">⚠ מסעדה לא פעילה / חסרת הגדרה</p>
+            <ul className="text-xs text-status-warning/80 space-y-1">
+              <li>• אין משתמשים ({detail._count.users})</li>
+              <li>• אין שולחנות ({detail._count.tables})</li>
+              <li>• {detail.operatingHours?.length === 0 ? 'אין שעות פעילות מוגדרות' : `${detail.operatingHours?.length} שעות פעילות`}</li>
+              <li>• {detail.address ? `כתובת: ${detail.address}` : 'אין כתובת'}</li>
+              <li>• הזמנות: {detail._count.reservations}</li>
+            </ul>
+            <p className="text-xs text-status-warning/70 mt-3 pt-3 border-t border-status-warning/20">
+              אל תשלחו את קישורי המסעדה הזו לצוות. יש לאשר מחיקה/ארכיון לפני שנוקטים פעולה.
+            </p>
+          </div>
+        )}
+
         {/* URL Inventory */}
         <RestaurantUrlBlock
           restaurantSlug={detail.slug}
@@ -2810,7 +2827,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Detail header */}
         <div className="px-8 pt-6 pb-0 border-b border-iron-border">
-          <h2 className="text-xl font-semibold mb-4">{detail.name}</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-xl font-semibold">{detail.name}</h2>
+            {detail._count.users === 0 && detail._count.tables === 0 && (
+              <span className="text-xs px-2 py-0.5 rounded bg-status-warning/15 text-status-warning border border-status-warning/30 font-medium">
+                לא פעילה / חסרת הגדרה
+              </span>
+            )}
+          </div>
           <div className="flex gap-0">
             {tabs.map(t => (
               <button
@@ -4069,7 +4093,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               ) : restaurants.length === 0 ? (
                 <p className="text-iron-muted text-sm text-center p-6">{T.admin.noRestaurants}</p>
               ) : (
-                restaurants.map(r => (
+                restaurants.map(r => {
+                  const isGhost = r._count.users === 0 && r._count.tables === 0;
+                  return (
                   <button
                     key={r.id}
                     onClick={() => selectRestaurant(r.id)}
@@ -4077,13 +4103,21 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                       selectedId === r.id ? 'border-l-2 border-l-iron-green bg-iron-bg' : ''
                     }`}
                   >
-                    <div className="font-medium text-sm truncate">{r.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm truncate">{r.name}</span>
+                      {isGhost && (
+                        <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-warning/15 text-status-warning border border-status-warning/30 font-medium">
+                          לא פעילה
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-iron-muted mt-0.5">
                       {r._count.users}מ · {r._count.tables}ש · {r._count.reservations}ה
                       {r.groupId && <span className="ml-1 text-iron-green/70">●</span>}
                     </div>
                   </button>
-                ))
+                  );
+                })
               )}
             </div>
           </>)}
