@@ -509,6 +509,94 @@ async function runClubBackfillDryRun() {
   }
 }
 
+// ─── TEMPORARY: Backfill write + post-backfill summary ───────────────────────
+// Remove after reading Render logs.
+async function runClubBackfillWrite() {
+  try {
+    const { ClubJoinSource: Source, ClubMemberStatus: Status } = await import('@prisma/client');
+
+    // Fetch all candidates (same query as dry-run)
+    const candidates = await prisma.reservation.findMany({
+      where: { source: 'ONLINE', marketingOptIn: true, guestId: { not: null } },
+      select: {
+        restaurantId: true,
+        guestId:      true,
+        birthday:     true,
+        anniversary:  true,
+        createdAt:    true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Identify which pairs already have a ClubMember
+    const pairs = candidates.map(r => ({ restaurantId: r.restaurantId, guestId: r.guestId! }));
+    const existingMembers = pairs.length > 0
+      ? await prisma.clubMember.findMany({
+          where: { OR: pairs.map(p => ({ restaurantId: p.restaurantId, guestId: p.guestId })) },
+          select: { restaurantId: true, guestId: true },
+        })
+      : [];
+    const existingSet = new Set(existingMembers.map(e => `${e.restaurantId}:${e.guestId}`));
+
+    // Deduplicate — keep earliest reservation per pair (candidates are ordered by createdAt asc)
+    const seen = new Set<string>();
+    const toCreate = candidates.filter(r => {
+      const key = `${r.restaurantId}:${r.guestId!}`;
+      if (existingSet.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    let created = 0;
+    let skippedDuplicates = 0;
+    let errors = 0;
+
+    for (const r of toCreate) {
+      try {
+        await prisma.clubMember.create({
+          data: {
+            restaurantId:     r.restaurantId,
+            guestId:          r.guestId!,
+            source:           Source.WEBSITE,
+            status:           Status.ACTIVE,
+            birthday:         r.birthday    ?? null,
+            anniversary:      r.anniversary ?? null,
+            marketingConsent: true,
+            smsConsent:       false,
+            emailConsent:     false,
+            joinDate:         r.createdAt,
+          },
+        });
+        created++;
+      } catch (e: any) {
+        if (e?.code === 'P2002') { skippedDuplicates++; continue; }
+        console.error('[CLUB_BACKFILL_WRITE_RESULT] row error:', e instanceof Error ? e.message : e);
+        errors++;
+      }
+    }
+
+    console.log('[CLUB_BACKFILL_WRITE_RESULT]', JSON.stringify({
+      created, skippedDuplicates, errors,
+      totalCandidates: candidates.length,
+      alreadyExisted:  existingMembers.length,
+    }));
+
+    // Post-backfill global club_members summary
+    const [total, active, withBday, withAnniv] = await Promise.all([
+      prisma.clubMember.count(),
+      prisma.clubMember.count({ where: { status: 'ACTIVE' } }),
+      prisma.clubMember.count({ where: { birthday: { not: null } } }),
+      prisma.clubMember.count({ where: { anniversary: { not: null } } }),
+    ]);
+
+    console.log('[CLUB_MEMBERS_POST_BACKFILL]', JSON.stringify({
+      total, active, withBirthday: withBday, withAnniversary: withAnniv,
+    }));
+  } catch (e) {
+    console.error('[CLUB_BACKFILL_WRITE_RESULT] fatal error:', e instanceof Error ? e.message : e);
+  }
+}
+
 async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
@@ -524,6 +612,7 @@ async function main() {
   await runClubMembersAudit();           // TEMPORARY — remove after reading Render logs
   await runClubBackfillDryRun();         // TEMPORARY — remove after reading Render logs
   await runClubBackfillExclusionAudit(); // TEMPORARY — remove after reading Render logs
+  await runClubBackfillWrite();          // TEMPORARY — remove after reading Render logs
   await maybeBootstrapSuperAdmin();
 
   const server = app.listen(config.port);
