@@ -74,6 +74,86 @@ async function maybeBootstrapSuperAdmin() {
   console.log('[Bootstrap] Remove BOOTSTRAP_* env vars after confirming login works.');
 }
 
+async function clubBirthdayDryRun() {
+  const slug = 'eataliano-dalla-costa';
+
+  const restaurant = await prisma.restaurant.findFirst({
+    where:  { slug },
+    select: { id: true, name: true, timezone: true, settings: true },
+  });
+  if (!restaurant) {
+    console.log('[CLUB_BDAY_DRYRUN] restaurant not found:', slug);
+    return;
+  }
+
+  const s           = (restaurant.settings ?? {}) as Record<string, unknown>;
+  const daysBefore  = typeof s.clubBirthdaySmsDaysBefore === 'number' ? s.clubBirthdaySmsDaysBefore : 7;
+  const tz          = restaurant.timezone ?? 'UTC';
+
+  // Compute target MM-DD (today + daysBefore in restaurant timezone)
+  const targetDate  = new Date(Date.now() + daysBefore * 24 * 60 * 60 * 1000);
+  const parts       = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit', day: '2-digit' }).formatToParts(targetDate);
+  const targetMmDd  = `${parts.find(p => p.type === 'month')!.value}-${parts.find(p => p.type === 'day')!.value}`;
+
+  console.log(`[CLUB_BDAY_DRYRUN] restaurant=${restaurant.name} | id=${restaurant.id}`);
+  console.log(`[CLUB_BDAY_DRYRUN] daysBefore=${daysBefore} | targetMmDd=${targetMmDd} | smsEnabled=${s.smsEnabled} | clubBirthdaySmsEnabled=${s.clubBirthdaySmsEnabled}`);
+
+  // All ACTIVE members with birthday on targetMmDd (regardless of smsConsent)
+  const allEligible = await prisma.clubMember.findMany({
+    where: { restaurantId: restaurant.id, status: 'ACTIVE', birthday: targetMmDd },
+    select: {
+      id:         true,
+      smsConsent: true,
+      guest:      { select: { firstName: true, phone: true } },
+    },
+  });
+
+  const noConsent   = allEligible.filter(m => !m.smsConsent);
+  const hasConsent  = allEligible.filter(m =>  m.smsConsent);
+
+  // Dedup check for consented members
+  const cutoff = new Date(Date.now() - 330 * 24 * 60 * 60 * 1000);
+  const wouldSend: typeof hasConsent = [];
+  const alreadySent: typeof hasConsent = [];
+
+  for (const m of hasConsent) {
+    const existing = await prisma.messageLog.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        clubMemberId: m.id,
+        messageType:  'BIRTHDAY',
+        status:       { in: ['SENT', 'PENDING'] },
+        createdAt:    { gte: cutoff },
+      },
+      select: { id: true },
+    });
+    if (existing) { alreadySent.push(m); } else { wouldSend.push(m); }
+  }
+
+  console.log(`[CLUB_BDAY_DRYRUN] ── Summary ──────────────────────────────`);
+  console.log(`[CLUB_BDAY_DRYRUN] Total ACTIVE members with birthday ${targetMmDd}: ${allEligible.length}`);
+  console.log(`[CLUB_BDAY_DRYRUN]   smsConsent=false (skip):    ${noConsent.length}`);
+  console.log(`[CLUB_BDAY_DRYRUN]   smsConsent=true:            ${hasConsent.length}`);
+  console.log(`[CLUB_BDAY_DRYRUN]     already sent this year:   ${alreadySent.length}`);
+  console.log(`[CLUB_BDAY_DRYRUN]     wouldSend:                ${wouldSend.length}`);
+  console.log(`[CLUB_BDAY_DRYRUN] ─────────────────────────────────────────`);
+
+  if (wouldSend.length > 0) {
+    console.log(`[CLUB_BDAY_DRYRUN] Sample phones (masked):`);
+    for (const m of wouldSend) {
+      const phone  = m.guest.phone ?? '—';
+      const masked = phone.length >= 6 ? `${phone.slice(0, 3)}****${phone.slice(-3)}` : '***';
+      console.log(`[CLUB_BDAY_DRYRUN]   ${m.guest.firstName ?? '?'} | ${masked}`);
+    }
+  }
+
+  if (noConsent.length > 0) {
+    console.log(`[CLUB_BDAY_DRYRUN] Members skipped (smsConsent=false): ${noConsent.map(m => m.guest.firstName ?? '?').join(', ')}`);
+  }
+
+  console.log('[CLUB_BDAY_DRYRUN] DRY-RUN complete. No SMS sent. No MessageLog rows written.');
+}
+
 async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
@@ -86,6 +166,7 @@ async function main() {
   console.log('[DB] Connected');
 
   await maybeBootstrapSuperAdmin();
+  await clubBirthdayDryRun();
 
   const server = app.listen(config.port);
 
