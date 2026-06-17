@@ -319,7 +319,10 @@ export async function updateReservation(
   input: UpdateReservationInput,
   actorName: string
 ) {
-  const existing = await assertReservationBelongsToRestaurant(id, restaurantId);
+  const [existing, settings] = await Promise.all([
+    assertReservationBelongsToRestaurant(id, restaurantId),
+    getRestaurantSettings(restaurantId),
+  ]);
 
   if (['COMPLETED', 'NO_SHOW', 'CANCELLED'].includes(existing.status)) {
     throw new BusinessRuleError(`Cannot modify a ${existing.status} reservation`);
@@ -332,8 +335,6 @@ export async function updateReservation(
   )) {
     throw new BusinessRuleError('Cannot change date, time, or table for a seated reservation');
   }
-
-  const settings = await getRestaurantSettings(restaurantId);
   const date = input.date ? parseDateArg(input.date) : existing.date;
   const time = input.time ?? existing.time;
   const duration = input.duration ?? (
@@ -1403,6 +1404,31 @@ export async function unseatReservation(
         data: { status: 'WAITING', seatedAt: null },
       });
     }
+    return updated;
+  });
+}
+
+export async function unseatKeepTable(
+  restaurantId: string,
+  id: string,
+  actorName: string
+) {
+  const r = await assertReservationBelongsToRestaurant(id, restaurantId);
+  if (r.status !== 'SEATED') {
+    throw new BusinessRuleError(`Cannot unseat a reservation with status ${r.status}`);
+  }
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.reservation.update({
+      where: { id },
+      data: { status: 'CONFIRMED', seatedAt: null },
+      include: { table: true },
+    });
+    await logActivity(tx, id, 'UNSEAT_KEEP_TABLE', actorName, {
+      note: 'Seating reversed — table kept',
+      fromStatus: 'SEATED',
+      toStatus: 'CONFIRMED',
+      tableId: r.tableId ?? null,
+    });
     return updated;
   });
 }

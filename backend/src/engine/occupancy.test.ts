@@ -216,8 +216,8 @@ console.log('\nreservationIsUpcoming');
 
 const slot1155 = parseTimeOnDate(D, '11:55');
 
-test('RESERVED_SOON_MINUTES constant is 15', () => {
-  assert.equal(RESERVED_SOON_MINUTES, 15);
+test('RESERVED_SOON_MINUTES constant is 30', () => {
+  assert.equal(RESERVED_SOON_MINUTES, 30);
 });
 
 test('reservation 335 min in the future (17:30 at 11:55) → false — not on floor map', () => {
@@ -228,32 +228,31 @@ test('reservation 335 min in the future (17:30 at 11:55) → false — not on fl
   );
 });
 
-test('reservation 35 min in the future (12:30 at 11:55) → false — beyond RESERVED_SOON window', () => {
-  // The bug scenario: 12:30 res at board time 11:55
+test('reservation 35 min in the future (12:30 at 11:55) → true — within MAP_VISIBILITY_MINUTES (90)', () => {
   assert.equal(
     reservationIsUpcoming({ time: '12:30', duration: 90 }, D, slot1155),
-    false,
-  );
-});
-
-test('reservation 15 min away (12:10 at 11:55) → true — exactly at RESERVED_SOON boundary', () => {
-  assert.equal(
-    reservationIsUpcoming({ time: '12:10', duration: 90 }, D, slot1155),
     true,
   );
 });
 
-test('reservation 14 min away (12:09 at 11:55) → true — within RESERVED_SOON window', () => {
+test('reservation 30 min away (12:25 at 11:55) → true — exactly at RESERVED_SOON boundary', () => {
   assert.equal(
-    reservationIsUpcoming({ time: '12:09', duration: 90 }, D, slot1155),
+    reservationIsUpcoming({ time: '12:25', duration: 90 }, D, slot1155),
     true,
   );
 });
 
-test('reservation 16 min away (12:11 at 11:55) → false — just outside window', () => {
+test('reservation 31 min away (12:26 at 11:55) → true — RESERVED (blue), still visible on map', () => {
+  assert.equal(
+    reservationIsUpcoming({ time: '12:26', duration: 90 }, D, slot1155),
+    true,
+  );
+});
+
+test('reservation 16 min away (12:11 at 11:55) → true — within MAP_VISIBILITY_MINUTES window', () => {
   assert.equal(
     reservationIsUpcoming({ time: '12:11', duration: 90 }, D, slot1155),
-    false,
+    true,
   );
 });
 

@@ -85,8 +85,8 @@ export const NO_SHOW_AFTER_MINUTES = 30;
 // Window  | Map status
 // --------+------------------------------------------
 //  > 90m  | AVAILABLE  (list only — far future)
-// 15–90m  | RESERVED   (blue — near-term committed)
-//  0–15m  | RESERVED_SOON (amber — arriving soon)
+// 30–90m  | RESERVED   (blue — near-term committed)
+//  0–30m  | RESERVED_SOON (amber — arriving soon)
 // past    | RESERVED_SOON / RESERVED until reservation.start + reservation.duration
 export const MAP_VISIBILITY_MINUTES = 90;
 
