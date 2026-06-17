@@ -3,6 +3,8 @@ import { config } from './config';
 import { prisma } from './lib/prisma';
 import { startScheduler, stopScheduler } from './lib/scheduler';
 import * as bcrypt from 'bcryptjs';
+import { addMinutes, areIntervalsOverlapping } from 'date-fns';
+import { parseTimeOnDate } from './engine/availability';
 
 // ─── Global crash guards ──────────────────────────────────────────────────────
 // Without these, Node silently closes connections when an exception escapes
@@ -74,6 +76,147 @@ async function maybeBootstrapSuperAdmin() {
   console.log('[Bootstrap] Remove BOOTSTRAP_* env vars after confirming login works.');
 }
 
+// ─── One-shot availability diagnostic (TEMPORARY) ────────────────────────────
+// Runs once on startup, logs full decision trace for the audit query, then exits.
+// Remove after production audit for eataliano-dalla-costa is complete.
+async function runAvailabilityDiag() {
+  const SLUG      = 'eataliano-dalla-costa';
+  const DATE_STR  = '2026-06-20'; // Friday
+  const TIME_STR  = '17:30';
+  const PARTY     = 5;
+
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug: SLUG },
+      include: { operatingHours: { orderBy: { dayOfWeek: 'asc' } } },
+    });
+    if (!restaurant) {
+      console.log('[AVAIL_DIAG] restaurant not found for slug:', SLUG);
+      return;
+    }
+
+    const raw = (restaurant.settings ?? {}) as Record<string, unknown>;
+    const durationMinutes = (raw['defaultTurnMinutes']        as number) ?? 90;
+    const bufferMinutes   = (raw['bufferBetweenTurnsMinutes'] as number) ?? 15;
+    const maxOnlineParty  = (raw['maxOnlinePartySize']        as number) ?? 5;
+
+    const date      = new Date(DATE_STR + 'T00:00:00.000Z');
+    const dayOfWeek = date.getUTCDay(); // 5 = Friday
+    const hours     = restaurant.operatingHours.find(h => h.dayOfWeek === dayOfWeek);
+
+    const slotStart    = parseTimeOnDate(date, TIME_STR);
+    const slotEnd      = addMinutes(slotStart, durationMinutes);
+    const effStart     = addMinutes(slotStart, -bufferMinutes);
+    const effEnd       = addMinutes(slotEnd,    bufferMinutes);
+    const slotInterval = { start: effStart, end: effEnd };
+    const queryStart   = addMinutes(slotStart, -bufferMinutes - 60);
+    const queryEnd     = addMinutes(slotEnd,    bufferMinutes + 60);
+
+    const [allTables, allCombinations, reservations, blocks, restrictions] = await Promise.all([
+      prisma.table.findMany({
+        where: { restaurantId: restaurant.id, isActive: true },
+        select: { id: true, name: true, minCovers: true, maxCovers: true, locked: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.tableCombination.findMany({
+        where: { restaurantId: restaurant.id, isActive: true },
+        select: {
+          id: true, name: true, tableAId: true, tableBId: true, minCovers: true, maxCovers: true,
+          tableA: { select: { id: true, name: true, isActive: true, locked: true } },
+          tableB: { select: { id: true, name: true, isActive: true, locked: true } },
+        },
+      }),
+      prisma.reservation.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          date,
+          status: { in: ['CONFIRMED', 'SEATED', 'PENDING'] },
+          tableId: { not: null },
+        },
+        select: { id: true, tableId: true, time: true, duration: true, partySize: true, status: true, guestName: true },
+      }),
+      prisma.blockedPeriod.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          startTime: { lt: queryEnd },
+          endTime:   { gt: queryStart },
+        },
+        select: { tableId: true, startTime: true, endTime: true },
+      }),
+      prisma.onlineBookingRestriction.findMany({
+        where: { restaurantId: restaurant.id, date: DATE_STR, isActive: true },
+        select: { startTime: true, endTime: true, guestMessage: true },
+      }),
+    ]);
+
+    const tableDiag = allTables.map(t => {
+      const passesCapacity = t.minCovers <= PARTY && t.maxCovers >= PARTY;
+      const tableBlocked   = blocks.some(b =>
+        b.tableId === t.id && areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime })
+      );
+      const conflictingRes = reservations.filter(r => {
+        if (r.tableId !== t.id) return false;
+        const rStart = parseTimeOnDate(date, r.time);
+        return areIntervalsOverlapping(slotInterval, { start: rStart, end: addMinutes(rStart, r.duration) });
+      });
+      let rejection: string | null = null;
+      if (t.locked)          rejection = 'TABLE_LOCKED';
+      else if (!passesCapacity) rejection = `CAPACITY_MISMATCH(min=${t.minCovers},max=${t.maxCovers})`;
+      else if (tableBlocked) rejection = 'BLOCKED_PERIOD';
+      else if (conflictingRes.length) rejection = `CONFLICT:${conflictingRes.map(r => `${r.guestName}@${r.time}[${r.status}]`).join(',')}`;
+      return { name: t.name, minCovers: t.minCovers, maxCovers: t.maxCovers, locked: t.locked, available: !rejection, rejection };
+    });
+
+    const comboDiag = allCombinations.map(c => {
+      const passesCapacity = c.minCovers <= PARTY && c.maxCovers >= PARTY;
+      const compIds = [c.tableAId, c.tableBId];
+      const anyBlocked = compIds.some(tid =>
+        blocks.some(b => b.tableId === tid && areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))
+      );
+      const conflictingRes = reservations.filter(r =>
+        compIds.includes(r.tableId ?? '') &&
+        areIntervalsOverlapping(slotInterval, {
+          start: parseTimeOnDate(date, r.time),
+          end:   addMinutes(parseTimeOnDate(date, r.time), r.duration),
+        })
+      );
+      let rejection: string | null = null;
+      if (!passesCapacity)         rejection = `CAPACITY_MISMATCH(min=${c.minCovers},max=${c.maxCovers})`;
+      else if (!c.tableA.isActive || c.tableA.locked) rejection = `TABLE_A_BAD(${c.tableA.name})`;
+      else if (!c.tableB.isActive || c.tableB.locked) rejection = `TABLE_B_BAD(${c.tableB.name})`;
+      else if (anyBlocked)         rejection = 'COMPONENT_BLOCKED';
+      else if (conflictingRes.length) rejection = `CONFLICT:${conflictingRes.map(r => `${r.guestName}@${r.time}[${r.status}]`).join(',')}`;
+      return { name: c.name, tableA: c.tableA.name, tableB: c.tableB.name, minCovers: c.minCovers, maxCovers: c.maxCovers, available: !rejection, rejection };
+    });
+
+    const onlineBlock = restrictions.find(r => !r.startTime || !r.endTime || (TIME_STR >= r.startTime && TIME_STR < r.endTime));
+    const availSingle = tableDiag.filter(t => t.available);
+    const availCombo  = comboDiag.filter(c => c.available);
+
+    const verdict =
+      onlineBlock             ? `ONLINE_RESTRICTION(${onlineBlock.guestMessage ?? ''})` :
+      !hours?.isOpen          ? 'CLOSED' :
+      TIME_STR < (hours.openTime ?? '') || TIME_STR > (hours.lastSeating ?? '') ? `OUTSIDE_HOURS(${hours.openTime}-${hours.lastSeating})` :
+      PARTY > maxOnlineParty  ? `EXCEEDS_MAX_ONLINE_PARTY(limit=${maxOnlineParty})` :
+      availSingle.length > 0  ? `AVAILABLE_SINGLE:${availSingle.map(t => t.name).join(',')}` :
+      availCombo.length  > 0  ? `AVAILABLE_COMBO:${availCombo.map(c => c.name).join(',')}` :
+      'NO_AVAILABILITY';
+
+    console.log('[AVAIL_DIAG]', JSON.stringify({
+      query: { slug: SLUG, date: DATE_STR, time: TIME_STR, partySize: PARTY, dayOfWeek, isOpen: hours?.isOpen, openTime: hours?.openTime, lastSeating: hours?.lastSeating },
+      settings: { durationMinutes, bufferMinutes, maxOnlineParty },
+      slotWindow: { effStart: effStart.toISOString(), effEnd: effEnd.toISOString() },
+      tables:       tableDiag,
+      combinations: comboDiag,
+      reservationsOnDay: reservations.map(r => ({ tableId: r.tableId, name: r.guestName, time: r.time, dur: r.duration, ps: r.partySize, status: r.status })),
+      onlineBlock:  onlineBlock ?? null,
+      verdict,
+    }));
+  } catch (e) {
+    console.error('[AVAIL_DIAG] error:', e instanceof Error ? e.message : e);
+  }
+}
+
 async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
@@ -85,6 +228,7 @@ async function main() {
   await prisma.$connect();
   console.log('[DB] Connected');
 
+  await runAvailabilityDiag(); // TEMPORARY — remove after eataliano audit
   await maybeBootstrapSuperAdmin();
 
   const server = app.listen(config.port);
