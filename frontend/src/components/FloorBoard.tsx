@@ -697,7 +697,7 @@ export default function FloorBoard({
           x: Math.min(sx, cx), y: Math.min(sy, cy),
           w: Math.abs(cx - sx), h: Math.abs(cy - sy),
         };
-        if (fr.w > 8 && fr.h > 8 && pickAction !== 'seat') {
+        if (fr.w > 8 && fr.h > 8) {
           const newIds = tables.filter(t => {
             if (!t.isActive) return false;
             if (pickAction === 'move' && pickIds.includes(t.id)) return false;
@@ -930,12 +930,11 @@ export default function FloorBoard({
         onPickDone?.([t.id]);
         return;
       }
-      // seat: single-select. move: toggle multi-select.
-      const newSel = pickAction === 'seat'
-        ? [t.id]
-        : pickSelection.includes(t.id)
-          ? pickSelection.filter(id => id !== t.id)
-          : [...pickSelection, t.id];
+      // Toggle multi-select for seat and move: first click selects, second deselects.
+      // First selected table = tableId (primary), rest = combinedTableIds.
+      const newSel = pickSelection.includes(t.id)
+        ? pickSelection.filter(id => id !== t.id)
+        : [...pickSelection, t.id];
       setPickSelection(newSel);
       onPickSelectionChange?.(newSel);
       return;
@@ -1813,8 +1812,8 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Pick mode action bar — shown for seat/move but NOT change-table (auto-confirms on click) */}
-      {pickMode && pickAction !== 'change-table' && (
+      {/* Pick mode action bar — shown for move only. seat uses GuestDrawer confirmation card; change-table auto-confirms on click. */}
+      {pickMode && pickAction !== 'change-table' && pickAction !== 'seat' && (
         <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {pickCurrentWarn ? (
@@ -3156,7 +3155,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   // In newResPick mode: show label only when there is a genuine conflict at the form time.
   const hasGuest = (inNewResPick || (inPlanningMode && !pickMode && !isLiveOccupied))
     ? !!displayRes
-    : (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus)) && !!displayRes && (!isFarFutureReserved || table.liveStatus === 'RESERVED_SOON' || !!pickMode);
+    : (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) || !!pickMode) && !!displayRes && (!isFarFutureReserved || table.liveStatus === 'RESERVED_SOON' || !!pickMode);
 
   // Daily schedule strip — all of this table's PENDING/CONFIRMED reservations for the
   // selected day, already sorted by time. Suppressed only in pick/warn/dimmed modes.
