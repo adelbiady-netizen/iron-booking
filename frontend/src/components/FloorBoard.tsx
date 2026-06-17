@@ -3063,8 +3063,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   }
   // Planning mode: table color must reflect availability at the board time, not wall-clock
   // liveStatus. Applies for both time-travel and new-reservation planning.
-  // In pickMode the host needs to see the real live state so occupied tables stay visible.
-  if ((inNewResPick || (inPlanningMode && !pickMode)) && !boardActiveRes) {
+  // Exception: OCCUPIED/STALE_OCCUPIED tables always render live state — boardActiveRes
+  // can never be a SEATED reservation (allDayTurnData excludes SEATED), so the planning
+  // branch would always produce null/AVAILABLE for these tables, erasing live guests.
+  const isLiveOccupied = table.liveStatus === 'OCCUPIED' || table.liveStatus === 'STALE_OCCUPIED';
+  if ((inNewResPick || (inPlanningMode && !pickMode)) && !boardActiveRes && !isLiveOccupied) {
     bg = STATUS_BG['AVAILABLE'];
   }
 
@@ -3130,7 +3133,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   // currentRes is wall-clock operational state and may hold past/stale turns — never fall back
   // to it in planning mode. A null boardActiveRes means the table is free at the planned time.
   // In normal mode, fall through to nextRes so upcoming reservations are always visible.
-  const displayRes = (inNewResPick || (inPlanningMode && !pickMode))
+  const displayRes = (inNewResPick || (inPlanningMode && !pickMode && !isLiveOccupied))
     ? (boardActiveRes ?? null)
     : (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' ? boardActiveRes ?? currentRes : currentRes) ?? nextRes ?? null;
 
@@ -3151,7 +3154,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   // and the table number becomes a secondary label.
   // Far-future reservations (60+ min) are suppressed — table renders as available.
   // In newResPick mode: show label only when there is a genuine conflict at the form time.
-  const hasGuest = (inNewResPick || (inPlanningMode && !pickMode))
+  const hasGuest = (inNewResPick || (inPlanningMode && !pickMode && !isLiveOccupied))
     ? !!displayRes
     : (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus)) && !!displayRes && (!isFarFutureReserved || table.liveStatus === 'RESERVED_SOON' || !!pickMode);
 
