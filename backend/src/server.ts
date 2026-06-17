@@ -357,14 +357,23 @@ async function runClubMembersAudit() {
 // Remove after reading Render logs.
 async function runClubBackfillExclusionAudit() {
   try {
+    const maskPhone = (p: string | null): string => {
+      if (!p) return '—';
+      const d = p.replace(/\D/g, '');
+      if (d.length < 4) return '****';
+      return d.slice(0, 3) + '****' + d.slice(-3);
+    };
+
     const candidates = await prisma.reservation.findMany({
       where: { source: 'ONLINE', marketingOptIn: true, guestId: { not: null } },
       select: {
         id:           true,
         restaurantId: true,
         guestId:      true,
+        guestPhone:   true,
         birthday:     true,
         anniversary:  true,
+        marketingOptIn: true,
         createdAt:    true,
         restaurant:   { select: { name: true } },
       },
@@ -380,50 +389,65 @@ async function runClubBackfillExclusionAudit() {
       : [];
     const memberMap = new Map(existingMembers.map(e => [`${e.restaurantId}:${e.guestId}`, e.status]));
 
-    // Track duplicate (restaurantId, guestId) pairs — only first is kept
+    // Count how many times each (restaurantId, guestId) key appears
+    const pairCount = new Map<string, number>();
+    for (const r of candidates) {
+      const key = `${r.restaurantId}:${r.guestId!}`;
+      pairCount.set(key, (pairCount.get(key) ?? 0) + 1);
+    }
+
     const seenPairs = new Set<string>();
-    const excluded: Array<{ reservationId: string; restaurant: string; guestId: string; reason: string; existingMemberStatus: string | null; birthday: string | null; anniversary: string | null; createdAt: string }> = [];
+    const excluded: Array<object> = [];
 
     for (const r of candidates) {
       const key = `${r.restaurantId}:${r.guestId!}`;
       const memberStatus = memberMap.get(key) ?? null;
 
       if (memberStatus !== null) {
-        // Excluded because ClubMember already exists
         excluded.push({
-          reservationId: r.id,
-          restaurant: r.restaurant.name,
-          guestId: r.guestId!,
-          reason: 'ALREADY_MEMBER',
-          existingMemberStatus: memberStatus,
-          birthday: r.birthday,
-          anniversary: r.anniversary,
-          createdAt: r.createdAt.toISOString().slice(0, 10),
+          reservationId:    r.id,
+          restaurant:       r.restaurant.name,
+          exclusionReason:  'ALREADY_MEMBER',
+          guestIdPresent:   true,
+          marketingOptIn:   r.marketingOptIn,
+          hasBirthday:      !!r.birthday,
+          hasAnniversary:   !!r.anniversary,
+          existingClubMember:           true,
+          existingClubMemberStatus:     memberStatus,
+          duplicateGuestOrReservation:  pairCount.get(key)! > 1,
+          reservationCount:             pairCount.get(key),
+          maskedPhone:      maskPhone(r.guestPhone),
+          reservationDate:  r.createdAt.toISOString().slice(0, 10),
         });
       } else if (seenPairs.has(key)) {
-        // Excluded as duplicate — same guestId already queued for creation from an earlier reservation
         excluded.push({
-          reservationId: r.id,
-          restaurant: r.restaurant.name,
-          guestId: r.guestId!,
-          reason: 'DUPLICATE_PAIR_EARLIER_RESERVATION_WINS',
-          existingMemberStatus: null,
-          birthday: r.birthday,
-          anniversary: r.anniversary,
-          createdAt: r.createdAt.toISOString().slice(0, 10),
+          reservationId:    r.id,
+          restaurant:       r.restaurant.name,
+          exclusionReason:  'DUPLICATE_PAIR_EARLIER_RESERVATION_WINS',
+          guestIdPresent:   true,
+          marketingOptIn:   r.marketingOptIn,
+          hasBirthday:      !!r.birthday,
+          hasAnniversary:   !!r.anniversary,
+          existingClubMember:           false,
+          existingClubMemberStatus:     null,
+          duplicateGuestOrReservation:  true,
+          reservationCount:             pairCount.get(key),
+          maskedPhone:      maskPhone(r.guestPhone),
+          reservationDate:  r.createdAt.toISOString().slice(0, 10),
         });
       } else {
         seenPairs.add(key);
       }
     }
 
-    console.log('[CLUB_BACKFILL_EXCLUDED]', JSON.stringify({
+    console.log('[CLUB_BACKFILL_EXCLUDED_AUDIT]', JSON.stringify({
       totalCandidates: candidates.length,
-      excluded: excluded.length,
-      details: excluded,
+      wouldCreate:     seenPairs.size,
+      excluded:        excluded.length,
+      details:         excluded,
     }));
   } catch (e) {
-    console.error('[CLUB_BACKFILL_EXCLUDED] error:', e instanceof Error ? e.message : e);
+    console.error('[CLUB_BACKFILL_EXCLUDED_AUDIT] error:', e instanceof Error ? e.message : e);
   }
 }
 
