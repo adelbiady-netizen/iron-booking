@@ -511,6 +511,8 @@ export default function TableQuickPanel({
                     {res.status === 'SEATED' && (<>
                       <Btn label={T.guestDrawer.actionComplete} cls={btnGreen} style={primaryShadow}
                         onClick={() => quick(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} />
+                      <Btn label={T.tableQuickPanel.unseatKeepTable} cls={btnNeutral}
+                        onClick={() => quick(() => api.reservations.unseatKeepTable(res.id), T.guestDrawer.toastUndone, true)} />
                       <Btn label={T.guestDrawer.actionMoveTable} cls={btnNeutral}
                         onClick={() => { onMoveTable(res); }} />
                     </>)}

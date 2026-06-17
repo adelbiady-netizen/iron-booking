@@ -3,7 +3,7 @@ import type { GuestLookupResult, ReservationStatus } from '../types';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { fmtHostTime, normalizeTime } from '../utils/time';
-import { operationalTags, guestOriginLabel, isImportNote, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
+import { operationalTags, isImportNote, isCrmImportWithNoHistory } from '../utils/displayHelpers';
 
 interface Props {
   phone: string;
@@ -52,6 +52,9 @@ export default function CallDrawer({
   const recentRes  = guest && guest !== 'loading' ? (guest.recentReservations ?? []) : [];
   const todayRes   = recentRes.find(r => r.date.slice(0, 10) === today && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
   const lastRes    = recentRes.find(r => r.date.slice(0, 10) < today  && !['CANCELLED', 'NO_SHOW'].includes(r.status)) ?? null;
+  const futureRes  = recentRes
+    .filter(r => r.date.slice(0, 10) > today && !['CANCELLED', 'NO_SHOW'].includes(r.status))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   const isFrequent = guest && guest !== 'loading' && !guest.isVip && guest.visitCount >= FREQUENT_THRESHOLD
     && !isCrmImportWithNoHistory(guest.visitCount, guest.tags, guest.internalNotes);
 
@@ -61,7 +64,7 @@ export default function CallDrawer({
       <div className="fixed inset-0 bg-black/55 z-40" onClick={onClose} />
 
       {/* Drawer */}
-      <aside className={`fixed left-0 top-0 h-full w-80 bg-iron-elevated border-r border-iron-border/60 z-50 flex flex-col animate-toast${highlight ? ' animate-call-ping' : ''}`} style={{ boxShadow: '8px 0 48px rgba(0,0,0,0.56)' }}>
+      <aside dir="rtl" className={`fixed left-0 top-0 h-full w-80 bg-iron-elevated border-r border-iron-border/60 z-50 flex flex-col animate-toast${highlight ? ' animate-call-ping' : ''}`} style={{ boxShadow: '8px 0 48px rgba(0,0,0,0.56)' }}>
 
         {/* Header */}
         <div className="px-5 py-4 border-b border-iron-border/40 shrink-0 flex items-center justify-between" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
@@ -93,7 +96,7 @@ export default function CallDrawer({
             <p className="text-iron-muted/60 text-[10px] font-semibold uppercase tracking-widest mb-2">
               {T.callDrawer.incomingLabel}
             </p>
-            <p className="text-iron-text font-bold text-[22px] tracking-tight tabular-nums leading-none">
+            <p dir="ltr" className="text-iron-text font-bold text-[22px] tracking-tight tabular-nums leading-none">
               {phone || T.callDrawer.unknownCaller}
             </p>
           </div>
@@ -126,9 +129,7 @@ export default function CallDrawer({
                   </div>
 
                   <div className="flex items-center gap-3 text-xs text-iron-muted">
-                    {isCrmImportWithNoHistory(guest.visitCount, guest.tags, guest.internalNotes) ? (
-                      <span className="text-iron-muted/50 italic">{CRM_NO_HISTORY_LABEL}</span>
-                    ) : (
+                    {!isCrmImportWithNoHistory(guest.visitCount, guest.tags, guest.internalNotes) && (
                       <span>{T.callDrawer.visits(guest.visitCount)}</span>
                     )}
                     {guest.noShowCount > 0 && (
@@ -141,7 +142,6 @@ export default function CallDrawer({
 
                   {(() => {
                     const visibleTags = operationalTags(guest.tags);
-                    const originLabel = guestOriginLabel(guest.tags, guest.internalNotes);
                     const hostNote    = guest.internalNotes && !isImportNote(guest.internalNotes) ? guest.internalNotes : null;
                     return (
                       <>
@@ -217,9 +217,6 @@ export default function CallDrawer({
                             {hostNote}
                           </p>
                         )}
-                        {originLabel && (
-                          <p className="text-[10px] text-iron-muted/50 pt-0.5">{originLabel}</p>
-                        )}
                       </>
                     );
                   })()}
@@ -256,6 +253,45 @@ export default function CallDrawer({
                         {T.callDrawer.openReservation}
                       </button>
                     )}
+                  </div>
+                )}
+
+                {/* Future reservations */}
+                {futureRes.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-iron-muted/60 text-[10px] font-semibold uppercase tracking-widest">
+                      {T.callDrawer.futureRes}
+                    </p>
+                    {futureRes.map(r => (
+                      <div key={r.id} className="rounded-xl bg-iron-bg border border-iron-border/50 px-4 py-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-iron-text font-semibold text-sm">
+                              {new Date(r.date + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </p>
+                            <p className="text-iron-muted text-xs mt-0.5">
+                              {normalizeTime(r.time)}
+                              <span className="text-iron-muted/60"> · {r.partySize}p</span>
+                              {r.table && <span className="text-iron-muted/60"> · {r.table.name}</span>}
+                            </p>
+                            {r.occasion && (
+                              <p className="text-iron-green-light/70 text-xs mt-0.5">{r.occasion}</p>
+                            )}
+                          </div>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${statusBadgeClass(r.status)}`}>
+                            {T.reservationStatus[r.status] ?? r.status}
+                          </span>
+                        </div>
+                        {onOpenReservation && (
+                          <button
+                            onClick={() => onOpenReservation(r.id)}
+                            className="w-full text-xs font-semibold py-1.5 rounded-lg bg-iron-bg border border-iron-border/60 text-iron-text hover:bg-iron-card hover:border-iron-border transition-colors"
+                          >
+                            {T.callDrawer.openReservation}
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
 

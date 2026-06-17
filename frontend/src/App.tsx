@@ -56,13 +56,30 @@ export default function App() {
     const isHQ = window.location.pathname.startsWith('/hq') || window.location.pathname.startsWith('/restaurant-admin');
 
     if (!isHQ) {
-      // On any non-HQ route (including restaurant slug routes), sanitize iron_auth.
-      // If it somehow contains an HQ/admin role, it was stored there by mistake —
-      // clear it so the slug route renders HostSelectionScreen instead of redirecting to /hq.
+      // Sanitize iron_auth on any non-HQ route.
+      // Clear if: admin/non-staff role stored by mistake, OR the stored user belongs to a
+      // different restaurant than the current URL slug (prevents the mismatch screen on load).
       const candidate = getStoredAuth();
-      const ADMIN_ROLES = ['SUPER_ADMIN', 'HQ_ADMIN', 'RESTAURANT_ADMIN'];
-      if (candidate && ADMIN_ROLES.includes(candidate.user.role)) {
-        clearAuth();
+      if (candidate) {
+        const STAFF_ROLES = ['HOST', 'SERVER', 'MANAGER', 'OWNER', 'ADMIN'];
+        const isStaffRole = STAFF_ROLES.includes(candidate.user.role);
+        if (!isStaffRole) {
+          clearAuth();
+        } else {
+          // On a restaurant slug route (single path segment, not a reserved word), clear auth
+          // if the stored user belongs to a different restaurant so HostSelectionScreen shows
+          // immediately without any mismatch screen.
+          const RESERVED = new Set([
+            'hq', 'restaurant-admin', 'book', 'waitlist', 'r', 'r-preview', 'q',
+            'f', 'c', 'join', 'privacy', 'terms', 'accessibility', 'contact',
+            'confirm', 'guest-hub-demo',
+          ]);
+          const parts = window.location.pathname.split('/').filter(Boolean);
+          const urlSlug = parts.length === 1 && !RESERVED.has(parts[0]) ? parts[0] : null;
+          if (urlSlug !== null && candidate.user.restaurant?.slug !== urlSlug) {
+            clearAuth();
+          }
+        }
       }
     }
 

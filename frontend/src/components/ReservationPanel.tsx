@@ -168,7 +168,7 @@ export default function ReservationPanel({
 
   return (
     <>
-    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04), inset 2px 0 8px rgba(0,0,0,0.16)' }}>
+    <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated overflow-x-hidden" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04), inset 2px 0 8px rgba(0,0,0,0.16)' }}>
 
       {/* Tab bar + action buttons */}
       <div className="px-3.5 pt-3.5 pb-0 border-b border-iron-border/40" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 18px rgba(0,0,0,0.26)' }}>
@@ -384,6 +384,16 @@ export default function ReservationPanel({
                           <p className="text-status-warning/70 text-[10px] mt-0.5">{fromTable}</p>
                         )}
                       </div>
+                      {onChooseTable && (
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                          className="text-[11px] font-bold px-2 py-1 rounded text-white shrink-0 transition-colors whitespace-nowrap"
+                          style={{ backgroundColor: '#4a6930', boxShadow: '0 1px 4px rgba(0,0,0,0.28)' }}
+                        >
+                          שבץ לשולחן
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -525,28 +535,17 @@ export default function ReservationPanel({
                   </div>
                   {['PENDING', 'CONFIRMED'].includes(r.status) && (onCancelReservation || onSendSms || onMarkArrived || (!r.tableId && (onChooseTable || onContextMenuSeat))) && (
                     <div className="shrink-0 flex items-center gap-0.5 ps-1">
-                      {/* Quick seat / assign buttons — always visible when no table assigned */}
-                      {!r.tableId && (onChooseTable || onContextMenuSeat) && openActionsId !== r.id && (
+                      {/* Assign-to-table button — single action, no seating */}
+                      {!r.tableId && onChooseTable && openActionsId !== r.id && (
                         <div className="flex flex-col gap-0.5 pe-0.5">
-                          {onContextMenuSeat && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); onContextMenuSeat(r); }}
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded text-white transition-colors whitespace-nowrap"
-                              style={{ backgroundColor: '#435B2A', boxShadow: '0 1px 4px rgba(0,0,0,0.28)' }}
-                            >
-                              הושב
-                            </button>
-                          )}
-                          {onChooseTable && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); onChooseTable(r); }}
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-iron-green/40 text-iron-green hover:bg-iron-green/10 transition-colors whitespace-nowrap"
-                            >
-                              שבץ
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); onChooseTable(r); }}
+                            className="text-[11px] font-bold px-2 py-1 rounded text-white transition-colors whitespace-nowrap"
+                            style={{ backgroundColor: '#4a6930', boxShadow: '0 1px 4px rgba(0,0,0,0.28)' }}
+                          >
+                            שבץ לשולחן
+                          </button>
                         </div>
                       )}
                       {/* Inline action buttons — visible only when this row's menu is open */}

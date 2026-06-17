@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type React from 'react';
 import type { Theme } from '../App';
 import { useT } from '../i18n/useT';
@@ -106,6 +107,8 @@ export default function TopBar({
   const { intlLocale } = useLocale();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const [calendarPos, setCalendarPos] = useState<{ top: number; left: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -131,6 +134,14 @@ export default function TopBar({
     }).format(new Date(y, mo - 1, d));
   }
 
+  const openCalendar = useCallback(() => {
+    if (dateButtonRef.current) {
+      const r = dateButtonRef.current.getBoundingClientRect();
+      setCalendarPos({ top: r.bottom + 6, left: r.left });
+    }
+    setCalendarOpen(true);
+  }, []);
+
   useEffect(() => {
     if (!calendarOpen) return;
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setCalendarOpen(false); }
@@ -141,9 +152,10 @@ export default function TopBar({
   useEffect(() => {
     if (!calendarOpen) return;
     function onPointer(e: MouseEvent) {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setCalendarOpen(false);
-      }
+      const t = e.target as Node;
+      const insideTrigger = dateButtonRef.current?.contains(t);
+      const insidePopover = calendarRef.current?.contains(t);
+      if (!insideTrigger && !insidePopover) setCalendarOpen(false);
     }
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
@@ -172,7 +184,7 @@ export default function TopBar({
     : 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)';
 
   return (
-    <header dir="ltr" className="relative ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3" style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
+    <header dir="ltr" className="relative ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3 overflow-x-hidden" style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
@@ -187,14 +199,15 @@ export default function TopBar({
       <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
 
       {/* ── Date / Time Command Cluster — absolutely centered ────────── */}
-      <div ref={calendarRef} className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5">
         <div className={`flex items-stretch rounded-2xl border ${light ? 'border-iron-border/70' : 'border-white/[0.08]'} bg-iron-bg overflow-hidden`} style={{ boxShadow: insetShadow }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
           <div className="flex items-center gap-1 px-2.5 border-x border-iron-border/35">
             <button
+              ref={dateButtonRef}
               type="button"
-              onClick={() => setCalendarOpen(o => !o)}
+              onClick={() => calendarOpen ? setCalendarOpen(false) : openCalendar()}
               aria-expanded={calendarOpen}
               aria-haspopup="dialog"
               className="text-iron-text/85 text-[12px] font-semibold whitespace-nowrap tracking-tight hover:text-iron-text transition-colors"
@@ -242,19 +255,20 @@ export default function TopBar({
           <NavBtn onClick={onNext30} title={T.topBar.next30}>›</NavBtn>
         </div>
 
-        {/* Calendar popover — outside the overflow-hidden pill to avoid clipping */}
-        {calendarOpen && (
+        {/* Calendar portal — rendered at body level to escape overflow clipping */}
+        {calendarOpen && calendarPos && createPortal(
           <div
-            className="absolute left-0 z-50"
-            style={{ top: 'calc(100% + 4px)' }}
+            ref={calendarRef}
             role="dialog"
             aria-label={T.topBar.prevDay}
+            style={{ position: 'fixed', top: calendarPos.top, left: calendarPos.left, zIndex: 9999 }}
           >
             <MiniCalendar
               value={date}
               onValueChange={v => { onDateChange(v); setCalendarOpen(false); }}
             />
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Real ("wall") clock */}
@@ -394,9 +408,9 @@ export default function TopBar({
             <span className="w-7 h-7 rounded-full bg-iron-green/20 border border-iron-green/35 flex items-center justify-center text-iron-green-light text-[12px] font-bold shrink-0 uppercase">
               {userName.slice(0, 1)}
             </span>
-            <span className="hidden lg:flex flex-col items-start leading-tight">
-              <span className="text-iron-text/85 text-xs font-semibold whitespace-nowrap">{userName}</span>
-              <span className="text-iron-muted/55 text-[10px] whitespace-nowrap">{restaurantName}</span>
+            <span className="hidden lg:flex flex-col items-start leading-tight max-w-[160px] overflow-hidden">
+              <span className="text-iron-text/85 text-xs font-semibold truncate w-full">{userName}</span>
+              <span className="text-iron-muted/55 text-[10px] truncate w-full">{restaurantName}</span>
             </span>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`text-iron-muted/55 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}>
               <path d="M6 9l6 6 6-6" />

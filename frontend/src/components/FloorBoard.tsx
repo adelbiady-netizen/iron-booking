@@ -345,14 +345,14 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
 const STATUS_BG_DARK: Record<string, string> = {
   AVAILABLE:     '#8E9D7F',
   OCCUPIED:      'rgba(253,224,195,0.97)',  // peach/orange — יושב
-  RESERVED_SOON: 'rgba(214,232,253,0.97)',  // same blue as RESERVED
+  RESERVED_SOON: 'rgba(214,232,253,0.97)',  // same blue as RESERVED — glow is the signal
   RESERVED:      'rgba(214,232,253,0.97)',  // light blue — תפוס
   BLOCKED:       'rgba(220,38,38,0.14)',
 };
 const STATUS_BG_LIGHT: Record<string, string> = {
   AVAILABLE:     '#8E9D7F',
   OCCUPIED:      'rgba(253,224,195,0.97)',
-  RESERVED_SOON: 'rgba(214,232,253,0.97)',
+  RESERVED_SOON: 'rgba(214,232,253,0.97)',  // same blue as RESERVED — glow is the signal
   RESERVED:      'rgba(214,232,253,0.97)',
   BLOCKED:       'rgba(254,226,226,0.92)',
 };
@@ -393,10 +393,18 @@ interface Props {
   pickSuggestions?: BackendTableSuggestion[];
   onPickDone?: (ids: string[]) => void;
   onPickCancel?: () => void;
+  onPickSelectionChange?: (ids: string[]) => void;
   pickAction?: 'seat' | 'move' | 'change-table';
   pickGuestName?: string;
   // Walk-in pick: future-reserved tables are amber/selectable; occupied tables stay hard-blocked.
   pickWalkInMode?: boolean;
+  // Planning mode: board time differs from wall-clock (time travel or new-res form).
+  // When true, all table visuals are computed from boardMinutes, not liveStatus.
+  inPlanningMode?: boolean;
+  // New-reservation always-armed toggle-select mode (separate from seat/assign/move).
+  // Each click toggles the table in/out of the selection set.
+  newResPickSelectedIds?: string[];
+  onNewResTableSelect?: (tableId: string) => void;
   // Waitlist table assignment mode
   waitlistAssignEntry?: WaitlistEntry | null;
   waitlistAssignTableId?: string | null;
@@ -467,7 +475,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
-  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, pickAction, pickGuestName,
+  pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, onPickSelectionChange, pickAction, pickGuestName,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
@@ -489,6 +497,9 @@ export default function FloorBoard({
   swapSourceId = null,
   onSwapTargetPick,
   onSwapCancel,
+  inPlanningMode = false,
+  newResPickSelectedIds,
+  onNewResTableSelect,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -687,23 +698,22 @@ export default function FloorBoard({
           w: Math.abs(cx - sx), h: Math.abs(cy - sy),
         };
         if (fr.w > 8 && fr.h > 8 && pickAction !== 'seat') {
-          setPickSelection(() => {
-            const newIds = tables.filter(t => {
-              if (!t.isActive) return false;
-              if (pickAction === 'move' && pickIds.includes(t.id)) return false;
-              const sug = pickSuggestions.find(s => s.tableId === t.id);
-              if (sug) {
-                const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
-                const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
-                if (isTableBlocked || isOccupiedNow) return false;
-              }
-              return (
-                t.posX < fr.x + fr.w && t.posX + t.width  > fr.x &&
-                t.posY < fr.y + fr.h && t.posY + t.height > fr.y
-              );
-            }).map(t => t.id);
-            return newIds;
-          });
+          const newIds = tables.filter(t => {
+            if (!t.isActive) return false;
+            if (pickAction === 'move' && pickIds.includes(t.id)) return false;
+            const sug = pickSuggestions.find(s => s.tableId === t.id);
+            if (sug) {
+              const isTableBlocked = sug.reasons.some(r => r.code === 'TABLE_BLOCKED');
+              const isOccupiedNow  = sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+              if (isTableBlocked || isOccupiedNow) return false;
+            }
+            return (
+              t.posX < fr.x + fr.w && t.posX + t.width  > fr.x &&
+              t.posY < fr.y + fr.h && t.posY + t.height > fr.y
+            );
+          }).map(t => t.id);
+          setPickSelection(newIds);
+          onPickSelectionChange?.(newIds);
         }
       }
       dragStartRef.current  = null;
@@ -900,6 +910,11 @@ export default function FloorBoard({
       }
       return;
     }
+    // New-reservation always-armed mode: simple single-select, no bottom bar, no drag.
+    if (onNewResTableSelect && !pickMode) {
+      if (t.isActive && !t.locked) onNewResTableSelect(t.id);
+      return;
+    }
     // Pick mode takes priority: a specific in-progress pick overrides reorganize mode.
     if (pickMode) {
       const ps = getPickStatus(t);
@@ -908,15 +923,21 @@ export default function FloorBoard({
         setTimeout(() => setPickCurrentWarn(false), 2500);
         return;
       }
-      if (ps === 'unavailable') {
-        setPickWarn(t.id);
-        setTimeout(() => setPickWarn(w => (w === t.id ? null : w)), 2500);
+      // change-table (CreateDrawer): auto-confirm on click — no bottom bar needed.
+      if (pickAction === 'change-table') {
+        setPickSelection([t.id]);
+        onPickSelectionChange?.([t.id]);
+        onPickDone?.([t.id]);
         return;
       }
-      if (pickAction === 'seat') { onPickDone?.([t.id]); return; }
-      setPickSelection(prev =>
-        prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
-      );
+      // seat: single-select. move: toggle multi-select.
+      const newSel = pickAction === 'seat'
+        ? [t.id]
+        : pickSelection.includes(t.id)
+          ? pickSelection.filter(id => id !== t.id)
+          : [...pickSelection, t.id];
+      setPickSelection(newSel);
+      onPickSelectionChange?.(newSel);
       return;
     }
     // Reorganize mode: any table click is forwarded to the manager's lift flow
@@ -1059,16 +1080,11 @@ export default function FloorBoard({
       {pickMode && (
         <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-status-reserved/20">
           <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
-          <span className="text-status-reserved text-xs font-medium flex-1">
+          <span className="text-status-reserved text-xs font-medium">
             {pickAction === 'move' && pickGuestName
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
               : T.floorBoard.pickModeHint}
           </span>
-          {pickAction === 'seat' && (
-            <button type="button" onClick={onPickCancel} className="text-status-reserved/70 text-xs hover:text-blue-200 transition-colors shrink-0 touch-manipulation px-1 py-1">
-              {T.floorBoard.pickModeCancel}
-            </button>
-          )}
         </div>
       )}
 
@@ -1340,7 +1356,8 @@ export default function FloorBoard({
               const turnTooltip = turns.length > 0
                 ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                 : undefined;
-              const ps = pickMode ? getPickStatus(t) : null;
+              const inNewResPick = !!onNewResTableSelect && !pickMode;
+              const ps = (pickMode || inNewResPick) ? getPickStatus(t) : null;
               const isWLCanvasTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
               const _canvasSwapRes = swapMode ? (
                 t.currentReservation ?? t.upcomingReservations.find(
@@ -1377,12 +1394,14 @@ export default function FloorBoard({
                   nowTime={nowTime}
                   operationalNow={operationalNow}
                   date={date}
-                  extraTurns={pickMode ? 0 : extraTurns}
-                  turns={pickMode ? [] : turns}
-                  turnTooltip={pickMode ? undefined : turnTooltip}
-                  pickMode={pickMode}
-                  pickSelected={pickMode && pickSelection.includes(t.id)}
+                  extraTurns={extraTurns}
+                  turns={turns}
+                  turnTooltip={turnTooltip}
+                  pickMode={pickMode || inNewResPick}
+                  pickSelected={pickMode ? pickSelection.includes(t.id) : (inNewResPick && (newResPickSelectedIds?.includes(t.id) ?? false))}
                   pickStatus={ps}
+                  inNewResPick={inNewResPick}
+                  inPlanningMode={inPlanningMode}
                   swapSource={isSwapSource}
                   wlPickWarn={wlPickWarn === t.id}
                   quietFade={quietFade}
@@ -1442,6 +1461,19 @@ export default function FloorBoard({
                   const turnTooltip = turns.length > 0
                     ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                     : undefined;
+                  // Planning mode: find the reservation whose window covers the board time.
+                  // Applies both when time-travelling via TopBar and during new-res planning.
+                  const listBoardMinutes = inPlanningMode && nowTime
+                    ? (() => { const [h, m] = nowTime.split(':').map(Number); return h * 60 + m; })()
+                    : null;
+                  const planningActiveRes = listBoardMinutes !== null
+                    ? (turns.find(r => {
+                        if (!r.time) return false;
+                        const [rh, rm] = r.time.split(':').map(Number);
+                        const start = rh * 60 + rm;
+                        return listBoardMinutes >= start && listBoardMinutes < start + (r.duration ?? 90);
+                      }) ?? null)
+                    : null;
                   const isPickSelected = pickMode && pickSelection.includes(t.id);
                   const isWLTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
                   const ineligibleForAssign = !!waitlistAssignEntry && !pickMode && (t.liveStatus !== 'AVAILABLE' || t.locked);
@@ -1493,6 +1525,8 @@ export default function FloorBoard({
                         date={date}
                         extraTurns={pickMode ? 0 : extraTurns}
                         turnTooltip={pickMode ? undefined : turnTooltip}
+                        inPlanningMode={inPlanningMode}
+                        planningActiveRes={planningActiveRes}
                       />
                     </div>
                   );
@@ -1779,8 +1813,8 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Pick mode action bar — not shown for seat: tap-table IS the confirmation */}
-      {pickMode && pickAction !== 'seat' && (
+      {/* Pick mode action bar — shown for seat/move but NOT change-table (auto-confirms on click) */}
+      {pickMode && pickAction !== 'change-table' && (
         <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {pickCurrentWarn ? (
@@ -1792,11 +1826,7 @@ export default function FloorBoard({
                 return <span className="text-status-danger text-xs font-medium">{T.floorBoard.pickModeUnavailable(wt?.name ?? pickWarn)}{reason}</span>;
               })()
             ) : pickSelection.length === 0 ? (
-              <span className="text-status-reserved text-sm">
-                {pickAction === 'move' && pickGuestName
-                  ? T.floorBoard.pickModeMoveHint(pickGuestName)
-                  : T.floorBoard.pickModeHint}
-              </span>
+              <span className="text-status-reserved text-sm">{T.floorBoard.pickModeHint}</span>
             ) : (
               <span className="text-iron-text text-sm font-semibold truncate">
                 {pickSelection.map(id => tables.find(t => t.id === id)?.name ?? id).join(' + ')}
@@ -1815,8 +1845,9 @@ export default function FloorBoard({
           </button>
           <button
             type="button"
-            onClick={() => onPickDone?.(pickSelection)}
-            className="bg-blue-600 hover:bg-status-reserved text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+            disabled={pickSelection.length === 0}
+            onClick={() => { if (pickSelection.length > 0) onPickDone?.(pickSelection); }}
+            className="bg-blue-600 hover:bg-status-reserved text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {T.floorBoard.pickModeConfirm}
           </button>
@@ -2905,7 +2936,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId, inNewResPick = false, inPlanningMode = false }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -2932,6 +2963,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   quietFade?: number;
   date?: string;
   hoveredResId?: string | null;
+  inNewResPick?: boolean;
+  inPlanningMode?: boolean;
 }) {
   const T = useT();
   const { locale } = useLocale();
@@ -3025,27 +3058,30 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     : (STATUS_BG[displayStatus] ?? STATUS_BG['AVAILABLE']);
   // UPCOMING/DORMANT: restore clean neutral surface — same as an empty table.
   // Only the blue border (UPCOMING) or nothing (DORMANT) carries the reservation signal.
-  if (isFarFutureReserved && !softHold && !isOverdue) {
+  if (isFarFutureReserved && !softHold && !isOverdue && table.liveStatus !== 'RESERVED_SOON' && !pickMode) {
+    bg = STATUS_BG['AVAILABLE'];
+  }
+  // Planning mode: table color must reflect availability at the board time, not wall-clock
+  // liveStatus. Applies for both time-travel and new-reservation planning.
+  if ((inNewResPick || inPlanningMode) && !boardActiveRes) {
     bg = STATUS_BG['AVAILABLE'];
   }
 
-  let borderColor = selected          ? '#22c55e'
-    : combinedSelected                ? '#3b82f6'
-    : softHold && table.liveStatus === 'AVAILABLE' ? '#6366f1'
-    : table.locked                    ? '#f59e0b'
-    : '#435B2A';
-
-  let borderWidth = selected || combinedSelected || (softHold && table.liveStatus === 'AVAILABLE') ? 2 : 1.5;
-
+  // Fixed iron-green border on every table — status is communicated through background
+  // color, badge text, and reservation labels, not through border color changes.
+  const IRON_BORDER = '#435B2A';
+  let borderColor = IRON_BORDER;
+  let borderWidth = 1.5;
+  // Selection: blue ring for selected/combined-selected, no other status-driven border.
   let boxShadow: string | undefined = selected
-    ? '0 0 0 3px rgba(34,197,94,0.48), 0 0 18px rgba(34,197,94,0.11)'
+    ? '0 0 0 3px rgba(59,130,246,0.55), 0 0 18px rgba(59,130,246,0.12)'
     : combinedSelected
-    ? '0 0 0 3px rgba(59,130,246,0.48), 0 0 16px rgba(59,130,246,0.10)'
-    : softHold && table.liveStatus === 'AVAILABLE'
-    ? '0 0 0 3px rgba(99,102,241,0.34), 0 0 14px rgba(99,102,241,0.08)'
-    : bestSuggestion
-    ? '0 0 0 2px rgba(34,197,94,0.28), 0 0 14px rgba(34,197,94,0.07)'
-    : table.locked ? '0 0 0 2px rgba(245,158,11,0.18)' : undefined;
+    ? '0 0 0 3px rgba(59,130,246,0.38), 0 0 16px rgba(59,130,246,0.10)'
+    : undefined;
+  if (selected || combinedSelected) {
+    borderColor = '#3b82f6';
+    borderWidth = 2;
+  }
 
   let opacity = dimmed ? 0.25 : table.locked ? 0.55 : 1;
   let cursor = 'pointer';
@@ -3056,86 +3092,46 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
     cursor = 'default';
   }
 
-  // Waitlist assign target — indigo ring (overrides base, applies before pick mode)
+  // Waitlist assign target — indigo background highlight; border stays iron-green
   if (waitlistAssignTarget) {
-    bg          = 'rgba(235,232,254,0.96)';
-    borderColor = '#6366f1';
-    borderWidth = 2;
-    boxShadow   = '0 0 0 3px rgba(99,102,241,0.48), 0 0 36px rgba(99,102,241,0.22)';
-    opacity     = 1;
+    bg        = 'rgba(235,232,254,0.96)';
+    boxShadow = '0 0 0 3px rgba(99,102,241,0.48), 0 0 36px rgba(99,102,241,0.22)';
+    opacity   = 1;
   }
 
-  // Ineligible table flash — brief red ring when host clicks an unavailable table in assign mode
+  // Ineligible table flash — background pulse only; no red border
   if (wlPickWarn) {
-    borderColor = '#ef4444';
-    borderWidth = 2;
-    boxShadow   = '0 0 0 3px rgba(239,68,68,0.35)';
-    opacity     = 1;
+    opacity = 1;
   }
 
-  // Swap source — violet ring marks the reservation being swapped out
+  // Swap source — violet background marks the reservation being swapped out; border stays
   if (swapSource) {
-    borderColor = '#8b5cf6';
-    borderWidth = 2.5;
-    boxShadow   = '0 0 0 3px rgba(139,92,246,0.38), 0 0 40px rgba(139,92,246,0.20)';
-    opacity     = 1;
+    boxShadow = '0 0 0 3px rgba(139,92,246,0.38), 0 0 40px rgba(139,92,246,0.20)';
+    opacity   = 1;
   }
 
-  // Pick mode — express selection state through border rings only.
-  // Live background colors are intentionally preserved.
+  // Pick mode — selection communicated through background; border stays iron-green throughout.
   if (pickMode) {
     if (pickStatus === 'current') {
-      borderColor = '#f59e0b';
-      borderWidth = 2.5;
-      boxShadow   = '0 0 0 3px rgba(245,158,11,0.30)';
-      opacity     = 1;
-      cursor      = 'default';
+      opacity = 1;
+      cursor  = 'default';
     } else if (pickSelected) {
-      bg          = 'rgba(59,130,246,0.22)';
-      borderColor = '#3b82f6';
-      borderWidth = 2;
-      boxShadow   = '0 0 0 3px rgba(59,130,246,0.35)';
-      opacity     = 1;
+      bg        = 'rgba(59,130,246,0.22)';
+      boxShadow = '0 0 0 3px rgba(59,130,246,0.35)';
+      opacity   = 1;
     } else {
-      switch (pickStatus) {
-        case 'recommended':
-          borderColor = '#22c55e';
-          borderWidth = 2;
-          // boxShadow intentionally omitted — animate-pick-pulse CSS handles it
-          opacity     = 1;
-          break;
-        case 'possible':
-          borderColor = '#3b82f6';
-          borderWidth = 1.5;
-          opacity     = 1;
-          break;
-        case 'tight':
-          borderColor = '#d97706';
-          borderWidth = 1.5;
-          opacity     = 1;
-          break;
-        case 'unavailable':
-          opacity = 0.55;
-          cursor  = 'not-allowed';
-          break;
-        default:
-          opacity = 1;
-          break;
-      }
-      // Future-turn softening: this table is selectable (no real conflict with the selected slot)
-      // but carries a RESERVED/RESERVED_SOON status for a later turn. Reduce the reserved
-      // background so the pick-ring border is the dominant availability signal and the reserved
-      // tint becomes secondary context ("there's a later guest, but you can still seat here").
-      if ((pickStatus === 'recommended' || pickStatus === 'possible' || pickStatus === 'tight') &&
-          (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')) {
-        bg = isDark ? 'rgba(203,220,248,0.44)' : 'rgba(219,234,254,0.42)';
-      }
+      opacity = 1;
     }
   }
 
   const currentRes = table.currentReservation;
-  // For boardTime planning, prefer the reservation that owns this slot over real-time first-upcoming
-  const displayRes = (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' ? boardActiveRes ?? currentRes : currentRes) ?? nextRes ?? null;
+  // In newResPick mode, only show reservations whose window covers the form's planning time.
+  // currentRes is wall-clock operational state and may hold past/stale turns — never fall back
+  // to it in planning mode. A null boardActiveRes means the table is free at the planned time.
+  // In normal mode, fall through to nextRes so upcoming reservations are always visible.
+  const displayRes = (inNewResPick || inPlanningMode)
+    ? (boardActiveRes ?? null)
+    : (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' ? boardActiveRes ?? currentRes : currentRes) ?? nextRes ?? null;
 
   // Queue→floor hover: soft emphasis when mouse is over the matching queue row
   const isQueueHovered = !pickMode && !selected && !combinedSelected && !!hoveredResId && (
@@ -3153,7 +3149,10 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   // Typography hierarchy: when a guest occupies or is reserved, the guest name is primary
   // and the table number becomes a secondary label.
   // Far-future reservations (60+ min) are suppressed — table renders as available.
-  const hasGuest = (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus)) && !!displayRes && !isFarFutureReserved;
+  // In newResPick mode: show label only when there is a genuine conflict at the form time.
+  const hasGuest = (inNewResPick || inPlanningMode)
+    ? !!displayRes
+    : (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus)) && !!displayRes && (!isFarFutureReserved || table.liveStatus === 'RESERVED_SOON' || !!pickMode);
 
   // Daily schedule strip — all of this table's PENDING/CONFIRMED reservations for the
   // selected day, already sorted by time. Suppressed only in pick/warn/dimmed modes.
@@ -3165,11 +3164,29 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
   const partySize = hasGuest && displayRes ? displayRes.partySize : null;
   const resTime   = hasGuest && displayRes ? displayRes.time : null;
 
-  // Future reservation pills — upcoming turns for this table, excluding the active one
-  const turnsToShow = (!pickMode && !wlPickWarn && !dimmed)
+  // In newResPick mode with an active conflict: compute when it ends for the "עד HH:MM" badge.
+  const boardActiveResEndTime: string | null = (inNewResPick && boardActiveRes && boardActiveRes.time)
+    ? (() => {
+        const [h, m] = boardActiveRes.time.split(':').map(Number);
+        const endMin = h * 60 + m + (boardActiveRes.duration ?? 90);
+        return `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+      })()
+    : null;
+
+  // Future reservation pills — upcoming turns for this table, excluding the active one.
+  const turnsToShow = (!wlPickWarn && !dimmed)
     ? turns
         .filter(r => !hasGuest || !displayRes || r.id !== displayRes.id)
         .filter(r => {
+          if (inNewResPick || inPlanningMode) {
+            // Planning mode: only turns whose START is strictly after the board time.
+            // Overlapping turns are already shown as boardActiveRes inside the card.
+            // If boardMinutes is unknown, show nothing.
+            if (boardMinutes === null || !r.time) return false;
+            const [h, m] = r.time.split(':').map(Number);
+            return (h * 60 + m) > boardMinutes;
+          }
+          // Live mode: show anything that hasn't fully ended yet.
           if (boardMinutes === null || !r.time) return true;
           const [h, m] = r.time.split(':').map(Number);
           return (h * 60 + m + (r.duration ?? 90)) > boardMinutes;
@@ -3249,6 +3266,26 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
         {partySize != null ? `${partySize}p` : `${table.maxCovers}p`}
       </span>
 
+      {/* newResPick: "עד HH:MM" when a conflict is active at the form time */}
+      {inNewResPick && boardActiveResEndTime && (
+        <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', opacity: 0.88, userSelect: 'none' }}>
+          עד {boardActiveResEndTime}
+        </span>
+      )}
+
+      {/* newResPick: availability badge for recommended / possible tables */}
+      {inNewResPick && !hasGuest && pickStatus && pickStatus !== 'unavailable' && pickStatus !== 'current' && (
+        <span style={{
+          fontSize: 8, fontWeight: 700, userSelect: 'none',
+          color: pickStatus === 'recommended' ? '#16a34a' : pickStatus === 'possible' ? '#ca8a04' : '#6b7280',
+          background: pickStatus === 'recommended' ? 'rgba(22,163,74,0.13)' : pickStatus === 'possible' ? 'rgba(202,138,4,0.13)' : 'rgba(107,114,128,0.10)',
+          border: `1px solid ${pickStatus === 'recommended' ? 'rgba(22,163,74,0.32)' : pickStatus === 'possible' ? 'rgba(202,138,4,0.32)' : 'rgba(107,114,128,0.22)'}`,
+          borderRadius: 3, padding: '1px 4px',
+        }}>
+          {pickStatus === 'recommended' ? 'מתאים' : pickStatus === 'possible' ? 'אפשרי' : 'צפוף'}
+        </span>
+      )}
+
       {/* Pick mode indicators */}
       {pickMode && pickStatus === 'current' && (
         <span style={{ fontSize: 8, color: '#d97706', fontWeight: 700, background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.30)', borderRadius: 3, padding: '1px 4px', userSelect: 'none' }}>
@@ -3293,12 +3330,21 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion, s
             border: '1px solid rgba(67,91,42,0.28)',
             borderLeft: '2px solid #435B2A',
           }}>
-            <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 700, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-              {normalizeTime(r.time)}
-            </span>
-            <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 500, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>
-              {r.guestName}
-            </span>
+            {inNewResPick ? (
+              // Hebrew context format in new-res mode: "הזמנה ב-19:30"
+              <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                הזמנה ב-{normalizeTime(r.time)}
+              </span>
+            ) : (
+              <>
+                <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 700, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                  {normalizeTime(r.time)}
+                </span>
+                <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 500, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}>
+                  {r.guestName}
+                </span>
+              </>
+            )}
           </div>
         ))}
       </div>

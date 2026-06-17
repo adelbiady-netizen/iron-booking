@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, Table } from '../types';
 import { api, ApiError } from '../api';
@@ -35,9 +36,17 @@ interface Props {
   defaultTurnMinutes?: number;
   onClose: () => void;
   onCreated: (r: Reservation) => void;
-  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, walkIn?: boolean) => void;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, walkIn?: boolean, time?: string) => void;
   onPickTablesCancel?: () => void;
   onUpdatePickSuggestions?: (suggestions: BackendTableSuggestion[]) => void;
+  /** True when HostDashboard's tablePickMode is active — suppresses backdrop so the floor is clickable. */
+  mapPickActive?: boolean;
+  /** New-reservation always-armed map mode: map visible at all times, no backdrop. */
+  newResPickMode?: boolean;
+  /** Table IDs currently toggle-selected on the map by the host. */
+  externalResTableIds?: string[];
+  /** Called when the table selection changes from within the drawer so HostDashboard can sync. */
+  onResTableChange?: (ids: string[]) => void;
   /** Called whenever the reservation date or time changes so the parent can keep
    *  the floor board in sync with the drawer. */
   onDateTimeChange?: (date: string, time: string) => void;
@@ -100,6 +109,10 @@ export default function CreateDrawer({
   preselectedTableId, preselectedCombinedTableIds, floorObjs,
   initialData, gapHint, onClose, onCreated,
   onPickTables, onPickTablesCancel, onUpdatePickSuggestions,
+  mapPickActive,
+  newResPickMode = false,
+  externalResTableIds,
+  onResTableChange,
   onDateTimeChange,
 }: Props) {
   const T = useT();
@@ -196,7 +209,25 @@ export default function CreateDrawer({
   const [seatAnywayBusy, setSeatAnywayBusy] = useState(false);
   const [phoneWarning, setPhoneWarning] = useState(false);
   const [pendingSeat,  setPendingSeat]  = useState(false);
+  const [pendingResConfirm, setPendingResConfirm] = useState(false);
   const submitInFlightRef = useRef(false);
+
+  // Refs for unmount cleanup — stale closures can't read state reliably
+  const pickingOnMapRef   = useRef(false);
+  const wiPickingOnMapRef = useRef(false);
+  const cancelPickRef     = useRef(onPickTablesCancel);
+  useEffect(() => { pickingOnMapRef.current   = pickingOnMap;        }, [pickingOnMap]);
+  useEffect(() => { wiPickingOnMapRef.current = wiPickingOnMap;      }, [wiPickingOnMap]);
+  useEffect(() => { cancelPickRef.current     = onPickTablesCancel;  }, [onPickTablesCancel]);
+
+  // On unmount: if the user closed the drawer while the map was armed, cancel pick mode
+  useEffect(() => {
+    return () => {
+      if (pickingOnMapRef.current || wiPickingOnMapRef.current) {
+        cancelPickRef.current?.();
+      }
+    };
+  }, []);
 
   // Debounced guest lookup by phone
   useEffect(() => {
@@ -226,10 +257,34 @@ export default function CreateDrawer({
     return () => clearTimeout(t);
   }, [wiPhone]);
 
-  // Sync board to drawer's initial time on mount (component is conditionally
-  // rendered, so mount == drawer open).
+  // Sync board date/time with the form's date/time so the floor board shows
+  // live status for the reservation slot being created, not the previous board time.
+  const onDateTimeChangeRef = useRef(onDateTimeChange);
+  useEffect(() => { onDateTimeChangeRef.current = onDateTimeChange; }, [onDateTimeChange]);
+  useEffect(() => {
+    onDateTimeChangeRef.current?.(resDate, resTime);
+  }, [resDate, resTime]);
+
+  // In newResPickMode: clear the selected table whenever booking params change
+  // so the user must re-select after changing time/date/duration/party size.
+  // Skip the initial mount render to preserve tables pre-selected at open time.
+  const newResParamMountedRef = useRef(false);
+  const onResTableChangeRef = useRef(onResTableChange);
+  useEffect(() => { onResTableChangeRef.current = onResTableChange; }, [onResTableChange]);
+  useEffect(() => {
+    if (!newResParamMountedRef.current) { newResParamMountedRef.current = true; return; }
+    if (!newResPickMode) return;
+    setResTable('');
+    setResCombinedTableIds([]);
+    setManualOverride(false);
+    onResTableChangeRef.current?.([]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { onDateTimeChange?.(resDate, resTime); }, []);
+  }, [resDate, resTime, resDuration, resParty]);
+
+  // Generation counter: incremented each time suggestion params change.
+  // Async callbacks check the counter so stale API responses are discarded
+  // (prevents a slow 14:00 response from overwriting a fast 16:00 response).
+  const suggestGenRef = useRef(0);
 
   // ── Auto-allocation + suggestion fetch ───────────────────────────────────────
   // Fires when booking params change. Fetches suggestions + best result in parallel.
@@ -237,6 +292,8 @@ export default function CreateDrawer({
   // re-evaluates — except when a table was explicitly pre-selected on open.
   useEffect(() => {
     if (mode !== 'reservation' || !resDate || !resTime || resParty < 1) return;
+
+    const gen = ++suggestGenRef.current;
 
     // Reset override only when params change post-open (not for pre-selections)
     if (!hasPreselection) {
@@ -253,6 +310,8 @@ export default function CreateDrawer({
           api.tables.suggest(params),
           api.tables.best(params),
         ]);
+        // Discard if a newer param change has already fired
+        if (gen !== suggestGenRef.current) return;
         setResSuggestions(s);
         setAutoResult(best);
 
@@ -267,27 +326,64 @@ export default function CreateDrawer({
           }
         }
       } catch {
+        if (gen !== suggestGenRef.current) return;
         setResSuggestions([]);
         setAutoResult(null);
         if (!manualOverrideRef.current) {
           setResCombinedTableIds([]);
         }
       } finally {
-        setSuggestBusy(false);
+        if (gen === suggestGenRef.current) setSuggestBusy(false);
       }
     }, 450);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resDate, resTime, resParty, resDuration, mode]);
 
-  // Push updated suggestions to the full-screen map picker whenever they arrive
-  // after it's already open (user clicked party size before the API returned).
+  // Push updated suggestions to the full-screen map picker (or always-armed new-res map).
   useEffect(() => {
-    if (pickingOnMap && !suggestBusy) onUpdatePickSuggestions?.(resSuggestions);
-  }, [pickingOnMap, suggestBusy, resSuggestions, onUpdatePickSuggestions]);
+    if ((pickingOnMap || newResPickMode) && !suggestBusy) onUpdatePickSuggestions?.(resSuggestions);
+  }, [pickingOnMap, newResPickMode, suggestBusy, resSuggestions, onUpdatePickSuggestions]);
   useEffect(() => {
     if (wiPickingOnMap && !wiSuggestBusy) onUpdatePickSuggestions?.(wiSuggestions);
   }, [wiPickingOnMap, wiSuggestBusy, wiSuggestions, onUpdatePickSuggestions]);
+
+  // Sync map-selected tables into resTable + resCombinedTableIds (always-armed new-res mode).
+  // externalResTableIds is owned by HostDashboard; primary=first, secondaries=rest.
+  useEffect(() => {
+    if (!newResPickMode) return;
+    const [primary = '', ...secondaries] = externalResTableIds ?? [];
+    if (primary === resTable && secondaries.join(',') === resCombinedTableIds.join(',')) return;
+    setResTable(primary);
+    setResCombinedTableIds(secondaries);
+    if (primary) setManualOverride(true);
+    else setManualOverride(false);
+  // intentionally exclude resTable / resCombinedTableIds to avoid loops
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalResTableIds, newResPickMode]);
+
+  // Revalidate selected table when suggestions update — clear if now hard-blocked.
+  useEffect(() => {
+    if (!newResPickMode || !resTable || resSuggestions.length === 0) return;
+    const isHardBlocked = (tableId: string) => {
+      const sug = resSuggestions.find(s => s.tableId === tableId);
+      if (!sug) return false;
+      return sug.reasons.some(r => r.code === 'TABLE_BLOCKED') ||
+             sug.reasons.some(r => r.code === 'CONFLICT' && r.occupied);
+    };
+    if (isHardBlocked(resTable)) {
+      setResTable('');
+      setResCombinedTableIds([]);
+      setManualOverride(false);
+      onResTableChange?.([]);
+      return;
+    }
+    const validSecondaries = resCombinedTableIds.filter(id => !isHardBlocked(id));
+    if (validSecondaries.length !== resCombinedTableIds.length) {
+      setResCombinedTableIds(validSecondaries);
+      onResTableChange?.([resTable, ...validSecondaries]);
+    }
+  }, [resSuggestions, newResPickMode, resTable, resCombinedTableIds, onResTableChange]);
 
   // Walk-in auto-allocation — mirrors reservation logic but always uses today + now.
   // Fires when party size or duration changes in walk-in mode.
@@ -356,8 +452,8 @@ export default function CreateDrawer({
   function todayStr() {
     return new Date().toISOString().slice(0, 10);
   }
-  function resolveTableName(id: string) {
-    return tables.find(t => t.id === id)?.name ?? id;
+  function resolveTableName(id: string): string {
+    return tables.find(t => t.id === id)?.name ?? '';
   }
 
   // On desktop: go straight to full-screen map. On mobile/tablet: show inline picker.
@@ -386,6 +482,9 @@ export default function CreateDrawer({
         }
       },
       'change-table',
+      undefined,
+      false,
+      resTime,
     );
   }
 
@@ -419,7 +518,9 @@ export default function CreateDrawer({
     );
   }
 
-  async function doSubmitReservation(overrideConflicts = false, reorganizeIds: string[] = []) {
+  // Returns the created reservation on success, null on conflict/error.
+  // Does NOT call onCreated — callers must do that AFTER all local cleanup.
+  async function doSubmitReservation(overrideConflicts = false, reorganizeIds: string[] = []): Promise<Reservation | null> {
     setError(null);
     setBusy(true);
     try {
@@ -439,7 +540,7 @@ export default function CreateDrawer({
         overrideConflicts: overrideConflicts || undefined,
         reorganizeIds:     reorganizeIds.length > 0 ? reorganizeIds : undefined,
       });
-      onCreated(r);
+      return r;
     } catch (err: unknown) {
       if (err instanceof ApiError && err.code === 'CONFLICT' && resTable) {
         const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
@@ -450,10 +551,11 @@ export default function CreateDrawer({
             combinedTableIds: resCombinedTableIds,
             busy:             false,
           });
-          return;
+          return null;
         }
       }
       setError(err instanceof Error ? err.message : 'Failed to create reservation');
+      return null;
     } finally {
       setBusy(false);
     }
@@ -462,7 +564,16 @@ export default function CreateDrawer({
   async function submitReservation(e: React.FormEvent) {
     e.preventDefault();
     if (!resPhone.trim()) { setPhoneWarning(true); return; }
-    await doSubmitReservation();
+    setPendingResConfirm(true);
+  }
+
+  async function confirmAndSave() {
+    const r = await doSubmitReservation();
+    // Clear local state BEFORE calling onCreated — onCreated unmounts this
+    // component, so any setState after it is a silent no-op in React 18.
+    setPendingResConfirm(false);
+    setBusy(false);
+    if (r) onCreated(r);
   }
 
   async function doSubmitWalkIn(seatNow: boolean) {
@@ -551,8 +662,11 @@ export default function CreateDrawer({
 
     if (manualOverride) {
       const allIds = [resTable, ...resCombinedTableIds].filter(Boolean);
-      if (allIds.length > 1) return T.createDrawer.confirmWithTables(allIds.map(resolveTableName).join(' + '));
-      if (allIds.length === 1) return T.createDrawer.confirmWithTable(resolveTableName(allIds[0]));
+      const names = allIds.map(resolveTableName).filter(Boolean);
+      if (names.length > 1) return T.createDrawer.confirmWithTables(names.join(' + '));
+      if (names.length === 1) return T.createDrawer.confirmWithTable(names[0]);
+      // IDs present but names not yet resolved (tables not loaded) → safe fallback
+      if (allIds.length > 0) return T.createDrawer.confirmNoTable;
       return T.createDrawer.confirmNoTable;
     }
 
@@ -564,8 +678,14 @@ export default function CreateDrawer({
 
   return (
     <>
-      {/* Backdrop — hidden during map pick so the floor is accessible */}
-      {!pickingOnMap && !wiPickingOnMap && <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />}
+      {/* Backdrop — hidden in new-res pick mode (map always accessible) and during old-style map pick */}
+      {!pickingOnMap && !wiPickingOnMap && !mapPickActive && !newResPickMode && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={isDesktop && onPickTables ? (mode === 'walkin' ? openWiMapPicker : openMapPicker) : undefined}
+          style={isDesktop && onPickTables ? { cursor: 'crosshair' } : undefined}
+        />
+      )}
 
       {/* Drawer — stays visible during map pick so the host sees the form alongside the floor */}
       <aside className="fixed right-0 top-0 h-full w-[420px] bg-iron-card border-l border-iron-border z-50 flex flex-col shadow-2xl">
@@ -577,7 +697,14 @@ export default function CreateDrawer({
               {mode === 'reservation' ? T.createDrawer.titleReservation : T.createDrawer.titleWalkIn}
             </h2>
             <button
-              onClick={onClose}
+              onClick={() => {
+                if (pickingOnMap || wiPickingOnMap) {
+                  setPickingOnMap(false);
+                  setWiPickingOnMap(false);
+                  onPickTablesCancel?.();
+                }
+                onClose();
+              }}
               className="text-iron-muted hover:text-iron-text text-2xl leading-none"
               aria-label="Close"
             >
@@ -589,7 +716,10 @@ export default function CreateDrawer({
           <div className="flex gap-1 bg-iron-bg rounded-lg p-1">
             <button
               type="button"
-              onClick={() => { setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); setPhoneWarning(false); }}
+              onClick={() => {
+                if (wiPickingOnMap) { setWiPickingOnMap(false); onPickTablesCancel?.(); }
+                setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); setPhoneWarning(false);
+              }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
                 mode === 'reservation' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
               }`}
@@ -598,7 +728,10 @@ export default function CreateDrawer({
             </button>
             <button
               type="button"
-              onClick={() => { setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); setPhoneWarning(false); }}
+              onClick={() => {
+                if (pickingOnMap) { setPickingOnMap(false); onPickTablesCancel?.(); }
+                setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); setPhoneWarning(false);
+              }}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
                 mode === 'walkin' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
               }`}
@@ -690,7 +823,6 @@ export default function CreateDrawer({
                     max={100}
                     value={resParty}
                     onChange={e => setResParty(parseInt(e.target.value, 10) || 1)}
-                    onClick={openTablePicker}
                     required
                   />
                   {gapHint && (
@@ -829,7 +961,32 @@ export default function CreateDrawer({
               <div>
                 <Label>{T.createDrawer.fieldTable}</Label>
 
-                {/* Picking on map banner */}
+                {/* New-reservation always-armed toggle-select display */}
+                {newResPickMode && !pickingOnMap && (
+                  resTable ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 px-3 py-2.5 rounded-lg bg-iron-green/10 border border-iron-green/35">
+                        <span className="text-iron-green-light font-semibold text-sm">
+                          {[resTable, ...resCombinedTableIds]
+                            .map(id => resolveTableName(id) || id)
+                            .join(' + ')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setResTable(''); setResCombinedTableIds([]); setManualOverride(false); onResTableChange?.([]); }}
+                        className="text-xs px-2.5 py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors shrink-0"
+                      >{T.createDrawer.clearSelection}</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-iron-bg border border-iron-border/60 text-iron-muted text-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-iron-green/60 animate-pulse shrink-0" />
+                      {T.createDrawer.newResPickHint}
+                    </div>
+                  )
+                )}
+
+                {/* Picking on map banner (old-style explicit pick) */}
                 {pickingOnMap && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-status-reserved/30">
                     <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
@@ -845,7 +1002,7 @@ export default function CreateDrawer({
                 )}
 
                 {/* Loading state */}
-                {!pickingOnMap && suggestBusy && (
+                {!newResPickMode && !pickingOnMap && suggestBusy && (
                   <div className="flex items-center gap-2 py-2 text-iron-muted">
                     <div className="w-3 h-3 border-2 border-iron-green border-t-transparent rounded-full animate-spin shrink-0" />
                     <span className="text-xs">{T.createDrawer.tableSearching}</span>
@@ -853,7 +1010,7 @@ export default function CreateDrawer({
                 )}
 
                 {/* Auto-selected, no override, picker hidden */}
-                {!pickingOnMap && !suggestBusy && autoResult && !manualOverride && !showPicker && (
+                {!newResPickMode && !pickingOnMap && !suggestBusy && autoResult && !manualOverride && !showPicker && (
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-iron-green/10 border border-iron-green/35">
                       <span className="text-iron-green-light font-semibold text-sm">
@@ -885,7 +1042,7 @@ export default function CreateDrawer({
                 )}
 
                 {/* Manual override selected, picker hidden */}
-                {!pickingOnMap && !suggestBusy && manualOverride && !showPicker && (() => {
+                {!newResPickMode && !pickingOnMap && !suggestBusy && manualOverride && !showPicker && (() => {
                   const manualNames = [resTable, ...resCombinedTableIds].filter(Boolean).map(resolveTableName);
                   const autoIds = autoResult?.tableIds ?? [];
                   const currentIds = [resTable, ...resCombinedTableIds].filter(Boolean);
@@ -932,7 +1089,7 @@ export default function CreateDrawer({
                 })()}
 
                 {/* No table available, no picker */}
-                {!pickingOnMap && !suggestBusy && !autoResult && !manualOverride && !showPicker && (
+                {!newResPickMode && !pickingOnMap && !suggestBusy && !autoResult && !manualOverride && !showPicker && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
                     <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                     <button
@@ -955,7 +1112,7 @@ export default function CreateDrawer({
                 )}
 
                 {/* Override picker — floor map (falls back to grid when no positions) */}
-                {showPicker && (
+                {!newResPickMode && showPicker && (
                   <div className="space-y-2">
                     <FloorTablePicker
                       tables={tables}
@@ -1041,7 +1198,7 @@ export default function CreateDrawer({
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setPhoneWarning(false); doSubmitReservation(); }}
+                      onClick={() => { setPhoneWarning(false); setPendingResConfirm(true); }}
                       className="flex-1 text-xs py-2 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
                     >
                       {T.createDrawer.phoneWarnContinue}
@@ -1471,10 +1628,100 @@ export default function CreateDrawer({
           onCancel={() => setResConflictWarning(null)}
           onConfirm={async (selectedIds) => {
             setResConflictWarning(prev => prev ? { ...prev, busy: true } : null);
-            await doSubmitReservation(true, selectedIds);
+            const r = await doSubmitReservation(true, selectedIds);
             setResConflictWarning(null);
+            if (r) onCreated(r);
           }}
         />
+      )}
+
+      {pendingResConfirm && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+          <div
+            dir={locale === 'he' ? 'rtl' : 'ltr'}
+            className="bg-iron-elevated border border-iron-border/50 rounded-xl p-5 mx-4 w-80 space-y-3"
+            style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.40)' }}
+          >
+            <h3 className="text-iron-text font-semibold text-base">{T.createDrawer.confirmTitle}</h3>
+            <div className="space-y-2 text-sm">
+              {resName.trim() && (
+                <div className="flex gap-2">
+                  <span className="text-iron-muted shrink-0">{T.createDrawer.labelName}:</span>
+                  <span className="text-iron-text font-medium">{resName.trim()}</span>
+                </div>
+              )}
+              {resPhone.trim() && (
+                <div className="flex gap-2">
+                  <span className="text-iron-muted shrink-0">{T.createDrawer.labelPhone}:</span>
+                  <span className="text-iron-text">{resPhone.trim()}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <span className="text-iron-muted shrink-0">{T.createDrawer.labelDate}:</span>
+                <span className="text-iron-text">{resDate}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-iron-muted shrink-0">{T.createDrawer.labelTime}:</span>
+                <span className="text-iron-text">
+                  {resTime}
+                  {resDuration && (() => {
+                    const [h, m] = resTime.split(':').map(Number);
+                    const endMin = h * 60 + m + parseInt(resDuration, 10);
+                    const eh = Math.floor(endMin / 60) % 24;
+                    const em = endMin % 60;
+                    return ` – ${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                  })()}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-iron-muted shrink-0">{T.createDrawer.labelParty}:</span>
+                <span className="text-iron-text">{resParty}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-iron-muted shrink-0">{T.createDrawer.labelTable}:</span>
+                {(resTable || resCombinedTableIds.length > 0) ? (
+                  <span className="text-iron-green-light font-semibold">
+                    {[resTable, ...resCombinedTableIds].filter(Boolean).map(resolveTableName).join(' + ')}
+                  </span>
+                ) : (
+                  <span className="text-iron-muted italic">{T.createDrawer.noTableSelected}</span>
+                )}
+              </div>
+              {resGuestNote.trim() && (
+                <div className="flex gap-2">
+                  <span className="text-iron-muted shrink-0">{T.createDrawer.labelGuestNote}:</span>
+                  <span className="text-iron-text">{resGuestNote.trim()}</span>
+                </div>
+              )}
+              {resHostNote.trim() && (
+                <div className="flex gap-2">
+                  <span className="text-iron-muted shrink-0">{T.createDrawer.labelHostNote}:</span>
+                  <span className="text-iron-text">{resHostNote.trim()}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => { void confirmAndSave(); }}
+                className="flex-1 bg-iron-green hover:bg-iron-green/90 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {busy && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                {T.common.ok}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setPendingResConfirm(false)}
+                className="px-4 py-2.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-sm transition-colors disabled:opacity-40"
+              >
+                {T.common.cancel}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

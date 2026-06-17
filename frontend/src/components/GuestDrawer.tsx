@@ -241,8 +241,14 @@ interface Props {
   onTableLockChange?: () => void;
   nowTime?: string;
   isLiveView?: boolean;
-  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string) => void;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, walkIn?: boolean, time?: string) => void;
   onPickTablesCancel?: () => void;
+  /** True when HostDashboard's tablePickMode is active — suppresses backdrop so the floor is clickable. */
+  mapPickActive?: boolean;
+  /** Table IDs currently selected on the floor map during pick mode — passed from HostDashboard. */
+  tablePickSelectedIds?: string[];
+  /** Execute the pending action with the given table IDs (seat/assign/move). */
+  onPickConfirm?: (ids: string[]) => void;
   /** Called when the host changes the date/time in edit mode so the floor board
    *  can reload for the same date and stay in sync with the drawer. */
   onDateTimeChange?: (date: string, time: string) => void;
@@ -255,7 +261,7 @@ interface Props {
   initialMode?: 'view' | 'edit';
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, initialMode: _initialMode }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, mapPickActive, tablePickSelectedIds, onPickConfirm, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, initialMode: _initialMode }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -421,6 +427,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       },
       action,
       res.guestName,
+      false,
+      res.time,
     );
   }
 
@@ -953,7 +961,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   return (
     <>
       {/* Backdrop — hidden during map pick so the floor is accessible */}
-      {!(pickingOnMap || pickingForAction) && (
+      {!(pickingOnMap || pickingForAction || mapPickActive) && (
         <div
           className="fixed inset-0 z-40 animate-backdrop-in"
           style={{ background: 'linear-gradient(96deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.44) 100%)' }}
@@ -1056,8 +1064,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         document.body
       )}
 
-      {/* Drawer panel — hidden during map pick so the FloorBoard action bar is fully accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-[26rem] bg-iron-elevated border-l border-iron-border/55 z-50 flex flex-col animate-drawer-in${(pickingOnMap || pickingForAction) ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.04), -4px 0 0 rgba(0,0,0,0.22), -24px 0 56px rgba(0,0,0,0.68), -64px 0 96px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08), inset 2px 0 0 rgba(111,138,60,0.12)' }}>
+      {/* Drawer panel — stays visible during pick so the אישור confirm button is accessible */}
+      <aside className={`fixed right-0 top-0 h-full w-[26rem] bg-iron-elevated border-l border-iron-border/55 z-50 flex flex-col animate-drawer-in${pickingOnMap ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.04), -4px 0 0 rgba(0,0,0,0.22), -24px 0 56px rgba(0,0,0,0.68), -64px 0 96px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08), inset 2px 0 0 rgba(111,138,60,0.12)' }}>
 
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.15) 0%, rgba(0,0,0,0.04) 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 16px 48px rgba(0,0,0,0.52)' }}>
@@ -1065,12 +1073,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             <div className="flex-1 min-w-0 pe-3">
               {/* Name + status */}
               <div dir={dir} className="flex items-center gap-2 flex-wrap mb-1.5">
-                <input
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className="text-iron-text font-black text-[34px] tracking-tight leading-none bg-transparent border-b border-transparent hover:border-iron-border/40 focus:border-iron-green/60 focus:outline-none w-full min-w-0 transition-colors"
-                  dir={dir}
-                />
+                <span className="text-iron-text font-black text-[34px] tracking-tight leading-none w-full min-w-0 truncate">
+                  {editName || res.guestName}
+                </span>
               </div>
               <div className="flex items-center gap-2 flex-wrap mb-2">
                 {res.guest?.isVip && (
@@ -1120,6 +1125,36 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.10) 0%, transparent 60px)' }}>
 
+          {/* Guest CRM — shown at top for quick context */}
+          {res.guest && (
+            <section className="border-b border-iron-border/30 pb-4 space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
+                {T.guestDrawer.sectionGuestProfile}
+              </p>
+              <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`.trim()} />
+              {res.guest.visitCount != null && (
+                isCrmImportWithNoHistory(res.guest.visitCount, res.guest.tags ?? [], res.guest.internalNotes ?? null)
+                  ? <Row label={T.guestDrawer.rowVisits} value={CRM_NO_HISTORY_LABEL} />
+                  : <Row label={T.guestDrawer.rowVisits} value={String(res.guest.visitCount)} />
+              )}
+              {res.guest.noShowCount != null && res.guest.noShowCount > 0 && (
+                <Row label={T.guestDrawer.rowNoShows} value={String(res.guest.noShowCount)} warn />
+              )}
+              {(res.guest.tags?.filter(t => !t.startsWith('tabit_import')).length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {res.guest.tags.filter(t => !t.startsWith('tabit_import')).map(tag => (
+                    <span
+                      key={tag}
+                      className="text-[11px] px-1.5 py-0.5 bg-iron-bg border border-iron-border/40 rounded-lg text-iron-muted/70"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Arrival state banner — contextual quick action surfaces the most urgent next step */}
           {(() => {
             if (!nowTime || !isLiveView) return null;
@@ -1164,6 +1199,17 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           {/* ── Form fields — CreateDrawer style ── */}
           <div className="space-y-4">
+
+            {/* Name */}
+            <div>
+              <GDLabel>{T.guestDrawer.fieldGuestName}</GDLabel>
+              <GDInput
+                dir={dir}
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder={T.guestDrawer.fieldGuestName}
+              />
+            </div>
 
             {/* Phone */}
             <div>
@@ -1301,21 +1347,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
           </div>
 
-          {/* ── Table display / service info ── */}
-          {res.table && (
-            <div className="pt-2 border-t border-iron-border/30">
-              <GDLabel>שולחן</GDLabel>
-              <div className="px-3 py-2.5 rounded-lg bg-iron-bg border border-iron-border/55 text-iron-text text-sm font-medium">
-                {res.combinedTableIds.length
-                  ? [res.table.name, ...res.combinedTableIds.map(id => tables.find(t => t.id === id)?.name ?? id)].join(' + ')
-                  : res.table.name}
-                {res.table.section?.name && <span className="text-iron-muted/50 text-xs ms-2">{res.table.section.name}</span>}
-              </div>
-              {res.status === 'SEATED' && res.seatedAt && (
-                <p className="text-iron-muted/50 text-[11px] tabular-nums mt-1">{T.guestDrawer.rowSeatedAt}: {fmtHostTime(res.seatedAt)}</p>
-              )}
-            </div>
-          )}
 
           {/* Smart table suggestion */}
           {mode === 'view' && ['PENDING', 'CONFIRMED'].includes(res.status) && (smartLoading || smartSuggestion) && (
@@ -1440,35 +1471,6 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </section>
           )}
 
-          {/* Guest CRM */}
-          {res.guest && (
-            <section className="border-t border-iron-border/30 pt-4 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-iron-muted/65 mb-2">
-                {T.guestDrawer.sectionGuestProfile}
-              </p>
-              <Row label={T.guestDrawer.rowName}     value={`${res.guest.firstName} ${res.guest.lastName}`.trim()} />
-              {res.guest.visitCount != null && (
-                isCrmImportWithNoHistory(res.guest.visitCount, res.guest.tags ?? [], res.guest.internalNotes ?? null)
-                  ? <Row label={T.guestDrawer.rowVisits} value={CRM_NO_HISTORY_LABEL} />
-                  : <Row label={T.guestDrawer.rowVisits} value={String(res.guest.visitCount)} />
-              )}
-              {res.guest.noShowCount != null && res.guest.noShowCount > 0 && (
-                <Row label={T.guestDrawer.rowNoShows} value={String(res.guest.noShowCount)} warn />
-              )}
-              {(res.guest.tags?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {res.guest.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="text-[11px] px-1.5 py-0.5 bg-iron-bg border border-iron-border/40 rounded-lg text-iron-muted/70"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
 
           {/* Confirmation — hidden once guest is physically present or turn is closed */}
           {!['SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(res.status) && <ConfirmationSection />}
@@ -1480,16 +1482,47 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             </p>
 
             {pickingForAction ? (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-900/20 border border-status-reserved/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
-                <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
-                <button
-                  type="button"
-                  onClick={() => { setPickingForAction(null); onPickTablesCancel?.(); }}
-                  className="text-xs text-iron-muted hover:text-iron-text transition-colors shrink-0"
-                >
-                  {T.common.cancel}
-                </button>
+              <div className="flex flex-col gap-3">
+                {/* Pick mode banner */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900/20 border border-status-reserved/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
+                  <span className="text-status-reserved text-xs flex-1">{T.guestDrawer.pickingOnMap}</span>
+                </div>
+                {/* Selected table display */}
+                {tablePickSelectedIds && tablePickSelectedIds.length > 0 ? (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-iron-green/10 border border-iron-green/30">
+                    <span className="text-iron-muted text-xs shrink-0">שולחן:</span>
+                    <span className="text-iron-green-light font-semibold text-sm">
+                      {tablePickSelectedIds.map(id => tables.find(t => t.id === id)?.name ?? id).join(' + ')}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2.5 rounded-lg bg-iron-bg border border-iron-border/50 text-center text-iron-muted text-sm">
+                    לא נבחר שולחן
+                  </div>
+                )}
+                {/* Confirm / Cancel */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!tablePickSelectedIds || tablePickSelectedIds.length === 0 || busy}
+                    onClick={() => {
+                      if (tablePickSelectedIds && tablePickSelectedIds.length > 0) {
+                        onPickConfirm?.(tablePickSelectedIds);
+                      }
+                    }}
+                    className="flex-1 bg-iron-green hover:bg-iron-green/90 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {T.common.ok}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPickingForAction(null); onPickTablesCancel?.(); }}
+                    className="px-4 py-2.5 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text text-sm transition-colors"
+                  >
+                    {T.common.cancel}
+                  </button>
+                </div>
               </div>
             ) : (
               <div>

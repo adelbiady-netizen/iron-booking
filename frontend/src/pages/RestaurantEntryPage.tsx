@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { api } from '../api';
+import { api, storeAuth, clearAuth, setSessionToken } from '../api';
 import HostSelectionScreen from './HostSelectionScreen';
 import HostDashboard from './HostDashboard';
+import CinematicRestaurantIntro from '../components/CinematicRestaurantIntro';
 import type { AuthState, AuthUser } from '../types';
 import type { Theme } from '../App';
 
@@ -42,6 +43,10 @@ export default function RestaurantEntryPage(props: Props) {
   const [info,           setInfo]           = useState<RestaurantInfo | null | 'not_found'>('loading' as unknown as null);
   const [loadingSlug,    setLoadingSlug]    = useState(true);
   const [slugMismatch,   setSlugMismatch]   = useState(false);
+  const introKey = `iron_intro_seen_${slug}`;
+  const [showIntro, setShowIntro] = useState(false);
+  const authRef = useRef(auth);
+  useEffect(() => { authRef.current = auth; }, [auth]);
 
   // Email login form state
   const [email,    setEmail]    = useState('');
@@ -53,20 +58,52 @@ export default function RestaurantEntryPage(props: Props) {
   useEffect(() => {
     setLoadingSlug(true);
     setSlugMismatch(false);
+    setShowIntro(false);
     api.public.getRestaurantBySlug(slug)
-      .then(r => setInfo(r))
+      .then(r => {
+        setInfo(r);
+        // Show intro only when unauthenticated and not already seen this session
+        if (!authRef.current && !sessionStorage.getItem(`iron_intro_seen_${slug}`)) {
+          setShowIntro(true);
+        }
+      })
       .catch(() => setInfo('not_found' as unknown as null))
       .finally(() => setLoadingSlug(false));
   }, [slug]);
 
-  // After auth resolves, check slug match
+  // After auth resolves, check restaurant match.
+  // Guard against the 'loading' initial value — info starts as the string 'loading'
+  // which is truthy, so typeof check is required to avoid a false mismatch before
+  // the API call resolves.
   useEffect(() => {
-    if (!auth || !info || info === ('not_found' as unknown as null)) return;
+    if (!auth || !info || typeof info === 'string') return;
     const restaurant = (info as RestaurantInfo);
-    if (auth.user.restaurant?.slug !== restaurant.slug) {
-      setSlugMismatch(true);
+
+    // IDs match → user belongs to this restaurant (slug may just be stale in cache).
+    if (auth.user.restaurant?.id === restaurant.id) {
+      if (auth.user.restaurant.slug !== restaurant.slug) {
+        // Heal the stale slug in localStorage so future refreshes don't hit this branch.
+        storeAuth(auth.token, {
+          ...auth.user,
+          restaurant: { ...auth.user.restaurant, slug: restaurant.slug },
+        });
+      }
+      setSlugMismatch(false);
+      return;
     }
-  }, [auth, info]);
+
+    // Slugs match → same restaurant (id may be missing from an old token cache).
+    if (auth.user.restaurant?.slug === restaurant.slug) {
+      setSlugMismatch(false);
+      return;
+    }
+
+    // Neither id nor slug matches → auth belongs to a different restaurant.
+    // Clear silently so the host sees the PIN login screen for THIS restaurant.
+    clearAuth();
+    setSessionToken(null);
+    onLogout();
+  }, [auth, info, onLogout]);
 
   function wrapLogin(token: string, user: AuthUser) {
     setSlugMismatch(false);
@@ -155,7 +192,9 @@ export default function RestaurantEntryPage(props: Props) {
   }
 
   // ── Auth set but wrong restaurant ────────────────────────────────────────
-  if (auth && (slugMismatch || auth.user.restaurant?.slug !== restaurant.slug)) {
+  // slugMismatch is the authoritative flag — set by the useEffect above which
+  // compares restaurant.id first, then slug, and clears auth for true mismatches.
+  if (auth && slugMismatch) {
     // HQ/SUPER_ADMIN don't have a restaurant slug — redirect them cleanly
     if (auth.user.role === 'SUPER_ADMIN' || auth.user.role === 'HQ_ADMIN') {
       window.location.replace('/hq');
@@ -235,8 +274,21 @@ export default function RestaurantEntryPage(props: Props) {
     );
   }
 
-  // ── Not authenticated — always show PIN host selection ───────────────────
+  // ── Not authenticated — show cinematic intro once per session ────────────
   if (!forceLoginPage) {
+    if (showIntro) {
+      return (
+        <CinematicRestaurantIntro
+          restaurantName={restaurant.name}
+          logoUrl={restaurant.logoUrl}
+          primaryColor={restaurant.primaryColor}
+          onDone={() => {
+            sessionStorage.setItem(introKey, '1');
+            setShowIntro(false);
+          }}
+        />
+      );
+    }
     return (
       <HostSelectionScreen
         restaurantId={restaurant.id}

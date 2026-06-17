@@ -166,6 +166,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     _key: number;
     pendingWaitlistEntry?: WaitlistEntry;
     pendingMoveResId?: string;
+    pendingAssignResId?: string;
   } | null>(null);
   const [occupiedConflict, setOccupiedConflict] = useState<{
     occupiedBy: { id: string; guestName: string; time: string; partySize: number };
@@ -217,6 +218,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [showMoreMenu,       setShowMoreMenu]       = useState(false);
   const [showBroadcast,      setShowBroadcast]      = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const [moreMenuPos, setMoreMenuPos] = useState<{ top: number; right: number } | null>(null);
   useEffect(() => {
     if (!showMoreMenu && !showBroadcast) return;
     const onDown = (e: MouseEvent) => {
@@ -259,7 +262,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | undefined>(undefined);
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const [tablePickWalkIn,      setTablePickWalkIn]      = useState(false);
+  // IDs selected on the floor map during pick mode — lifted so GuestDrawer can show אישור
+  const [tablePickSelectedIds, setTablePickSelectedIds] = useState<string[]>([]);
+  // New-reservation always-armed map: toggle-selected table IDs
+  const [newResTableIds, setNewResTableIds] = useState<string[]>([]);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
+  // Optimistic reservation to apply instantly when "שייך" is confirmed in change-table mode
+  const tablePickOptimisticRef = useRef<{ resId: string; tableId: string; combinedTableIds: string[]; table: { id: string; name: string; section: null } | null } | null>(null);
 
   const sseStatus = useServerEvents({
     incoming_call: (data) => {
@@ -560,7 +569,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const enriched = reservations.find(x => x.id === r.id) ?? r;
     // If an unassigned reservation is active in GuestDrawer, clicking any reserved
     // table assigns the active reservation there instead of switching focus.
-    if (isActiveUnassigned(selectedRes) && enriched.tableId) {
+    if (!tablePickMode && isActiveUnassigned(selectedRes) && enriched.tableId) {
       const clickedTable = floorTables.find(t => t.id === enriched.tableId);
       if (clickedTable) { handleAssignActiveRes(clickedTable); return; }
     }
@@ -571,7 +580,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     } else {
       setSelectedRes(enriched);
     }
-  }, [reservations, floorTables, selectedRes, isActiveUnassigned, handleAssignActiveRes]);
+  }, [reservations, floorTables, selectedRes, isActiveUnassigned, handleAssignActiveRes, tablePickMode]);
 
   const handlePanelSelect = useCallback((r: Reservation) => {
     const enriched = reservations.find(x => x.id === r.id) ?? r;
@@ -811,10 +820,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handleInsightAction, reservations, floorTables]);
 
   const handleAvailableClick = useCallback((table: FloorTable) => {
-    if (isActiveUnassigned(selectedRes)) { handleAssignActiveRes(table); return; }
+    if (!tablePickMode && isActiveUnassigned(selectedRes)) { handleAssignActiveRes(table); return; }
     setSelectedRes(null);
     setQuickTable({ tableId: table.id, reservationId: null });
-  }, [selectedRes, isActiveUnassigned, handleAssignActiveRes]);
+  }, [selectedRes, isActiveUnassigned, handleAssignActiveRes, tablePickMode]);
 
   const handleCombineToggle = useCallback((tableId: string) => {
     setCombinedSelection(prev =>
@@ -834,14 +843,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const handleReorganizeTableClick = useCallback((table: FloorTable) => {
     // If an unassigned reservation is active in GuestDrawer, assign it to the
     // clicked table instead of triggering the floor-lift flow.
-    if (isActiveUnassigned(selectedRes)) { handleAssignActiveRes(table); return; }
+    if (!tablePickMode && isActiveUnassigned(selectedRes)) { handleAssignActiveRes(table); return; }
     const tableResv = reservations.filter(
       r => r.tableId === table.id && ['CONFIRMED', 'PENDING'].includes(r.status) && !r.reorganizeAt
     );
     setRebuildDayTarget({ table, resv: tableResv });
     setSelectedRebuildIds(tableResv.map(r => r.id));
     setRebuildDayReason('');
-  }, [selectedRes, isActiveUnassigned, handleAssignActiveRes, reservations]);
+  }, [selectedRes, isActiveUnassigned, handleAssignActiveRes, reservations, tablePickMode]);
 
   const handleLockTable = useCallback((table: FloorTable) => {
     setLockTarget(table);
@@ -1349,23 +1358,56 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setLiveMode(false);
   }, []);
 
-  const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string) => {
+  // Clear new-res map selection when the create drawer is closed
+  useEffect(() => {
+    if (!createMode) setNewResTableIds([]);
+  }, [createMode]);
+
+  const handleNewResTableSelect = useCallback((tableId: string) => {
+    setNewResTableIds(prev =>
+      prev.includes(tableId) ? prev.filter(id => id !== tableId) : [...prev, tableId]
+    );
+  }, []);
+
+  const handlePickSelectionChange = useCallback((ids: string[]) => {
+    setTablePickSelectedIds(ids);
+  }, []);
+
+  const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, _walkIn?: boolean, pickTime?: string) => {
     tablePickCallbackRef.current = callback;
     setTablePickIds(currentIds);
     setTablePickSuggestions(suggestions);
     setTablePickAction(action);
     setTablePickGuestName(guestName);
+    setTablePickSelectedIds([]);
+    if (pickTime) { setTime(pickTime); setLiveMode(false); }
     setTablePickMode(true);
   }, []);
 
   const handlePickDone = useCallback((ids: string[]) => {
+    // Apply optimistic reservation update synchronously with mode teardown
+    // so React batches everything in one render — floor responds instantly.
+    const opt = tablePickOptimisticRef.current;
+    if (opt && ids.length > 0) {
+      const [primaryId, ...secondaryIds] = ids;
+      const tbl = floorTables.find(t => t.id === primaryId) ?? allTables.find(t => t.id === primaryId);
+      setReservations(prev => prev.map(x => x.id === opt.resId ? {
+        ...x,
+        tableId: primaryId,
+        combinedTableIds: secondaryIds,
+        table: tbl ? { id: tbl.id, name: tbl.name, section: null } : x.table,
+        reorganizeAt: null,
+      } : x));
+      tablePickOptimisticRef.current = null;
+    }
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
     setTablePickMode(false);
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
     setTablePickWalkIn(false);
-  }, []);
+    setTablePickSelectedIds([]);
+  }, [floorTables, allTables]);
 
   const handlePickCancel = useCallback(() => {
     tablePickCallbackRef.current?.(null);
@@ -1374,6 +1416,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
     setTablePickWalkIn(false);
+    setTablePickSelectedIds([]);
   }, []);
 
   const handlePickTablesFromDrawer = useCallback((
@@ -1383,9 +1426,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     action?: 'seat' | 'move' | 'change-table',
     guestName?: string,
     walkIn?: boolean,
+    pickTime?: string,
   ) => {
     setTablePickWalkIn(!!walkIn);
-    handlePickTables(currentIds, suggestions, callback, action, guestName);
+    handlePickTables(currentIds, suggestions, callback, action, guestName, walkIn, pickTime);
   }, [handlePickTables]);
 
   const handleChooseTable = useCallback(async (r: Reservation) => {
@@ -1400,24 +1444,56 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       });
     } catch { /* proceed with no suggestions — tables still selectable */ }
 
+    // Travel to reservation's time so the floor shows occupancy at that slot
+    const [rH, rM] = r.time.split(':').map(Number);
+    setTime(snapTo30(rH * 60 + rM));
+    setLiveMode(false);
+
+    // Store reservation info for instant optimistic update in handlePickDone
+    tablePickOptimisticRef.current = {
+      resId: r.id,
+      tableId: '',  // filled per-table in handlePickDone
+      combinedTableIds: [],
+      table: null,
+    };
+
     handlePickTables(
       [],
       sug,
       async (ids) => {
         if (!ids || ids.length === 0) return;
         const [primaryId, ...secondaryIds] = ids;
-        const name = floorTables.find(t => t.id === primaryId)?.name
-          ?? allTables.find(t => t.id === primaryId)?.name
-          ?? primaryId;
+        const primaryTable = floorTables.find(t => t.id === primaryId) ?? allTables.find(t => t.id === primaryId);
+        const name = primaryTable?.name ?? primaryId;
+        // handlePickDone already applied optimistic update — just persist to server
+        const prevReservations = reservations;
         try {
           const updated = await api.reservations.update(r.id, {
             tableId: primaryId,
             combinedTableIds: secondaryIds,
           });
+          // Reconcile with server truth (SSE will also trigger a background refresh)
           setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
-          setRefreshKey(k => k + 1);
           showToast(T.guestDrawer.toastTableAssigned(name));
         } catch (err) {
+          // Roll back optimistic update
+          setReservations(prevReservations);
+          if (err instanceof ApiError && err.code === 'CONFLICT') {
+            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+              setReorganizeConflict({
+                conflicts: det.conflicts,
+                pendingReservationId: r.id,
+                pendingTableId: primaryId,
+                pendingCombinedIds: secondaryIds,
+                tableName: name,
+                busy: false,
+                _key: ++reorganizeKeyRef.current,
+                pendingAssignResId: r.id,
+              });
+              return;
+            }
+          }
           showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
         }
       },
@@ -2056,7 +2132,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       {/* ── More menu (עוד) — contains all toolbar actions including broadcast ── */}
       <div className="relative" ref={moreMenuRef}>
         <button
-          onClick={() => { setShowMoreMenu(v => !v); setShowBroadcast(false); }}
+          ref={moreMenuTriggerRef}
+          onClick={() => {
+            const r = moreMenuTriggerRef.current?.getBoundingClientRect();
+            if (r) setMoreMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+            setShowMoreMenu(v => !v);
+            setShowBroadcast(false);
+          }}
           className={`flex items-center gap-1 text-[11px] font-medium border rounded-lg px-2.5 py-1.5 transition-colors ${
             showMoreMenu || showBroadcast
               ? 'bg-iron-elevated/40 border-iron-border/65 text-iron-text/90'
@@ -2069,11 +2151,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           </svg>
         </button>
 
-        {/* ── Dropdown menu ── */}
-        {showMoreMenu && (
+        {/* ── Dropdown menu — portaled to body to escape TopBar overflow clipping ── */}
+        {showMoreMenu && moreMenuPos && createPortal(
           <div
-            className="absolute end-0 top-full mt-1.5 z-50 min-w-[176px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
-            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+            ref={moreMenuRef}
+            style={{ position: 'fixed', top: moreMenuPos.top, right: moreMenuPos.right, zIndex: 9999, minWidth: 176, boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+            className="rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
           >
             <button
               onClick={() => { setShowMoreMenu(false); setShowBroadcast(true); setBroadcastResult(null); setBroadcastConfirming(false); }}
@@ -2161,14 +2244,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             >
               {T.hostDashboard.editLayout}
             </button>
-          </div>
+          </div>,
+          document.body
         )}
 
-        {/* ── Broadcast panel (opens from same anchor after selecting from menu) ── */}
-        {showBroadcast && (
+        {/* ── Broadcast panel — portaled to body to escape TopBar overflow clipping ── */}
+        {showBroadcast && moreMenuPos && createPortal(
           <div
-            className="absolute end-0 top-full mt-1.5 z-50 w-72 rounded-xl border border-iron-border/50 bg-iron-elevated p-3 flex flex-col gap-2.5"
-            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+            ref={moreMenuRef}
+            style={{ position: 'fixed', top: moreMenuPos.top, right: moreMenuPos.right, zIndex: 9999, width: 288, boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+            className="rounded-xl border border-iron-border/50 bg-iron-elevated p-3 flex flex-col gap-2.5"
           >
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-iron-text/90">{T.hostDashboard.broadcastTitle}</p>
@@ -2276,7 +2361,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 {T.hostDashboard.broadcastSend}
               </button>
             )}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </>
@@ -2385,9 +2471,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           pickSuggestions={tablePickSuggestions}
           onPickDone={handlePickDone}
           onPickCancel={handlePickCancel}
+          onPickSelectionChange={handlePickSelectionChange}
           pickAction={tablePickAction}
           pickGuestName={tablePickGuestName}
           pickWalkInMode={tablePickWalkIn}
+          inPlanningMode={!liveMode}
+          newResPickSelectedIds={createMode === 'reservation' ? newResTableIds : undefined}
+          onNewResTableSelect={createMode === 'reservation' ? handleNewResTableSelect : undefined}
           waitlistAssignEntry={waitlistAssignEntry}
           waitlistAssignTableId={waitlistAssignTableId}
           onWaitlistTablePick={handleWaitlistTablePick}
@@ -2515,6 +2605,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             isLiveView={isLiveView}
             onPickTables={handlePickTables}
             onPickTablesCancel={handlePickCancel}
+            mapPickActive={tablePickMode}
+            tablePickSelectedIds={tablePickSelectedIds}
+            onPickConfirm={handlePickDone}
             onDateTimeChange={handleDrawerDateTimeChange}
             onOptimisticSeat={handleOptimisticSeat}
             onOptimisticSeatRollback={handleOptimisticSeatRollback}
@@ -2524,7 +2617,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       )}
 
       {createMode && (
-        <DrawerErrorBoundary key={`create-${createMode}`} onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}>
+        <DrawerErrorBoundary key={`create-${createMode}`} onClose={() => {
+          // Safety net: if CreateDrawer was abandoned while map-pick was active, cancel pick mode
+          if (tablePickMode && tablePickAction === 'change-table') handlePickCancel();
+          setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone('');
+        }}>
           <CreateDrawer
             initialMode={createMode}
             defaultDate={date}
@@ -2541,6 +2638,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onPickTables={handlePickTablesFromDrawer}
             onPickTablesCancel={handlePickCancel}
             onUpdatePickSuggestions={setTablePickSuggestions}
+            mapPickActive={tablePickMode}
+            newResPickMode={createMode === 'reservation'}
+            externalResTableIds={newResTableIds}
+            onResTableChange={setNewResTableIds}
             onDateTimeChange={handleDrawerDateTimeChange}
           />
         </DrawerErrorBoundary>
@@ -2724,7 +2825,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           busy={reorganizeConflict.busy}
           onCancel={() => setReorganizeConflict(null)}
           onConfirm={async (selectedIds) => {
-            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry, pendingMoveResId } = reorganizeConflict;
+            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry, pendingMoveResId, pendingAssignResId } = reorganizeConflict;
             setReorganizeConflict(prev => prev ? { ...prev, busy: true } : null);
             try {
               if (pendingWaitlistEntry) {
@@ -2745,6 +2846,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 setRefreshKey(k => k + 1);
                 setReorganizeConflict(null);
                 showToast(T.guestDrawer.toastMoved(tableName), 'success');
+              } else if (pendingAssignResId) {
+                // Assign-table path (שבץ לשולחן): re-issue update with overrideConflicts
+                const updated = await api.reservations.update(pendingAssignResId, {
+                  tableId: pendingTableId,
+                  combinedTableIds: pendingCombinedIds,
+                  overrideConflicts: true,
+                  reorganizeIds: selectedIds,
+                });
+                setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+                setRefreshKey(k => k + 1);
+                setReorganizeConflict(null);
+                showToast(T.guestDrawer.toastTableAssigned(tableName), 'success');
               } else {
                 const updated = await api.reservations.seat(pendingReservationId, pendingTableId, true, pendingCombinedIds, selectedIds);
                 setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));

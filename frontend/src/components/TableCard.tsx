@@ -36,18 +36,24 @@ interface Props {
   extraTurns?: number;
   turnTooltip?: string;
   date?: string;
+  /** True when FloorBoard is in new-reservation planning mode. */
+  inPlanningMode?: boolean;
+  /** The reservation whose window covers the form's planning time, or null if none. */
+  planningActiveRes?: Reservation | null;
 }
 
-export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip, date, nowTime }: Props) {
+export default function TableCard({ table, selected, isBestSuggestion, softHold, onClick, onContextMenu, insight, onInsightAction, waitlistMatch, onWaitlistAction, operationalNow, extraTurns = 0, turnTooltip, date, nowTime, inPlanningMode = false, planningActiveRes = null }: Props) {
   const T = useT();
   const { locale } = useLocale();
   const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
   // Suppress urgency styling (amber RESERVED_SOON) when viewing a future boardTime.
   // Live/current board keeps exact existing behaviour (isLiveView=true).
   const isLiveView = date && nowTime ? isLiveServiceView(date, nowTime) : true;
-  const displayStatus = (isLiveView || table.liveStatus !== 'RESERVED_SOON')
-    ? table.liveStatus
-    : 'RESERVED';
+  const displayStatus = inPlanningMode
+    ? (planningActiveRes ? 'RESERVED' : 'AVAILABLE')
+    : (isLiveView || table.liveStatus !== 'RESERVED_SOON')
+      ? table.liveStatus
+      : 'RESERVED';
   const STATUS_STYLE: Record<string, StatusStyle> = {
     AVAILABLE:      { border: 'border-iron-border/55 hover:border-iron-green/55',   bg: '',                   dot: 'bg-iron-border/75',    label: T.tableStatus.AVAILABLE,      labelColor: 'text-iron-muted/70' },
     OCCUPIED:       { border: 'border-iron-green/80',                               bg: 'bg-iron-green/14',   dot: 'bg-iron-green-light',  label: T.tableStatus.OCCUPIED,       labelColor: 'text-iron-green-light' },
@@ -56,12 +62,18 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
     BLOCKED:        { border: 'border-iron-border/40',                              bg: 'bg-iron-bg/55',      dot: 'bg-iron-muted/55',     label: T.tableStatus.BLOCKED,        labelColor: 'text-iron-muted/65' },
     STALE_OCCUPIED: { border: 'border-amber-600/28',                                bg: 'bg-status-warning/5',     dot: 'bg-status-warning/60',      label: T.tableStatus.STALE_OCCUPIED, labelColor: 'text-amber-600/55' },
   };
-  const currentRes = table.currentReservation;
+  const currentRes = inPlanningMode ? null : table.currentReservation;
   const nextRes = table.upcomingReservations[0] as (Reservation & { minutesUntil: number }) | undefined;
-  const displayRes = currentRes ?? nextRes ?? null;
-  const isAvailable = table.liveStatus === 'AVAILABLE';
+  // In planning mode: show content only for the reservation that overlaps the form's selected
+  // time. currentRes is wall-clock state and must not leak past reservations into planning view.
+  const displayRes = inPlanningMode
+    ? planningActiveRes
+    : (currentRes ?? nextRes ?? null);
+  const isAvailable = inPlanningMode
+    ? !planningActiveRes
+    : table.liveStatus === 'AVAILABLE';
 
-  const mr_live = (isToday && table.liveStatus === 'OCCUPIED' && currentRes != null)
+  const mr_live = (!inPlanningMode && isToday && table.liveStatus === 'OCCUPIED' && currentRes != null)
     ? minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now())
     : null;
   const isOverdue    = mr_live !== null && mr_live < 0;
@@ -140,7 +152,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         <p className="text-iron-muted text-[11px] truncate">{table.blockReason}</p>
       )}
 
-      {table.liveStatus === 'OCCUPIED' && currentRes && (() => {
+      {!inPlanningMode && table.liveStatus === 'OCCUPIED' && currentRes && (() => {
         const mr = minutesUntilEnd(currentRes.expectedEndTime, operationalNow ?? Date.now());
         const isCombined   = currentRes.combinedTableIds.length > 0;
         const isSecondary  = isCombined && currentRes.combinedTableIds.includes(table.id);
@@ -163,7 +175,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         );
       })()}
 
-      {table.liveStatus === 'STALE_OCCUPIED' && currentRes && (() => {
+      {!inPlanningMode && table.liveStatus === 'STALE_OCCUPIED' && currentRes && (() => {
         const isCombined  = currentRes.combinedTableIds.length > 0;
         const isSecondary = isCombined && currentRes.combinedTableIds.includes(table.id);
         return (
@@ -182,7 +194,7 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
         );
       })()}
 
-      {(table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON') && displayRes && (() => {
+      {(inPlanningMode ? !!planningActiveRes : (table.liveStatus === 'RESERVED' || table.liveStatus === 'RESERVED_SOON')) && displayRes && (() => {
         const isCombined  = (displayRes.combinedTableIds?.length ?? 0) > 0;
         const isSecondary = isCombined && displayRes.combinedTableIds?.includes(table.id);
         return (
