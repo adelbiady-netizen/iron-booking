@@ -292,6 +292,66 @@ async function runAvailabilityDiag() {
   }
 }
 
+// ─── TEMPORARY: Club members audit for Eataliano ─────────────────────────────
+// Remove after reading Render logs.
+async function runClubMembersAudit() {
+  const SLUG = 'eataliano-dalla-costa';
+  try {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { slug: SLUG },
+      select: { id: true, name: true },
+    });
+    if (!restaurant) {
+      console.log('[CLUB_MEMBERS_AUDIT] restaurant not found:', SLUG);
+      return;
+    }
+
+    const maskPhone = (p: string | null): string => {
+      if (!p) return '—';
+      const d = p.replace(/\D/g, '');
+      if (d.length < 4) return '****';
+      return d.slice(0, 3) + '****' + d.slice(-3);
+    };
+
+    const [total, active, paused, optedOut, withBday, withAnniv, withBoth, newest] =
+      await Promise.all([
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id } }),
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'ACTIVE' } }),
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'PAUSED' } }),
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'OPTED_OUT' } }),
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id, birthday: { not: null } } }),
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id, anniversary: { not: null } } }),
+        prisma.clubMember.count({ where: { restaurantId: restaurant.id, birthday: { not: null }, anniversary: { not: null } } }),
+        prisma.clubMember.findMany({
+          where: { restaurantId: restaurant.id },
+          orderBy: { joinDate: 'desc' },
+          take: 10,
+          select: {
+            joinDate: true, source: true, status: true,
+            birthday: true, anniversary: true,
+            guest: { select: { firstName: true, lastName: true, phone: true } },
+          },
+        }),
+      ]);
+
+    console.log('[CLUB_MEMBERS_AUDIT]', JSON.stringify({
+      restaurant: restaurant.name,
+      counts: { total, active, paused, optedOut, withBirthday: withBday, withAnniversary: withAnniv, withBoth },
+      newest10: newest.map(m => ({
+        name: `${m.guest.firstName} ${m.guest.lastName}`,
+        phone: maskPhone(m.guest.phone),
+        joinDate: m.joinDate.toISOString().slice(0, 10),
+        source: m.source,
+        status: m.status,
+        birthday: m.birthday ?? null,
+        anniversary: m.anniversary ?? null,
+      })),
+    }));
+  } catch (e) {
+    console.error('[CLUB_MEMBERS_AUDIT] error:', e instanceof Error ? e.message : e);
+  }
+}
+
 async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
@@ -304,6 +364,7 @@ async function main() {
   console.log('[DB] Connected');
 
   await runAvailabilityDiag(); // TEMPORARY — remove after eataliano audit
+  await runClubMembersAudit(); // TEMPORARY — remove after reading Render logs
   await maybeBootstrapSuperAdmin();
 
   const server = app.listen(config.port);
