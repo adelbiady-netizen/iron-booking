@@ -352,6 +352,81 @@ async function runClubMembersAudit() {
   }
 }
 
+// ─── TEMPORARY: Backfill exclusion audit ─────────────────────────────────────
+// Explains exactly why each of the 2 excluded records is not in the wouldCreate set.
+// Remove after reading Render logs.
+async function runClubBackfillExclusionAudit() {
+  try {
+    const candidates = await prisma.reservation.findMany({
+      where: { source: 'ONLINE', marketingOptIn: true, guestId: { not: null } },
+      select: {
+        id:           true,
+        restaurantId: true,
+        guestId:      true,
+        birthday:     true,
+        anniversary:  true,
+        createdAt:    true,
+        restaurant:   { select: { name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const pairs = candidates.map(r => ({ restaurantId: r.restaurantId, guestId: r.guestId! }));
+    const existingMembers = pairs.length > 0
+      ? await prisma.clubMember.findMany({
+          where: { OR: pairs.map(p => ({ restaurantId: p.restaurantId, guestId: p.guestId })) },
+          select: { restaurantId: true, guestId: true, status: true },
+        })
+      : [];
+    const memberMap = new Map(existingMembers.map(e => [`${e.restaurantId}:${e.guestId}`, e.status]));
+
+    // Track duplicate (restaurantId, guestId) pairs — only first is kept
+    const seenPairs = new Set<string>();
+    const excluded: Array<{ reservationId: string; restaurant: string; guestId: string; reason: string; existingMemberStatus: string | null; birthday: string | null; anniversary: string | null; createdAt: string }> = [];
+
+    for (const r of candidates) {
+      const key = `${r.restaurantId}:${r.guestId!}`;
+      const memberStatus = memberMap.get(key) ?? null;
+
+      if (memberStatus !== null) {
+        // Excluded because ClubMember already exists
+        excluded.push({
+          reservationId: r.id,
+          restaurant: r.restaurant.name,
+          guestId: r.guestId!,
+          reason: 'ALREADY_MEMBER',
+          existingMemberStatus: memberStatus,
+          birthday: r.birthday,
+          anniversary: r.anniversary,
+          createdAt: r.createdAt.toISOString().slice(0, 10),
+        });
+      } else if (seenPairs.has(key)) {
+        // Excluded as duplicate — same guestId already queued for creation from an earlier reservation
+        excluded.push({
+          reservationId: r.id,
+          restaurant: r.restaurant.name,
+          guestId: r.guestId!,
+          reason: 'DUPLICATE_PAIR_EARLIER_RESERVATION_WINS',
+          existingMemberStatus: null,
+          birthday: r.birthday,
+          anniversary: r.anniversary,
+          createdAt: r.createdAt.toISOString().slice(0, 10),
+        });
+      } else {
+        seenPairs.add(key);
+      }
+    }
+
+    console.log('[CLUB_BACKFILL_EXCLUDED]', JSON.stringify({
+      totalCandidates: candidates.length,
+      excluded: excluded.length,
+      details: excluded,
+    }));
+  } catch (e) {
+    console.error('[CLUB_BACKFILL_EXCLUDED] error:', e instanceof Error ? e.message : e);
+  }
+}
+
 // ─── TEMPORARY: Backfill dry-run ─────────────────────────────────────────────
 // Remove after reading Render logs.
 async function runClubBackfillDryRun() {
@@ -421,9 +496,10 @@ async function main() {
   await prisma.$connect();
   console.log('[DB] Connected');
 
-  await runAvailabilityDiag();    // TEMPORARY — remove after eataliano audit
-  await runClubMembersAudit();    // TEMPORARY — remove after reading Render logs
-  await runClubBackfillDryRun();  // TEMPORARY — remove after reading Render logs
+  await runAvailabilityDiag();           // TEMPORARY — remove after eataliano audit
+  await runClubMembersAudit();           // TEMPORARY — remove after reading Render logs
+  await runClubBackfillDryRun();         // TEMPORARY — remove after reading Render logs
+  await runClubBackfillExclusionAudit(); // TEMPORARY — remove after reading Render logs
   await maybeBootstrapSuperAdmin();
 
   const server = app.listen(config.port);
