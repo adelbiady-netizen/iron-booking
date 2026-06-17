@@ -95,6 +95,7 @@
       "anniversaryLabel": "Anniversary",
       "dayPlaceholder": "Day",
       "monthPlaceholder": "Month",
+      "smsConsentLabel": "I consent to receive SMS messages from the club about benefits, birthdays and anniversaries",
       "unsubscribeHint": "You can unsubscribe anytime."
     },
     "trust": {

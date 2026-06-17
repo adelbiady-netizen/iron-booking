@@ -478,6 +478,11 @@ const UpdateSettingsSchema = z.object({
   // Online booking limits
   maxOnlinePartySize:         z.number().int().min(1).max(100).optional(),
   maxOnlineCoversPerWindow:   z.number().int().min(1).max(500).optional(),
+  // IRON CLUB — birthday / anniversary SMS automation
+  clubBirthdaySmsEnabled:       z.boolean().optional(),
+  clubAnniversarySmsEnabled:    z.boolean().optional(),
+  clubBirthdaySmsDaysBefore:    z.number().int().min(1).max(30).optional(),
+  clubAnniversarySmsDaysBefore: z.number().int().min(1).max(30).optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings

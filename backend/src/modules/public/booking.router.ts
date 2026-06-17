@@ -589,6 +589,7 @@ export const ReserveSchema = z.object({
   guestNotes: z.string().max(1000).optional(),
   lang:       z.enum(['en', 'he']).optional(),
   marketingOptIn: z.boolean().optional(),
+  smsConsent:     z.boolean().optional(),
   birthday:       z.string().regex(/^\d{2}-\d{2}$/).optional(),
   anniversary:    z.string().regex(/^\d{2}-\d{2}$/).optional(),
 });
@@ -886,7 +887,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
                 birthday:     body.birthday    ?? null,
                 anniversary:  body.anniversary ?? null,
                 marketingConsent: true,
-                smsConsent:      body.lang === 'he', // Hebrew bookings → local number, SMS consent assumed
+                smsConsent:      body.smsConsent === true,
                 emailConsent:    false,
               },
             });

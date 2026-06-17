@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import { sendReservationReminders } from './reminder';
 import { runIntelligenceTick, sendApprovedMoments } from '../modules/intelligence/engine';
 import { runBirthdayEngine } from './birthdayEngine';
+import { runClubBirthdaySmsBatch, runClubAnniversarySmsBatch } from './clubBirthdaySms';
 
 // Next tick starts only after the previous tick fully finishes (recursive setTimeout).
 // This eliminates overlap by design, but the shouldStop flag + kill-switch check are
@@ -90,6 +91,9 @@ async function runSchedulerTick(dryRun: boolean, allowlist: string[] | null): Pr
             console.log(`[scheduler] ${restaurant.name} | intelligence tick done`);
             const bday = await runBirthdayEngine(restaurant.id);
             console.log(`[scheduler] ${restaurant.name} | birthday engine | queued=${bday.queued} skipped=${bday.skipped}`);
+            const bdaySms  = await runClubBirthdaySmsBatch(restaurant.id, dryRun);
+            const annivSms = await runClubAnniversarySmsBatch(restaurant.id, dryRun);
+            console.log(`[scheduler] ${restaurant.name} | club-sms | birthday sent=${bdaySms.sent} skipped=${bdaySms.skipped} | anniversary sent=${annivSms.sent} skipped=${annivSms.skipped}`);
           }
           await sendApprovedMoments(restaurant.id);
         } catch (gicErr) {

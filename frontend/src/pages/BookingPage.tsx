@@ -41,6 +41,7 @@ interface FormState {
   occasion:       string;
   guestNotes:     string;
   marketingOptIn: boolean;
+  smsConsent:     boolean;
   birthday:       string;
   anniversary:    string;
 }
@@ -103,7 +104,7 @@ export default function BookingPage({ slug }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [form,     setForm]           = useState<FormState>({
     guestName: '', guestPhone: '', guestEmail: '', occasion: '', guestNotes: '',
-    marketingOptIn: false, birthday: '', anniversary: '',
+    marketingOptIn: false, smsConsent: false, birthday: '', anniversary: '',
   });
 
   useEffect(() => {
@@ -186,6 +187,7 @@ export default function BookingPage({ slug }: Props) {
         guestNotes:     form.guestNotes.trim() || undefined,
         lang:           locale,
         marketingOptIn: form.marketingOptIn || undefined,
+        smsConsent:     form.marketingOptIn && form.smsConsent ? true : undefined,
         birthday:       form.marketingOptIn && form.birthday ? form.birthday : undefined,
         anniversary:    form.marketingOptIn && form.anniversary ? form.anniversary : undefined,
       });
@@ -1043,13 +1045,19 @@ function GuestForm({ form, onChange, onSubmit }: {
   const { t } = useTranslation();
   const [formTouched, setFormTouched] = useState(false);
 
-  function field(key: Exclude<keyof FormState, 'marketingOptIn'>, value: string) {
+  function field(key: Exclude<keyof FormState, 'marketingOptIn' | 'smsConsent'>, value: string) {
     setFormTouched(true);
     onChange({ ...form, [key]: value });
   }
 
   function toggleMarketing() {
-    onChange({ ...form, marketingOptIn: !form.marketingOptIn });
+    // When unchecking, also reset SMS consent so it doesn't persist silently.
+    const next = !form.marketingOptIn;
+    onChange({ ...form, marketingOptIn: next, smsConsent: next ? form.smsConsent : false });
+  }
+
+  function toggleSmsConsent() {
+    onChange({ ...form, smsConsent: !form.smsConsent });
   }
 
   const isValid = form.guestName.trim().length > 0 && form.guestPhone.trim().length >= 3;
@@ -1154,6 +1162,18 @@ function GuestForm({ form, onChange, onSubmit }: {
               </FieldLabel>
               <MonthDayPicker value={form.anniversary} onChange={v => field('anniversary', v)} />
             </div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.smsConsent}
+                onChange={toggleSmsConsent}
+                className="mt-0.5 shrink-0 w-4 h-4 cursor-pointer"
+                style={{ accentColor: 'var(--pub-brand-color, #4ade80)' }}
+              />
+              <span className="text-[12px] leading-relaxed select-none" style={{ color: 'var(--pub-text-secondary)' }}>
+                {t('booking.guestClub.smsConsentLabel')}
+              </span>
+            </label>
             <p className="text-[11px]" style={{ color: 'var(--pub-text-muted)' }}>
               {t('booking.guestClub.unsubscribeHint')}
             </p>

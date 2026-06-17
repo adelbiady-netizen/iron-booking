@@ -16,6 +16,8 @@ interface WizardSettings {
   autoConfirm: boolean; bufferBetweenTurnsMinutes: number;
   lastSeatingOffset: number; lateThresholdMinutes: number; noShowThresholdMinutes: number;
   maxOnlinePartySize: number; maxOnlineCoversPerWindow: number;
+  clubBirthdaySmsEnabled: boolean; clubAnniversarySmsEnabled: boolean;
+  clubBirthdaySmsDaysBefore: number; clubAnniversarySmsDaysBefore: number;
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
 
@@ -83,6 +85,8 @@ const DEFAULT_SETTINGS: WizardSettings = {
   autoConfirm: false, bufferBetweenTurnsMinutes: 15,
   lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,
   maxOnlinePartySize: 5, maxOnlineCoversPerWindow: 40,
+  clubBirthdaySmsEnabled: false, clubAnniversarySmsEnabled: false,
+  clubBirthdaySmsDaysBefore: 7, clubAnniversarySmsDaysBefore: 10,
 };
 const DEFAULT_USER: WizardUser = { firstName: '', lastName: '', email: '', password: '', role: 'HOST' };
 const DEFAULT_RESTRICTION_FORM: RestrictionForm = { date: '', fullDay: true, startTime: '', endTime: '', reason: '', guestMessage: '' };
@@ -633,8 +637,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         lastSeatingOffset:         Number(s.lastSeatingOffset ?? 60),
         lateThresholdMinutes:      Number(s.lateThresholdMinutes ?? 5),
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
-        maxOnlinePartySize:        Number(s.maxOnlinePartySize ?? 5),
-        maxOnlineCoversPerWindow:  Number(s.maxOnlineCoversPerWindow ?? 40),
+        maxOnlinePartySize:           Number(s.maxOnlinePartySize ?? 5),
+        maxOnlineCoversPerWindow:     Number(s.maxOnlineCoversPerWindow ?? 40),
+        clubBirthdaySmsEnabled:       Boolean(s.clubBirthdaySmsEnabled ?? false),
+        clubAnniversarySmsEnabled:    Boolean(s.clubAnniversarySmsEnabled ?? false),
+        clubBirthdaySmsDaysBefore:    Number(s.clubBirthdaySmsDaysBefore ?? 7),
+        clubAnniversarySmsDaysBefore: Number(s.clubAnniversarySmsDaysBefore ?? 10),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
       setSmsForm({
@@ -1400,6 +1408,34 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <p className="text-xs text-iron-muted mt-1">מגביל רק הזמנות שהגיעו מהאתר, לא הזמנות טלפוניות או ידניות</p>
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-iron-muted mb-1">SMS יום הולדת (מועדון)</label>
+            <div className="flex items-center gap-3 mt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={s.clubBirthdaySmsEnabled} onChange={e => set('clubBirthdaySmsEnabled')(e.target.checked)} className="accent-iron-green w-4 h-4" />
+                <span className="text-sm text-iron-text">מופעל</span>
+              </label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-iron-muted">ימים לפני:</span>
+                <NumInput value={s.clubBirthdaySmsDaysBefore} onChange={set('clubBirthdaySmsDaysBefore') as (v: number) => void} min={1} max={30} />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-iron-muted mb-1">SMS יום נישואים (מועדון)</label>
+            <div className="flex items-center gap-3 mt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={s.clubAnniversarySmsEnabled} onChange={e => set('clubAnniversarySmsEnabled')(e.target.checked)} className="accent-iron-green w-4 h-4" />
+                <span className="text-sm text-iron-text">מופעל</span>
+              </label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-iron-muted">ימים לפני:</span>
+                <NumInput value={s.clubAnniversarySmsDaysBefore} onChange={set('clubAnniversarySmsDaysBefore') as (v: number) => void} min={1} max={30} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1652,6 +1688,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 ['סף אי-הופעה',         `${s.noShowThresholdMinutes ?? 15}דק׳`],
                 ['מקס׳ סועדים אונליין', String(s.maxOnlinePartySize ?? 5)],
                 ['מקס׳ סועדים בחלון',  String(s.maxOnlineCoversPerWindow ?? 40)],
+                ['SMS יום הולדת',      s.clubBirthdaySmsEnabled ? `מופעל (${s.clubBirthdaySmsDaysBefore ?? 7} ימים לפני)` : 'כבוי'],
+                ['SMS יום נישואים',    s.clubAnniversarySmsEnabled ? `מופעל (${s.clubAnniversarySmsDaysBefore ?? 10} ימים לפני)` : 'כבוי'],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-iron-muted text-xs mb-0.5">{k}</dt>

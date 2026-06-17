@@ -97,6 +97,7 @@
       "anniversaryLabel": "יום נישואין",
       "dayPlaceholder": "יום",
       "monthPlaceholder": "חודש",
+      "smsConsentLabel": "אני מאשר/ת לקבל הודעות SMS מהמועדון לגבי הטבות, ימי הולדת וימי נישואים",
       "unsubscribeHint": "ניתן לבטל את המנוי בכל עת."
     },
     "trust": {
