@@ -352,6 +352,64 @@ async function runClubMembersAudit() {
   }
 }
 
+// ─── TEMPORARY: Backfill dry-run ─────────────────────────────────────────────
+// Remove after reading Render logs.
+async function runClubBackfillDryRun() {
+  try {
+    const { ClubJoinSource } = await import('@prisma/client');
+    void ClubJoinSource; // type-only reference
+
+    const candidates = await prisma.reservation.findMany({
+      where: { source: 'ONLINE', marketingOptIn: true, guestId: { not: null } },
+      select: {
+        restaurantId: true,
+        guestId:      true,
+        birthday:     true,
+        anniversary:  true,
+        restaurant:   { select: { name: true } },
+      },
+    });
+
+    const pairs = candidates.map(r => ({ restaurantId: r.restaurantId, guestId: r.guestId! }));
+    const existing = pairs.length > 0
+      ? await prisma.clubMember.findMany({
+          where: { OR: pairs.map(p => ({ restaurantId: p.restaurantId, guestId: p.guestId })) },
+          select: { restaurantId: true, guestId: true },
+        })
+      : [];
+    const existingSet = new Set(existing.map(e => `${e.restaurantId}:${e.guestId}`));
+
+    const toCreate = candidates.filter(r => !existingSet.has(`${r.restaurantId}:${r.guestId!}`));
+
+    // Deduplicate per (restaurantId, guestId) — same logic as the write script
+    const seen = new Set<string>();
+    const deduped = toCreate.filter(r => {
+      const key = `${r.restaurantId}:${r.guestId!}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const byRestaurant: Record<string, { name: string; count: number }> = {};
+    for (const r of deduped) {
+      const entry = byRestaurant[r.restaurantId] ?? { name: r.restaurant.name, count: 0 };
+      entry.count++;
+      byRestaurant[r.restaurantId] = entry;
+    }
+
+    console.log('[CLUB_BACKFILL_DRY_RUN]', JSON.stringify({
+      totalCandidates:      candidates.length,
+      alreadyMembers:       candidates.length - toCreate.length,
+      wouldCreate:          deduped.length,
+      withBirthday:         deduped.filter(r => r.birthday).length,
+      withAnniversary:      deduped.filter(r => r.anniversary).length,
+      byRestaurant:         Object.values(byRestaurant).map(v => ({ restaurant: v.name, wouldCreate: v.count })),
+    }));
+  } catch (e) {
+    console.error('[CLUB_BACKFILL_DRY_RUN] error:', e instanceof Error ? e.message : e);
+  }
+}
+
 async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
@@ -363,8 +421,9 @@ async function main() {
   await prisma.$connect();
   console.log('[DB] Connected');
 
-  await runAvailabilityDiag(); // TEMPORARY — remove after eataliano audit
-  await runClubMembersAudit(); // TEMPORARY — remove after reading Render logs
+  await runAvailabilityDiag();    // TEMPORARY — remove after eataliano audit
+  await runClubMembersAudit();    // TEMPORARY — remove after reading Render logs
+  await runClubBackfillDryRun();  // TEMPORARY — remove after reading Render logs
   await maybeBootstrapSuperAdmin();
 
   const server = app.listen(config.port);
