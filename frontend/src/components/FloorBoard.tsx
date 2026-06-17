@@ -3183,12 +3183,14 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
         .filter(r => !hasGuest || !displayRes || r.id !== displayRes.id)
         .filter(r => {
           if (inNewResPick || inPlanningMode) {
-            // Planning mode: only turns whose START is strictly after the board time.
-            // Overlapping turns are already shown as boardActiveRes inside the card.
+            // Planning mode: show any turn whose window covers or starts after board time.
+            // Turns already shown as displayRes are excluded by the preceding id-filter.
             // If boardMinutes is unknown, show nothing.
+            // Note: occupied tables show currentRes as displayRes, not boardActiveRes, so
+            // a reservation exactly at boardMinutes must still surface as a pill here.
             if (boardMinutes === null || !r.time) return false;
             const [h, m] = r.time.split(':').map(Number);
-            return (h * 60 + m) > boardMinutes;
+            return (h * 60 + m + (r.duration ?? 90)) > boardMinutes;
           }
           // Live mode: show anything that hasn't fully ended yet.
           if (boardMinutes === null || !r.time) return true;
