@@ -110,9 +110,13 @@ export default function TopBar({
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const [calendarPos, setCalendarPos] = useState<{ top: number; left: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
+  const settingsRef    = useRef<HTMLDivElement>(null);
+  const settingsBtnRef = useRef<HTMLButtonElement>(null);
+  const [settingsPos, setSettingsPos] = useState<{ top: number; right: number } | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef    = useRef<HTMLDivElement>(null);
+  const userMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const [userMenuPos, setUserMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   function readClock(): string {
     const d = new Date();
@@ -165,8 +169,14 @@ export default function TopBar({
     if (!settingsOpen && !userMenuOpen) return;
     function onPointer(e: MouseEvent) {
       const t = e.target as Node;
-      if (settingsRef.current && !settingsRef.current.contains(t)) setSettingsOpen(false);
-      if (userMenuRef.current && !userMenuRef.current.contains(t)) setUserMenuOpen(false);
+      if (settingsRef.current && !settingsRef.current.contains(t)) {
+        setSettingsOpen(false);
+        setSettingsPos(null);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(t)) {
+        setUserMenuOpen(false);
+        setUserMenuPos(null);
+      }
     }
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
@@ -328,7 +338,15 @@ export default function TopBar({
       {/* ── Settings menu: language + theme ──────────────────────── */}
       <div className="relative shrink-0" ref={settingsRef}>
         <button
-          onClick={() => { setSettingsOpen(o => !o); setUserMenuOpen(false); }}
+          ref={settingsBtnRef}
+          onClick={() => {
+            if (!settingsOpen && settingsBtnRef.current) {
+              const r = settingsBtnRef.current.getBoundingClientRect();
+              setSettingsPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+            }
+            setSettingsOpen(o => !o);
+            setUserMenuOpen(false);
+          }}
           title={T.topBar.settings}
           aria-haspopup="menu"
           aria-expanded={settingsOpen}
@@ -336,11 +354,11 @@ export default function TopBar({
         >
           <GearIcon />
         </button>
-        {settingsOpen && (
+        {settingsOpen && settingsPos && (
           <div
             dir="rtl"
-            className="absolute end-0 top-full mt-2 z-50 min-w-[200px] rounded-xl border border-iron-border/50 bg-iron-elevated p-2"
-            style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+            className="z-[9999] min-w-[200px] rounded-xl border border-iron-border/50 bg-iron-elevated p-2"
+            style={{ position: 'fixed', top: settingsPos.top, right: settingsPos.right, boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
           >
             <div className="flex items-center justify-between gap-2 px-1.5 py-1.5">
               <span className="text-iron-muted/70 text-[11px] font-medium">{T.topBar.language}</span>
@@ -400,7 +418,15 @@ export default function TopBar({
         {/* ── User menu: identity + switch host + logout ──────────── */}
         <div className="relative shrink-0" ref={userMenuRef}>
           <button
-            onClick={() => { setUserMenuOpen(o => !o); setSettingsOpen(false); }}
+            ref={userMenuBtnRef}
+            onClick={() => {
+              if (!userMenuOpen && userMenuBtnRef.current) {
+                const r = userMenuBtnRef.current.getBoundingClientRect();
+                setUserMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+              }
+              setUserMenuOpen(o => !o);
+              setSettingsOpen(false);
+            }}
             aria-haspopup="menu"
             aria-expanded={userMenuOpen}
             className={`flex items-center gap-2 rounded-lg ps-1.5 pe-2 py-1 border transition-colors ${userMenuOpen ? 'bg-iron-bg/60 border-iron-border/45' : 'border-transparent hover:bg-iron-bg/60 hover:border-iron-border/35'}`}
@@ -416,11 +442,11 @@ export default function TopBar({
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
-          {userMenuOpen && (
+          {userMenuOpen && userMenuPos && (
             <div
               dir="rtl"
-              className="absolute end-0 top-full mt-2 z-50 min-w-[200px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
-              style={{ boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+              className="z-[9999] min-w-[200px] rounded-xl border border-iron-border/50 bg-iron-elevated py-1.5"
+              style={{ position: 'fixed', top: userMenuPos.top, right: userMenuPos.right, boxShadow: '0 14px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}
             >
               <div className="px-3.5 py-2 mb-1 border-b border-iron-border/30 lg:hidden">
                 <p className="text-iron-text/85 text-xs font-semibold">{userName}</p>
