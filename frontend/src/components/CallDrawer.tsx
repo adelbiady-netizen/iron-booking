@@ -267,7 +267,7 @@ export default function CallDrawer({
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-iron-text font-semibold text-sm">
-                              {new Date(r.date + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              {new Date(r.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'short', month: 'short', day: 'numeric' })}
                             </p>
                             <p className="text-iron-muted text-xs mt-0.5">
                               {normalizeTime(r.time)}
@@ -303,7 +303,7 @@ export default function CallDrawer({
                         {T.callDrawer.lastVisit}
                       </p>
                       <p className="text-iron-text text-xs">
-                        {new Date(lastRes.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        {new Date(lastRes.date.slice(0, 10) + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}
                         {lastRes.table && (
                           <span className="text-iron-muted"> · {lastRes.table.name}</span>
                         )}
