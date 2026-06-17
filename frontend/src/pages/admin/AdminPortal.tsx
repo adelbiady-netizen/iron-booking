@@ -1781,20 +1781,47 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   </div>
 
                   {!!s.clubBirthdaySmsEnabled && (
-                    <div className="flex items-center justify-between ps-4">
-                      <p className="text-xs text-iron-muted">כמה ימים לפני יום ההולדת?</p>
-                      <div className="flex items-center gap-2">
+                    <div className="space-y-2 ps-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-iron-muted">כמה ימים לפני?</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number" min={1} max={30}
+                            defaultValue={Number(s.clubBirthdaySmsDaysBefore ?? 7)}
+                            className="w-16 bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text text-center focus:outline-none focus:border-iron-green"
+                            onBlur={async (e) => {
+                              const v = Math.max(1, Math.min(30, Number(e.target.value) || 7));
+                              e.target.value = String(v);
+                              try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsDaysBefore: v }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                            }}
+                          />
+                          <span className="text-xs text-iron-muted">ימים</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-iron-muted mb-1">הטבה:</p>
                         <input
-                          type="number" min={1} max={30}
-                          defaultValue={Number(s.clubBirthdaySmsDaysBefore ?? 7)}
-                          className="w-16 bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text text-center focus:outline-none focus:border-iron-green"
+                          type="text"
+                          defaultValue={(s.clubBirthdaySmsGift as string) ?? ''}
+                          placeholder="קינוח מתנה"
+                          className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green"
                           onBlur={async (e) => {
-                            const v = Math.max(1, Math.min(30, Number(e.target.value) || 7));
-                            e.target.value = String(v);
-                            try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsDaysBefore: v }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                            try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsGift: e.target.value.trim() }); await loadDetail(selectedId!); } catch { /* ignore */ }
                           }}
                         />
-                        <span className="text-xs text-iron-muted">ימים</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-iron-muted mb-1">נוסח ההודעה:</p>
+                        <textarea
+                          defaultValue={(s.clubBirthdaySmsTemplate as string) ?? ''}
+                          placeholder={`היי {firstName}, יום ההולדת שלך מתקרב 🎉\nב־{restaurantName} נשמח לחגוג איתך.\nהטבה: {gift}.`}
+                          rows={3}
+                          className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1.5 text-sm text-iron-text focus:outline-none focus:border-iron-green resize-none"
+                          onBlur={async (e) => {
+                            try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsTemplate: e.target.value.trim() }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                          }}
+                        />
+                        <p className="text-[11px] text-iron-muted mt-0.5">משתנים: {'{firstName}'} {'{restaurantName}'} {'{gift}'}</p>
                       </div>
                     </div>
                   )}
@@ -1821,20 +1848,47 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   </div>
 
                   {!!s.clubAnniversarySmsEnabled && (
-                    <div className="flex items-center justify-between ps-4">
-                      <p className="text-xs text-iron-muted">כמה ימים לפני יום הנישואים?</p>
-                      <div className="flex items-center gap-2">
+                    <div className="space-y-2 ps-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-iron-muted">כמה ימים לפני?</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number" min={1} max={30}
+                            defaultValue={Number(s.clubAnniversarySmsDaysBefore ?? 10)}
+                            className="w-16 bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text text-center focus:outline-none focus:border-iron-green"
+                            onBlur={async (e) => {
+                              const v = Math.max(1, Math.min(30, Number(e.target.value) || 10));
+                              e.target.value = String(v);
+                              try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsDaysBefore: v }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                            }}
+                          />
+                          <span className="text-xs text-iron-muted">ימים</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-iron-muted mb-1">הטבה:</p>
                         <input
-                          type="number" min={1} max={30}
-                          defaultValue={Number(s.clubAnniversarySmsDaysBefore ?? 10)}
-                          className="w-16 bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text text-center focus:outline-none focus:border-iron-green"
+                          type="text"
+                          defaultValue={(s.clubAnniversarySmsGift as string) ?? ''}
+                          placeholder="2 כוסות יין הבית או 2 קוקטיילים"
+                          className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green"
                           onBlur={async (e) => {
-                            const v = Math.max(1, Math.min(30, Number(e.target.value) || 10));
-                            e.target.value = String(v);
-                            try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsDaysBefore: v }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                            try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsGift: e.target.value.trim() }); await loadDetail(selectedId!); } catch { /* ignore */ }
                           }}
                         />
-                        <span className="text-xs text-iron-muted">ימים</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-iron-muted mb-1">נוסח ההודעה:</p>
+                        <textarea
+                          defaultValue={(s.clubAnniversarySmsTemplate as string) ?? ''}
+                          placeholder={`היי {firstName}, יום הנישואים שלכם מתקרב ❤️\nב־{restaurantName} נשמח לארח אתכם לערב מיוחד.\nהטבה: {gift}.`}
+                          rows={3}
+                          className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1.5 text-sm text-iron-text focus:outline-none focus:border-iron-green resize-none"
+                          onBlur={async (e) => {
+                            try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsTemplate: e.target.value.trim() }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                          }}
+                        />
+                        <p className="text-[11px] text-iron-muted mt-0.5">משתנים: {'{firstName}'} {'{restaurantName}'} {'{gift}'}</p>
                       </div>
                     </div>
                   )}

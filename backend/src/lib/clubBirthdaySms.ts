@@ -24,8 +24,20 @@ interface BatchParams {
   defaultDaysBefore: number;
   field:             'birthday' | 'anniversary';
   messageType:       MessageType;
-  buildMessage:      (firstName: string, restaurantName: string) => string;
+  templateKey:       string;
+  giftKey:           string;
+  defaultTemplate:   (firstName: string, restaurantName: string, gift: string) => string;
   dryRun:            boolean;
+}
+
+function applyTemplate(
+  tpl: string,
+  vars: { firstName: string; restaurantName: string; gift: string },
+): string {
+  return tpl
+    .replace(/\{firstName\}/g,      vars.firstName)
+    .replace(/\{restaurantName\}/g, vars.restaurantName)
+    .replace(/\{gift\}/g,           vars.gift);
 }
 
 async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped: number }> {
@@ -87,7 +99,11 @@ async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped:
     if (already) { skipped++; continue; }
 
     const firstName = member.guest.firstName ?? 'אורח';
-    const message   = p.buildMessage(firstName, restaurant.name);
+    const gift      = typeof s[p.giftKey] === 'string' ? (s[p.giftKey] as string).trim() : '';
+    const tpl       = typeof s[p.templateKey] === 'string' ? (s[p.templateKey] as string).trim() : '';
+    const message   = tpl
+      ? applyTemplate(tpl, { firstName, restaurantName: restaurant.name, gift })
+      : p.defaultTemplate(firstName, restaurant.name, gift);
 
     if (p.dryRun) {
       const masked = `${phone.slice(0, 3)}****${phone.slice(-3)}`;
@@ -130,8 +146,12 @@ export async function runClubBirthdaySmsBatch(
     defaultDaysBefore: 7,
     field:             'birthday',
     messageType:       MessageType.BIRTHDAY,
-    buildMessage: (firstName, restaurantName) =>
-      `היי ${firstName}, יום ההולדת שלך מתקרב 🎉\nב־${restaurantName} נשמח לחגוג איתך ולהעניק לך קינוח מתנה בהזמנה מראש.`,
+    templateKey:       'clubBirthdaySmsTemplate',
+    giftKey:           'clubBirthdaySmsGift',
+    defaultTemplate: (firstName, restaurantName, gift) => {
+      const giftLine = gift ? `\nהטבה: ${gift}.` : '';
+      return `היי ${firstName}, יום ההולדת שלך מתקרב 🎉\nב־${restaurantName} נשמח לחגוג איתך.${giftLine}`;
+    },
     dryRun,
   });
 }
@@ -147,8 +167,12 @@ export async function runClubAnniversarySmsBatch(
     defaultDaysBefore: 10,
     field:             'anniversary',
     messageType:       MessageType.ANNIVERSARY,
-    buildMessage: (firstName, restaurantName) =>
-      `היי ${firstName}, יום הנישואים שלכם מתקרב ❤️\nב־${restaurantName} נשמח לארח אתכם לערב מיוחד עם קינוח זוגי מתנה בהזמנה מראש.`,
+    templateKey:       'clubAnniversarySmsTemplate',
+    giftKey:           'clubAnniversarySmsGift',
+    defaultTemplate: (firstName, restaurantName, gift) => {
+      const giftLine = gift ? `\nהטבה: ${gift}.` : '';
+      return `היי ${firstName}, יום הנישואים שלכם מתקרב ❤️\nב־${restaurantName} נשמח לארח אתכם לערב מיוחד.${giftLine}`;
+    },
     dryRun,
   });
 }

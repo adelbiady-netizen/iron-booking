@@ -479,10 +479,14 @@ const UpdateSettingsSchema = z.object({
   maxOnlinePartySize:         z.number().int().min(1).max(100).optional(),
   maxOnlineCoversPerWindow:   z.number().int().min(1).max(500).optional(),
   // IRON CLUB — birthday / anniversary SMS automation
-  clubBirthdaySmsEnabled:       z.boolean().optional(),
-  clubAnniversarySmsEnabled:    z.boolean().optional(),
-  clubBirthdaySmsDaysBefore:    z.number().int().min(1).max(30).optional(),
-  clubAnniversarySmsDaysBefore: z.number().int().min(1).max(30).optional(),
+  clubBirthdaySmsEnabled:         z.boolean().optional(),
+  clubAnniversarySmsEnabled:      z.boolean().optional(),
+  clubBirthdaySmsDaysBefore:      z.number().int().min(1).max(30).optional(),
+  clubAnniversarySmsDaysBefore:   z.number().int().min(1).max(30).optional(),
+  clubBirthdaySmsGift:            z.string().max(200).optional(),
+  clubBirthdaySmsTemplate:        z.string().max(500).optional(),
+  clubAnniversarySmsGift:         z.string().max(200).optional(),
+  clubAnniversarySmsTemplate:     z.string().max(500).optional(),
 });
 
 // PATCH /admin/restaurants/:id/settings
