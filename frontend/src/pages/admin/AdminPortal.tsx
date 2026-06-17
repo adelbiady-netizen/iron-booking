@@ -15,6 +15,7 @@ interface WizardSettings {
   defaultTurnMinutes: number; slotIntervalMinutes: number; maxPartySize: number;
   autoConfirm: boolean; bufferBetweenTurnsMinutes: number;
   lastSeatingOffset: number; lateThresholdMinutes: number; noShowThresholdMinutes: number;
+  maxOnlinePartySize: number; maxOnlineCoversPerWindow: number;
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
 
@@ -81,6 +82,7 @@ const DEFAULT_SETTINGS: WizardSettings = {
   defaultTurnMinutes: 90, slotIntervalMinutes: 30, maxPartySize: 20,
   autoConfirm: false, bufferBetweenTurnsMinutes: 15,
   lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,
+  maxOnlinePartySize: 5, maxOnlineCoversPerWindow: 40,
 };
 const DEFAULT_USER: WizardUser = { firstName: '', lastName: '', email: '', password: '', role: 'HOST' };
 const DEFAULT_RESTRICTION_FORM: RestrictionForm = { date: '', fullDay: true, startTime: '', endTime: '', reason: '', guestMessage: '' };
@@ -631,6 +633,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         lastSeatingOffset:         Number(s.lastSeatingOffset ?? 60),
         lateThresholdMinutes:      Number(s.lateThresholdMinutes ?? 5),
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
+        maxOnlinePartySize:        Number(s.maxOnlinePartySize ?? 5),
+        maxOnlineCoversPerWindow:  Number(s.maxOnlineCoversPerWindow ?? 40),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
       setSmsForm({
@@ -1384,6 +1388,18 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <NumInput value={s.noShowThresholdMinutes} onChange={set('noShowThresholdMinutes') as (v: number) => void} min={5} max={120} />
           </Field>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-iron-muted mb-1">מקסימום סועדים להזמנה אונליין</label>
+            <NumInput value={s.maxOnlinePartySize} onChange={set('maxOnlinePartySize') as (v: number) => void} min={1} max={100} />
+            <p className="text-xs text-iron-muted mt-1">מעל מספר זה האורח יתבקש ליצור קשר עם המסעדה</p>
+          </div>
+          <div>
+            <label className="block text-xs text-iron-muted mb-1">מקסימום סועדים אונליין בחלון זמן</label>
+            <NumInput value={s.maxOnlineCoversPerWindow} onChange={set('maxOnlineCoversPerWindow') as (v: number) => void} min={1} max={500} />
+            <p className="text-xs text-iron-muted mt-1">מגביל רק הזמנות שהגיעו מהאתר, לא הזמנות טלפוניות או ידניות</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1634,6 +1650,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 ['קיזוז ישיבה אחרונה',  `${s.lastSeatingOffset ?? 60}דק׳`],
                 ['סף איחור',            `${s.lateThresholdMinutes ?? 5}דק׳`],
                 ['סף אי-הופעה',         `${s.noShowThresholdMinutes ?? 15}דק׳`],
+                ['מקס׳ סועדים אונליין', String(s.maxOnlinePartySize ?? 5)],
+                ['מקס׳ סועדים בחלון',  String(s.maxOnlineCoversPerWindow ?? 40)],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-iron-muted text-xs mb-0.5">{k}</dt>
