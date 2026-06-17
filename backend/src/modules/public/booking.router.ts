@@ -116,7 +116,7 @@ async function computePublicSlots(
   const queryEnd   = addMinutes(addMinutes(lastSlot, durationMinutes), bufferMinutes);
 
   // Single-pass data fetch
-  const [tables, reservations, blocks, restrictions] = await Promise.all([
+  const [tables, combinations, reservations, blocks, restrictions] = await Promise.all([
     prisma.table.findMany({
       where: {
         restaurantId,
@@ -127,6 +127,19 @@ async function computePublicSlots(
       },
       select:  { id: true, maxCovers: true },
       orderBy: { maxCovers: 'asc' },
+    }),
+    prisma.tableCombination.findMany({
+      where: {
+        restaurantId,
+        isActive:  true,
+        minCovers: { lte: partySize },
+        maxCovers: { gte: partySize },
+      },
+      select: {
+        id: true, tableAId: true, tableBId: true, maxCovers: true,
+        tableA: { select: { isActive: true, locked: true } },
+        tableB: { select: { isActive: true, locked: true } },
+      },
     }),
     prisma.reservation.findMany({
       where: {
@@ -151,7 +164,13 @@ async function computePublicSlots(
     }),
   ]);
 
-  if (tables.length === 0) return [];
+  // Combinations where both component tables are active and unlocked
+  const validCombinations = combinations.filter(c => c.tableA.isActive && !c.tableA.locked && c.tableB.isActive && !c.tableB.locked);
+
+  if (tables.length === 0 && validCombinations.length === 0) {
+    console.log('[NO_CAPACITY_FOR_PARTY_SIZE]', { restaurantId, partySize, singleTables: 0, combinations: 0 });
+    return [];
+  }
 
   const restaurantBlocks   = blocks.filter(b => b.tableId === null);
   const lastSeatingMinutes = timeToMinutes(lastSeating);
@@ -195,7 +214,7 @@ async function computePublicSlots(
       continue;
     }
 
-    // Count available tables, tracking best-fit for scoring
+    // Count available single tables, tracking best-fit for scoring
     let availableCount   = 0;
     let bestFitMaxCovers = Infinity;
     for (const table of tables) {
@@ -214,6 +233,27 @@ async function computePublicSlots(
       if (!hasConflict) {
         availableCount++;
         if (table.maxCovers < bestFitMaxCovers) bestFitMaxCovers = table.maxCovers;
+      }
+    }
+
+    // Count available combinations (both component tables must be free)
+    for (const combo of validCombinations) {
+      const componentIds = [combo.tableAId, combo.tableBId];
+      const anyBlocked = componentIds.some(tid =>
+        blocks.some(b => b.tableId === tid && areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))
+      );
+      if (anyBlocked) continue;
+      const anyConflict = componentIds.some(tid =>
+        reservations.some(r => {
+          if (r.tableId !== tid) return false;
+          const rStart = parseTimeOnDate(date, r.time);
+          const rEnd   = addMinutes(rStart, r.duration);
+          return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
+        })
+      );
+      if (!anyConflict) {
+        availableCount++;
+        if (combo.maxCovers < bestFitMaxCovers) bestFitMaxCovers = combo.maxCovers;
       }
     }
 
@@ -352,19 +392,43 @@ async function executeBookingTransaction(
     // Re-read availability inside the transaction — this is what makes
     // serializable isolation meaningful: both transactions read the same
     // committed state, and one will lose the serialization check.
-    const tables = await tx.table.findMany({
-      where: {
-        restaurantId,
-        isActive:  true,
-        locked:    false,
-        minCovers: { lte: partySize },
-        maxCovers: { gte: partySize },
-      },
-      select:  { id: true, maxCovers: true },
-      orderBy: { maxCovers: 'asc' }, // smallest viable table first
-    });
+    const [tables, combinations] = await Promise.all([
+      tx.table.findMany({
+        where: {
+          restaurantId,
+          isActive:  true,
+          locked:    false,
+          minCovers: { lte: partySize },
+          maxCovers: { gte: partySize },
+        },
+        select:  { id: true, maxCovers: true },
+        orderBy: { maxCovers: 'asc' }, // smallest viable table first
+      }),
+      tx.tableCombination.findMany({
+        where: {
+          restaurantId,
+          isActive:  true,
+          minCovers: { lte: partySize },
+          maxCovers: { gte: partySize },
+        },
+        select: {
+          id: true, tableAId: true, tableBId: true, maxCovers: true,
+          tableA: { select: { isActive: true, locked: true } },
+          tableB: { select: { isActive: true, locked: true } },
+        },
+        orderBy: { maxCovers: 'asc' },
+      }),
+    ]);
 
-    if (tables.length === 0) throw new SlotTakenError();
+    const validCombinations = combinations.filter(c => c.tableA.isActive && !c.tableA.locked && c.tableB.isActive && !c.tableB.locked);
+
+    if (tables.length === 0 && validCombinations.length === 0) throw new SlotTakenError();
+
+    // Fetch all reservations touching these tables (single + combination components)
+    const allTableIds = [
+      ...tables.map(t => t.id),
+      ...validCombinations.flatMap(c => [c.tableAId, c.tableBId]),
+    ];
 
     const [reservations, blocks] = await Promise.all([
       tx.reservation.findMany({
@@ -372,7 +436,7 @@ async function executeBookingTransaction(
           restaurantId,
           date,
           status:  { in: ['CONFIRMED', 'SEATED', 'PENDING'] },
-          tableId: { in: tables.map(t => t.id) },
+          tableId: { in: [...new Set(allTableIds)] },
         },
         select: { tableId: true, time: true, duration: true },
       }),
@@ -392,7 +456,7 @@ async function executeBookingTransaction(
       throw new SlotTakenError();
     }
 
-    // Find best-fit available table
+    // Find best-fit available single table first
     const bestTable = tables.find(table => {
       if (blocks.some(b => b.tableId === table.id &&
           areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))) {
@@ -406,7 +470,24 @@ async function executeBookingTransaction(
       });
     });
 
-    if (!bestTable) throw new SlotTakenError();
+    // Fall back to a combination if no single table is free
+    const bestCombo = !bestTable ? validCombinations.find(combo => {
+      const componentIds = [combo.tableAId, combo.tableBId];
+      const anyBlocked = componentIds.some(tid =>
+        blocks.some(b => b.tableId === tid && areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))
+      );
+      if (anyBlocked) return false;
+      return !componentIds.some(tid =>
+        reservations.some(r => {
+          if (r.tableId !== tid) return false;
+          const rStart = parseTimeOnDate(date, r.time);
+          const rEnd   = addMinutes(rStart, r.duration);
+          return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
+        })
+      );
+    }) : undefined;
+
+    if (!bestTable && !bestCombo) throw new SlotTakenError();
 
     // Total-covers guard — prevents restaurant-level overbooking across all tables
     if (maxOnlineCoversPerWindow !== undefined) {
@@ -433,10 +514,14 @@ async function executeBookingTransaction(
     }
 
     // Create the reservation — table is assigned atomically
+    const assignedTableId      = bestTable ? bestTable.id : bestCombo!.tableAId;
+    const assignedCombinedIds  = bestCombo  ? [bestCombo.tableBId]  : [];
+
     const reservation = await tx.reservation.create({
       data: {
         restaurantId,
-        tableId:           bestTable.id,
+        tableId:           assignedTableId,
+        combinedTableIds:  assignedCombinedIds,
         partySize,
         date,
         time,
@@ -469,7 +554,8 @@ async function executeBookingTransaction(
       SET details = ${JSON.stringify({
         toStatus: 'PENDING', source: 'ONLINE',
         partySize, date: date.toISOString().split('T')[0],
-        time, guestName: guest.guestName, tableId: bestTable.id,
+        time, guestName: guest.guestName, tableId: assignedTableId,
+        combinedTableIds: assignedCombinedIds,
         occasion: guest.occasion ?? null,
       })}::jsonb
       WHERE id = ${actLog.id}
