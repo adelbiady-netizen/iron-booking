@@ -202,15 +202,90 @@ async function runAvailabilityDiag() {
       availCombo.length  > 0  ? `AVAILABLE_COMBO:${availCombo.map(c => c.name).join(',')}` :
       'NO_AVAILABILITY';
 
+    // ── Simulate POST /reserve precondition checks (no actual reservation created) ──
+
+    // 1. maxOnlinePartySize gate (same formula as reserve endpoint)
+    const reserveBlock_partySize = PARTY > maxOnlineParty
+      ? `ONLINE_PARTY_SIZE_LIMIT (partySize=${PARTY} > maxOnlinePartySize=${maxOnlineParty})`
+      : null;
+
+    // 2. Online booking restriction (same query as reserve endpoint)
+    const reserveOnlineBlock = await prisma.onlineBookingRestriction.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        date: DATE_STR,
+        isActive: true,
+        OR: [
+          { startTime: null },
+          { endTime: null },
+          { startTime: { lte: TIME_STR }, endTime: { gt: TIME_STR } },
+        ],
+      },
+      select: { startTime: true, endTime: true, guestMessage: true },
+    });
+    const reserveBlock_onlineRestriction = reserveOnlineBlock
+      ? `ONLINE_BOOKING_BLOCKED (${JSON.stringify(reserveOnlineBlock)})`
+      : null;
+
+    // 3. maxOnlineCoversPerWindow gate
+    const rawMaxCoversPerWindow = (raw['maxOnlineCoversPerWindow'] as number) ?? 40;
+    const slotWindowRes = await prisma.reservation.findMany({
+      where: {
+        restaurantId: restaurant.id,
+        date,
+        status: { in: ['CONFIRMED', 'SEATED', 'PENDING'] },
+      },
+      select: { time: true, duration: true, partySize: true },
+    });
+    const runningCovers = slotWindowRes.filter(r => {
+      const rStart = parseTimeOnDate(date, r.time);
+      const rEnd   = addMinutes(rStart, r.duration);
+      return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
+    }).reduce((sum, r) => sum + r.partySize, 0);
+    const reserveBlock_covers = (runningCovers + PARTY) > rawMaxCoversPerWindow
+      ? `ONLINE_CAPACITY_LIMIT (runningCovers=${runningCovers} + partySize=${PARTY} = ${runningCovers + PARTY} > maxOnlineCoversPerWindow=${rawMaxCoversPerWindow})`
+      : null;
+
+    // 4. Lead time gate
+    const now = new Date();
+    const minAdvanceHours = (raw['minAdvanceBookingHours'] as number) ?? 2;
+    const minBookingTime  = addMinutes(now, minAdvanceHours * 60);
+    const reserveBlock_leadTime = slotStart < minBookingTime
+      ? `TOO_SOON (slot=${slotStart.toISOString()} < minBookingTime=${minBookingTime.toISOString()})`
+      : null;
+
+    // 5. Table/combination availability inside transaction simulation
+    const availableSingleForReserve = tableDiag.filter(t => t.available);
+    const availableComboForReserve  = comboDiag.filter(c => c.available);
+    const reserveBlock_noTable = availableSingleForReserve.length === 0 && availableComboForReserve.length === 0
+      ? 'SLOT_TAKEN (no available table or combination)'
+      : null;
+
+    const firstReserveBlock =
+      reserveBlock_partySize ??
+      reserveBlock_onlineRestriction ??
+      reserveBlock_covers ??
+      reserveBlock_leadTime ??
+      reserveBlock_noTable ??
+      null;
+
     console.log('[AVAIL_DIAG]', JSON.stringify({
       query: { slug: SLUG, date: DATE_STR, time: TIME_STR, partySize: PARTY, dayOfWeek, isOpen: hours?.isOpen, openTime: hours?.openTime, lastSeating: hours?.lastSeating },
-      settings: { durationMinutes, bufferMinutes, maxOnlineParty },
+      settings: { durationMinutes, bufferMinutes, maxOnlineParty, maxOnlineCoversPerWindow: rawMaxCoversPerWindow, minAdvanceHours },
       slotWindow: { effStart: effStart.toISOString(), effEnd: effEnd.toISOString() },
       tables:       tableDiag,
       combinations: comboDiag,
       reservationsOnDay: reservations.map(r => ({ tableId: r.tableId, name: r.guestName, time: r.time, dur: r.duration, ps: r.partySize, status: r.status })),
       onlineBlock:  onlineBlock ?? null,
-      verdict,
+      verdict_GET_availability: verdict,
+      reserve_checks: {
+        partySize:          reserveBlock_partySize          ?? 'PASS',
+        onlineRestriction:  reserveBlock_onlineRestriction  ?? 'PASS',
+        coversWindow:       reserveBlock_covers             ?? `PASS (runningCovers=${runningCovers}/${rawMaxCoversPerWindow})`,
+        leadTime:           reserveBlock_leadTime           ?? `PASS (slot is ${Math.round((slotStart.getTime() - now.getTime()) / 60000)}min from now)`,
+        tableAvailability:  reserveBlock_noTable            ?? `PASS (${availableSingleForReserve.length} single, ${availableComboForReserve.length} combo)`,
+        FIRST_FAILURE:      firstReserveBlock               ?? 'NONE — reservation would succeed',
+      },
     }));
   } catch (e) {
     console.error('[AVAIL_DIAG] error:', e instanceof Error ? e.message : e);
