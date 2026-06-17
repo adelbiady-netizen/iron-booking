@@ -16,8 +16,6 @@ interface WizardSettings {
   autoConfirm: boolean; bufferBetweenTurnsMinutes: number;
   lastSeatingOffset: number; lateThresholdMinutes: number; noShowThresholdMinutes: number;
   maxOnlinePartySize: number; maxOnlineCoversPerWindow: number;
-  clubBirthdaySmsEnabled: boolean; clubAnniversarySmsEnabled: boolean;
-  clubBirthdaySmsDaysBefore: number; clubAnniversarySmsDaysBefore: number;
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
 
@@ -85,8 +83,6 @@ const DEFAULT_SETTINGS: WizardSettings = {
   autoConfirm: false, bufferBetweenTurnsMinutes: 15,
   lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,
   maxOnlinePartySize: 5, maxOnlineCoversPerWindow: 40,
-  clubBirthdaySmsEnabled: false, clubAnniversarySmsEnabled: false,
-  clubBirthdaySmsDaysBefore: 7, clubAnniversarySmsDaysBefore: 10,
 };
 const DEFAULT_USER: WizardUser = { firstName: '', lastName: '', email: '', password: '', role: 'HOST' };
 const DEFAULT_RESTRICTION_FORM: RestrictionForm = { date: '', fullDay: true, startTime: '', endTime: '', reason: '', guestMessage: '' };
@@ -639,10 +635,6 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
         noShowThresholdMinutes:    Number(s.noShowThresholdMinutes ?? 15),
         maxOnlinePartySize:           Number(s.maxOnlinePartySize ?? 5),
         maxOnlineCoversPerWindow:     Number(s.maxOnlineCoversPerWindow ?? 40),
-        clubBirthdaySmsEnabled:       Boolean(s.clubBirthdaySmsEnabled ?? false),
-        clubAnniversarySmsEnabled:    Boolean(s.clubAnniversarySmsEnabled ?? false),
-        clubBirthdaySmsDaysBefore:    Number(s.clubBirthdaySmsDaysBefore ?? 7),
-        clubAnniversarySmsDaysBefore: Number(s.clubAnniversarySmsDaysBefore ?? 10),
       });
       setWhatsappForm({ instanceId: d.ultramsgInstanceId ?? '', token: '', phone: d.whatsappPhone ?? '' });
       setSmsForm({
@@ -1408,34 +1400,6 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             <p className="text-xs text-iron-muted mt-1">מגביל רק הזמנות שהגיעו מהאתר, לא הזמנות טלפוניות או ידניות</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-iron-muted mb-1">SMS יום הולדת (מועדון)</label>
-            <div className="flex items-center gap-3 mt-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={s.clubBirthdaySmsEnabled} onChange={e => set('clubBirthdaySmsEnabled')(e.target.checked)} className="accent-iron-green w-4 h-4" />
-                <span className="text-sm text-iron-text">מופעל</span>
-              </label>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-iron-muted">ימים לפני:</span>
-                <NumInput value={s.clubBirthdaySmsDaysBefore} onChange={set('clubBirthdaySmsDaysBefore') as (v: number) => void} min={1} max={30} />
-              </div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-iron-muted mb-1">SMS יום נישואים (מועדון)</label>
-            <div className="flex items-center gap-3 mt-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={s.clubAnniversarySmsEnabled} onChange={e => set('clubAnniversarySmsEnabled')(e.target.checked)} className="accent-iron-green w-4 h-4" />
-                <span className="text-sm text-iron-text">מופעל</span>
-              </label>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-iron-muted">ימים לפני:</span>
-                <NumInput value={s.clubAnniversarySmsDaysBefore} onChange={set('clubAnniversarySmsDaysBefore') as (v: number) => void} min={1} max={30} />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -1688,8 +1652,6 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 ['סף אי-הופעה',         `${s.noShowThresholdMinutes ?? 15}דק׳`],
                 ['מקס׳ סועדים אונליין', String(s.maxOnlinePartySize ?? 5)],
                 ['מקס׳ סועדים בחלון',  String(s.maxOnlineCoversPerWindow ?? 40)],
-                ['SMS יום הולדת',      s.clubBirthdaySmsEnabled ? `מופעל (${s.clubBirthdaySmsDaysBefore ?? 7} ימים לפני)` : 'כבוי'],
-                ['SMS יום נישואים',    s.clubAnniversarySmsEnabled ? `מופעל (${s.clubAnniversarySmsDaysBefore ?? 10} ימים לפני)` : 'כבוי'],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-iron-muted text-xs mb-0.5">{k}</dt>
@@ -1791,6 +1753,91 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     />
                     <span className="text-sm text-iron-text">{s.feedbackApprovalRequired !== false ? 'נדרש אישור' : 'שליחה אוטומטית'}</span>
                   </label>
+                </div>
+
+                {/* ── IRON CLUB SMS Automation ── */}
+                <div className="border-t border-iron-border/40 pt-4 space-y-3">
+                  <p className="text-xs font-semibold text-iron-muted uppercase tracking-wide">IRON CLUB SMS Automation</p>
+
+                  {/* Birthday SMS */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-iron-text">Enable Birthday SMS</p>
+                      <p className="text-xs text-iron-muted mt-0.5">
+                        {s.clubBirthdaySmsEnabled
+                          ? `שולח SMS ${s.clubBirthdaySmsDaysBefore ?? 7} ימים לפני יום הולדת`
+                          : 'כבוי — אין שליחה אוטומטית'}
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 cursor-pointer accent-iron-green"
+                        checked={!!s.clubBirthdaySmsEnabled}
+                        onChange={async (e) => {
+                          try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsEnabled: e.target.checked }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                        }}
+                      />
+                      <span className="text-sm text-iron-text">{s.clubBirthdaySmsEnabled ? 'מופעל' : 'כבוי'}</span>
+                    </label>
+                  </div>
+
+                  {!!s.clubBirthdaySmsEnabled && (
+                    <div className="flex items-center justify-between ps-4">
+                      <p className="text-xs text-iron-muted">Days Before Birthday</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min={1} max={30}
+                          defaultValue={Number(s.clubBirthdaySmsDaysBefore ?? 7)}
+                          className="w-16 bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text text-center focus:outline-none focus:border-iron-green"
+                          onBlur={async (e) => {
+                            const v = Math.max(1, Math.min(30, Number(e.target.value) || 7));
+                            e.target.value = String(v);
+                            try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsDaysBefore: v }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                          }}
+                        />
+                        <span className="text-xs text-iron-muted">ימים</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Anniversary SMS */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-iron-text">Enable Anniversary SMS</p>
+                      <p className="text-xs text-iron-muted mt-0.5">
+                        {s.clubAnniversarySmsEnabled
+                          ? `שולח SMS ${s.clubAnniversarySmsDaysBefore ?? 10} ימים לפני יום נישואים`
+                          : 'כבוי — אין שליחה אוטומטית'}
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 cursor-pointer accent-iron-green"
+                        checked={!!s.clubAnniversarySmsEnabled}
+                        onChange={async (e) => {
+                          try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsEnabled: e.target.checked }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                        }}
+                      />
+                      <span className="text-sm text-iron-text">{s.clubAnniversarySmsEnabled ? 'מופעל' : 'כבוי'}</span>
+                    </label>
+                  </div>
+
+                  {!!s.clubAnniversarySmsEnabled && (
+                    <div className="flex items-center justify-between ps-4">
+                      <p className="text-xs text-iron-muted">Days Before Anniversary</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min={1} max={30}
+                          defaultValue={Number(s.clubAnniversarySmsDaysBefore ?? 10)}
+                          className="w-16 bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text text-center focus:outline-none focus:border-iron-green"
+                          onBlur={async (e) => {
+                            const v = Math.max(1, Math.min(30, Number(e.target.value) || 10));
+                            e.target.value = String(v);
+                            try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsDaysBefore: v }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                          }}
+                        />
+                        <span className="text-xs text-iron-muted">ימים</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
