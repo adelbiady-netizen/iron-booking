@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, ClubJoinSource, ClubMemberStatus } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
@@ -857,6 +857,42 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           prisma.reservation.update({ where: { id: reservation.id }, data: { guestId: guest.id } }),
           prisma.guest.update({ where: { id: guest.id }, data: { visitCount: { increment: 1 } } }),
         ]);
+
+        // Club membership upsert — only when guest checked the opt-in checkbox.
+        // Uses WEBSITE source (public booking form, no invite token involved).
+        // Preserves OPTED_OUT status — does not re-activate without explicit consent.
+        if (body.marketingOptIn) {
+          const existing = await prisma.clubMember.findUnique({
+            where: { restaurantId_guestId: { restaurantId: restaurant.id, guestId: guest.id } },
+            select: { id: true, status: true, birthday: true, anniversary: true },
+          });
+
+          if (existing) {
+            // Never flip OPTED_OUT back to ACTIVE silently.
+            // Only fill in missing birthday/anniversary fields.
+            const patch: Record<string, unknown> = {};
+            if (!existing.birthday   && body.birthday)    patch['birthday']    = body.birthday;
+            if (!existing.anniversary && body.anniversary) patch['anniversary'] = body.anniversary;
+            if (Object.keys(patch).length > 0) {
+              await prisma.clubMember.update({ where: { id: existing.id }, data: patch });
+            }
+          } else {
+            await prisma.clubMember.create({
+              data: {
+                restaurantId: restaurant.id,
+                guestId:      guest.id,
+                source:       ClubJoinSource.WEBSITE,
+                status:       ClubMemberStatus.ACTIVE,
+                birthday:     body.birthday    ?? null,
+                anniversary:  body.anniversary ?? null,
+                marketingConsent: true,
+                smsConsent:      body.lang === 'he', // Hebrew bookings → local number, SMS consent assumed
+                emailConsent:    false,
+              },
+            });
+          }
+          console.log('[booking] club upsert', { guestId: guest.id, existing: !!existing, birthday: body.birthday ?? null, anniversary: body.anniversary ?? null });
+        }
       } catch (e) {
         console.error('[booking] Guest CRM link failed:', e instanceof Error ? e.message : e);
       }
