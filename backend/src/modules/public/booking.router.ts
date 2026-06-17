@@ -489,13 +489,15 @@ async function executeBookingTransaction(
 
     if (!bestTable && !bestCombo) throw new SlotTakenError();
 
-    // Total-covers guard — prevents restaurant-level overbooking across all tables
+    // Online-covers guard — prevents online bookings from overwhelming a slot window.
+    // Counts ONLINE-source reservations only: HOST/PHONE/WALKIN must not consume the online cap.
     if (maxOnlineCoversPerWindow !== undefined) {
       const allWindowRes = await tx.reservation.findMany({
         where: {
           restaurantId,
           date,
           status: { in: ['CONFIRMED', 'SEATED', 'PENDING'] },
+          source: 'ONLINE',
         },
         select: { time: true, duration: true, partySize: true },
       });
