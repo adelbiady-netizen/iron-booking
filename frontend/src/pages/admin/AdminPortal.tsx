@@ -1757,12 +1757,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                 {/* ── IRON CLUB SMS Automation ── */}
                 <div className="border-t border-iron-border/40 pt-4 space-y-3">
-                  <p className="text-xs font-semibold text-iron-muted uppercase tracking-wide">IRON CLUB SMS Automation</p>
+                  <p className="text-xs font-semibold text-iron-muted uppercase tracking-wide">אוטומציית SMS למועדון</p>
 
                   {/* Birthday SMS */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-iron-text">Enable Birthday SMS</p>
+                      <p className="text-sm text-iron-text">SMS יום הולדת</p>
                       <p className="text-xs text-iron-muted mt-0.5">
                         {s.clubBirthdaySmsEnabled
                           ? `שולח SMS ${s.clubBirthdaySmsDaysBefore ?? 7} ימים לפני יום הולדת`
@@ -1782,7 +1782,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                   {!!s.clubBirthdaySmsEnabled && (
                     <div className="flex items-center justify-between ps-4">
-                      <p className="text-xs text-iron-muted">Days Before Birthday</p>
+                      <p className="text-xs text-iron-muted">כמה ימים לפני יום ההולדת?</p>
                       <div className="flex items-center gap-2">
                         <input
                           type="number" min={1} max={30}
@@ -1802,7 +1802,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                   {/* Anniversary SMS */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-iron-text">Enable Anniversary SMS</p>
+                      <p className="text-sm text-iron-text">SMS יום נישואים</p>
                       <p className="text-xs text-iron-muted mt-0.5">
                         {s.clubAnniversarySmsEnabled
                           ? `שולח SMS ${s.clubAnniversarySmsDaysBefore ?? 10} ימים לפני יום נישואים`
@@ -1822,7 +1822,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
                   {!!s.clubAnniversarySmsEnabled && (
                     <div className="flex items-center justify-between ps-4">
-                      <p className="text-xs text-iron-muted">Days Before Anniversary</p>
+                      <p className="text-xs text-iron-muted">כמה ימים לפני יום הנישואים?</p>
                       <div className="flex items-center gap-2">
                         <input
                           type="number" min={1} max={30}
