@@ -404,6 +404,8 @@ export const api = {
       const qs = type ? `?type=${type}` : '';
       return request<import('./types').PendingApproval[]>(`/restaurants/${restaurantId}/club/pending-approvals${qs}`);
     },
+    upcomingEvents: (restaurantId: string, days = 30) =>
+      request<import('./types').UpcomingClubEvents>(`/restaurants/${restaurantId}/club/upcoming-events?days=${days}`),
     invites: (restaurantId: string) =>
       request<import('./types').ClubJoinInvite[]>(`/restaurants/${restaurantId}/club/invites`),
     createInvite: (restaurantId: string, body: {

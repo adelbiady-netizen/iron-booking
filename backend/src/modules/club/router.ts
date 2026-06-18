@@ -209,4 +209,101 @@ router.get('/pending-approvals', async (req: Request, res: Response, next: NextF
   } catch (err) { next(err); }
 });
 
+// GET /api/restaurants/:restaurantId/club/upcoming-events?days=30
+// Read-only. Returns members with birthday or anniversary in the next N days,
+// with eligibility flags for SMS automation. No SMS sent, no writes.
+router.get('/upcoming-events', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const days = Math.min(90, Math.max(1, parseInt((req.query['days'] as string) ?? '30') || 30));
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where:  { id: restaurantId },
+      select: { timezone: true, settings: true },
+    });
+    if (!restaurant) return res.json({ birthdays: [], anniversaries: [] });
+
+    const tz = restaurant.timezone ?? 'UTC';
+    const s  = (restaurant.settings ?? {}) as Record<string, unknown>;
+
+    // Build MM-DD strings for today through today+days, preserving day index for daysUntil
+    const mmddToDay = new Map<string, number>();
+    for (let i = 0; i <= days; i++) {
+      const d     = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit', day: '2-digit' }).formatToParts(d);
+      const mmdd  = `${parts.find(pt => pt.type === 'month')!.value}-${parts.find(pt => pt.type === 'day')!.value}`;
+      if (!mmddToDay.has(mmdd)) mmddToDay.set(mmdd, i); // keep earliest occurrence
+    }
+    const upcomingDates = Array.from(mmddToDay.keys());
+
+    const cutoff = new Date(Date.now() - 330 * 24 * 60 * 60 * 1000);
+
+    async function buildRows(
+      field:        'birthday' | 'anniversary',
+      messageType:  'BIRTHDAY' | 'ANNIVERSARY',
+      autoEnabledKey: string,
+    ) {
+      const members = await prisma.clubMember.findMany({
+        where: { restaurantId, status: 'ACTIVE', [field]: { in: upcomingDates } },
+        select: {
+          id:          true,
+          smsConsent:  true,
+          birthday:    true,
+          anniversary: true,
+          guest: { select: { firstName: true, lastName: true, phone: true } },
+        },
+        orderBy: { [field]: 'asc' },
+      });
+
+      const automationEnabled =
+        s.ironClubEnabled !== false &&
+        s.smsEnabled      === true  &&
+        s[autoEnabledKey] === true;
+
+      const rows = await Promise.all(members.map(async (m) => {
+        const mmdd = (field === 'birthday' ? m.birthday : m.anniversary) ?? '';
+
+        const alreadySentThisYear = m.smsConsent
+          ? !!(await prisma.messageLog.findFirst({
+              where: {
+                restaurantId,
+                clubMemberId: m.id,
+                messageType:  messageType as 'BIRTHDAY' | 'ANNIVERSARY',
+                status:       { in: ['SENT', 'PENDING'] },
+                createdAt:    { gte: cutoff },
+              },
+              select: { id: true },
+            }))
+          : false;
+
+        const phone   = m.guest.phone ?? '';
+        const masked  = phone.length >= 6
+          ? `${phone.slice(0, 3)}****${phone.slice(-3)}`
+          : '—';
+
+        return {
+          memberId:            m.id,
+          name:                `${m.guest.firstName ?? ''} ${m.guest.lastName ?? ''}`.trim() || '—',
+          phoneMasked:         masked,
+          mmdd,
+          daysUntil:           mmddToDay.get(mmdd) ?? 0,
+          smsConsent:          m.smsConsent,
+          automationEnabled,
+          alreadySentThisYear,
+          willReceiveSms:      m.smsConsent && automationEnabled && !!phone && !alreadySentThisYear,
+        };
+      }));
+
+      return rows.sort((a, b) => a.daysUntil - b.daysUntil);
+    }
+
+    const [birthdays, anniversaries] = await Promise.all([
+      buildRows('birthday',    'BIRTHDAY',    'clubBirthdaySmsEnabled'),
+      buildRows('anniversary', 'ANNIVERSARY', 'clubAnniversarySmsEnabled'),
+    ]);
+
+    res.json({ birthdays, anniversaries });
+  } catch (err) { next(err); }
+});
+
 export default router;

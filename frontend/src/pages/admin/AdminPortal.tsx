@@ -3,7 +3,7 @@ import { api, ApiError } from '../../api';
 import GuestHubCmsPanel from './GuestHubCmsPanel';
 import { useT } from '../../i18n/useT';
 import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
-import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport, ClubMember, ClubStats, AlertCenter, RecoveryStats, MomentRecord, MorningBriefRecord } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport, ClubMember, ClubStats, AlertCenter, RecoveryStats, MomentRecord, MorningBriefRecord, UpcomingClubEvents } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -502,6 +502,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   // IRON CLUB management center
   const [icTab,          setIcTab]          = useState<IcTab>('overview');
   const [icClubStats,    setIcClubStats]    = useState<ClubStats | null>(null);
+  const [icUpcoming,     setIcUpcoming]     = useState<UpcomingClubEvents | null>(null);
   const [icRecovStats,   setIcRecovStats]   = useState<RecoveryStats | null>(null);
   const [icAlerts,       setIcAlerts]       = useState<AlertCenter | null>(null);
   const [icMembers,      setIcMembers]      = useState<ClubMember[] | null>(null);
@@ -580,12 +581,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     (async () => {
       try {
         if (icTab === 'overview') {
-          const [stats, recov, alerts] = await Promise.all([
+          const [stats, recov, alerts, upcoming] = await Promise.all([
             api.club.stats(rid),
             api.recovery.stats(rid),
             api.alerts.center(rid),
+            api.club.upcomingEvents(rid, 30),
           ]);
-          if (!cancelled) { setIcClubStats(stats); setIcRecovStats(recov); setIcAlerts(alerts); }
+          if (!cancelled) { setIcClubStats(stats); setIcRecovStats(recov); setIcAlerts(alerts); setIcUpcoming(upcoming); }
         } else if (icTab === 'members') {
           const r = await api.club.members(rid);
           if (!cancelled) setIcMembers(r.data);
@@ -3194,6 +3196,51 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </div>
             ))}
           </div>
+          {/* ── Upcoming birthdays & anniversaries ── */}
+          {icUpcoming && (icUpcoming.birthdays.length > 0 || icUpcoming.anniversaries.length > 0) && (() => {
+            const statusLabel = (ev: UpcomingClubEvents['birthdays'][0]) => {
+              if (ev.willReceiveSms)      return <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-green/10 text-iron-green border border-iron-green/20">יקבל SMS</span>;
+              if (ev.alreadySentThisYear) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-border text-iron-muted border border-iron-border">כבר נשלח השנה</span>;
+              if (!ev.automationEnabled)  return <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-border text-iron-muted border border-iron-border">האוטומציה כבויה</span>;
+              return <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/20">אין אישור SMS</span>;
+            };
+            const EventTable = ({ rows, title }: { rows: UpcomingClubEvents['birthdays']; title: string }) => (
+              <div>
+                <p className="text-xs font-semibold text-iron-muted mb-2">{title}</p>
+                <div className="rounded-lg border border-iron-border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-iron-bg text-iron-muted text-[11px]">
+                        <th className="text-right font-normal px-3 py-2">שם</th>
+                        <th className="text-right font-normal px-3 py-2">טלפון</th>
+                        <th className="text-right font-normal px-3 py-2">תאריך</th>
+                        <th className="text-right font-normal px-3 py-2">בעוד</th>
+                        <th className="text-right font-normal px-3 py-2">סטטוס</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(ev => (
+                        <tr key={ev.memberId} className="border-t border-iron-border/30 hover:bg-iron-card/40">
+                          <td className="px-3 py-2 text-iron-text font-medium">{ev.name}</td>
+                          <td className="px-3 py-2 text-iron-muted">{ev.phoneMasked}</td>
+                          <td className="px-3 py-2 text-iron-muted">{ev.mmdd}</td>
+                          <td className="px-3 py-2 text-iron-muted">{ev.daysUntil === 0 ? 'היום' : `${ev.daysUntil} ימים`}</td>
+                          <td className="px-3 py-2">{statusLabel(ev)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+            return (
+              <div className="space-y-4">
+                {icUpcoming.birthdays.length > 0    && <EventTable rows={icUpcoming.birthdays}    title="ימי הולדת קרובים — 30 יום" />}
+                {icUpcoming.anniversaries.length > 0 && <EventTable rows={icUpcoming.anniversaries} title="ימי נישואים קרובים — 30 יום" />}
+              </div>
+            );
+          })()}
+
           {icAlerts && icAlerts.critical.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-status-danger mb-3 flex items-center gap-1.5">

@@ -46,6 +46,23 @@ export interface ClubMember {
   };
 }
 
+export interface UpcomingClubEvent {
+  memberId:            string;
+  name:                string;
+  phoneMasked:         string;
+  mmdd:                string;
+  daysUntil:           number;
+  smsConsent:          boolean;
+  automationEnabled:   boolean;
+  alreadySentThisYear: boolean;
+  willReceiveSms:      boolean;
+}
+
+export interface UpcomingClubEvents {
+  birthdays:    UpcomingClubEvent[];
+  anniversaries: UpcomingClubEvent[];
+}
+
 export interface ClubStats {
   total: number;
   active: number;
