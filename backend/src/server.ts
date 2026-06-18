@@ -3,7 +3,6 @@ import { config } from './config';
 import { prisma } from './lib/prisma';
 import { startScheduler, stopScheduler } from './lib/scheduler';
 import * as bcrypt from 'bcryptjs';
-import { ClubJoinSource } from '@prisma/client';
 
 // ─── Global crash guards ──────────────────────────────────────────────────────
 // Without these, Node silently closes connections when an exception escapes
@@ -75,103 +74,6 @@ async function maybeBootstrapSuperAdmin() {
   console.log('[Bootstrap] Remove BOOTSTRAP_* env vars after confirming login works.');
 }
 
-async function clubConsentReport() {
-  const SLUG       = 'eataliano-dalla-costa';
-  const DAYS_AHEAD = 30;
-  const ORGANIC_SOURCES: ClubJoinSource[] = ['WEBSITE', 'RESERVATION_LINK', 'FEEDBACK_FLOW', 'IMPORT', 'MANUAL'];
-
-  const restaurant = await prisma.restaurant.findFirst({
-    where:  { slug: SLUG },
-    select: { id: true, name: true, timezone: true },
-  });
-  if (!restaurant) {
-    console.log('[CLUB_CONSENT_REPORT] restaurant not found:', SLUG);
-    return;
-  }
-
-  const [total, active, smsTrue, mktTrue, smsNoMktYes, optedOut, paused] = await Promise.all([
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id } }),
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'ACTIVE' } }),
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id, smsConsent: true } }),
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id, marketingConsent: true } }),
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'ACTIVE', smsConsent: false, marketingConsent: true } }),
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'OPTED_OUT' } }),
-    prisma.clubMember.count({ where: { restaurantId: restaurant.id, status: 'PAUSED' } }),
-  ]);
-
-  // Build upcoming MM-DD window
-  const tz = restaurant.timezone ?? 'UTC';
-  const mmddToDay = new Map<string, number>();
-  for (let i = 0; i <= DAYS_AHEAD; i++) {
-    const d     = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: '2-digit', day: '2-digit' }).formatToParts(d);
-    const mmdd  = `${parts.find(p => p.type === 'month')!.value}-${parts.find(p => p.type === 'day')!.value}`;
-    if (!mmddToDay.has(mmdd)) mmddToDay.set(mmdd, i);
-  }
-  const upcomingDates = Array.from(mmddToDay.keys());
-  const cutoff = new Date(Date.now() - 330 * 24 * 60 * 60 * 1000);
-
-  async function countWillSend(
-    field:       'birthday' | 'anniversary',
-    messageType: 'BIRTHDAY' | 'ANNIVERSARY',
-    rule:        'A' | 'B',
-  ): Promise<number> {
-    const ruleAWhere  = { restaurantId: restaurant!.id, status: 'ACTIVE' as const, smsConsent: true, [field]: { in: upcomingDates } };
-    const ruleBWhere  = {
-      restaurantId: restaurant!.id, status: 'ACTIVE' as const, [field]: { in: upcomingDates },
-      OR: [
-        { smsConsent: true },
-        { marketingConsent: true, source: { in: ORGANIC_SOURCES } },
-      ],
-    };
-    const members = await prisma.clubMember.findMany({
-      where:  rule === 'A' ? ruleAWhere : ruleBWhere,
-      select: { id: true },
-    });
-    let will = 0;
-    for (const m of members) {
-      const already = await prisma.messageLog.findFirst({
-        where: { restaurantId: restaurant!.id, clubMemberId: m.id, messageType, status: { in: ['SENT', 'PENDING'] }, createdAt: { gte: cutoff } },
-        select: { id: true },
-      });
-      if (!already) will++;
-    }
-    return will;
-  }
-
-  const [bdayA, bdayB, annivA, annivB] = await Promise.all([
-    countWillSend('birthday',    'BIRTHDAY',    'A'),
-    countWillSend('birthday',    'BIRTHDAY',    'B'),
-    countWillSend('anniversary', 'ANNIVERSARY', 'A'),
-    countWillSend('anniversary', 'ANNIVERSARY', 'B'),
-  ]);
-
-  const recommendation = (smsNoMktYes === 0 || (bdayB + annivB === bdayA + annivA && smsNoMktYes < 5))
-    ? 'RULE_A — no meaningful difference; keep strict smsConsent gate'
-    : `RULE_B — ${smsNoMktYes} members have marketingConsent but not smsConsent; backfill smsConsent=true OR add marketingConsent fallback`;
-
-  console.log('[CLUB_CONSENT_REPORT] ─────────────────────────────────────────────');
-  console.log(`[CLUB_CONSENT_REPORT] restaurant:                  ${restaurant.name}`);
-  console.log(`[CLUB_CONSENT_REPORT] totalMembers:                ${total}`);
-  console.log(`[CLUB_CONSENT_REPORT] activeMembers:               ${active}`);
-  console.log(`[CLUB_CONSENT_REPORT] smsConsentTrue:              ${smsTrue}`);
-  console.log(`[CLUB_CONSENT_REPORT] marketingConsentTrue:        ${mktTrue}`);
-  console.log(`[CLUB_CONSENT_REPORT] smsConsentFalseMarketingTrue:${smsNoMktYes}  ← Rule B extra pool`);
-  console.log(`[CLUB_CONSENT_REPORT] optedOutCount:               ${optedOut}  (always excluded)`);
-  console.log(`[CLUB_CONSENT_REPORT] pausedCount:                 ${paused}  (always excluded)`);
-  console.log('[CLUB_CONSENT_REPORT] ─────────────────────────────────────────────');
-  console.log(`[CLUB_CONSENT_REPORT] birthdaysNext30Days:`);
-  console.log(`[CLUB_CONSENT_REPORT]   ruleA_smsConsentOnly:      ${bdayA}`);
-  console.log(`[CLUB_CONSENT_REPORT]   ruleB_marketingFallback:   ${bdayB}  (delta: +${bdayB - bdayA})`);
-  console.log(`[CLUB_CONSENT_REPORT] anniversariesNext30Days:`);
-  console.log(`[CLUB_CONSENT_REPORT]   ruleA_smsConsentOnly:      ${annivA}`);
-  console.log(`[CLUB_CONSENT_REPORT]   ruleB_marketingFallback:   ${annivB}  (delta: +${annivB - annivA})`);
-  console.log('[CLUB_CONSENT_REPORT] ─────────────────────────────────────────────');
-  console.log(`[CLUB_CONSENT_REPORT] recommendation: ${recommendation}`);
-  console.log('[CLUB_CONSENT_REPORT] READ-ONLY. No data changed. No SMS sent.');
-  console.log('[CLUB_CONSENT_REPORT] ─────────────────────────────────────────────');
-}
-
 async function main() {
   // ─── BOOT VERSION MARKER ─────────────────────────────────────────────────────
   // If this line does NOT appear in Render logs after a deploy, the new binary
@@ -184,7 +86,6 @@ async function main() {
   console.log('[DB] Connected');
 
   await maybeBootstrapSuperAdmin();
-  await clubConsentReport();
 
   const server = app.listen(config.port);
 

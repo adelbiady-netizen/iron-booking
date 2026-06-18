@@ -26,24 +26,25 @@ interface BatchParams {
   messageType:       MessageType;
   templateKey:       string;
   giftKey:           string;
-  defaultTemplate:   (firstName: string, restaurantName: string, gift: string) => string;
+  defaultTemplate:   (firstName: string, restaurantName: string, gift: string, bookingLink: string) => string;
   dryRun:            boolean;
 }
 
-function applyTemplate(
+export function applyTemplate(
   tpl: string,
-  vars: { firstName: string; restaurantName: string; gift: string },
+  vars: { firstName: string; restaurantName: string; gift: string; bookingLink: string },
 ): string {
   return tpl
     .replace(/\{firstName\}/g,      vars.firstName)
     .replace(/\{restaurantName\}/g, vars.restaurantName)
-    .replace(/\{gift\}/g,           vars.gift);
+    .replace(/\{gift\}/g,           vars.gift)
+    .replace(/\{bookingLink\}/g,    vars.bookingLink);
 }
 
 async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped: number }> {
   const restaurant = await prisma.restaurant.findUnique({
     where:  { id: p.restaurantId },
-    select: { name: true, timezone: true, settings: true },
+    select: { name: true, slug: true, timezone: true, settings: true },
   });
   if (!restaurant) return { sent: 0, skipped: 0 };
 
@@ -60,12 +61,13 @@ async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped:
   const tz         = restaurant.timezone ?? 'UTC';
   const targetMmDd = getMmDd(addDays(new Date(), daysBefore), tz);
 
+  // Rule B: send if smsConsent=true OR marketingConsent=true (ACTIVE only)
   const members = await prisma.clubMember.findMany({
     where: {
       restaurantId: p.restaurantId,
       status:       'ACTIVE',
-      smsConsent:   true,
       [p.field]:    targetMmDd,
+      OR: [{ smsConsent: true }, { marketingConsent: true }],
     },
     select: {
       id:      true,
@@ -98,12 +100,13 @@ async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped:
     });
     if (already) { skipped++; continue; }
 
-    const firstName = member.guest.firstName ?? 'אורח';
-    const gift      = typeof s[p.giftKey] === 'string' ? (s[p.giftKey] as string).trim() : '';
-    const tpl       = typeof s[p.templateKey] === 'string' ? (s[p.templateKey] as string).trim() : '';
-    const message   = tpl
-      ? applyTemplate(tpl, { firstName, restaurantName: restaurant.name, gift })
-      : p.defaultTemplate(firstName, restaurant.name, gift);
+    const firstName   = member.guest.firstName ?? 'אורח';
+    const gift        = typeof s[p.giftKey] === 'string' ? (s[p.giftKey] as string).trim() : '';
+    const bookingLink = `https://www.ironbooking.com/book/${restaurant.slug}`;
+    const tpl         = typeof s[p.templateKey] === 'string' ? (s[p.templateKey] as string).trim() : '';
+    const message     = tpl
+      ? applyTemplate(tpl, { firstName, restaurantName: restaurant.name, gift, bookingLink })
+      : p.defaultTemplate(firstName, restaurant.name, gift, bookingLink);
 
     if (p.dryRun) {
       const masked = `${phone.slice(0, 3)}****${phone.slice(-3)}`;
@@ -148,9 +151,9 @@ export async function runClubBirthdaySmsBatch(
     messageType:       MessageType.BIRTHDAY,
     templateKey:       'clubBirthdaySmsTemplate',
     giftKey:           'clubBirthdaySmsGift',
-    defaultTemplate: (firstName, restaurantName, gift) => {
+    defaultTemplate: (firstName, restaurantName, gift, bookingLink) => {
       const giftLine = gift ? `\nהטבה: ${gift}.` : '';
-      return `היי ${firstName}, יום ההולדת שלך מתקרב 🎉\nב־${restaurantName} נשמח לחגוג איתך.${giftLine}`;
+      return `היי ${firstName}, יום ההולדת שלך מתקרב 🎉\nב־${restaurantName} נשמח לחגוג איתך.${giftLine}\nלהזמנת מקום: ${bookingLink}`;
     },
     dryRun,
   });
@@ -169,9 +172,9 @@ export async function runClubAnniversarySmsBatch(
     messageType:       MessageType.ANNIVERSARY,
     templateKey:       'clubAnniversarySmsTemplate',
     giftKey:           'clubAnniversarySmsGift',
-    defaultTemplate: (firstName, restaurantName, gift) => {
+    defaultTemplate: (firstName, restaurantName, gift, bookingLink) => {
       const giftLine = gift ? `\nהטבה: ${gift}.` : '';
-      return `היי ${firstName}, יום הנישואים שלכם מתקרב ❤️\nב־${restaurantName} נשמח לארח אתכם לערב מיוחד.${giftLine}`;
+      return `היי ${firstName}, יום הנישואים שלכם מתקרב ❤️\nב־${restaurantName} נשמח לארח אתכם לערב מיוחד.${giftLine}\nלהזמנת מקום: ${bookingLink}`;
     },
     dryRun,
   });

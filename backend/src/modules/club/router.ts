@@ -2,9 +2,11 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
-import { ClubJoinSource, ClubMemberStatus } from '@prisma/client';
+import { ClubJoinSource, ClubMemberStatus, MessageType } from '@prisma/client';
 import { z } from 'zod';
 import { validate } from '../../middleware/validate';
+import { sendSms } from '../../lib/messaging';
+import { applyTemplate } from '../../lib/clubBirthdaySms';
 
 const router = Router({ mergeParams: true });
 
@@ -178,13 +180,14 @@ router.patch('/members/:memberId', validate(UpdateMemberSchema), async (req: Req
 router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = p(req, 'restaurantId');
-    const [total, active, optedOut, paused] = await Promise.all([
+    const [total, active, optedOut, paused, smsConsent] = await Promise.all([
       prisma.clubMember.count({ where: { restaurantId } }),
       prisma.clubMember.count({ where: { restaurantId, status: 'ACTIVE' } }),
       prisma.clubMember.count({ where: { restaurantId, status: 'OPTED_OUT' } }),
       prisma.clubMember.count({ where: { restaurantId, status: 'PAUSED' } }),
+      prisma.clubMember.count({ where: { restaurantId, status: 'ACTIVE', smsConsent: true } }),
     ]);
-    res.json({ total, active, optedOut, paused });
+    res.json({ total, active, optedOut, paused, smsConsent });
   } catch (err) { next(err); }
 });
 
@@ -246,10 +249,11 @@ router.get('/upcoming-events', async (req: Request, res: Response, next: NextFun
       const members = await prisma.clubMember.findMany({
         where: { restaurantId, status: 'ACTIVE', [field]: { in: upcomingDates } },
         select: {
-          id:          true,
-          smsConsent:  true,
-          birthday:    true,
-          anniversary: true,
+          id:               true,
+          smsConsent:       true,
+          marketingConsent: true,
+          birthday:         true,
+          anniversary:      true,
           guest: { select: { firstName: true, lastName: true, phone: true } },
         },
         orderBy: { [field]: 'asc' },
@@ -281,6 +285,7 @@ router.get('/upcoming-events', async (req: Request, res: Response, next: NextFun
           ? `${phone.slice(0, 3)}****${phone.slice(-3)}`
           : '—';
 
+        const smsEligible = m.smsConsent || m.marketingConsent;
         return {
           memberId:            m.id,
           name:                `${m.guest.firstName ?? ''} ${m.guest.lastName ?? ''}`.trim() || '—',
@@ -290,7 +295,7 @@ router.get('/upcoming-events', async (req: Request, res: Response, next: NextFun
           smsConsent:          m.smsConsent,
           automationEnabled,
           alreadySentThisYear,
-          willReceiveSms:      m.smsConsent && automationEnabled && !!phone && !alreadySentThisYear,
+          willReceiveSms:      smsEligible && automationEnabled && !!phone && !alreadySentThisYear,
         };
       }));
 
@@ -303,6 +308,77 @@ router.get('/upcoming-events', async (req: Request, res: Response, next: NextFun
     ]);
 
     res.json({ birthdays, anniversaries });
+  } catch (err) { next(err); }
+});
+
+// POST /api/restaurants/:restaurantId/club/members/:memberId/send-event-sms
+// Manual one-off send for an upcoming birthday or anniversary. No dedup — intentional override.
+const SendEventSmsSchema = z.object({
+  eventType: z.enum(['birthday', 'anniversary']),
+});
+
+router.post('/members/:memberId/send-event-sms', validate(SendEventSmsSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const memberId     = p(req, 'memberId');
+    const { eventType } = req.body as z.infer<typeof SendEventSmsSchema>;
+
+    const member = await prisma.clubMember.findFirst({
+      where:  { id: memberId, restaurantId },
+      select: { id: true, guestId: true, smsConsent: true, status: true,
+                guest: { select: { firstName: true, phone: true } } },
+    });
+    if (!member)                throw new NotFoundError('ClubMember', memberId);
+    if (member.status !== 'ACTIVE') throw new BusinessRuleError('Member is not active');
+    if (!member.smsConsent)         throw new BusinessRuleError('Member has not consented to SMS');
+    if (!member.guest.phone)        throw new BusinessRuleError('Member has no phone number');
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where:  { id: restaurantId },
+      select: { name: true, slug: true, settings: true },
+    });
+    if (!restaurant) throw new NotFoundError('Restaurant', restaurantId);
+
+    const s = (restaurant.settings ?? {}) as Record<string, unknown>;
+    if (s.smsEnabled !== true) throw new BusinessRuleError('SMS is not enabled for this restaurant');
+
+    const isAnniversary = eventType === 'anniversary';
+    const templateKey   = isAnniversary ? 'clubAnniversarySmsTemplate' : 'clubBirthdaySmsTemplate';
+    const giftKey       = isAnniversary ? 'clubAnniversarySmsGift'     : 'clubBirthdaySmsGift';
+    const messageType   = isAnniversary ? MessageType.ANNIVERSARY       : MessageType.BIRTHDAY;
+
+    const firstName   = member.guest.firstName ?? 'אורח';
+    const gift        = typeof s[giftKey]       === 'string' ? (s[giftKey] as string).trim()       : '';
+    const bookingLink = `https://www.ironbooking.com/book/${restaurant.slug}`;
+    const tpl         = typeof s[templateKey]   === 'string' ? (s[templateKey] as string).trim()   : '';
+
+    const giftLine    = gift ? `\nהטבה: ${gift}.` : '';
+    const defaultMsg  = isAnniversary
+      ? `היי ${firstName}, יום הנישואים שלכם מתקרב ❤️\nב־${restaurant.name} נשמח לארח אתכם לערב מיוחד.${giftLine}\nלהזמנת מקום: ${bookingLink}`
+      : `היי ${firstName}, יום ההולדת שלך מתקרב 🎉\nב־${restaurant.name} נשמח לחגוג איתך.${giftLine}\nלהזמנת מקום: ${bookingLink}`;
+
+    const message = tpl
+      ? applyTemplate(tpl, { firstName, restaurantName: restaurant.name, gift, bookingLink })
+      : defaultMsg;
+
+    const result = await sendSms({
+      restaurantId,
+      to:      member.guest.phone,
+      message,
+      type:    messageType,
+      guestId: member.guestId,
+    });
+
+    if (result.messageLogId) {
+      await prisma.messageLog.update({
+        where: { id: result.messageLogId },
+        data:  { clubMemberId: member.id },
+      });
+    }
+
+    if (!result.success) throw new BusinessRuleError('SMS send failed');
+
+    res.json({ ok: true, messageLogId: result.messageLogId });
   } catch (err) { next(err); }
 });
 
