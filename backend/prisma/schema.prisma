@@ -135,6 +135,7 @@ model Restaurant {
   guestFeedback             GuestFeedback[]
   clubMembers               ClubMember[]
   clubJoinInvites           ClubJoinInvite[]
+  guestRewards              GuestReward[]
 
   @@map("restaurants")
 }
@@ -177,7 +178,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant      Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  redeemedRewards GuestReward[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -357,6 +359,7 @@ model Guest {
   momentQueue     MomentQueue[]
   feedback        GuestFeedback[]
   clubMemberships ClubMember[]
+  rewards         GuestReward[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -1272,6 +1275,7 @@ model ClubMember {
   restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   guest       Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
   messageLogs MessageLog[]
+  rewards     GuestReward[]
 
   @@unique([restaurantId, guestId])
   @@index([restaurantId])
@@ -1319,4 +1323,48 @@ model HostEvent {
   @@index([restaurantId, event])
   @@index([restaurantId, createdAt])
   @@map("host_events")
+}
+
+// ─── IRON CLUB REWARDS ────────────────────────────────────────────────────────
+
+enum RewardType {
+  BIRTHDAY
+  ANNIVERSARY
+  RECOVERY
+  MANUAL
+}
+
+enum RewardStatus {
+  ISSUED
+  REDEEMED
+  EXPIRED
+  CANCELLED
+}
+
+model GuestReward {
+  id               String       @id @default(uuid())
+  restaurantId     String
+  guestId          String
+  clubMemberId     String?
+  type             RewardType
+  title            String
+  description      String?
+  issuedAt         DateTime     @default(now())
+  expiresAt        DateTime?
+  status           RewardStatus @default(ISSUED)
+  redeemedAt       DateTime?
+  redeemedByUserId String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  restaurant     Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest          Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  clubMember     ClubMember? @relation(fields: [clubMemberId], references: [id])
+  redeemedByUser User?       @relation(fields: [redeemedByUserId], references: [id])
+
+  @@index([restaurantId])
+  @@index([restaurantId, status])
+  @@index([guestId])
+  @@index([expiresAt])
+  @@map("guest_rewards")
 }

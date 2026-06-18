@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { MessageType, MessageStatus } from '@prisma/client';
+import { MessageType, MessageStatus, RewardType, RewardStatus } from '@prisma/client';
 import { sendSms } from './messaging';
 
 function getMmDd(date: Date, timeZone: string): string {
@@ -131,7 +131,39 @@ async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped:
       });
     }
 
-    if (result.success) { sent++; } else { skipped++; }
+    if (result.success) {
+      sent++;
+      // Auto-create reward — one per member per event type per year (dedup)
+      const rewardType = p.messageType === MessageType.BIRTHDAY ? RewardType.BIRTHDAY : RewardType.ANNIVERSARY;
+      const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+      const existingReward = await prisma.guestReward.findFirst({
+        where: {
+          restaurantId: p.restaurantId,
+          guestId:      member.guestId,
+          clubMemberId: member.id,
+          type:         rewardType,
+          issuedAt:     { gte: oneYearAgo },
+        },
+        select: { id: true },
+      });
+      if (!existingReward) {
+        const gift  = typeof s[p.giftKey] === 'string' ? (s[p.giftKey] as string).trim() : '';
+        const title = rewardType === RewardType.BIRTHDAY ? 'מתנת יום הולדת' : 'מתנת יום נישואים';
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        await prisma.guestReward.create({
+          data: {
+            restaurantId: p.restaurantId,
+            guestId:      member.guestId,
+            clubMemberId: member.id,
+            type:         rewardType,
+            title,
+            description:  gift || null,
+            expiresAt,
+            status:       RewardStatus.ISSUED,
+          },
+        });
+      }
+    } else { skipped++; }
   }
 
   console.log(`[club-sms] ${p.messageType} | restaurantId=${p.restaurantId} | target=${targetMmDd} | sent=${sent} skipped=${skipped} dryRun=${p.dryRun}`);

@@ -94,6 +94,14 @@ async function runSchedulerTick(dryRun: boolean, allowlist: string[] | null): Pr
             const bdaySms  = await runClubBirthdaySmsBatch(restaurant.id, dryRun);
             const annivSms = await runClubAnniversarySmsBatch(restaurant.id, dryRun);
             console.log(`[scheduler] ${restaurant.name} | club-sms | birthday sent=${bdaySms.sent} skipped=${bdaySms.skipped} | anniversary sent=${annivSms.sent} skipped=${annivSms.skipped}`);
+            // Expire overdue rewards
+            const expired = await prisma.guestReward.updateMany({
+              where: { restaurantId: restaurant.id, status: 'ISSUED', expiresAt: { lt: now } },
+              data:  { status: 'EXPIRED' },
+            });
+            if (expired.count > 0) {
+              console.log(`[scheduler] ${restaurant.name} | rewards | expired=${expired.count}`);
+            }
           }
           await sendApprovedMoments(restaurant.id);
         } catch (gicErr) {

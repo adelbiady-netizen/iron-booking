@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
-import { ClubJoinSource, ClubMemberStatus, MessageType } from '@prisma/client';
+import { ClubJoinSource, ClubMemberStatus, MessageType, RewardType, RewardStatus } from '@prisma/client';
 import { z } from 'zod';
 import { validate } from '../../middleware/validate';
 import { sendSms } from '../../lib/messaging';
@@ -379,6 +379,148 @@ router.post('/members/:memberId/send-event-sms', validate(SendEventSmsSchema), a
     if (!result.success) throw new BusinessRuleError('SMS send failed');
 
     res.json({ ok: true, messageLogId: result.messageLogId });
+  } catch (err) { next(err); }
+});
+
+// ─── Rewards ──────────────────────────────────────────────────────────────────
+
+// GET /api/restaurants/:restaurantId/club/rewards
+router.get('/rewards', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const { status, page = '1', limit = '50' } = req.query as Record<string, string>;
+    const pageNum  = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip     = (pageNum - 1) * limitNum;
+
+    const where: Record<string, unknown> = { restaurantId };
+    if (status) where.status = status;
+
+    const [data, total] = await Promise.all([
+      prisma.guestReward.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { issuedAt: 'desc' },
+        include: {
+          guest:          { select: { id: true, firstName: true, lastName: true, phone: true } },
+          clubMember:     { select: { id: true } },
+          redeemedByUser: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.guestReward.count({ where }),
+    ]);
+
+    res.json({ data, meta: { total, page: pageNum, limit: limitNum } });
+  } catch (err) { next(err); }
+});
+
+// GET /api/restaurants/:restaurantId/club/rewards/stats
+router.get('/rewards/stats', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [active, redeemedThisMonth, expired, totalIssued, totalRedeemed] = await Promise.all([
+      prisma.guestReward.count({ where: { restaurantId, status: 'ISSUED' } }),
+      prisma.guestReward.count({ where: { restaurantId, status: 'REDEEMED', redeemedAt: { gte: startOfMonth } } }),
+      prisma.guestReward.count({ where: { restaurantId, status: 'EXPIRED' } }),
+      prisma.guestReward.count({ where: { restaurantId, status: { in: ['ISSUED', 'REDEEMED', 'EXPIRED', 'CANCELLED'] } } }),
+      prisma.guestReward.count({ where: { restaurantId, status: 'REDEEMED' } }),
+    ]);
+
+    const redemptionRate = totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0;
+    res.json({ active, redeemedThisMonth, expired, totalIssued, totalRedeemed, redemptionRate });
+  } catch (err) { next(err); }
+});
+
+// POST /api/restaurants/:restaurantId/club/rewards
+const CreateRewardSchema = z.object({
+  guestId:     z.string().uuid(),
+  clubMemberId: z.string().uuid().optional(),
+  type:        z.nativeEnum(RewardType),
+  title:       z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  expiresAt:   z.string().datetime().optional(),
+});
+
+router.post('/rewards', validate(CreateRewardSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const { guestId, clubMemberId, type, title, description, expiresAt } =
+      req.body as z.infer<typeof CreateRewardSchema>;
+
+    const reward = await prisma.guestReward.create({
+      data: {
+        restaurantId,
+        guestId,
+        clubMemberId: clubMemberId ?? null,
+        type,
+        title,
+        description: description ?? null,
+        expiresAt:   expiresAt ? new Date(expiresAt) : null,
+        status:      RewardStatus.ISSUED,
+      },
+    });
+    res.status(201).json(reward);
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/restaurants/:restaurantId/club/rewards/:rewardId/redeem
+router.patch('/rewards/:rewardId/redeem', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const rewardId     = p(req, 'rewardId');
+    const userId       = (req as Request & { user?: { id: string } }).user?.id ?? null;
+
+    const reward = await prisma.guestReward.findFirst({
+      where: { id: rewardId, restaurantId },
+    });
+    if (!reward) throw new NotFoundError('GuestReward', rewardId);
+    if (reward.status !== RewardStatus.ISSUED) throw new BusinessRuleError('Reward is not in ISSUED status');
+
+    const updated = await prisma.guestReward.update({
+      where: { id: rewardId },
+      data: {
+        status:          RewardStatus.REDEEMED,
+        redeemedAt:      new Date(),
+        redeemedByUserId: userId,
+      },
+    });
+
+    // Audit trail
+    await prisma.guestMemory.create({
+      data: {
+        restaurantId,
+        guestId:       reward.guestId,
+        category:      'MILESTONE',
+        source:        'AUTO_DETECTED',
+        headline:      `הטבת מועדון מומשה: ${reward.title}`,
+        context:       `סוג: ${reward.type}`,
+        emotionalWeight: 3,
+        occurredAt:    new Date(),
+        addedBy:       'CLUB',
+      },
+    });
+
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// GET /api/restaurants/:restaurantId/club/rewards/guest/:guestId
+// Returns active (ISSUED) rewards for a specific guest — used by GuestDrawer badge.
+router.get('/rewards/guest/:guestId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'restaurantId');
+    const guestId      = p(req, 'guestId');
+
+    const rewards = await prisma.guestReward.findMany({
+      where:   { restaurantId, guestId, status: RewardStatus.ISSUED },
+      orderBy: { issuedAt: 'desc' },
+      select:  { id: true, type: true, title: true, issuedAt: true, expiresAt: true, status: true },
+    });
+    res.json(rewards);
   } catch (err) { next(err); }
 });
 

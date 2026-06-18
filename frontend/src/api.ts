@@ -406,6 +406,32 @@ export const api = {
     },
     upcomingEvents: (restaurantId: string, days = 30) =>
       request<import('./types').UpcomingClubEvents>(`/restaurants/${restaurantId}/club/upcoming-events?days=${days}`),
+    sendEventSms: (restaurantId: string, memberId: string, eventType: 'birthday' | 'anniversary') =>
+      request<{ ok: boolean; messageLogId: string }>(`/restaurants/${restaurantId}/club/members/${memberId}/send-event-sms`, {
+        method: 'POST', body: JSON.stringify({ eventType }),
+      }),
+    rewards: (restaurantId: string, status?: string, page = 1, limit = 50) => {
+      const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (status) qs.set('status', status);
+      return request<{ data: import('./types').GuestReward[]; meta: { total: number; page: number; limit: number } }>(
+        `/restaurants/${restaurantId}/club/rewards?${qs}`,
+      );
+    },
+    rewardStats: (restaurantId: string) =>
+      request<import('./types').RewardStats>(`/restaurants/${restaurantId}/club/rewards/stats`),
+    createReward: (restaurantId: string, body: {
+      guestId: string; clubMemberId?: string; type: import('./types').RewardType;
+      title: string; description?: string; expiresAt?: string;
+    }) =>
+      request<import('./types').GuestReward>(`/restaurants/${restaurantId}/club/rewards`, {
+        method: 'POST', body: JSON.stringify(body),
+      }),
+    redeemReward: (restaurantId: string, rewardId: string) =>
+      request<import('./types').GuestReward>(`/restaurants/${restaurantId}/club/rewards/${rewardId}/redeem`, {
+        method: 'PATCH',
+      }),
+    guestActiveRewards: (restaurantId: string, guestId: string) =>
+      request<import('./types').GuestReward[]>(`/restaurants/${restaurantId}/club/rewards/guest/${guestId}`),
     invites: (restaurantId: string) =>
       request<import('./types').ClubJoinInvite[]>(`/restaurants/${restaurantId}/club/invites`),
     createInvite: (restaurantId: string, body: {

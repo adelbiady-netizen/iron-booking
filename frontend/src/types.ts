@@ -68,6 +68,36 @@ export interface ClubStats {
   active: number;
   optedOut: number;
   paused: number;
+  smsConsent: number;
+}
+
+export type RewardType   = 'BIRTHDAY' | 'ANNIVERSARY' | 'RECOVERY' | 'MANUAL';
+export type RewardStatus = 'ISSUED' | 'REDEEMED' | 'EXPIRED' | 'CANCELLED';
+
+export interface GuestReward {
+  id:               string;
+  restaurantId:     string;
+  guestId:          string;
+  clubMemberId:     string | null;
+  type:             RewardType;
+  title:            string;
+  description:      string | null;
+  issuedAt:         string;
+  expiresAt:        string | null;
+  status:           RewardStatus;
+  redeemedAt:       string | null;
+  redeemedByUserId: string | null;
+  guest?:           { id: string; firstName: string; lastName: string; phone: string | null };
+  redeemedByUser?:  { id: string; firstName: string; lastName: string } | null;
+}
+
+export interface RewardStats {
+  active:            number;
+  redeemedThisMonth: number;
+  expired:           number;
+  totalIssued:       number;
+  totalRedeemed:     number;
+  redemptionRate:    number;
 }
 
 export interface PendingApproval {

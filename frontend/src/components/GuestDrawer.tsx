@@ -286,6 +286,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [lockReason,   setLockReason]   = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activeRewards, setActiveRewards] = useState<import('../types').GuestReward[]>([]);
   const reorganizeKeyRef = useRef(0);
   const editReorganizeKeyRef = useRef(0);
   const inflightRef = useRef(false);
@@ -345,6 +346,19 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       editTableId !== (res.tableId ?? null) ||
       JSON.stringify([...editCombinedTableIds].sort()) !== JSON.stringify([...(res.combinedTableIds ?? [])].sort())
     ));
+
+  // Fetch active club rewards for this guest so we can show the 🎁 badge
+  useEffect(() => {
+    const rid = restaurantId;
+    const id  = res.guest?.id;
+    if (!rid || !id) return;
+    let cancelled = false;
+    api.club.guestActiveRewards(rid, id)
+      .then(r => { if (!cancelled) setActiveRewards(r); })
+      .catch(() => { /* badge is optional — fail silently */ });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, res.guest?.id]);
 
   useEffect(() => {
     if (!['PENDING', 'CONFIRMED'].includes(res.status) || res.returnedToListAt) {
@@ -1150,6 +1164,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                       {tag}
                     </span>
                   ))}
+                </div>
+              )}
+              {activeRewards.length > 0 && (
+                <div className="pt-1">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full border bg-iron-green/10 border-iron-green/30 text-iron-green font-medium">
+                    🎁 הטבת מועדון פעילה{activeRewards.length > 1 ? ` (${activeRewards.length})` : ''}
+                  </span>
                 </div>
               )}
             </section>

@@ -3,7 +3,7 @@ import { api, ApiError } from '../../api';
 import GuestHubCmsPanel from './GuestHubCmsPanel';
 import { useT } from '../../i18n/useT';
 import { validateImageFile, uploadToCloudinary, cloudinaryConfigured } from '../../utils/cloudinaryUpload';
-import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport, ClubMember, ClubStats, AlertCenter, RecoveryStats, MomentRecord, MorningBriefRecord, UpcomingClubEvents } from '../../types';
+import type { AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthState, LocationTonightStats, SmsUsageDetail, SmsUsageReport, ClubMember, ClubStats, AlertCenter, RecoveryStats, MomentRecord, MorningBriefRecord, UpcomingClubEvents, GuestReward, RewardStats } from '../../types';
 
 // ─── Wizard form types ────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ interface WizardSettings {
 }
 interface WizardUser { firstName: string; lastName: string; email: string; password: string; role: string; }
 
-type IcTab = 'overview' | 'members' | 'alerts' | 'messages' | 'events' | 'backfill';
+type IcTab = 'overview' | 'members' | 'alerts' | 'messages' | 'events' | 'rewards' | 'backfill';
 
 // Israeli mobile validation — accepts 05XXXXXXXX, +9725XXXXXXXX, or 9725XXXXXXXX
 // (spaces / dashes / parens ignored). Rejects landlines and malformed numbers,
@@ -503,6 +503,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [icTab,          setIcTab]          = useState<IcTab>('overview');
   const [icClubStats,    setIcClubStats]    = useState<ClubStats | null>(null);
   const [icUpcoming,     setIcUpcoming]     = useState<UpcomingClubEvents | null>(null);
+  const [smsPreviewType, setSmsPreviewType] = useState<'birthday' | 'anniversary' | null>(null);
+  const [sendConfirm,    setSendConfirm]    = useState<{ memberId: string; name: string; eventType: 'birthday' | 'anniversary' } | null>(null);
+  const [sendSmsBusy,    setSendSmsBusy]    = useState(false);
   const [icRecovStats,   setIcRecovStats]   = useState<RecoveryStats | null>(null);
   const [icAlerts,       setIcAlerts]       = useState<AlertCenter | null>(null);
   const [icMembers,      setIcMembers]      = useState<ClubMember[] | null>(null);
@@ -511,6 +514,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [icLoading,      setIcLoading]      = useState(false);
   const [icError,        setIcError]        = useState<string | null>(null);
   const [icMemberSearch, setIcMemberSearch] = useState('');
+  const [icRewards,      setIcRewards]      = useState<GuestReward[] | null>(null);
+  const [icRewardStats,  setIcRewardStats]  = useState<RewardStats | null>(null);
+  const [icRewardFilter, setIcRewardFilter] = useState<string>('ISSUED');
+  const [icRewardBusy,   setIcRewardBusy]   = useState(false);
 
   // Branding edit state
   const [editBranding,   setEditBranding]   = useState(false);
@@ -581,13 +588,14 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
     (async () => {
       try {
         if (icTab === 'overview') {
-          const [stats, recov, alerts, upcoming] = await Promise.all([
+          const [stats, recov, alerts, upcoming, rewardStats] = await Promise.all([
             api.club.stats(rid),
             api.recovery.stats(rid),
             api.alerts.center(rid),
             api.club.upcomingEvents(rid, 30),
+            api.club.rewardStats(rid),
           ]);
-          if (!cancelled) { setIcClubStats(stats); setIcRecovStats(recov); setIcAlerts(alerts); setIcUpcoming(upcoming); }
+          if (!cancelled) { setIcClubStats(stats); setIcRecovStats(recov); setIcAlerts(alerts); setIcUpcoming(upcoming); setIcRewardStats(rewardStats); }
         } else if (icTab === 'members') {
           const r = await api.club.members(rid);
           if (!cancelled) setIcMembers(r.data);
@@ -603,6 +611,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             api.alerts.center(rid),
           ]);
           if (!cancelled) { setIcBrief(brief); setIcAlerts(alerts); }
+        } else if (icTab === 'rewards') {
+          const [rewardsResp, rewardStats] = await Promise.all([
+            api.club.rewards(rid, icRewardFilter),
+            api.club.rewardStats(rid),
+          ]);
+          if (!cancelled) { setIcRewards(rewardsResp.data); setIcRewardStats(rewardStats); }
         }
       } catch (e) {
         if (!cancelled) setIcError(e instanceof Error ? e.message : 'שגיאה בטעינת הנתונים');
@@ -1823,7 +1837,26 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             try { await api.admin.restaurants.settings(selectedId!, { clubBirthdaySmsTemplate: e.target.value.trim() }); await loadDetail(selectedId!); } catch { /* ignore */ }
                           }}
                         />
-                        <p className="text-[11px] text-iron-muted mt-0.5">משתנים: {'{firstName}'} {'{restaurantName}'} {'{gift}'}</p>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-[11px] text-iron-muted">משתנים: {'{firstName}'} {'{restaurantName}'} {'{gift}'} {'{bookingLink}'}</p>
+                          <button type="button" onClick={() => setSmsPreviewType(v => v === 'birthday' ? null : 'birthday')} className="text-[11px] text-iron-green hover:underline">הצג דוגמה</button>
+                        </div>
+                        {smsPreviewType === 'birthday' && (() => {
+                          const tpl   = (s.clubBirthdaySmsTemplate as string | undefined)?.trim() ?? '';
+                          const gift  = (s.clubBirthdaySmsGift as string | undefined)?.trim() ?? '';
+                          const rName = detail?.name ?? 'המסעדה';
+                          const slug  = detail?.slug ?? 'your-restaurant';
+                          const link  = `https://www.ironbooking.com/book/${slug}`;
+                          const giftLine = gift ? `\nהטבה: ${gift}.` : '';
+                          const preview = tpl
+                            ? tpl.replace(/\{firstName\}/g, 'עאדל').replace(/\{restaurantName\}/g, rName).replace(/\{gift\}/g, gift).replace(/\{bookingLink\}/g, link)
+                            : `היי עאדל, יום ההולדת שלך מתקרב 🎉\nב־${rName} נשמח לחגוג איתך.${giftLine}\nלהזמנת מקום: ${link}`;
+                          return (
+                            <div className="bg-iron-bg border border-iron-green/20 rounded p-2 text-xs text-iron-text whitespace-pre-wrap leading-relaxed mt-1" dir="rtl">
+                              {preview}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
@@ -1890,7 +1923,26 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                             try { await api.admin.restaurants.settings(selectedId!, { clubAnniversarySmsTemplate: e.target.value.trim() }); await loadDetail(selectedId!); } catch { /* ignore */ }
                           }}
                         />
-                        <p className="text-[11px] text-iron-muted mt-0.5">משתנים: {'{firstName}'} {'{restaurantName}'} {'{gift}'}</p>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-[11px] text-iron-muted">משתנים: {'{firstName}'} {'{restaurantName}'} {'{gift}'} {'{bookingLink}'}</p>
+                          <button type="button" onClick={() => setSmsPreviewType(v => v === 'anniversary' ? null : 'anniversary')} className="text-[11px] text-iron-green hover:underline">הצג דוגמה</button>
+                        </div>
+                        {smsPreviewType === 'anniversary' && (() => {
+                          const tpl   = (s.clubAnniversarySmsTemplate as string | undefined)?.trim() ?? '';
+                          const gift  = (s.clubAnniversarySmsGift as string | undefined)?.trim() ?? '';
+                          const rName = detail?.name ?? 'המסעדה';
+                          const slug  = detail?.slug ?? 'your-restaurant';
+                          const link  = `https://www.ironbooking.com/book/${slug}`;
+                          const giftLine = gift ? `\nהטבה: ${gift}.` : '';
+                          const preview = tpl
+                            ? tpl.replace(/\{firstName\}/g, 'עאדל').replace(/\{restaurantName\}/g, rName).replace(/\{gift\}/g, gift).replace(/\{bookingLink\}/g, link)
+                            : `היי עאדל, יום הנישואים שלכם מתקרב ❤️\nב־${rName} נשמח לארח אתכם לערב מיוחד.${giftLine}\nלהזמנת מקום: ${link}`;
+                          return (
+                            <div className="bg-iron-bg border border-iron-green/20 rounded p-2 text-xs text-iron-text whitespace-pre-wrap leading-relaxed mt-1" dir="rtl">
+                              {preview}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
@@ -3072,6 +3124,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       { key: 'alerts',    label: 'התראות' },
       { key: 'messages',  label: 'מסרים' },
       { key: 'events',    label: 'אירועים' },
+      { key: 'rewards',   label: 'הטבות' },
       { key: 'backfill',  label: 'עדכון ניקוד' },
     ];
     const MEMBER_STATUS_HE: Record<string, string> = { ACTIVE: 'פעיל', PAUSED: 'מושהה', OPTED_OUT: 'ביטל' };
@@ -3183,6 +3236,38 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           color: 'text-status-reserved',
           border: 'border-status-reserved/20',
         },
+        {
+          label: 'מאושרי SMS',
+          help: 'חברים פעילים שאישרו קבלת הודעות SMS — יקבלו הודעות אוטומטיות',
+          value: icClubStats?.smsConsent ?? '—',
+          sub: `${icClubStats?.active ? Math.round((icClubStats.smsConsent ?? 0) / icClubStats.active * 100) : 0}% מהפעילים`,
+          color: 'text-iron-green',
+          border: 'border-iron-green/20',
+        },
+        {
+          label: 'ללא אישור SMS',
+          help: 'חברים פעילים שלא אישרו SMS — לא יקבלו הודעות אוטומטיות',
+          value: (icClubStats?.active ?? 0) - (icClubStats?.smsConsent ?? 0),
+          sub: 'לא יקבלו הודעות',
+          color: 'text-status-warning',
+          border: 'border-status-warning/20',
+        },
+        {
+          label: 'הטבות פעילות',
+          help: 'הטבות מועדון שהונפקו ועדיין לא מומשו',
+          value: icRewardStats?.active ?? '—',
+          sub: 'ממתינות למימוש',
+          color: 'text-iron-green',
+          border: 'border-iron-green/20',
+        },
+        {
+          label: 'אחוז מימוש',
+          help: 'שיעור ההטבות שמומשו מתוך כל ההטבות שהונפקו',
+          value: icRewardStats ? `${icRewardStats.redemptionRate}%` : '—',
+          sub: icRewardStats ? `${icRewardStats.totalRedeemed} מתוך ${icRewardStats.totalIssued}` : '',
+          color: 'text-iron-text',
+          border: 'border-iron-border/30',
+        },
       ];
       return (
         <div className="p-5 space-y-6 overflow-y-auto h-full" dir="rtl">
@@ -3197,6 +3282,37 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             ))}
           </div>
           {/* ── Upcoming birthdays & anniversaries ── */}
+          {sendConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" dir="rtl">
+              <div className="bg-iron-surface border border-iron-border rounded-xl p-6 w-80 space-y-4 shadow-2xl">
+                <p className="text-sm font-semibold text-iron-text">שליחת SMS ידנית</p>
+                <p className="text-xs text-iron-muted">שלח הודעת {sendConfirm.eventType === 'birthday' ? 'יום הולדת' : 'יום נישואים'} ל‑{sendConfirm.name}?</p>
+                <p className="text-[11px] text-status-warning">פעולה זו תשלח SMS אמיתי ותרשם ביומן ההודעות.</p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setSendConfirm(null)} className="px-3 py-1.5 text-xs border border-iron-border rounded-lg text-iron-muted hover:text-iron-text">ביטול</button>
+                  <button
+                    disabled={sendSmsBusy}
+                    onClick={async () => {
+                      if (!backfillRestaurantId) return;
+                      setSendSmsBusy(true);
+                      try {
+                        await api.club.sendEventSms(backfillRestaurantId, sendConfirm.memberId, sendConfirm.eventType);
+                        setSendConfirm(null);
+                        const upcoming = await api.club.upcomingEvents(backfillRestaurantId, 30);
+                        setIcUpcoming(upcoming);
+                      } catch (err) {
+                        alert(`שגיאה: ${err instanceof Error ? err.message : 'שליחה נכשלה'}`);
+                      } finally {
+                        setSendSmsBusy(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs bg-iron-green text-black rounded-lg font-medium disabled:opacity-50"
+                  >{sendSmsBusy ? 'שולח...' : 'שלח'}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {icUpcoming && (icUpcoming.birthdays.length > 0 || icUpcoming.anniversaries.length > 0) && (() => {
             const statusLabel = (ev: UpcomingClubEvents['birthdays'][0]) => {
               if (ev.willReceiveSms)      return <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-green/10 text-iron-green border border-iron-green/20">יקבל SMS</span>;
@@ -3204,7 +3320,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               if (!ev.automationEnabled)  return <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-border text-iron-muted border border-iron-border">האוטומציה כבויה</span>;
               return <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-warning/10 text-status-warning border border-status-warning/20">אין אישור SMS</span>;
             };
-            const EventTable = ({ rows, title }: { rows: UpcomingClubEvents['birthdays']; title: string }) => (
+            const EventTable = ({ rows, title, eventType }: { rows: UpcomingClubEvents['birthdays']; title: string; eventType: 'birthday' | 'anniversary' }) => (
               <div>
                 <p className="text-xs font-semibold text-iron-muted mb-2">{title}</p>
                 <div className="rounded-lg border border-iron-border overflow-hidden">
@@ -3216,6 +3332,7 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                         <th className="text-right font-normal px-3 py-2">תאריך</th>
                         <th className="text-right font-normal px-3 py-2">בעוד</th>
                         <th className="text-right font-normal px-3 py-2">סטטוס</th>
+                        <th className="text-right font-normal px-3 py-2">שליחה</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3226,6 +3343,12 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                           <td className="px-3 py-2 text-iron-muted">{ev.mmdd}</td>
                           <td className="px-3 py-2 text-iron-muted">{ev.daysUntil === 0 ? 'היום' : `${ev.daysUntil} ימים`}</td>
                           <td className="px-3 py-2">{statusLabel(ev)}</td>
+                          <td className="px-3 py-2">
+                            {ev.smsConsent
+                              ? <button onClick={() => setSendConfirm({ memberId: ev.memberId, name: ev.name, eventType })} className="text-[10px] px-2 py-0.5 rounded border border-iron-green/40 text-iron-green hover:bg-iron-green/10">שלח</button>
+                              : <span className="text-[10px] text-iron-muted/50">אין אישור</span>
+                            }
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -3235,8 +3358,8 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
             );
             return (
               <div className="space-y-4">
-                {icUpcoming.birthdays.length > 0    && <EventTable rows={icUpcoming.birthdays}    title="ימי הולדת קרובים — 30 יום" />}
-                {icUpcoming.anniversaries.length > 0 && <EventTable rows={icUpcoming.anniversaries} title="ימי נישואים קרובים — 30 יום" />}
+                {icUpcoming.birthdays.length > 0    && <EventTable rows={icUpcoming.birthdays}    title="ימי הולדת קרובים — 30 יום"  eventType="birthday" />}
+                {icUpcoming.anniversaries.length > 0 && <EventTable rows={icUpcoming.anniversaries} title="ימי נישואים קרובים — 30 יום" eventType="anniversary" />}
               </div>
             );
           })()}
@@ -3792,9 +3915,159 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       );
     };
 
+    const REWARD_TYPE_HE: Record<string, string> = {
+      BIRTHDAY: 'יום הולדת', ANNIVERSARY: 'נישואים', RECOVERY: 'החזרה', MANUAL: 'ידנית',
+    };
+    const REWARD_STATUS_HE: Record<string, string> = {
+      ISSUED: 'פעילה', REDEEMED: 'מומשה', EXPIRED: 'פגה', CANCELLED: 'בוטלה',
+    };
+    const REWARD_STATUS_COLOR: Record<string, string> = {
+      ISSUED:    'text-iron-green bg-iron-green/10 border border-iron-green/20',
+      REDEEMED:  'text-status-reserved bg-status-reserved/10 border border-status-reserved/20',
+      EXPIRED:   'text-iron-muted bg-iron-border/20 border border-iron-border/30',
+      CANCELLED: 'text-red-400 bg-red-500/10 border border-red-500/20',
+    };
+
+    const renderRewards = () => {
+      if (!backfillRestaurantId) return <NoRestaurant />;
+      if (icLoading) return <LoadingRow />;
+      if (icError)   return <ErrorRow msg={icError} />;
+
+      const handleRedeem = async (rewardId: string) => {
+        if (icRewardBusy) return;
+        setIcRewardBusy(true);
+        try {
+          await api.club.redeemReward(backfillRestaurantId, rewardId);
+          const [rewardsResp, stats] = await Promise.all([
+            api.club.rewards(backfillRestaurantId, icRewardFilter),
+            api.club.rewardStats(backfillRestaurantId),
+          ]);
+          setIcRewards(rewardsResp.data);
+          setIcRewardStats(stats);
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'שגיאה במימוש ההטבה');
+        } finally {
+          setIcRewardBusy(false);
+        }
+      };
+
+      const filterOptions: Array<{ value: string; label: string }> = [
+        { value: 'ISSUED',   label: 'פעילות' },
+        { value: 'REDEEMED', label: 'מומשו' },
+        { value: 'EXPIRED',  label: 'פגו' },
+        { value: 'CANCELLED',label: 'בוטלו' },
+      ];
+
+      return (
+        <div className="flex flex-col h-full overflow-hidden" dir="rtl">
+          {/* KPI cards */}
+          {icRewardStats && (
+            <div className="grid grid-cols-4 gap-3 p-4 border-b border-iron-border shrink-0">
+              {[
+                { label: 'הטבות פעילות',    value: icRewardStats.active,            sub: 'ממתינות למימוש',           color: 'text-iron-green',    border: 'border-iron-green/20' },
+                { label: 'מומשו החודש',      value: icRewardStats.redeemedThisMonth, sub: 'מימושים החודש',            color: 'text-status-reserved', border: 'border-status-reserved/20' },
+                { label: 'פגו תוקף',         value: icRewardStats.expired,           sub: 'לא מומשו בזמן',            color: 'text-iron-muted',    border: 'border-iron-border/30' },
+                { label: 'אחוז מימוש',       value: `${icRewardStats.redemptionRate}%`, sub: `${icRewardStats.totalRedeemed} מתוך ${icRewardStats.totalIssued}`, color: 'text-iron-text', border: 'border-iron-border/30' },
+              ].map(c => (
+                <div key={c.label} className={`bg-iron-card border ${c.border} rounded-lg p-3`}>
+                  <p className="text-[10px] text-iron-muted mb-0.5">{c.label}</p>
+                  <p className={`text-xl font-bold ${c.color}`}>{c.value}</p>
+                  <p className="text-[10px] text-iron-muted mt-0.5">{c.sub}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Filter bar */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-iron-border shrink-0">
+            {filterOptions.map(f => (
+              <button
+                key={f.value}
+                onClick={async () => {
+                  setIcRewardFilter(f.value);
+                  setIcLoading(true);
+                  try {
+                    const [r, s] = await Promise.all([
+                      api.club.rewards(backfillRestaurantId, f.value),
+                      api.club.rewardStats(backfillRestaurantId),
+                    ]);
+                    setIcRewards(r.data);
+                    setIcRewardStats(s);
+                  } finally { setIcLoading(false); }
+                }}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  icRewardFilter === f.value
+                    ? 'bg-iron-green/10 border-iron-green/30 text-iron-green font-medium'
+                    : 'border-iron-border text-iron-muted hover:text-iron-text'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {/* Table */}
+          <div className="flex-1 overflow-y-auto">
+            {!icRewards || icRewards.length === 0 ? (
+              <div className="text-center text-iron-muted text-sm py-12">אין הטבות להציג</div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-iron-border text-iron-muted">
+                    <th className="text-right px-4 py-2 font-medium">אורח</th>
+                    <th className="text-right px-4 py-2 font-medium">הטבה</th>
+                    <th className="text-right px-4 py-2 font-medium">סוג</th>
+                    <th className="text-right px-4 py-2 font-medium">הונפק</th>
+                    <th className="text-right px-4 py-2 font-medium">תוקף עד</th>
+                    <th className="text-right px-4 py-2 font-medium">סטטוס</th>
+                    <th className="text-right px-4 py-2 font-medium">מומש על ידי</th>
+                    <th className="px-4 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {icRewards.map(rw => (
+                    <tr key={rw.id} className="border-b border-iron-border/40 hover:bg-iron-card/30">
+                      <td className="px-4 py-2 font-medium text-iron-text">
+                        {rw.guest ? `${rw.guest.firstName} ${rw.guest.lastName}`.trim() : '—'}
+                      </td>
+                      <td className="px-4 py-2 text-iron-text">{rw.title}</td>
+                      <td className="px-4 py-2 text-iron-muted">{REWARD_TYPE_HE[rw.type] ?? rw.type}</td>
+                      <td className="px-4 py-2 text-iron-muted">{new Date(rw.issuedAt).toLocaleDateString('he-IL')}</td>
+                      <td className="px-4 py-2 text-iron-muted">
+                        {rw.expiresAt ? new Date(rw.expiresAt).toLocaleDateString('he-IL') : '—'}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${REWARD_STATUS_COLOR[rw.status] ?? ''}`}>
+                          {REWARD_STATUS_HE[rw.status] ?? rw.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-iron-muted">
+                        {rw.redeemedByUser
+                          ? `${rw.redeemedByUser.firstName} ${rw.redeemedByUser.lastName}`.trim()
+                          : rw.redeemedAt ? new Date(rw.redeemedAt).toLocaleDateString('he-IL') : '—'}
+                      </td>
+                      <td className="px-4 py-2">
+                        {rw.status === 'ISSUED' && (
+                          <button
+                            onClick={() => handleRedeem(rw.id)}
+                            disabled={icRewardBusy}
+                            className="px-2 py-1 text-[10px] rounded border border-iron-green/30 text-iron-green hover:bg-iron-green/10 transition-colors disabled:opacity-40"
+                          >
+                            סמן כמומש
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     const tabContentMap: Record<IcTab, () => React.ReactNode> = {
       overview: renderOverview, members: renderMembers, alerts: renderAlerts,
-      messages: renderMessages, events: renderEvents, backfill: renderBackfill,
+      messages: renderMessages, events: renderEvents, rewards: renderRewards, backfill: renderBackfill,
     };
 
     return (
