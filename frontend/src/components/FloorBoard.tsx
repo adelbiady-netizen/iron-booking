@@ -1595,18 +1595,18 @@ export default function FloorBoard({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
             <div
-              className="fixed z-50 bg-iron-elevated border border-iron-border/55 rounded-xl py-1 min-w-[11rem]"
+              className="fixed z-50 bg-iron-elevated border border-iron-border/55 rounded-xl py-0.5 min-w-[10rem] max-w-[13rem]"
               style={{ left: ctxMenu.x, top: ctxMenu.y, boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.32)' }}
             >
-              <div className="px-3 py-1.5 border-b border-iron-border/50 mb-1">
-                <span className="text-iron-muted text-xs font-semibold uppercase tracking-wider">{t.name}</span>
+              <div className="px-2.5 py-1 border-b border-iron-border/50 mb-0.5">
+                <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">{t.name}</span>
               </div>
 
               {/* Primary operational actions */}
               {canRecover && (
                 <button
                   onClick={() => { onContextMenuSeat!({ ...activeDrawerRes!, tableId: t.id }); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxReassign}
                 </button>
@@ -1614,7 +1614,7 @@ export default function FloorBoard({
               {canSeat && (
                 <button
                   onClick={() => { onContextMenuSeat!({ ...seatableRes!, tableId: t.id }); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxSeat}
                 </button>
@@ -1622,7 +1622,7 @@ export default function FloorBoard({
               {canArrive && (
                 <button
                   onClick={() => { onContextMenuArrive!(seatableRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-reserved hover:bg-status-reserved/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-status-reserved hover:bg-status-reserved/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMarkArrived}
                 </button>
@@ -1631,12 +1631,12 @@ export default function FloorBoard({
               {/* Table-first seating — available table, no pre-scheduled guest */}
               {canTableFirstSeat && (
                 <>
-                  <div className="px-3 pt-2 pb-0.5 mt-0.5 border-t border-iron-border/40">
-                    <span className="text-iron-muted text-[10px] font-semibold uppercase tracking-wider">
+                  <div className="px-2.5 pt-1.5 pb-0.5 mt-0.5 border-t border-iron-border/40">
+                    <span className="text-iron-muted text-[9px] font-semibold uppercase tracking-wider">
                       {T.floorBoard.ctxSeatGuestHere}
                     </span>
                   </div>
-                  {eligibleGuests.slice(0, 5).map(guest => {
+                  {eligibleGuests.slice(0, 3).map(guest => {
                     const guestId  = guest.kind === 'reservation' ? guest.data.id : `wl-${guest.data.id}`;
                     const name     = guest.data.guestName;
                     const size     = guest.data.partySize;
@@ -1656,11 +1656,11 @@ export default function FloorBoard({
                         key={guestId}
                         disabled={!!busy}
                         onClick={() => { onTableFirstSeat!(ctxMenu.table, guest); setCtxMenu(null); }}
-                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-iron-bg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-full text-left px-2.5 py-1 text-xs hover:bg-iron-bg transition-colors touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        <span className="text-iron-text font-medium">{name}</span>
+                        <span className="text-iron-text font-medium truncate">{name}</span>
                         <span className="text-iron-muted ml-1">· {size}p</span>
-                        <span className={`ml-1.5 text-[10px] font-semibold ${labelCls}`}>{label}</span>
+                        <span className={`ml-1 text-[9px] font-semibold ${labelCls}`}>{label}</span>
                       </button>
                     );
                   })}
@@ -1670,7 +1670,7 @@ export default function FloorBoard({
               {canWalkInHere && (
                 <button
                   onClick={() => { onWalkInHere!(t.id, []); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-info hover:bg-status-info/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-status-info hover:bg-status-info/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxWalkInHere}
                 </button>
@@ -1679,7 +1679,7 @@ export default function FloorBoard({
               {canComplete && (
                 <button
                   onClick={() => { onContextMenuComplete!(currentRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-iron-green-light hover:bg-iron-green/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxComplete}
                 </button>
@@ -1687,7 +1687,7 @@ export default function FloorBoard({
               {canMove && (
                 <button
                   onClick={() => { onContextMenuMove!(currentRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMove}
                 </button>
@@ -1695,7 +1695,7 @@ export default function FloorBoard({
               {canReturnToList && (
                 <button
                   onClick={() => { onContextMenuReturnToList!(currentRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxReturnToList}
                 </button>
@@ -1703,7 +1703,7 @@ export default function FloorBoard({
               {canSwap && (
                 <button
                   onClick={() => { onContextMenuSwap!(swapRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-violet-400 hover:bg-violet-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-violet-400 hover:bg-violet-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxSwap}
                 </button>
@@ -1711,7 +1711,7 @@ export default function FloorBoard({
               {canOpenDetails && (
                 <button
                   onClick={() => { onContextMenuOpenDetails!(isOccupied ? currentRes! : seatableRes!); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxOpenDetails}
                 </button>
@@ -1720,7 +1720,7 @@ export default function FloorBoard({
               {canAttach && (
                 <button
                   onClick={() => { onContextMenuAttachTable!(attachTarget!, t.id); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxAttachTable(attachTarget!.guestName)}
                 </button>
@@ -1728,26 +1728,26 @@ export default function FloorBoard({
               {canDetach && (
                 <button
                   onClick={() => { onContextMenuDetachTable!(attachTarget!, t.id); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxDetachTable}
                 </button>
               )}
 
               {/* Divider before lock/unlock */}
-              {hasActions && !t.locked && <div className="border-t border-iron-border/40 my-1" />}
+              {hasActions && !t.locked && <div className="border-t border-iron-border/40 my-0.5" />}
 
               {t.locked ? (
                 <button
                   onClick={() => { onUnlockTable?.(t.id); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
                 >
                   {T.floorBoard.unlockTable}
                 </button>
               ) : (
                 <button
                   onClick={() => { onLockTable?.(t); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-2 text-xs text-iron-muted hover:bg-iron-bg hover:text-iron-text transition-colors touch-manipulation"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-iron-muted hover:bg-iron-bg hover:text-iron-text transition-colors touch-manipulation"
                 >
                   {T.floorBoard.lockTable}
                 </button>
