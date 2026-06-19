@@ -200,12 +200,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [quickSeatData,               setQuickSeatData]               = useState<{ table: FloorTable; existingRes: Reservation } | null>(null);
   const [quickSeatParty,              setQuickSeatParty]              = useState(2);
   const [gapHint,                     setGapHint]                     = useState<GapHint | null>(null);
-  // Combine-tables mode: host taps multiple available tables before creating a combined reservation
-  const [combineMode,       setCombineMode]       = useState(false);
-  const [combinedSelection, setCombinedSelection] = useState<string[]>([]);
-  // Reservation-based combine mode: right-click a reserved/seated table → pick additional tables
-  const [resCombineRes,        setResCombineRes]        = useState<Reservation | null>(null);
-  const [resCombineSelectedIds, setResCombineSelectedIds] = useState<string[]>([]);
   const [incomingCall,         setIncomingCall]         = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
   const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
   const [callHighlight,        setCallHighlight]        = useState(false);
@@ -264,13 +258,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickMode,        setTablePickMode]        = useState(false);
   const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
-  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | undefined>(undefined);
+  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | undefined>(undefined);
+  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | undefined>(undefined);
+  const [tablePickLockIds,     setTablePickLockIds]     = useState<string[]>([]);
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const [tablePickWalkIn,      setTablePickWalkIn]      = useState(false);
   // IDs selected on the floor map during pick mode — lifted so GuestDrawer can show אישור
   const [tablePickSelectedIds, setTablePickSelectedIds] = useState<string[]>([]);
-  // New-reservation always-armed map: toggle-selected table IDs
-  const [newResTableIds, setNewResTableIds] = useState<string[]>([]);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
   // Optimistic reservation to apply instantly when "שייך" is confirmed in change-table mode
   const tablePickOptimisticRef = useRef<{ resId: string; tableId: string; combinedTableIds: string[]; table: { id: string; name: string; section: null } | null } | null>(null);
@@ -830,54 +824,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setQuickTable({ tableId: table.id, reservationId: null });
   }, [selectedRes, isActiveUnassigned, handleAssignActiveRes, tablePickMode]);
 
-  const handleCombineToggle = useCallback((tableId: string) => {
-    setCombinedSelection(prev =>
-      prev.includes(tableId) ? prev.filter(id => id !== tableId) : [...prev, tableId]
-    );
-  }, []);
-
-  const handleCombineCreate = useCallback(() => {
-    if (combinedSelection.length === 0) return;
-    setPreselectedTableId(combinedSelection[0]);
-    setPreselectedCombinedTableIds(combinedSelection.slice(1));
-    setCreateMode('reservation');
-    setCombineMode(false);
-    setCombinedSelection([]);
-  }, [combinedSelection]);
-
-  const handleContextMenuCombineRes = useCallback((res: Reservation) => {
-    setResCombineRes(res);
-    setResCombineSelectedIds(res.combinedTableIds ?? []);
-    setSelectedRes(null);
-  }, []);
-
-  const handleResCombineToggle = useCallback((tableId: string) => {
-    setResCombineSelectedIds(prev =>
-      prev.includes(tableId) ? prev.filter(id => id !== tableId) : [...prev, tableId]
-    );
-  }, []);
-
-  const handleResCombineConfirm = useCallback(async () => {
-    if (!resCombineRes) return;
-    try {
-      const updated = await api.reservations.update(resCombineRes.id, {
-        tableId: resCombineRes.tableId,
-        combinedTableIds: resCombineSelectedIds,
-      });
-      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
-      showToast(T.floorBoard.toastResCombineDone);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'שגיאה', 'error');
-    } finally {
-      setResCombineRes(null);
-      setResCombineSelectedIds([]);
-    }
-  }, [resCombineRes, resCombineSelectedIds, showToast, T]);
-
-  const handleResCombineCancel = useCallback(() => {
-    setResCombineRes(null);
-    setResCombineSelectedIds([]);
-  }, []);
 
   const handleReorganizeTableClick = useCallback((table: FloorTable) => {
     // If an unassigned reservation is active in GuestDrawer, assign it to the
@@ -1397,28 +1343,67 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setLiveMode(false);
   }, []);
 
-  // Clear new-res map selection when the create drawer is closed
+  // Auto-enter pick mode when create drawer opens for new reservation; cancel when it closes
   useEffect(() => {
-    if (!createMode) setNewResTableIds([]);
-  }, [createMode]);
+    if (createMode === 'reservation') {
+      setTablePickIds([]);
+      setTablePickSuggestions([]);
+      setTablePickAction('new-reservation');
+      setTablePickGuestName(undefined);
+      setTablePickLockIds([]);
+      // If preselectedTableId is set (e.g. More-menu flow confirmed tables first),
+      // seed the pick selection so externalResTableIds feeds them into the drawer.
+      // preselectedTableId is updated in the same React batch as createMode, so
+      // its new value is already visible here.
+      setTablePickSelectedIds(prev => {
+        if (prev.length > 0) return prev; // already populated by pick callback
+        if (preselectedTableId) {
+          return [preselectedTableId, ...(preselectedCombinedTableIds ?? [])].filter(Boolean);
+        }
+        return [];
+      });
+      setTablePickMode(true);
+      tablePickCallbackRef.current = (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [primary, ...combined] = ids;
+        setPreselectedTableId(primary || null);
+        setPreselectedCombinedTableIds(combined);
+      };
+    } else if (createMode === null) {
+      setTablePickMode(false);
+      setTablePickLockIds([]);
+      setTablePickSelectedIds([]);
+      if (tablePickCallbackRef.current) {
+        tablePickCallbackRef.current = null;
+      }
+    }
+  }, [createMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleNewResTableSelect = useCallback((tableId: string) => {
-    setNewResTableIds(prev =>
-      prev.includes(tableId) ? prev.filter(id => id !== tableId) : [...prev, tableId]
-    );
-  }, []);
+  // Keep ref in sync so handlePickDone can read current action without stale closure
+  useEffect(() => { tablePickActionRef.current = tablePickAction; }, [tablePickAction]);
 
   const handlePickSelectionChange = useCallback((ids: string[]) => {
     setTablePickSelectedIds(ids);
   }, []);
 
-  const handlePickTables = useCallback((currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, _walkIn?: boolean, pickTime?: string) => {
+  const handlePickTables = useCallback((
+    currentIds: string[],
+    suggestions: BackendTableSuggestion[],
+    callback: (ids: string[] | null) => void,
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation',
+    guestName?: string,
+    _walkIn?: boolean,
+    pickTime?: string,
+    lockIds?: string[],
+    initialIds?: string[],
+  ) => {
     tablePickCallbackRef.current = callback;
     setTablePickIds(currentIds);
     setTablePickSuggestions(suggestions);
     setTablePickAction(action);
     setTablePickGuestName(guestName);
-    setTablePickSelectedIds([]);
+    setTablePickLockIds(lockIds ?? []);
+    setTablePickSelectedIds(initialIds ?? []);
     if (pickTime) { setTime(pickTime); setLiveMode(false); }
     setTablePickMode(true);
   }, []);
@@ -1445,7 +1430,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
     setTablePickWalkIn(false);
-    setTablePickSelectedIds([]);
+    setTablePickLockIds([]);
+    // For new-reservation: keep tablePickSelectedIds so externalResTableIds stays
+    // populated while the CreateDrawer is still open. The createMode=null branch
+    // of the useEffect below clears it when the drawer closes.
+    if (tablePickActionRef.current !== 'new-reservation') {
+      setTablePickSelectedIds([]);
+    }
   }, [floorTables, allTables]);
 
   const handlePickCancel = useCallback(() => {
@@ -1456,13 +1447,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickGuestName(undefined);
     setTablePickWalkIn(false);
     setTablePickSelectedIds([]);
+    setTablePickLockIds([]);
   }, []);
 
   const handlePickTablesFromDrawer = useCallback((
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation',
     guestName?: string,
     walkIn?: boolean,
     pickTime?: string,
@@ -1470,6 +1462,33 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickWalkIn(!!walkIn);
     handlePickTables(currentIds, suggestions, callback, action, guestName, walkIn, pickTime);
   }, [handlePickTables]);
+
+  const handleContextMenuCombineRes = useCallback((res: Reservation) => {
+    setSelectedRes(null);
+    handlePickTables(
+      [],
+      [],
+      async (ids) => {
+        if (!ids) return;
+        try {
+          const updated = await api.reservations.update(res.id, {
+            tableId: res.tableId,
+            combinedTableIds: ids,
+          });
+          setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+          showToast(T.floorBoard.toastResCombineDone);
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : 'שגיאה', 'error');
+        }
+      },
+      'combine',
+      res.guestName,
+      false,
+      undefined,
+      [res.tableId!],
+      res.combinedTableIds ?? [],
+    );
+  }, [handlePickTables, showToast, T]);
 
   const handleChooseTable = useCallback(async (r: Reservation) => {
     let sug: BackendTableSuggestion[] = [];
@@ -2263,22 +2282,33 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             <button
               onClick={() => {
                 setShowMoreMenu(false);
-                if (combineMode) { setCombineMode(false); setCombinedSelection([]); }
-                else { setSelectedRes(null); setCreateMode(null); setCombineMode(true); }
+                if (tablePickMode && tablePickAction === 'new-reservation') {
+                  handlePickCancel();
+                } else {
+                  setSelectedRes(null);
+                  setCreateMode(null);
+                  handlePickTables([], [], (ids) => {
+                    if (!ids || ids.length === 0) return;
+                    const [primary, ...combined] = ids;
+                    setPreselectedTableId(primary || null);
+                    setPreselectedCombinedTableIds(combined);
+                    setCreateMode('reservation');
+                  }, 'new-reservation');
+                }
               }}
               className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
-                combineMode
+                tablePickMode && tablePickAction === 'new-reservation'
                   ? 'text-status-reserved bg-blue-600/10 hover:bg-blue-600/18'
                   : 'text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20'
               }`}
             >
-              {combineMode ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables2}
+              {tablePickMode && tablePickAction === 'new-reservation' ? T.hostDashboard.cancelCombine : T.hostDashboard.combineTables2}
             </button>
             <button
               onClick={() => {
                 setShowMoreMenu(false);
                 if (reorganizeMode) { setReorganizeMode(false); setRebuildDayTarget(null); }
-                else { setSelectedRes(null); setCreateMode(null); setCombineMode(false); setCombinedSelection([]); setReorganizeMode(true); rebuildSessionIdRef.current = crypto.randomUUID(); }
+                else { setSelectedRes(null); setCreateMode(null); setReorganizeMode(true); rebuildSessionIdRef.current = crypto.randomUUID(); }
               }}
               className={`w-full text-start px-3.5 py-2 text-xs font-medium transition-colors ${
                 reorganizeMode
@@ -2557,10 +2587,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onGapClick={handleGapClick}
           onGapWaitlistSeat={handleGapWaitlistSeat}
           onQuickAction={handleTimelineQuickAction}
-          combineMode={combineMode}
-          combinedSelection={combinedSelection}
-          onCombineToggle={handleCombineToggle}
-          onCombineCreate={handleCombineCreate}
           pickMode={tablePickMode}
           pickIds={tablePickIds}
           pickSuggestions={tablePickSuggestions}
@@ -2569,10 +2595,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onPickSelectionChange={handlePickSelectionChange}
           pickAction={tablePickAction}
           pickGuestName={tablePickGuestName}
+          pickLockIds={tablePickLockIds}
           pickWalkInMode={tablePickWalkIn}
           inPlanningMode={!liveMode}
-          newResPickSelectedIds={createMode === 'reservation' ? newResTableIds : undefined}
-          onNewResTableSelect={createMode === 'reservation' ? handleNewResTableSelect : undefined}
           waitlistAssignEntry={waitlistAssignEntry}
           waitlistAssignTableId={waitlistAssignTableId}
           onWaitlistTablePick={handleWaitlistTablePick}
@@ -2605,12 +2630,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           swapSourceId={swapSource?.res.id ?? null}
           onSwapTargetPick={handleSwapTargetPick}
           onSwapCancel={() => setSwapSource(null)}
-          resCombineMode={!!resCombineRes}
-          resCombineSourceId={resCombineRes?.tableId ?? null}
-          resCombineSelectedIds={resCombineSelectedIds}
-          onResCombineToggle={handleResCombineToggle}
-          onResCombineConfirm={handleResCombineConfirm}
-          onResCombineCancel={handleResCombineCancel}
           onContextMenuCombineRes={handleContextMenuCombineRes}
         />
 
@@ -2746,8 +2765,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onUpdatePickSuggestions={setTablePickSuggestions}
             mapPickActive={tablePickMode}
             newResPickMode={createMode === 'reservation'}
-            externalResTableIds={newResTableIds}
-            onResTableChange={setNewResTableIds}
+            externalResTableIds={createMode === 'reservation' ? tablePickSelectedIds : undefined}
+            onResTableChange={() => { /* selection managed via pickCallback */ }}
             onDateTimeChange={handleDrawerDateTimeChange}
           />
         </DrawerErrorBoundary>

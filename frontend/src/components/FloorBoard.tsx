@@ -382,11 +382,6 @@ interface Props {
   onGapClick?: (tableId: string, startTime: string, endTime: string) => void;
   onGapWaitlistSeat?: (tableId: string, entry: WaitlistEntry, startTime: string, endTime: string) => void;
   onQuickAction?: (action: 'seat' | 'move' | 'cancel', res: Reservation) => void;
-  // Combine-tables mode
-  combineMode?: boolean;
-  combinedSelection?: string[];
-  onCombineToggle?: (tableId: string) => void;
-  onCombineCreate?: () => void;
   // Table pick mode (Tabit-style map selection from drawer)
   pickMode?: boolean;
   pickIds?: string[];
@@ -394,17 +389,14 @@ interface Props {
   onPickDone?: (ids: string[]) => void;
   onPickCancel?: () => void;
   onPickSelectionChange?: (ids: string[]) => void;
-  pickAction?: 'seat' | 'move' | 'change-table';
+  pickAction?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation';
+  pickLockIds?: string[];  // tables fixed in selection — cannot be toggled off
   pickGuestName?: string;
   // Walk-in pick: future-reserved tables are amber/selectable; occupied tables stay hard-blocked.
   pickWalkInMode?: boolean;
   // Planning mode: board time differs from wall-clock (time travel or new-res form).
   // When true, all table visuals are computed from boardMinutes, not liveStatus.
   inPlanningMode?: boolean;
-  // New-reservation always-armed toggle-select mode (separate from seat/assign/move).
-  // Each click toggles the table in/out of the selection set.
-  newResPickSelectedIds?: string[];
-  onNewResTableSelect?: (tableId: string) => void;
   // Waitlist table assignment mode
   waitlistAssignEntry?: WaitlistEntry | null;
   waitlistAssignTableId?: string | null;
@@ -443,13 +435,6 @@ interface Props {
   swapSourceId?: string | null;
   onSwapTargetPick?: (res: Reservation) => void;
   onSwapCancel?: () => void;
-  // Reservation-based combine mode — right-click a reserved/seated table → "חבר שולחנות"
-  resCombineMode?: boolean;
-  resCombineSourceId?: string | null;
-  resCombineSelectedIds?: string[];
-  onResCombineToggle?: (tableId: string) => void;
-  onResCombineConfirm?: () => void;
-  onResCombineCancel?: () => void;
   onContextMenuCombineRes?: (res: Reservation) => void;
 }
 
@@ -485,8 +470,8 @@ export default function FloorBoard({
   nowTime, operationalNow,
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
-  combineMode = false, combinedSelection = [], onCombineToggle, onCombineCreate,
   pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, onPickSelectionChange, pickAction, pickGuestName,
+  pickLockIds = [],
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
@@ -511,16 +496,8 @@ export default function FloorBoard({
   swapSourceId = null,
   onSwapTargetPick,
   onSwapCancel,
-  resCombineMode = false,
-  resCombineSourceId = null,
-  resCombineSelectedIds = [],
-  onResCombineToggle,
-  onResCombineConfirm,
-  onResCombineCancel,
   onContextMenuCombineRes,
   inPlanningMode = false,
-  newResPickSelectedIds,
-  onNewResTableSelect,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -674,14 +651,6 @@ export default function FloorBoard({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [swapMode, swapSourceId, onSwapCancel]);
-
-  // Cancel res-combine mode on Esc
-  useEffect(() => {
-    if (!resCombineMode) return;
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onResCombineCancel?.(); }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [resCombineMode, onResCombineCancel]);
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
@@ -939,20 +908,6 @@ export default function FloorBoard({
       }
       return;
     }
-    // Res-combine mode: toggle available tables in/out of the combined group
-    if (resCombineMode) {
-      if (t.id === resCombineSourceId) { onResCombineCancel?.(); return; }
-      if (resCombineSelectedIds.includes(t.id)) { onResCombineToggle?.(t.id); return; }
-      const hasOtherRes = !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId));
-      if (hasOtherRes || t.locked) return; // blocked — occupied by different reservation
-      onResCombineToggle?.(t.id);
-      return;
-    }
-    // New-reservation always-armed mode: simple single-select, no bottom bar, no drag.
-    if (onNewResTableSelect && !pickMode) {
-      if (t.isActive && !t.locked) onNewResTableSelect(t.id);
-      return;
-    }
     // Pick mode takes priority: a specific in-progress pick overrides reorganize mode.
     if (pickMode) {
       const ps = getPickStatus(t);
@@ -968,6 +923,17 @@ export default function FloorBoard({
         onPickDone?.([t.id]);
         return;
       }
+      // Lock check: primary table in combine mode cannot be deselected
+      if (pickLockIds.includes(t.id)) {
+        setPickCurrentWarn(true);
+        setTimeout(() => setPickCurrentWarn(false), 2000);
+        return;
+      }
+      // Combine: tables occupied by a different reservation are blocked
+      if (pickAction === 'combine') {
+        const hasOtherRes = !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId));
+        if (hasOtherRes || t.locked) return;
+      }
       // Toggle multi-select for seat and move: first click selects, second deselects.
       // First selected table = tableId (primary), rest = combinedTableIds.
       const newSel = pickSelection.includes(t.id)
@@ -980,13 +946,6 @@ export default function FloorBoard({
     // Reorganize mode: any table click is forwarded to the manager's lift flow
     if (reorganizeMode) {
       onReorganizeTableClick?.(t);
-      return;
-    }
-    // Combine mode: toggle available tables
-    if (combineMode) {
-      if (t.liveStatus === 'AVAILABLE' && !t.locked && !softHoldMap[t.id]) {
-        onCombineToggle?.(t.id);
-      }
       return;
     }
     const res = (t.currentReservation ?? t.upcomingReservations[0]) as Reservation | undefined;
@@ -1068,7 +1027,7 @@ export default function FloorBoard({
   // Peripheral quieting: when the room is under pressure (waitlist + no room),
   // available tables gently recede so active zones emerge without any explicit signal.
   const underPressure = waitlist.length > 0 && available <= 2;
-  const quietIdle = underPressure && !pickMode && !waitlistAssignEntry && !combineMode && !reorganizeMode;
+  const quietIdle = underPressure && !pickMode && !waitlistAssignEntry && !reorganizeMode;
 
   // ── Service pressure score ─────────────────────────────────────────────────
   // Continuous 0.0–1.0 signal from live data. Drives atmosphere only — no alerts.
@@ -1120,6 +1079,10 @@ export default function FloorBoard({
           <span className="text-status-reserved text-xs font-medium">
             {pickAction === 'move' && pickGuestName
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
+              : pickAction === 'combine'
+              ? T.floorBoard.pickModeCombineHint
+              : pickAction === 'new-reservation'
+              ? T.floorBoard.pickModeNewResHint
               : T.floorBoard.pickModeHint}
           </span>
         </div>
@@ -1393,8 +1356,7 @@ export default function FloorBoard({
               const turnTooltip = turns.length > 0
                 ? `${t.name} · upcoming:\n${turns.map(r => `${normalizeTime(r.time)}  ${r.guestName}  ·  ${r.partySize}p`).join('\n')}`
                 : undefined;
-              const inNewResPick = !!onNewResTableSelect && !pickMode;
-              const ps = (pickMode || inNewResPick) ? getPickStatus(t) : null;
+              const ps = pickMode ? getPickStatus(t) : null;
               const isWLCanvasTarget = !!waitlistAssignEntry && !pickMode && waitlistAssignTableId === t.id;
               const _canvasSwapRes = swapMode ? (
                 t.currentReservation ?? t.upcomingReservations.find(
@@ -1407,23 +1369,22 @@ export default function FloorBoard({
                 !_canvasSwapRes.tableId ||
                 !!_canvasSwapRes.reorganizeAt
               );
-              const isResCombineSource   = resCombineMode && t.id === resCombineSourceId;
-              const isResCombineSelected = resCombineMode && resCombineSelectedIds.includes(t.id);
-              const resCombineDimmed = resCombineMode && !isResCombineSource && !isResCombineSelected && (
-                t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId))
-              );
+              const combineDimmed = pickMode && pickAction === 'combine' &&
+                !pickLockIds.includes(t.id) &&
+                !pickSelection.includes(t.id) &&
+                (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
               return (
                 <MapTable
                   key={t.id}
                   table={t}
                   selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
-                  combinedSelected={!pickMode && (combinedSelection.includes(t.id) || isResCombineSelected)}
-                  dimmed={dimmed || swapDimmed || resCombineDimmed}
+                  combinedSelected={false}
+                  dimmed={dimmed || swapDimmed || combineDimmed}
                   bestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
                   waitlistAssignTarget={isWLCanvasTarget}
                   softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
                   onClick={() => handleClick(t)}
-                  onContextMenu={e => !pickMode && !swapMode && !resCombineMode && handleContextMenu(e, t)}
+                  onContextMenu={e => !pickMode && !swapMode && handleContextMenu(e, t)}
                   insight={!pickMode ? insight : undefined}
                   onInsightAction={
                     !pickMode && insight?.reservationId
@@ -1438,12 +1399,12 @@ export default function FloorBoard({
                   extraTurns={extraTurns}
                   turns={turns}
                   turnTooltip={turnTooltip}
-                  pickMode={pickMode || inNewResPick}
-                  pickSelected={pickMode ? pickSelection.includes(t.id) : (inNewResPick && (newResPickSelectedIds?.includes(t.id) ?? false))}
+                  pickMode={pickMode}
+                  pickSelected={pickMode && pickSelection.includes(t.id)}
                   pickStatus={ps}
-                  inNewResPick={inNewResPick}
+                  inNewResPick={false}
                   inPlanningMode={inPlanningMode}
-                  swapSource={isSwapSource || isResCombineSource}
+                  swapSource={isSwapSource || (pickMode && pickAction === 'combine' && pickLockIds.includes(t.id))}
                   wlPickWarn={wlPickWarn === t.id}
                   quietFade={quietFade}
                   hoveredResId={hoveredResId}
@@ -1530,6 +1491,10 @@ export default function FloorBoard({
                     (_gridSwapRes.combinedTableIds ?? []).length > 0 ||
                     !!_gridSwapRes.reorganizeAt
                   );
+                  const gridCombineDimmed = pickMode && pickAction === 'combine' &&
+                    !pickLockIds.includes(t.id) &&
+                    !pickSelection.includes(t.id) &&
+                    (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
                   return (
                     <div
                       key={t.id}
@@ -1538,13 +1503,13 @@ export default function FloorBoard({
                           ? 'ring-2 ring-status-info/60 rounded-lg'
                           : wlPickWarn === t.id
                           ? 'ring-2 ring-status-danger/60 rounded-lg'
-                          : isSwapSrc
+                          : isSwapSrc || (pickMode && pickAction === 'combine' && pickLockIds.includes(t.id))
                           ? 'ring-2 ring-violet-500/60 rounded-lg'
-                          : isPickSelected || combinedSelection.includes(t.id)
+                          : isPickSelected
                           ? 'ring-2 ring-status-reserved/50 rounded-lg'
                           : ''
                       }
-                      style={ineligibleForAssign || gridSwapDimmed ? { opacity: 0.3 } : undefined}
+                      style={(ineligibleForAssign || gridSwapDimmed || gridCombineDimmed) ? { opacity: 0.3 } : undefined}
                     >
                       <TableCard
                         table={t}
@@ -1579,7 +1544,7 @@ export default function FloorBoard({
       ))}
 
       {/* Right-click context menu */}
-      {ctxMenu && !pickMode && !swapMode && !resCombineMode && (() => {
+      {ctxMenu && !pickMode && !swapMode && (() => {
         const t = ctxMenu.table;
         const currentRes = t.currentReservation;
         const isOccupied = t.liveStatus === 'OCCUPIED' && !!currentRes;
@@ -1896,25 +1861,29 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Pick mode action bar — shown for move only. seat uses GuestDrawer confirmation card; change-table auto-confirms on click. */}
+      {/* Pick mode action bar — shown for move, combine, and new-reservation. seat uses GuestDrawer confirmation card; change-table auto-confirms on click. */}
       {pickMode && pickAction !== 'change-table' && pickAction !== 'seat' && (
         <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {pickCurrentWarn ? (
-              <span className="text-status-warning text-xs font-medium">{T.floorBoard.pickModeCurrentTableWarn}</span>
+              <span className="text-status-warning text-xs font-medium">
+                {pickLockIds.length > 0 ? T.floorBoard.pickModeLockWarn : T.floorBoard.pickModeCurrentTableWarn}
+              </span>
             ) : pickWarn ? (
               (() => {
                 const wt = tables.find(t => t.id === pickWarn);
                 const reason = wt ? ` — ${T.tableStatus[wt.liveStatus] ?? ''}` : '';
                 return <span className="text-status-danger text-xs font-medium">{T.floorBoard.pickModeUnavailable(wt?.name ?? pickWarn)}{reason}</span>;
               })()
-            ) : pickSelection.length === 0 ? (
+            ) : pickSelection.length === 0 && pickLockIds.length === 0 ? (
               <span className="text-status-reserved text-sm">{T.floorBoard.pickModeHint}</span>
             ) : (
               <span className="text-iron-text text-sm font-semibold truncate">
-                {pickSelection.map(id => tables.find(t => t.id === id)?.name ?? id).join(' + ')}
+                {[...pickLockIds, ...pickSelection]
+                  .map(id => tables.find(t => t.id === id)?.name ?? id)
+                  .join(' + ')}
                 <span className="text-iron-muted font-normal text-xs ml-1.5">
-                  · {T.floorBoard.pickModeSelected(pickSelection.length)}
+                  · {T.floorBoard.pickModeSelected(pickLockIds.length + pickSelection.length)}
                 </span>
               </span>
             )}
@@ -1928,8 +1897,10 @@ export default function FloorBoard({
           </button>
           <button
             type="button"
-            disabled={pickSelection.length === 0}
-            onClick={() => { if (pickSelection.length > 0) onPickDone?.(pickSelection); }}
+            disabled={pickAction !== 'combine' && pickSelection.length === 0}
+            onClick={() => {
+              if (pickAction === 'combine' || pickSelection.length > 0) onPickDone?.(pickSelection);
+            }}
             className="bg-blue-600 hover:bg-status-reserved text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {T.floorBoard.pickModeConfirm}
@@ -1985,57 +1956,6 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Combine-tables action bar */}
-      {!pickMode && combineMode && (
-        <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
-          {combinedSelection.length === 0 ? (
-            <span className="text-status-reserved text-sm flex-1">{T.floorBoard.combineHint}</span>
-          ) : (
-            <>
-              <span className="text-iron-text text-sm font-semibold flex-1 truncate">
-                {combinedSelection
-                  .map(id => tables.find(t => t.id === id)?.name ?? id)
-                  .join(' + ')}
-              </span>
-              <button
-                type="button"
-                onClick={onCombineCreate}
-                disabled={combinedSelection.length < 1}
-                className="bg-blue-600 hover:bg-status-reserved disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
-              >
-                {T.floorBoard.combineCreate}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Reservation-based combine mode banner */}
-      {resCombineMode && (
-        <div className="shrink-0 border-t border-blue-500/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
-          <span className="text-blue-300 text-xs font-medium flex-1 truncate">
-            {resCombineSelectedIds.length > 0
-              ? resCombineSelectedIds.map(id => tables.find(t => t.id === id)?.name ?? id).join(' + ')
-              : T.floorBoard.resCombineModeHint}
-          </span>
-          {resCombineSelectedIds.length > 0 && (
-            <button
-              type="button"
-              onClick={onResCombineConfirm}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
-            >
-              {T.floorBoard.resCombineConfirm}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onResCombineCancel}
-            className="text-blue-300/70 text-xs hover:text-blue-200 transition-colors shrink-0 px-1 py-1"
-          >
-            {T.floorBoard.resCombineCancel}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
