@@ -909,6 +909,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
           <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber} onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
+          {onPickTables && res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
+          )}
         </div>
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
@@ -932,6 +935,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             onClick={() => onPickTables ? openActionMapPicker('move') : setMode('move')}
             disabled={busy}
           />
+          {onPickTables && (
+            <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('move')} disabled={busy} />
+          )}
           {unseatConfirm ? (
             <div className="flex flex-col gap-1.5 w-full">
               <span className="text-xs text-iron-muted">{T.guestDrawer.unseatConfirmText}</span>

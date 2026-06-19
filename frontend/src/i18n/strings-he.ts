@@ -425,6 +425,7 @@ export const THe = {
     actionCancel:         'ביטול',
     actionComplete:       'סיום',
     actionMoveTable:      'העבר שולחן',
+    actionCombineTables:  'שלב שולחנות',
     actionUnseat:         'החזר לרשימה',
     unseatConfirmText:    'פעולה זו תסיר את האורח מהשולחן ותחזיר את ההזמנה לרשימה. להמשיך?',
     returnedToList:       'הוחזר לרשימה',

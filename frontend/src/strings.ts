@@ -430,6 +430,7 @@ export const T = {
     actionCancel:         'Cancel',
     actionComplete:       'Complete',
     actionMoveTable:      'Move table',
+    actionCombineTables:  'Combine tables',
     actionUnseat:         'Return to List',
     unseatConfirmText:    'This will remove the guest from the table and return the reservation to the list. Continue?',
     returnedToList:       'Returned to List',
