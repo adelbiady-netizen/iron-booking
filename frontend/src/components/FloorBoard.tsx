@@ -3087,6 +3087,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   if ((inNewResPick || (inPlanningMode && !pickMode)) && !boardActiveRes && !isStillOccupiedAtBoardTime) {
     bg = STATUS_BG['AVAILABLE'];
   }
+  // Planning mode positive: a scheduled reservation covers boardTime → show as RESERVED (light blue).
+  // Applies when the table's live status doesn't already reflect this (e.g. liveStatus=AVAILABLE
+  // because the reservation is hours away by wall-clock but active at boardTime).
+  if ((inNewResPick || (inPlanningMode && !pickMode)) && boardActiveRes && !isStillOccupiedAtBoardTime) {
+    bg = STATUS_BG['RESERVED'];
+  }
 
   // Fixed iron-green border on every table — status is communicated through background
   // color, badge text, and reservation labels, not through border color changes.
