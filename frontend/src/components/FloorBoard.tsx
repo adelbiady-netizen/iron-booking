@@ -1373,7 +1373,6 @@ export default function FloorBoard({
               const swapDimmed   = swapMode && !isSwapSource && (
                 !_canvasSwapRes ||
                 !_canvasSwapRes.tableId ||
-                (_canvasSwapRes.combinedTableIds ?? []).length > 0 ||
                 !!_canvasSwapRes.reorganizeAt
               );
               return (
@@ -1577,7 +1576,7 @@ export default function FloorBoard({
         const canReturnToList    = !!onContextMenuReturnToList   && isOccupied && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
         const canSwap       = !!onContextMenuSwap && !!swapRes && !t.locked && isToday
                                 && !inFlightIds?.has(swapRes.id)
-                                && !(swapRes.combinedTableIds ?? []).length && !swapRes.reorganizeAt;
+                                && !swapRes.reorganizeAt;
         const canOpenDetails = !!onContextMenuOpenDetails && (isOccupied || !!seatableRes) && !t.locked;
         const canRecover    = !!onContextMenuSeat && isDisplacedActive && !t.locked && !isOccupied && isToday && !inFlightIds?.has(activeDrawerRes!.id);
         // Show table-first seating on AVAILABLE and RESERVED/RESERVED_SOON tables.

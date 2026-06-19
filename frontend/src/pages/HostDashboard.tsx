@@ -1937,7 +1937,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         return r;
       }));
       setRefreshKey(k => k + 1);
-      showToast(T.floorBoard.swapConfirmTitle(pendingSwap.resA.guestName, pendingSwap.resB.guestName).replace('?', ''));
+      showToast(T.floorBoard.toastSwapDone);
     } catch (err) {
       let toastMsg = err instanceof Error ? err.message : T.guestDrawer.actionFailed;
       if (err instanceof ApiError && err.code === 'CONFLICT') {
@@ -2673,6 +2673,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onOptimisticSeat={handleOptimisticSeat}
             onOptimisticSeatRollback={handleOptimisticSeatRollback}
             onMarkArrived={handleContextMenuArrive}
+            onSwap={handleContextMenuSwap}
           />
         </DrawerErrorBoundary>
       )}
@@ -2996,28 +2997,34 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         document.body
       )}
 
-      {/* Swap-table confirmation — lightweight bottom-sheet style */}
+      {/* Swap-reservations confirmation modal */}
       {pendingSwap && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 pointer-events-none">
-          <div className="pointer-events-auto bg-iron-elevated border border-iron-border/60 rounded-xl px-5 py-4 shadow-2xl w-80">
-            <p className="text-sm font-semibold text-iron-text mb-1">
-              {T.floorBoard.swapConfirmTitle(pendingSwap.resA.guestName, pendingSwap.resB.guestName)}
-            </p>
-            <p className="text-xs text-iron-muted mb-4">
-              {T.floorBoard.swapConfirmBody(pendingSwap.tableNameA, pendingSwap.tableNameB)}
-            </p>
-            <div className="flex gap-2 justify-end">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !pendingSwap.busy && setPendingSwap(null)}>
+          <div className="pointer-events-auto bg-iron-elevated border border-iron-border/60 rounded-2xl px-5 py-5 shadow-2xl w-[280px]" onClick={e => e.stopPropagation()} dir="rtl">
+            <p className="text-sm font-semibold text-iron-text mb-4 text-center">להחליף בין ההזמנות?</p>
+            <div className="flex flex-col gap-2 mb-5">
+              <div className="flex items-center justify-between bg-iron-bg rounded-lg px-3 py-2">
+                <span className="text-xs font-medium text-iron-text truncate">{pendingSwap.resA.guestName}</span>
+                <span className="text-xs text-iron-muted shrink-0 mr-2">{pendingSwap.tableNameA}</span>
+              </div>
+              <div className="text-center text-iron-muted text-sm">↕</div>
+              <div className="flex items-center justify-between bg-iron-bg rounded-lg px-3 py-2">
+                <span className="text-xs font-medium text-iron-text truncate">{pendingSwap.resB.guestName}</span>
+                <span className="text-xs text-iron-muted shrink-0 mr-2">{pendingSwap.tableNameB}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
               <button
                 onClick={() => setPendingSwap(null)}
                 disabled={pendingSwap.busy}
-                className="px-3 py-1.5 text-xs text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-lg transition-colors disabled:opacity-40"
+                className="flex-1 py-2 text-xs text-iron-muted hover:text-iron-text border border-iron-border/50 rounded-xl transition-colors disabled:opacity-40"
               >
                 {T.common.cancel}
               </button>
               <button
                 onClick={confirmSwap}
                 disabled={pendingSwap.busy}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors disabled:opacity-40"
+                className="flex-1 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-colors disabled:opacity-40"
               >
                 {pendingSwap.busy ? '…' : T.floorBoard.swapConfirmBtn}
               </button>

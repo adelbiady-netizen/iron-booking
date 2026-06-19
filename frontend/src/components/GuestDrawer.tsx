@@ -258,10 +258,12 @@ interface Props {
   onOptimisticSeatRollback?: (resId: string) => void;
   /** Optimistic mark-arrived: updates global state immediately so the panel card jumps to top. */
   onMarkArrived?: (r: Reservation) => void;
+  /** Enter swap mode from the drawer — host then clicks a second table on the floor. */
+  onSwap?: (res: Reservation) => void;
   initialMode?: 'view' | 'edit';
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, mapPickActive, tablePickSelectedIds, onPickConfirm, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, initialMode: _initialMode }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, mapPickActive, tablePickSelectedIds, onPickConfirm, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, onSwap, initialMode: _initialMode }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -904,6 +906,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {onPickTables && res.tableId && (
             <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
           )}
+          {onSwap && res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionSwap} cls={btnNeutral} onClick={() => { onSwap(res); }} disabled={busy} />
+          )}
         </div>
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
@@ -929,6 +934,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           />
           {onPickTables && (
             <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('move')} disabled={busy} />
+          )}
+          {onSwap && res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionSwap} cls={btnNeutral} onClick={() => { onSwap(res); }} disabled={busy} />
           )}
           {unseatConfirm ? (
             <div className="flex flex-col gap-1.5 w-full">
