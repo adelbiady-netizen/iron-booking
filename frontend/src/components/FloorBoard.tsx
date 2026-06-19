@@ -3062,11 +3062,29 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   }
   // Planning mode: table color must reflect availability at the board time, not wall-clock
   // liveStatus. Applies for both time-travel and new-reservation planning.
-  // Exception: OCCUPIED/STALE_OCCUPIED tables always render live state — boardActiveRes
-  // can never be a SEATED reservation (allDayTurnData excludes SEATED), so the planning
-  // branch would always produce null/AVAILABLE for these tables, erasing live guests.
+  // OCCUPIED/STALE_OCCUPIED: boardActiveRes can never cover a SEATED turn (allDayTurnData
+  // excludes SEATED). So we check the SEATED reservation's own scheduled window (time+duration)
+  // against boardTime — same logic as boardActiveRes but applied to currentRes directly.
   const isLiveOccupied = table.liveStatus === 'OCCUPIED' || table.liveStatus === 'STALE_OCCUPIED';
-  if ((inNewResPick || (inPlanningMode && !pickMode)) && !boardActiveRes && !isLiveOccupied) {
+  const currentRes = table.currentReservation;
+  // Does the seated reservation's scheduled window cover boardTime?
+  const liveResCoversBoard: boolean = !!(isLiveOccupied && currentRes?.time && boardMinutes !== null && (() => {
+    const [h, m] = currentRes!.time.split(':').map(Number);
+    const start = h * 60 + m;
+    return boardMinutes >= start && boardMinutes < start + (currentRes!.duration ?? 90);
+  })());
+  // Table is "still occupied at boardTime" only when its scheduled window actually covers it.
+  // If boardTime is outside the window (e.g. 17:00 for a 14:00+90min booking) → show FREE.
+  const isStillOccupiedAtBoardTime = isLiveOccupied && (boardMinutes === null || liveResCoversBoard);
+  // Badge: when planning mode and table stays occupied at boardTime, show scheduled end time.
+  const liveResEndLabel: string | null = (isStillOccupiedAtBoardTime && currentRes?.time && inPlanningMode)
+    ? (() => {
+        const [h, m] = currentRes!.time.split(':').map(Number);
+        const endMin = h * 60 + m + (currentRes!.duration ?? 90);
+        return `עד ${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+      })()
+    : null;
+  if ((inNewResPick || (inPlanningMode && !pickMode)) && !boardActiveRes && !isStillOccupiedAtBoardTime) {
     bg = STATUS_BG['AVAILABLE'];
   }
 
@@ -3127,12 +3145,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
     }
   }
 
-  const currentRes = table.currentReservation;
   // In newResPick mode, only show reservations whose window covers the form's planning time.
   // currentRes is wall-clock operational state and may hold past/stale turns — never fall back
   // to it in planning mode. A null boardActiveRes means the table is free at the planned time.
   // In normal mode, fall through to nextRes so upcoming reservations are always visible.
-  const displayRes = (inNewResPick || (inPlanningMode && !pickMode && !isLiveOccupied))
+  const displayRes = (inNewResPick || (inPlanningMode && !pickMode && !isStillOccupiedAtBoardTime))
     ? (boardActiveRes ?? null)
     : (isBoardTimeActive && table.liveStatus !== 'OCCUPIED' ? boardActiveRes ?? currentRes : currentRes) ?? nextRes ?? null;
 
@@ -3153,7 +3170,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   // and the table number becomes a secondary label.
   // Far-future reservations (60+ min) are suppressed — table renders as available.
   // In newResPick mode: show label only when there is a genuine conflict at the form time.
-  const hasGuest = (inNewResPick || (inPlanningMode && !pickMode && !isLiveOccupied))
+  const hasGuest = (inNewResPick || (inPlanningMode && !pickMode && !isStillOccupiedAtBoardTime))
     ? !!displayRes
     : (isBoardTimeActive || ['OCCUPIED', 'STALE_OCCUPIED', 'RESERVED', 'RESERVED_SOON'].includes(table.liveStatus) || !!pickMode) && !!displayRes && (!isFarFutureReserved || table.liveStatus === 'RESERVED_SOON' || !!pickMode);
 
@@ -3275,6 +3292,15 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       {inNewResPick && boardActiveResEndTime && (
         <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', opacity: 0.88, userSelect: 'none' }}>
           עד {boardActiveResEndTime}
+        </span>
+      )}
+
+      {/* Time-travel planning mode: show scheduled end time for OCCUPIED tables still within window */}
+      {liveResEndLabel && (
+        <span style={{ fontSize: 9, fontWeight: 700, color: '#92400e', opacity: 0.90, userSelect: 'none',
+          background: 'rgba(146,64,14,0.10)', border: '1px solid rgba(146,64,14,0.25)',
+          borderRadius: 3, padding: '1px 4px', lineHeight: 1.2 }}>
+          {liveResEndLabel}
         </span>
       )}
 
