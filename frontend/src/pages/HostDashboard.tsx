@@ -197,6 +197,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
   const [preselectedCombinedTableIds, setPreselectedCombinedTableIds] = useState<string[]>([]);
   const [lockTarget,                  setLockTarget]                  = useState<FloorTable | null>(null);
+  const [quickSeatData,               setQuickSeatData]               = useState<{ table: FloorTable; existingRes: Reservation } | null>(null);
+  const [quickSeatParty,              setQuickSeatParty]              = useState(2);
   const [gapHint,                     setGapHint]                     = useState<GapHint | null>(null);
   // Combine-tables mode: host taps multiple available tables before creating a combined reservation
   const [combineMode,       setCombineMode]       = useState(false);
@@ -1876,6 +1878,36 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [floorTables, selectedRes, showToast]);
 
+  const handleQuickSeat = useCallback((table: FloorTable, existingRes: Reservation) => {
+    setQuickSeatParty(Math.min(existingRes.partySize, table.maxCovers));
+    setQuickSeatData({ table, existingRes });
+  }, []);
+
+  const handleQuickSeatConfirm = useCallback(async () => {
+    if (!quickSeatData) return;
+    const { table, existingRes } = quickSeatData;
+    setQuickSeatData(null);
+    // Step 1: unassign the existing reservation from the table
+    await api.reservations.update(existingRes.id, { tableId: null, combinedTableIds: [] });
+    setReservations(prev => prev.map(r =>
+      r.id === existingRes.id ? { ...r, tableId: null, combinedTableIds: [] } : r
+    ));
+    // Step 2: create a walk-in and seat them
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const newRes = await api.reservations.create({
+      guestName: 'Walk-in',
+      partySize: quickSeatParty,
+      date: todayStr(),
+      time: timeStr,
+      source: 'WALK_IN',
+      tableId: table.id,
+    });
+    await api.reservations.seat(newRes.id, table.id, false);
+    setReservations(prev => [...prev, { ...newRes, status: 'SEATED' as const, tableId: table.id }]);
+    showToast(T.hostDashboard.toastQuickSeatDone);
+  }, [quickSeatData, quickSeatParty, showToast]);
+
   const handleContextMenuSwap = useCallback((res: Reservation) => {
     const tableName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
     setSwapSource({ res, tableName });
@@ -2522,6 +2554,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuSwap={handleContextMenuSwap}
           onContextMenuAttachTable={handleContextMenuAttachTable}
           onContextMenuDetachTable={handleContextMenuDetachTable}
+          onQuickSeat={handleQuickSeat}
           eligibleGuests={eligibleGuests}
           onTableFirstSeat={handleTableFirstSeat}
           onWalkInHere={(tableId, combinedIds) => {
@@ -2737,6 +2770,36 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onClose={() => setLockTarget(null)}
           onLocked={handleTableLocked}
         />
+      )}
+
+      {quickSeatData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55" onClick={() => setQuickSeatData(null)}>
+          <div
+            className="bg-iron-elevated border border-iron-border/55 rounded-2xl p-5 min-w-[240px] shadow-2xl"
+            onClick={e => e.stopPropagation()}
+            dir="rtl"
+          >
+            <p className="text-sm font-semibold text-iron-text mb-1">{T.hostDashboard.quickSeatModalTitle}</p>
+            <p className="text-[11px] text-iron-muted mb-4">{quickSeatData.table.name}</p>
+            <div className="flex items-center justify-center gap-4 mb-5">
+              <button
+                onClick={() => setQuickSeatParty(p => Math.max(1, p - 1))}
+                className="w-9 h-9 rounded-full bg-iron-bg border border-iron-border/50 text-lg font-bold text-iron-text hover:bg-iron-border/30 transition-colors"
+              >−</button>
+              <span className="text-3xl font-bold text-iron-text w-10 text-center">{quickSeatParty}</span>
+              <button
+                onClick={() => setQuickSeatParty(p => Math.min(30, p + 1))}
+                className="w-9 h-9 rounded-full bg-iron-bg border border-iron-border/50 text-lg font-bold text-iron-text hover:bg-iron-border/30 transition-colors"
+              >+</button>
+            </div>
+            <button
+              onClick={handleQuickSeatConfirm}
+              className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm transition-colors"
+            >
+              {T.hostDashboard.quickSeatModalConfirm}
+            </button>
+          </div>
+        </div>
       )}
 
       {rebuildDayTarget && (

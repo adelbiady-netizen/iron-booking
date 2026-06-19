@@ -428,6 +428,7 @@ interface Props {
   onContextMenuReturnToList?: (res: Reservation) => void;
   onContextMenuAttachTable?: (res: Reservation, tableId: string) => void;
   onContextMenuDetachTable?: (res: Reservation, tableId: string) => void;
+  onQuickSeat?: (table: FloorTable, existingRes: Reservation) => void;
   // Currently active reservation in the GuestDrawer — used to show recovery
   // actions ("שבץ מחדש") when the drawer holds a displaced/reorganized reservation.
   activeDrawerRes?: Reservation | null;
@@ -492,6 +493,7 @@ export default function FloorBoard({
   onContextMenuReturnToList,
   onContextMenuAttachTable,
   onContextMenuDetachTable,
+  onQuickSeat,
   activeDrawerRes = null,
   inFlightIds,
   eligibleGuests = [],
@@ -1589,7 +1591,8 @@ export default function FloorBoard({
         const isPrimaryTable    = !!(attachTarget && attachTarget.tableId === t.id);
         const canAttach = !!onContextMenuAttachTable && !!attachTarget && !isPrimaryTable && !isAlreadyCombined && !t.locked;
         const canDetach = !!onContextMenuDetachTable && !!attachTarget && isAlreadyCombined && !t.locked;
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere || canAttach || canDetach;
+        const canQuickSeat = !!onQuickSeat && !!seatableRes && !isOccupied && !t.locked && isToday;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere || canAttach || canDetach || canQuickSeat;
 
         return (
           <>
@@ -1673,6 +1676,14 @@ export default function FloorBoard({
                   className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-status-info hover:bg-status-info/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxWalkInHere}
+                </button>
+              )}
+              {canQuickSeat && (
+                <button
+                  onClick={() => { onQuickSeat!(t, seatableRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxQuickSeatHere}
                 </button>
               )}
 

@@ -129,6 +129,7 @@ export const T = {
     ctxReturnToList:   'Return to list',
     ctxAttachTable:    (name: string) => `Attach to ${name}`,
     ctxDetachTable:    'Detach from group',
+    ctxQuickSeatHere:  'Quick Seat Here',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -220,6 +221,7 @@ export const T = {
     smsSent:          'SMS sent',
     ctxSeat:          'Seat',
     ctxQuickSeat:     'Quick Seat',
+    ctxQuickSeatHere: 'הושבה מהירה',
     ctxClose:         'Close',
     reorganizeHeader: (n: number) => `Reorganize · ${n}`,
     reorganizeRemovedFrom: (table: string) => `Removed from ${table}`,
@@ -1017,7 +1019,10 @@ export const T = {
     toastSeatLateAdvisory: (minutesLate: number, remaining: number) => `Guest arrived ${minutesLate} min late — planned window: ${remaining} min remaining`,
     toastQuickUndone:    'Reservation reverted',
     toastUndoFail:       'Failed to undo',
-    quickSeatUndo:       'Undo',
+    quickSeatUndo:          'Undo',
+    quickSeatModalTitle:    'How many guests to seat?',
+    quickSeatModalConfirm:  'Seat Now',
+    toastQuickSeatDone:     'Table freed and guests seated',
     reorganizeFloor:     'Reorganize Floor',
     exitReorganize:      'Exit Reorganize',
     rebuildDayTitle:     (table: string) => `Lift reservations from ${table}`,

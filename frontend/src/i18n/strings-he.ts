@@ -130,6 +130,7 @@ export const THe = {
     ctxReturnToList:   'החזר לרשימה',
     ctxAttachTable:    (name: string) => `הצמד ל${name}`,
     ctxDetachTable:    'הסר הצמדה',
+    ctxQuickSeatHere:  'הושבה מהירה',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
@@ -221,6 +222,7 @@ export const THe = {
     smsSent:          'SMS נשלח',
     ctxSeat:          'הושבה',
     ctxQuickSeat:     'הושב מהיר',
+    ctxQuickSeatHere: 'הושבה מהירה',
     ctxClose:         'סגור',
     reorganizeHeader: (n: number) => `סידור מחדש · ${n}`,
     reorganizeRemovedFrom: (table: string) => `הוסר משולחן ${table}`,
@@ -988,7 +990,10 @@ export const THe = {
     toastSeatLateAdvisory: (minutesLate: number, remaining: number) => `האורח הגיע ${minutesLate} דקות מאוחר — חלון נותר: ${remaining} דקות`,
     toastQuickUndone:    'הפעולה בוטלה',
     toastUndoFail:       'הביטול נכשל',
-    quickSeatUndo:       'בטל',
+    quickSeatUndo:          'בטל',
+    quickSeatModalTitle:    'כמה סועדים להושיב?',
+    quickSeatModalConfirm:  'הושב עכשיו',
+    toastQuickSeatDone:     'השולחן שוחרר והאורחים הושבו',
     reorganizeFloor:     'סידור מחדש',
     exitReorganize:      'יציאה מסידור',
     rebuildDayTitle:     (table: string) => `העברת הזמנות משולחן ${table}`,
