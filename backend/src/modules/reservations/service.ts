@@ -1116,10 +1116,9 @@ export async function swapReservations(
 ) {
   if (aId === bId) throw new BusinessRuleError('Cannot swap a reservation with itself');
 
-  const [resA, resB, settings] = await Promise.all([
+  const [resA, resB] = await Promise.all([
     assertReservationBelongsToRestaurant(aId, restaurantId),
     assertReservationBelongsToRestaurant(bId, restaurantId),
-    getRestaurantSettings(restaurantId),
   ]);
 
   const SWAPPABLE = ['SEATED', 'PENDING', 'CONFIRMED'] as const;
@@ -1127,77 +1126,31 @@ export async function swapReservations(
   if (!(SWAPPABLE as readonly string[]).includes(resB.status)) throw new BusinessRuleError(`${resB.guestName} cannot be swapped (status: ${resB.status})`);
   if (!resA.tableId || !resB.tableId) throw new BusinessRuleError('Both reservations must have a table assigned');
   if (resA.tableId === resB.tableId) throw new BusinessRuleError('Reservations are already at the same table');
-  if ((resA.combinedTableIds as string[]).length > 0 || (resB.combinedTableIds as string[]).length > 0) {
-    throw new BusinessRuleError('Swapping combined-table reservations is not supported');
-  }
   if (resA.reorganizeAt || resB.reorganizeAt) throw new BusinessRuleError('Cannot swap a reservation in reorganize state');
 
-  const nowTimeStr = new Intl.DateTimeFormat('en-GB', {
-    timeZone: settings.timezone,
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date());
-
-  // Mutual exclusion: both A and B are simultaneously vacating their tables.
-  // Exclude both IDs from every validation call so they don't block each other.
-  const swapExclude = [aId, bId];
-  console.log('[swap:validation] validating A→tableB', { reservationId: aId, targetTableId: resB.tableId, excludedIds: swapExclude });
-  try {
-    await validateTableAssignment(restaurantId, resB.tableId, resA.date, nowTimeStr, resA.duration, settings.bufferBetweenTurnsMinutes, resA.partySize, swapExclude);
-  } catch (err) {
-    if (err instanceof ConflictError) {
-      const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
-      if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
-      // A third reservation (not A or B) conflicts at tableB — swap would double-book it.
-      const conflictRes = await prisma.reservation.findUnique({
-        where: { id: det.conflictingReservationId },
-        select: { id: true, guestName: true, time: true, partySize: true },
-      });
-      if (conflictRes) {
-        const [nowH, nowM] = nowTimeStr.split(':').map(Number);
-        const [fH, fM]     = conflictRes.time.split(':').map(Number);
-        throw new ConflictError('This table has upcoming reservations', {
-          code: 'TABLE_HAS_FUTURE_RESERVATIONS',
-          conflicts: [{ id: conflictRes.id, guestName: conflictRes.guestName, time: conflictRes.time, partySize: conflictRes.partySize, minutesUntil: (fH * 60 + fM) - (nowH * 60 + nowM) }],
-        });
-      }
-    }
-    throw err;
-  }
-  console.log('[swap:validation] validating B→tableA', { reservationId: bId, targetTableId: resA.tableId, excludedIds: swapExclude });
-  try {
-    await validateTableAssignment(restaurantId, resA.tableId, resB.date, nowTimeStr, resB.duration, settings.bufferBetweenTurnsMinutes, resB.partySize, swapExclude);
-  } catch (err) {
-    if (err instanceof ConflictError) {
-      const det = (err as ConflictError).details as { conflictingReservationId?: string } | null;
-      if (!det?.conflictingReservationId) throw err; // hard block: blocked period or inactive table
-      // A third reservation (not A or B) conflicts at tableA — swap would double-book it.
-      const conflictRes = await prisma.reservation.findUnique({
-        where: { id: det.conflictingReservationId },
-        select: { id: true, guestName: true, time: true, partySize: true },
-      });
-      if (conflictRes) {
-        const [nowH, nowM] = nowTimeStr.split(':').map(Number);
-        const [fH, fM]     = conflictRes.time.split(':').map(Number);
-        throw new ConflictError('This table has upcoming reservations', {
-          code: 'TABLE_HAS_FUTURE_RESERVATIONS',
-          conflicts: [{ id: conflictRes.id, guestName: conflictRes.guestName, time: conflictRes.time, partySize: conflictRes.partySize, minutesUntil: (fH * 60 + fM) - (nowH * 60 + nowM) }],
-        });
-      }
-    }
-    throw err;
-  }
-  console.log('[swap:validation] both validations passed');
-
+  // Pure table-assignment swap: no availability check.
+  // The host explicitly chose both reservations; conflict detection would block legitimate
+  // operational swaps (e.g. when a third reservation exists at either table at a different time).
   return prisma.$transaction(async (tx) => {
     const [updatedA, updatedB] = await Promise.all([
       tx.reservation.update({
         where: { id: aId },
-        data: { tableId: resB.tableId, previousTableId: resA.tableId, movedByName: actorName },
+        data: {
+          tableId: resB.tableId,
+          combinedTableIds: resB.combinedTableIds as string[],
+          previousTableId: resA.tableId,
+          movedByName: actorName,
+        },
         include: { table: true },
       }),
       tx.reservation.update({
         where: { id: bId },
-        data: { tableId: resA.tableId, previousTableId: resB.tableId, movedByName: actorName },
+        data: {
+          tableId: resA.tableId,
+          combinedTableIds: resA.combinedTableIds as string[],
+          previousTableId: resB.tableId,
+          movedByName: actorName,
+        },
         include: { table: true },
       }),
     ]);
