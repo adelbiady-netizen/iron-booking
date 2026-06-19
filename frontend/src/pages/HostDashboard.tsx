@@ -1458,9 +1458,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     guestName?: string,
     walkIn?: boolean,
     pickTime?: string,
+    lockIds?: string[],
+    initialIds?: string[],
   ) => {
     setTablePickWalkIn(!!walkIn);
-    handlePickTables(currentIds, suggestions, callback, action, guestName, walkIn, pickTime);
+    handlePickTables(currentIds, suggestions, callback, action, guestName, walkIn, pickTime, lockIds, initialIds);
   }, [handlePickTables]);
 
   const handleContextMenuCombineRes = useCallback((res: Reservation) => {

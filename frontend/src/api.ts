@@ -1,6 +1,6 @@
 import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestIntelligence, GuestListItem, GuestLookupResult, GuestMemoryRecord, GuestSearchResult, HostUser, LocationTonightStats, MorningBriefRecord, MomentRecord, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, RecoveryCaseRecord, Reservation, Section, SmsUsageDetail, SmsUsageReport, Table, WaitlistEntry } from './types';
 
-export const BASE = "https://iron-booking.onrender.com/api";
+export const BASE = import.meta.env.VITE_API_URL || "https://iron-booking.onrender.com/api";
 
 export interface ShiftMetrics {
   totalReservations: number;
