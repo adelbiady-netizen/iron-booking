@@ -128,6 +128,8 @@ export const THe = {
     ctxGuestConfirmed: 'מאושר',
     ctxGuestWaitlist:  'המתנה',
     ctxReturnToList:   'החזר לרשימה',
+    ctxAttachTable:    (name: string) => `הצמד ל${name}`,
+    ctxDetachTable:    'הסר הצמדה',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

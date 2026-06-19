@@ -127,6 +127,8 @@ export const T = {
     ctxGuestConfirmed: 'Confirmed',
     ctxGuestWaitlist:  'Waitlist',
     ctxReturnToList:   'Return to list',
+    ctxAttachTable:    (name: string) => `Attach to ${name}`,
+    ctxDetachTable:    'Detach from group',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

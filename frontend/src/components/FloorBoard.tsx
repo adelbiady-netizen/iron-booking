@@ -426,6 +426,8 @@ interface Props {
   onContextMenuArrive?: (res: Reservation) => void;
   onContextMenuSwap?: (res: Reservation) => void;
   onContextMenuReturnToList?: (res: Reservation) => void;
+  onContextMenuAttachTable?: (res: Reservation, tableId: string) => void;
+  onContextMenuDetachTable?: (res: Reservation, tableId: string) => void;
   // Currently active reservation in the GuestDrawer — used to show recovery
   // actions ("שבץ מחדש") when the drawer holds a displaced/reorganized reservation.
   activeDrawerRes?: Reservation | null;
@@ -488,6 +490,8 @@ export default function FloorBoard({
   onContextMenuArrive,
   onContextMenuSwap,
   onContextMenuReturnToList,
+  onContextMenuAttachTable,
+  onContextMenuDetachTable,
   activeDrawerRes = null,
   inFlightIds,
   eligibleGuests = [],
@@ -1578,7 +1582,14 @@ export default function FloorBoard({
         // OCCUPIED and locked tables are still blocked. Backend handles future-reservation conflicts via reorganize modal.
         const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && eligibleGuests.length > 0;
         const canWalkInHere = !!onWalkInHere && !isOccupied && !t.locked && isToday;
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere;
+        // Attach/detach: when a reservation is open in the GuestDrawer, allow adding or
+        // removing this table from that reservation's combined-table group.
+        const attachTarget = activeDrawerRes?.tableId ? activeDrawerRes : null;
+        const isAlreadyCombined = !!(attachTarget && attachTarget.combinedTableIds?.includes(t.id));
+        const isPrimaryTable    = !!(attachTarget && attachTarget.tableId === t.id);
+        const canAttach = !!onContextMenuAttachTable && !!attachTarget && !isPrimaryTable && !isAlreadyCombined && !t.locked;
+        const canDetach = !!onContextMenuDetachTable && !!attachTarget && isAlreadyCombined && !t.locked;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere || canAttach || canDetach;
 
         return (
           <>
@@ -1703,6 +1714,23 @@ export default function FloorBoard({
                   className="w-full text-left px-3 py-2 text-xs text-iron-text hover:bg-iron-bg transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxOpenDetails}
+                </button>
+              )}
+
+              {canAttach && (
+                <button
+                  onClick={() => { onContextMenuAttachTable!(attachTarget!, t.id); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxAttachTable(attachTarget!.guestName)}
+                </button>
+              )}
+              {canDetach && (
+                <button
+                  onClick={() => { onContextMenuDetachTable!(attachTarget!, t.id); setCtxMenu(null); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxDetachTable}
                 </button>
               )}
 

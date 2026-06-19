@@ -1850,6 +1850,32 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, floorTables, showToast]);
 
+  const handleContextMenuAttachTable = useCallback(async (res: Reservation, tableId: string) => {
+    const newCombined = [...(res.combinedTableIds ?? []), tableId];
+    try {
+      const updated = await api.reservations.update(res.id, { tableId: res.tableId, combinedTableIds: newCombined });
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      if (selectedRes?.id === res.id) setSelectedRes({ ...res, combinedTableIds: newCombined });
+      const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
+      showToast(`שולחן ${tName} הוצמד ל${res.guestName}`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'שגיאה', 'error');
+    }
+  }, [floorTables, selectedRes, showToast]);
+
+  const handleContextMenuDetachTable = useCallback(async (res: Reservation, tableId: string) => {
+    const newCombined = (res.combinedTableIds ?? []).filter(id => id !== tableId);
+    try {
+      const updated = await api.reservations.update(res.id, { tableId: res.tableId, combinedTableIds: newCombined });
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      if (selectedRes?.id === res.id) setSelectedRes({ ...res, combinedTableIds: newCombined });
+      const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
+      showToast(`שולחן ${tName} הוסר מהקבוצה`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'שגיאה', 'error');
+    }
+  }, [floorTables, selectedRes, showToast]);
+
   const handleContextMenuSwap = useCallback((res: Reservation) => {
     const tableName = floorTables.find(t => t.id === res.tableId)?.name ?? (res.tableId ?? '');
     setSwapSource({ res, tableName });
@@ -2494,6 +2520,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
           onContextMenuSwap={handleContextMenuSwap}
+          onContextMenuAttachTable={handleContextMenuAttachTable}
+          onContextMenuDetachTable={handleContextMenuDetachTable}
           eligibleGuests={eligibleGuests}
           onTableFirstSeat={handleTableFirstSeat}
           onWalkInHere={(tableId, combinedIds) => {
