@@ -432,11 +432,19 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         setPickingForAction(null);
         if (ids === null) return;
         if (action === 'combine') {
-          // ids = selected secondary tables; primary (res.tableId) stays locked
-          run(
-            () => api.reservations.update(res.id, { tableId: res.tableId!, combinedTableIds: ids }),
-            T.guestDrawer.toastTableAssigned(tableName(res.tableId!)),
-          );
+          // ids = selected secondary tables; primary (res.tableId) stays locked.
+          // SEATED reservations reject table changes via PATCH — use move instead.
+          if (res.status === 'SEATED') {
+            run(
+              () => api.reservations.move(res.id, res.tableId!, undefined, ids),
+              T.guestDrawer.toastTableAssigned(tableName(res.tableId!)),
+            );
+          } else {
+            run(
+              () => api.reservations.update(res.id, { tableId: res.tableId!, combinedTableIds: ids }),
+              T.guestDrawer.toastTableAssigned(tableName(res.tableId!)),
+            );
+          }
           return;
         }
         if (ids.length === 0) return;

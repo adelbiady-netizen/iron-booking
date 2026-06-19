@@ -929,8 +929,9 @@ export default function FloorBoard({
         setTimeout(() => setPickCurrentWarn(false), 2000);
         return;
       }
-      // Combine: tables occupied by a different reservation are blocked
-      if (pickAction === 'combine') {
+      // Combine: tables occupied by a different reservation are blocked when ADDING.
+      // Already-selected tables (pre-existing secondaries) can always be deselected.
+      if (pickAction === 'combine' && !pickSelection.includes(t.id)) {
         const hasOtherRes = !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId));
         if (hasOtherRes || t.locked) return;
       }
