@@ -258,14 +258,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickMode,        setTablePickMode]        = useState(false);
   const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
-  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | undefined>(undefined);
-  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | undefined>(undefined);
+  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | undefined>(undefined);
+  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | undefined>(undefined);
   const [tablePickLockIds,     setTablePickLockIds]     = useState<string[]>([]);
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const [tablePickWalkIn,      setTablePickWalkIn]      = useState(false);
   // IDs selected on the floor map during pick mode — lifted so GuestDrawer can show אישור
   const [tablePickSelectedIds, setTablePickSelectedIds] = useState<string[]>([]);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
+  const tablePickRestoreRef    = useRef<{ date: string; time: string; liveMode: boolean } | null>(null);
   // Optimistic reservation to apply instantly when "שייך" is confirmed in change-table mode
   const tablePickOptimisticRef = useRef<{ resId: string; tableId: string; combinedTableIds: string[]; table: { id: string; name: string; section: null } | null } | null>(null);
 
@@ -1390,12 +1391,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate',
     guestName?: string,
     _walkIn?: boolean,
     pickTime?: string,
     lockIds?: string[],
     initialIds?: string[],
+    pickDate?: string,
   ) => {
     tablePickCallbackRef.current = callback;
     setTablePickIds(currentIds);
@@ -1404,9 +1406,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickGuestName(guestName);
     setTablePickLockIds(lockIds ?? []);
     setTablePickSelectedIds(initialIds ?? []);
-    if (pickTime) { setTime(pickTime); setLiveMode(false); }
+    if (pickTime || pickDate) {
+      // Snapshot current floor position so cancel can restore it
+      tablePickRestoreRef.current = { date, time, liveMode };
+      if (pickDate) setDate(pickDate);
+      if (pickTime) setTime(pickTime);
+      setLiveMode(false);
+    }
     setTablePickMode(true);
-  }, []);
+  }, [date, time, liveMode]);
 
   const handlePickDone = useCallback((ids: string[]) => {
     // Apply optimistic reservation update synchronously with mode teardown
@@ -1426,6 +1434,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
+    tablePickRestoreRef.current = null; // confirmed — no date restore needed
     setTablePickMode(false);
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
@@ -1448,21 +1457,30 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTablePickWalkIn(false);
     setTablePickSelectedIds([]);
     setTablePickLockIds([]);
+    // Restore floor date/time/liveMode if we navigated away for a planning pick
+    const restore = tablePickRestoreRef.current;
+    if (restore) {
+      setDate(restore.date);
+      setTime(restore.time);
+      setLiveMode(restore.liveMode);
+      tablePickRestoreRef.current = null;
+    }
   }, []);
 
   const handlePickTablesFromDrawer = useCallback((
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate',
     guestName?: string,
     walkIn?: boolean,
     pickTime?: string,
     lockIds?: string[],
     initialIds?: string[],
+    pickDate?: string,
   ) => {
     setTablePickWalkIn(!!walkIn);
-    handlePickTables(currentIds, suggestions, callback, action, guestName, walkIn, pickTime, lockIds, initialIds);
+    handlePickTables(currentIds, suggestions, callback, action, guestName, walkIn, pickTime, lockIds, initialIds, pickDate);
   }, [handlePickTables]);
 
   const handleContextMenuCombineRes = useCallback((res: Reservation) => {
@@ -1558,14 +1576,15 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
         }
       },
-      // Multi-table reservations use combine mode so the confirm bar appears and
-      // existing secondaries are visible — prevents silently dropping them on first click.
-      hasSecondaries ? 'combine' : 'change-table',
+      // Multi-table reservations use reallocate mode: confirm bar, all tables preselected,
+      // no locked primary, floor navigates to reservation's date so conflict check is correct.
+      hasSecondaries ? 'reallocate' : 'change-table',
       r.guestName,
       false,
       r.time,
       hasSecondaries ? [] : undefined,
       hasSecondaries ? [r.tableId!, ...(r.combinedTableIds ?? [])] : undefined,
+      hasSecondaries ? r.date.slice(0, 10) : undefined,
     );
   }, [handlePickTables, floorTables, allTables, showToast]);
 
@@ -2564,7 +2583,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onSeat={handleContextMenuSeat}
               onMoveTable={handleContextMenuMove}
               onChangeTable={handleChooseTable}
-              onCombineTable={handleContextMenuCombineRes}
               onLock={handleLockTable}
               onUnlock={handleUnlockTable}
               onOpenCreate={(tableId) => { setPreselectedTableId(tableId); setCreateMode('reservation'); }}

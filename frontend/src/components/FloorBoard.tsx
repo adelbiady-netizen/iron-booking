@@ -389,7 +389,7 @@ interface Props {
   onPickDone?: (ids: string[]) => void;
   onPickCancel?: () => void;
   onPickSelectionChange?: (ids: string[]) => void;
-  pickAction?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation';
+  pickAction?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate';
   pickLockIds?: string[];  // tables fixed in selection — cannot be toggled off
   pickInitialSelection?: string[];  // tables pre-selected when pick mode activates
   pickGuestName?: string;
@@ -935,9 +935,9 @@ export default function FloorBoard({
         setTimeout(() => setPickCurrentWarn(false), 2000);
         return;
       }
-      // Combine: tables occupied by a different reservation are blocked when ADDING.
+      // Combine / reallocate: tables occupied by a different reservation are blocked when ADDING.
       // Already-selected tables (pre-existing secondaries) can always be deselected.
-      if (pickAction === 'combine' && !pickSelection.includes(t.id)) {
+      if ((pickAction === 'combine' || pickAction === 'reallocate') && !pickSelection.includes(t.id)) {
         const hasOtherRes = !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId));
         if (hasOtherRes || t.locked) return;
       }
@@ -1088,6 +1088,8 @@ export default function FloorBoard({
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
               : pickAction === 'combine'
               ? T.floorBoard.pickModeCombineHint
+              : pickAction === 'reallocate'
+              ? T.floorBoard.pickModeReallocateHint
               : pickAction === 'new-reservation'
               ? T.floorBoard.pickModeNewResHint
               : T.floorBoard.pickModeHint}
@@ -1376,7 +1378,7 @@ export default function FloorBoard({
                 !_canvasSwapRes.tableId ||
                 !!_canvasSwapRes.reorganizeAt
               );
-              const combineDimmed = pickMode && pickAction === 'combine' &&
+              const combineDimmed = pickMode && (pickAction === 'combine' || pickAction === 'reallocate') &&
                 !pickLockIds.includes(t.id) &&
                 !pickSelection.includes(t.id) &&
                 (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
@@ -1498,7 +1500,7 @@ export default function FloorBoard({
                     (_gridSwapRes.combinedTableIds ?? []).length > 0 ||
                     !!_gridSwapRes.reorganizeAt
                   );
-                  const gridCombineDimmed = pickMode && pickAction === 'combine' &&
+                  const gridCombineDimmed = pickMode && (pickAction === 'combine' || pickAction === 'reallocate') &&
                     !pickLockIds.includes(t.id) &&
                     !pickSelection.includes(t.id) &&
                     (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
