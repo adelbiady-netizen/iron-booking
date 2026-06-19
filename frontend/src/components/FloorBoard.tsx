@@ -391,6 +391,7 @@ interface Props {
   onPickSelectionChange?: (ids: string[]) => void;
   pickAction?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation';
   pickLockIds?: string[];  // tables fixed in selection — cannot be toggled off
+  pickInitialSelection?: string[];  // tables pre-selected when pick mode activates
   pickGuestName?: string;
   // Walk-in pick: future-reserved tables are amber/selectable; occupied tables stay hard-blocked.
   pickWalkInMode?: boolean;
@@ -471,7 +472,7 @@ export default function FloorBoard({
   reservations = [], date,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, onPickSelectionChange, pickAction, pickGuestName,
-  pickLockIds = [],
+  pickLockIds = [], pickInitialSelection,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
   reorganizeMode = false, onReorganizeTableClick,
@@ -654,10 +655,15 @@ export default function FloorBoard({
 
   // Force floor view and sync selection when entering pick mode.
   // Move mode starts with empty selection — the host must explicitly choose a new table.
+  // Combine mode seeds from pickInitialSelection (existing secondary tables).
   useEffect(() => {
     if (pickMode) {
       setView('floor');
-      setPickSelection(pickAction === 'move' ? [] : pickIds);
+      if (pickInitialSelection && pickInitialSelection.length > 0) {
+        setPickSelection(pickInitialSelection);
+      } else {
+        setPickSelection(pickAction === 'move' ? [] : pickIds);
+      }
       setPickWarn(null);
       setPickCurrentWarn(false);
     }

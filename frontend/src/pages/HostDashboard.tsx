@@ -2598,6 +2598,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           pickAction={tablePickAction}
           pickGuestName={tablePickGuestName}
           pickLockIds={tablePickLockIds}
+          pickInitialSelection={tablePickSelectedIds}
           pickWalkInMode={tablePickWalkIn}
           inPlanningMode={!liveMode}
           waitlistAssignEntry={waitlistAssignEntry}
