@@ -512,7 +512,7 @@ export default function FloorBoard({
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
   const [softHoldWarning,  setSoftHoldWarning]  = useState<{ table: FloorTable; entry: WaitlistEntry } | null>(null);
-  const [ctxMenu,          setCtxMenu]          = useState<{ x: number; y: number; table: FloorTable } | null>(null);
+  const [ctxMenu,          setCtxMenu]          = useState<{ x: number; y: number; table: FloorTable; drawerRes: Reservation | null } | null>(null);
   const [view,             setView]             = useState<View>('floor');
 
   // Pick mode state
@@ -970,7 +970,7 @@ export default function FloorBoard({
     e.preventDefault();
     const x = Math.min(e.clientX, window.innerWidth - 168);
     const y = Math.min(e.clientY, window.innerHeight - 190);
-    setCtxMenu({ x, y, table: t });
+    setCtxMenu({ x, y, table: t, drawerRes: activeDrawerRes });
   }
 
   // ── Turn data ─────────────────────────────────────────────────────────────────
@@ -1582,9 +1582,9 @@ export default function FloorBoard({
         // OCCUPIED and locked tables are still blocked. Backend handles future-reservation conflicts via reorganize modal.
         const canTableFirstSeat = !!onTableFirstSeat && !isOccupied && !t.locked && isToday && eligibleGuests.length > 0;
         const canWalkInHere = !!onWalkInHere && !isOccupied && !t.locked && isToday;
-        // Attach/detach: when a reservation is open in the GuestDrawer, allow adding or
-        // removing this table from that reservation's combined-table group.
-        const attachTarget = activeDrawerRes?.tableId ? activeDrawerRes : null;
+        // Attach/detach: use the snapshot of activeDrawerRes captured at right-click time
+        // (ctxMenu.drawerRes) so prop changes after the click don't affect the menu.
+        const attachTarget = ctxMenu.drawerRes?.tableId ? ctxMenu.drawerRes : null;
         const isAlreadyCombined = !!(attachTarget && attachTarget.combinedTableIds?.includes(t.id));
         const isPrimaryTable    = !!(attachTarget && attachTarget.tableId === t.id);
         const canAttach = !!onContextMenuAttachTable && !!attachTarget && !isPrimaryTable && !isAlreadyCombined && !t.locked;
