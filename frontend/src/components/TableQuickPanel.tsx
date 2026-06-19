@@ -28,6 +28,7 @@ interface Props {
   onSeat: (res: Reservation) => void;
   onMoveTable: (res: Reservation) => void;
   onChangeTable: (res: Reservation) => void;
+  onCombineTable?: (res: Reservation) => void;
   onLock: (table: FloorTable) => void;
   onUnlock: (tableId: string) => void;
   onOpenCreate: (tableId: string) => void;
@@ -48,6 +49,7 @@ export default function TableQuickPanel({
   onSeat,
   onMoveTable,
   onChangeTable,
+  onCombineTable,
   onLock,
   onUnlock,
   onOpenCreate,
@@ -530,7 +532,14 @@ export default function TableQuickPanel({
                               : T.guestDrawer.actionChangeTable
                         }
                         cls={btnNeutral}
-                        onClick={() => { onChangeTable(res); onClose(); }} />
+                        onClick={() => {
+                          if ((res.combinedTableIds?.length ?? 0) > 0 && onCombineTable) {
+                            onCombineTable(res);
+                          } else {
+                            onChangeTable(res);
+                          }
+                          onClose();
+                        }} />
                       {res.guestPhone && (
                         <Btn
                           label={smsSent ? T.tableQuickPanel.smsSent : T.guestDrawer.actionSendSms}

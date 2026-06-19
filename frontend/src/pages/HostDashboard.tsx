@@ -1473,10 +1473,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       async (ids) => {
         if (!ids) return;
         try {
-          const updated = await api.reservations.update(res.id, {
-            tableId: res.tableId,
-            combinedTableIds: ids,
-          });
+          const updated = res.status === 'SEATED'
+            ? await api.reservations.move(res.id, res.tableId!, undefined, ids)
+            : await api.reservations.update(res.id, { tableId: res.tableId, combinedTableIds: ids });
           setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
           showToast(T.floorBoard.toastResCombineDone);
         } catch (err) {
@@ -1516,6 +1515,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       combinedTableIds: [],
       table: null,
     };
+
+    const hasSecondaries = (r.combinedTableIds?.length ?? 0) > 0;
 
     handlePickTables(
       [],
@@ -1557,8 +1558,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
         }
       },
-      'change-table',
+      // Multi-table reservations use combine mode so the confirm bar appears and
+      // existing secondaries are visible — prevents silently dropping them on first click.
+      hasSecondaries ? 'combine' : 'change-table',
       r.guestName,
+      false,
+      r.time,
+      hasSecondaries ? [] : undefined,
+      hasSecondaries ? [r.tableId!, ...(r.combinedTableIds ?? [])] : undefined,
     );
   }, [handlePickTables, floorTables, allTables, showToast]);
 
@@ -1667,9 +1674,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       }
     }
 
-    // Table already assigned — seat directly, same as GuestDrawer right-side flow
+    // Table already assigned — seat directly, same as GuestDrawer right-side flow.
+    // Enrich combinedTableIds from the full reservations state because floor table
+    // upcomingReservations may be lean objects without that field.
     if (res.tableId) {
-      await executeSeat(res.tableId, res.combinedTableIds ?? []);
+      const fullRes = reservations.find(r => r.id === res.id) ?? res;
+      await executeSeat(res.tableId, fullRes.combinedTableIds ?? []);
       return;
     }
 
@@ -2554,6 +2564,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onSeat={handleContextMenuSeat}
               onMoveTable={handleContextMenuMove}
               onChangeTable={handleChooseTable}
+              onCombineTable={handleContextMenuCombineRes}
               onLock={handleLockTable}
               onUnlock={handleUnlockTable}
               onOpenCreate={(tableId) => { setPreselectedTableId(tableId); setCreateMode('reservation'); }}
