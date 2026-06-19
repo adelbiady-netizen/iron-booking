@@ -203,6 +203,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Combine-tables mode: host taps multiple available tables before creating a combined reservation
   const [combineMode,       setCombineMode]       = useState(false);
   const [combinedSelection, setCombinedSelection] = useState<string[]>([]);
+  // Reservation-based combine mode: right-click a reserved/seated table → pick additional tables
+  const [resCombineRes,        setResCombineRes]        = useState<Reservation | null>(null);
+  const [resCombineSelectedIds, setResCombineSelectedIds] = useState<string[]>([]);
   const [incomingCall,         setIncomingCall]         = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
   const [callNotification,     setCallNotification]     = useState<{ phone: string; createdAt: string; callid?: string | null } | null>(null);
   const [callHighlight,        setCallHighlight]        = useState(false);
@@ -841,6 +844,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setCombineMode(false);
     setCombinedSelection([]);
   }, [combinedSelection]);
+
+  const handleContextMenuCombineRes = useCallback((res: Reservation) => {
+    setResCombineRes(res);
+    setResCombineSelectedIds(res.combinedTableIds ?? []);
+    setSelectedRes(null);
+  }, []);
+
+  const handleResCombineToggle = useCallback((tableId: string) => {
+    setResCombineSelectedIds(prev =>
+      prev.includes(tableId) ? prev.filter(id => id !== tableId) : [...prev, tableId]
+    );
+  }, []);
+
+  const handleResCombineConfirm = useCallback(async () => {
+    if (!resCombineRes) return;
+    try {
+      const updated = await api.reservations.update(resCombineRes.id, {
+        tableId: resCombineRes.tableId,
+        combinedTableIds: resCombineSelectedIds,
+      });
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      showToast(T.floorBoard.toastResCombineDone);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'שגיאה', 'error');
+    } finally {
+      setResCombineRes(null);
+      setResCombineSelectedIds([]);
+    }
+  }, [resCombineRes, resCombineSelectedIds, showToast, T]);
+
+  const handleResCombineCancel = useCallback(() => {
+    setResCombineRes(null);
+    setResCombineSelectedIds([]);
+  }, []);
 
   const handleReorganizeTableClick = useCallback((table: FloorTable) => {
     // If an unassigned reservation is active in GuestDrawer, assign it to the
@@ -2568,6 +2605,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           swapSourceId={swapSource?.res.id ?? null}
           onSwapTargetPick={handleSwapTargetPick}
           onSwapCancel={() => setSwapSource(null)}
+          resCombineMode={!!resCombineRes}
+          resCombineSourceId={resCombineRes?.tableId ?? null}
+          resCombineSelectedIds={resCombineSelectedIds}
+          onResCombineToggle={handleResCombineToggle}
+          onResCombineConfirm={handleResCombineConfirm}
+          onResCombineCancel={handleResCombineCancel}
+          onContextMenuCombineRes={handleContextMenuCombineRes}
         />
 
         {/* Panel toggle handle — always visible between floor and right rail */}

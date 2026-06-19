@@ -131,6 +131,11 @@ export const T = {
     ctxAttachTable:    (name: string) => `Attach to ${name}`,
     ctxDetachTable:    'Detach from group',
     ctxQuickSeatHere:  'Quick Seat Here',
+    ctxCombineRes:      'Combine Tables',
+    resCombineModeHint: 'Select tables to add to reservation',
+    resCombineConfirm:  'Confirm',
+    resCombineCancel:   'Cancel',
+    toastResCombineDone: 'Tables combined',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────

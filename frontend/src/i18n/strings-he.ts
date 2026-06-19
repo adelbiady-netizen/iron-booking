@@ -132,6 +132,11 @@ export const THe = {
     ctxAttachTable:    (name: string) => `הצמד ל${name}`,
     ctxDetachTable:    'הסר הצמדה',
     ctxQuickSeatHere:  'הושבה מהירה',
+    ctxCombineRes:      'חבר שולחנות',
+    resCombineModeHint: 'בחר שולחנות להוספה להזמנה',
+    resCombineConfirm:  'אישור',
+    resCombineCancel:   'ביטול',
+    toastResCombineDone: 'השולחנות שולבו',
   },
 
   // ── TableTimeline ──────────────────────────────────────────────────────────
