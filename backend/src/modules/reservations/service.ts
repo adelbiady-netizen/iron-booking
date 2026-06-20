@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from '../../lib/errors';
 import { getTableAvailability } from '../../engine/availability';
+import { resolveTurnTime } from '../../engine/opProfile';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -167,7 +168,8 @@ export async function createReservation(
   actorName: string
 ) {
   const settings = await getRestaurantSettings(restaurantId);
-  const duration = input.duration ?? (input.partySize >= 3 ? 120 : 90);
+  const heuristicCreate = input.partySize >= 3 ? 120 : 90;
+  const duration = input.duration ?? await resolveTurnTime(restaurantId, input.partySize, heuristicCreate);
   const date = parseDateArg(input.date);
 
   if (input.tableId && !input.overrideConflicts) {
@@ -337,9 +339,10 @@ export async function updateReservation(
   }
   const date = input.date ? parseDateArg(input.date) : existing.date;
   const time = input.time ?? existing.time;
+  const newPartySize = input.partySize ?? existing.partySize;
   const duration = input.duration ?? (
     input.partySize && input.partySize !== existing.partySize
-      ? (input.partySize >= 3 ? 120 : 90)
+      ? await resolveTurnTime(restaurantId, newPartySize, newPartySize >= 3 ? 120 : 90)
       : existing.duration
   );
   const tableId = input.tableId !== undefined ? input.tableId : existing.tableId;

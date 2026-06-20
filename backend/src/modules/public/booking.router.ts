@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { Prisma, ClubJoinSource, ClubMemberStatus } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
+import { resolveTurnTime, resolveTimeWindows, resolveGroupConfig, type GroupConfig } from '../../engine/opProfile';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { sendReservationReceivedSms } from '../../lib/messaging';
 import { findOrCreateGuest, splitName } from '../guests/service';
@@ -91,6 +92,11 @@ async function findRestaurantBySlug(slug: string) {
 }
 
 type RestaurantWithHours = NonNullable<Awaited<ReturnType<typeof findRestaurantBySlug>>>;
+
+// ─── HH:mm helpers ───────────────────────────────────────────────────────────
+
+function laterOf(a: string, b: string): string   { return a >= b ? a : b; }
+function earlierOf(a: string, b: string): string  { return a <= b ? a : b; }
 
 // ─── Availability engine (public, capacity-aware) ────────────────────────────
 // Pre-fetches all data for the day in a single pass, then evaluates each
@@ -298,7 +304,8 @@ async function findAlternatives(
   requestedTime: string | null,
   partySize:     number,
   minBookingTime: Date,
-  maxDate:        Date
+  maxDate:        Date,
+  resolvedTurnMinutes?: number,
 ): Promise<BookingAlternative[]> {
   const alternatives: BookingAlternative[] = [];
   const base = new Date(requestedDate + 'T00:00:00.000Z');
@@ -320,7 +327,7 @@ async function findAlternatives(
     const slots = await computePublicSlots(
       restaurant.id, d, dStr, partySize,
       hours.openTime, hours.lastSeating,
-      s.slotIntervalMinutes, s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
+      s.slotIntervalMinutes, resolvedTurnMinutes ?? s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
       minBookingTime
     );
 
@@ -381,6 +388,7 @@ async function executeBookingTransaction(
     marketingConsentSource?: string;
   },
   maxOnlineCoversPerWindow?: number,
+  groupConfig?: GroupConfig | null,
 ): Promise<{ id: string; tableId: string | null }> {
   const slotStart  = parseTimeOnDate(date, time);
   const slotEnd    = addMinutes(slotStart, durationMinutes);
@@ -401,7 +409,7 @@ async function executeBookingTransaction(
           minCovers: { lte: partySize },
           maxCovers: { gte: partySize },
         },
-        select:  { id: true, maxCovers: true },
+        select:  { id: true, maxCovers: true, sectionId: true },
         orderBy: { maxCovers: 'asc' }, // smallest viable table first
       }),
       tx.tableCombination.findMany({
@@ -413,8 +421,8 @@ async function executeBookingTransaction(
         },
         select: {
           id: true, tableAId: true, tableBId: true, maxCovers: true,
-          tableA: { select: { isActive: true, locked: true } },
-          tableB: { select: { isActive: true, locked: true } },
+          tableA: { select: { isActive: true, locked: true, sectionId: true } },
+          tableB: { select: { isActive: true, locked: true, sectionId: true } },
         },
         orderBy: { maxCovers: 'asc' },
       }),
@@ -456,36 +464,52 @@ async function executeBookingTransaction(
       throw new SlotTakenError();
     }
 
-    // Find best-fit available single table first
-    const bestTable = tables.find(table => {
-      if (blocks.some(b => b.tableId === table.id &&
-          areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))) {
-        return false;
-      }
+    // ── Table availability predicates ────────────────────────────────────────
+    const isTableFree = (tableId: string) => {
+      if (blocks.some(b => b.tableId === tableId &&
+          areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))) return false;
       return !reservations.some(r => {
-        if (r.tableId !== table.id) return false;
+        if (r.tableId !== tableId) return false;
         const rStart = parseTimeOnDate(date, r.time);
         const rEnd   = addMinutes(rStart, r.duration);
         return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
       });
-    });
+    };
+    const isComboFree = (combo: { tableAId: string; tableBId: string }) =>
+      isTableFree(combo.tableAId) && isTableFree(combo.tableBId);
 
-    // Fall back to a combination if no single table is free
-    const bestCombo = !bestTable ? validCombinations.find(combo => {
-      const componentIds = [combo.tableAId, combo.tableBId];
-      const anyBlocked = componentIds.some(tid =>
-        blocks.some(b => b.tableId === tid && areIntervalsOverlapping(slotInterval, { start: b.startTime, end: b.endTime }))
+    // ── Section-aware table selection ────────────────────────────────────────
+    // groupConfig expresses a section + mode PREFERENCE from the OP Profile.
+    // The fallback chain always ensures the booking completes if any capacity
+    // is available — section targeting is best-effort, never a hard constraint.
+    const preferSectionId = groupConfig?.targetSectionId ?? null;
+    const preferCombo     = groupConfig?.allocationMode === 'COMBINATION';
+
+    let bestTable: typeof tables[number]            | undefined;
+    let bestCombo: typeof validCombinations[number] | undefined;
+
+    if (preferCombo && preferSectionId) {
+      // 1. Combo where both component tables are in the target section
+      bestCombo = validCombinations.find(c =>
+        c.tableA.sectionId === preferSectionId && c.tableB.sectionId === preferSectionId && isComboFree(c)
       );
-      if (anyBlocked) return false;
-      return !componentIds.some(tid =>
-        reservations.some(r => {
-          if (r.tableId !== tid) return false;
-          const rStart = parseTimeOnDate(date, r.time);
-          const rEnd   = addMinutes(rStart, r.duration);
-          return areIntervalsOverlapping(slotInterval, { start: rStart, end: rEnd });
-        })
-      );
-    }) : undefined;
+      // 2. Fall back: any available combination in the restaurant
+      if (!bestCombo) bestCombo = validCombinations.find(c => isComboFree(c));
+      // 3. Final fall back: a single table
+      if (!bestCombo) bestTable = tables.find(t => isTableFree(t.id));
+    } else if (preferSectionId) {
+      // SINGLE mode with section preference
+      // 1. Smallest single table in the target section
+      bestTable = tables.find(t => t.sectionId === preferSectionId && isTableFree(t.id));
+      // 2. Fall back: any single table in the restaurant
+      if (!bestTable) bestTable = tables.find(t => isTableFree(t.id));
+      // 3. Fall back: any combination
+      if (!bestTable) bestCombo = validCombinations.find(c => isComboFree(c));
+    } else {
+      // No group config — existing behavior unchanged
+      bestTable = tables.find(t => isTableFree(t.id));
+      if (!bestTable) bestCombo = validCombinations.find(c => isComboFree(c));
+    }
 
     if (!bestTable && !bestCombo) throw new SlotTakenError();
 
@@ -691,10 +715,18 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
       return res.json({ date, partySize, slots: [], isFullyBooked: false, isClosed: true, isPast: false, alternatives: [] });
     }
 
+    const heuristicTurn = s.defaultTurnMinutes || (partySize >= 3 ? 120 : 90);
+    const [resolvedTurnMinutes, timeWindow] = await Promise.all([
+      resolveTurnTime(restaurant.id, partySize, heuristicTurn),
+      resolveTimeWindows(restaurant.id, date, dateObj.getUTCDay()),
+    ]);
+    const effectiveOpenTime    = timeWindow ? laterOf(hours.openTime, timeWindow.startTime)     : hours.openTime;
+    const effectiveLastSeating = timeWindow ? earlierOf(hours.lastSeating, timeWindow.endTime)  : hours.lastSeating;
+
     const slots        = await computePublicSlots(
       restaurant.id, dateObj, date, partySize,
-      hours.openTime, hours.lastSeating,
-      s.slotIntervalMinutes, s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
+      effectiveOpenTime, effectiveLastSeating,
+      s.slotIntervalMinutes, resolvedTurnMinutes, s.bufferBetweenTurnsMinutes,
       minBookingTime
     );
     const availableSlots  = slots.filter(sl => sl.available);
@@ -703,7 +735,7 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
 
     let alternatives: BookingAlternative[] = [];
     if (isFullyBooked || isNearlyFull) {
-      alternatives = await findAlternatives(restaurant, s, date, null, partySize, minBookingTime, maxDate);
+      alternatives = await findAlternatives(restaurant, s, date, null, partySize, minBookingTime, maxDate, resolvedTurnMinutes);
     }
 
     // Strip internal _score before sending to client
@@ -809,8 +841,13 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     const token = crypto.randomUUID();
     let reservation: { id: string; tableId: string | null };
 
+    const heuristicTurnReserve = s.defaultTurnMinutes || (body.partySize >= 3 ? 120 : 90);
+    const [effectiveTurnMinutes, groupConfig] = await Promise.all([
+      resolveTurnTime(restaurant.id, body.partySize, heuristicTurnReserve),
+      resolveGroupConfig(restaurant.id, body.partySize),
+    ]);
+
     try {
-      const effectiveTurnMinutes = s.defaultTurnMinutes || (body.partySize >= 3 ? 120 : 90);
       reservation = await executeBookingTransaction(
         restaurant.id, dateObj, body.time, body.partySize,
         effectiveTurnMinutes, s.bufferBetweenTurnsMinutes,
@@ -828,6 +865,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           marketingConsentSource: body.marketingOptIn ? 'PUBLIC_BOOKING' : undefined,
         },
         s.maxOnlineCoversPerWindow,
+        groupConfig,
       );
     } catch (err) {
       if (err instanceof CapacityLimitError) {
@@ -835,7 +873,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       }
       if (err instanceof SlotTakenError ||
           (err instanceof Error && (err.message.includes('40001') || err.message.includes('serialize')))) {
-        const alternatives = await findAlternatives(restaurant, s, body.date, body.time, body.partySize, minBookingTime, maxDate);
+        const alternatives = await findAlternatives(restaurant, s, body.date, body.time, body.partySize, minBookingTime, maxDate, effectiveTurnMinutes);
         return res.status(409).json({ error: { code: 'SLOT_TAKEN', message: 'That time is no longer available.', alternatives } });
       }
       throw err;
