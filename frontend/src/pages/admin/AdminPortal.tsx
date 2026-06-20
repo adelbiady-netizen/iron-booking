@@ -2891,9 +2891,21 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
 
         {/* Restaurant Portal Access */}
         <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
-          <div className="mb-4">
-            <h3 className="font-medium mb-1">הרשאות פורטל</h3>
-            <p className="text-[11px] text-iron-muted">הגדרות אלו קובעות מה המסעדה יכולה לנהל בפורטל שלה.</p>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-medium mb-1">הרשאות פורטל</h3>
+              <p className="text-[11px] text-iron-muted">הגדרות אלו קובעות מה המסעדה יכולה לנהל בפורטל שלה.</p>
+            </div>
+            {selectedId && (
+              <a
+                href={`/restaurant-admin/${selectedId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-xs font-medium text-iron-green hover:underline whitespace-nowrap"
+              >
+                פתח פורטל ←
+              </a>
+            )}
           </div>
           <div className="space-y-3">
             {([

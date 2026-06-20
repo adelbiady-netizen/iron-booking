@@ -397,7 +397,10 @@ export default function App() {
     );
   }
 
-  // ── /restaurant-admin — scoped portal for RESTAURANT_ADMIN ───────────────────
+  // ── /restaurant-admin — scoped portal ────────────────────────────────────────
+  // Two access modes:
+  //   /restaurant-admin             — RESTAURANT_ADMIN only; uses their own restaurant
+  //   /restaurant-admin/:id         — SUPER_ADMIN only; manages the restaurant with that id
   if (path.startsWith('/restaurant-admin')) {
     if (!ready) {
       return (
@@ -409,6 +412,29 @@ export default function App() {
     if (!auth) {
       return <HQLoginPage onLogin={handleLogin} />;
     }
+
+    // /restaurant-admin/:id — SUPER_ADMIN managing a specific restaurant
+    const pathSegments = path.split('/').filter(Boolean); // ['restaurant-admin', ':id']
+    const managedRestaurantId = pathSegments[1] ?? null;  // undefined for bare /restaurant-admin
+
+    if (managedRestaurantId) {
+      // Only SUPER_ADMIN may access a restaurant by explicit id
+      if (auth.user.role !== 'SUPER_ADMIN') {
+        window.location.replace('/hq');
+        return <></>;
+      }
+      return (
+        <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+          <RestaurantPortal
+            auth={auth}
+            onLogout={handleLogout}
+            managedRestaurantId={managedRestaurantId}
+          />
+        </div>
+      );
+    }
+
+    // /restaurant-admin (bare) — RESTAURANT_ADMIN only
     if (auth.user.role !== 'RESTAURANT_ADMIN') {
       window.location.replace('/hq');
       return <></>;

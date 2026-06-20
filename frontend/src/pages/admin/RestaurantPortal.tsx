@@ -135,14 +135,24 @@ const NAV: NavItem[] = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-interface Props { auth: AuthState; onLogout: () => void; }
+interface Props {
+  auth: AuthState;
+  onLogout: () => void;
+  /** When provided (SUPER_ADMIN managing a specific restaurant), overrides
+   *  auth.user.restaurant. Restaurant-bound users (RESTAURANT_ADMIN) leave
+   *  this undefined and the component falls back to auth.user.restaurant. */
+  managedRestaurantId?: string;
+}
 
-export default function RestaurantPortal({ auth, onLogout }: Props) {
-  const restaurantId   = auth.user.restaurant?.id   ?? '';
-  const restaurantName = auth.user.restaurant?.name ?? 'My Restaurant';
+export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }: Props) {
+  const restaurantId = managedRestaurantId ?? auth.user.restaurant?.id ?? '';
 
   // ── Active section ────────────────────────────────────────────────────────
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
+  // Loaded from the API on first data fetch — overrides auth.user.restaurant.name
+  // so SUPER_ADMIN managing a different restaurant sees the correct name.
+  const [loadedRestaurantName, setLoadedRestaurantName] = useState<string | null>(null);
+  const restaurantName = loadedRestaurantName ?? auth.user.restaurant?.name ?? 'My Restaurant';
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   const [hqTheme, setHqTheme] = useState<'dark' | 'light'>(() => {
@@ -240,6 +250,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
         api.reservations.list({ date: fmtLocalDate(tomorrow), limit: '1' }).catch(() => null),
         api.admin.guestHub.get(restaurantId).catch(() => null),
       ]);
+      setLoadedRestaurantName(detail.name ?? null);
       setRestrictions(rl);
       setPermissions(detail.portalPermissions ?? null);
       if (detail.operatingHours?.length === 7) {
