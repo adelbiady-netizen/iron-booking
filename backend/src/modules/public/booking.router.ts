@@ -810,9 +810,10 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     let reservation: { id: string; tableId: string | null };
 
     try {
+      const effectiveTurnMinutes = s.defaultTurnMinutes || (body.partySize >= 3 ? 120 : 90);
       reservation = await executeBookingTransaction(
         restaurant.id, dateObj, body.time, body.partySize,
-        s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
+        effectiveTurnMinutes, s.bufferBetweenTurnsMinutes,
         token, {
           guestName:             body.guestName.trim(),
           guestPhone:            body.guestPhone.trim(),

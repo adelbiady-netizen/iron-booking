@@ -443,6 +443,7 @@ export const THe = {
     returnedToList:       'הוחזר לרשימה',
     actionUnconfirm:      'החזר לממתין',
     actionChooseTable:       'בחר שולחן',
+    actionAssignTable:       'שבץ לשולחן',
     actionChangeTable:       'שנה שולחן',
     actionChangeCombination: 'שנה שילוב שולחנות',
     actionUndoArrival:       'בטל הגעה',

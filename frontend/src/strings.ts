@@ -448,6 +448,7 @@ export const T = {
     returnedToList:       'Returned to List',
     actionUnconfirm:      'Revert to pending',
     actionChooseTable:       'Choose table',
+    actionAssignTable:       'Assign table',
     actionChangeTable:       'Change table',
     actionChangeCombination: 'Change combination',
     actionUndoArrival:       'Undo arrival',

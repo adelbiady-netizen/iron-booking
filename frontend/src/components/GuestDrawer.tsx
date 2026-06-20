@@ -241,7 +241,7 @@ interface Props {
   onTableLockChange?: () => void;
   nowTime?: string;
   isLiveView?: boolean;
-  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table' | 'combine', guestName?: string, walkIn?: boolean, time?: string, lockIds?: string[], initialIds?: string[]) => void;
+  onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table' | 'combine' | 'assign', guestName?: string, walkIn?: boolean, time?: string, lockIds?: string[], initialIds?: string[]) => void;
   onPickTablesCancel?: () => void;
   /** True when HostDashboard's tablePickMode is active — suppresses backdrop so the floor is clickable. */
   mapPickActive?: boolean;
@@ -329,7 +329,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [editTableId,          _setEditTableId]          = useState<string | null>(init.tableId ?? null);
   const [editCombinedTableIds, _setEditCombinedTableIds] = useState<string[]>(init.combinedTableIds ?? []);
   const pickingOnMap = false; // map-picker only available via action buttons now
-  const [pickingForAction,     setPickingForAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | null>(null);
+  const [pickingForAction,     setPickingForAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'assign' | null>(null);
   const [tableSuggestions,     _setTableSuggestions]    = useState<BackendTableSuggestion[]>([]);
   const [smartSuggestion, setSmartSuggestion] = useState<SmartSuggestion>(null);
   const [smartLoading, setSmartLoading] = useState(false);
@@ -406,7 +406,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   }, [res.isArrived]);
 
 
-  async function openActionMapPicker(action: 'seat' | 'move' | 'change-table' | 'combine') {
+  async function openActionMapPicker(action: 'seat' | 'move' | 'change-table' | 'combine' | 'assign') {
     // For combine: currentIds = secondary tables only (primary is locked; passing it here would double-render it).
     const currentIds = action === 'combine'
       ? (res.combinedTableIds ?? [])
@@ -908,10 +908,20 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           <p className="text-xs text-iron-muted mt-1.5 px-0.5">{T.guestDrawer.seatFutureDisabled}</p>
         )}
         {/* Secondary */}
-        {onPickTables && res.tableId && (
+        {onPickTables && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
-            <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
+            {!res.tableId && (
+              <ActionBtn label={T.guestDrawer.actionAssignTable} cls={btnNeutral} onClick={() => openActionMapPicker('assign')} disabled={busy} />
+            )}
+            {res.tableId && (
+              <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
+            )}
+            {res.tableId && (res.combinedTableIds?.length ?? 0) > 0 && (
+              <ActionBtn label={T.guestDrawer.actionChangeCombination} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
+            )}
+            {res.tableId && (res.combinedTableIds?.length ?? 0) === 0 && (
+              <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
+            )}
           </div>
         )}
         {/* Destructive */}
@@ -945,10 +955,16 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
           <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber} onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
+          {onPickTables && !res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionAssignTable} cls={btnNeutral} onClick={() => openActionMapPicker('assign')} disabled={busy} />
+          )}
           {onPickTables && res.tableId && (
             <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
           )}
-          {onPickTables && res.tableId && (
+          {onPickTables && res.tableId && (res.combinedTableIds?.length ?? 0) > 0 && (
+            <ActionBtn label={T.guestDrawer.actionChangeCombination} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
+          )}
+          {onPickTables && res.tableId && (res.combinedTableIds?.length ?? 0) === 0 && (
             <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
           )}
           {onSwap && res.tableId && (
