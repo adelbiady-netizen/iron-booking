@@ -67,6 +67,7 @@ interface Props {
   onReorganizeSelect?: (r: Reservation) => void;
   allTables?: { id: string; name: string }[];
   onChooseTable?: (r: Reservation) => void;
+  onNoTableMode?: (active: boolean) => void;
   onMarkArrived?: (r: Reservation) => void;
   onUnmarkArrived?: (r: Reservation) => void;
   onSendSms?: (r: Reservation) => void;
@@ -82,7 +83,7 @@ export default function ReservationPanel({
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
-  onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable,
+  onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable, onNoTableMode,
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
@@ -244,12 +245,7 @@ export default function ReservationPanel({
                     key={f.value}
                     onClick={() => {
                       setFilter(f.value);
-                      // If switching to NO_TABLE and a no-table reservation is already selected,
-                      // arm the floor picker immediately instead of waiting for a second click.
-                      if (f.value === 'NO_TABLE' && onChooseTable) {
-                        const sel = reservations.find(r => r.id === selectedId && !r.tableId && ['PENDING', 'CONFIRMED'].includes(r.status));
-                        if (sel) onChooseTable(sel);
-                      }
+                      onNoTableMode?.(f.value === 'NO_TABLE');
                     }}
                     className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
                       filter === f.value
@@ -305,7 +301,7 @@ export default function ReservationPanel({
             {/* NO_TABLE assignment hint — shown above the list to make the workflow obvious */}
             {filter === 'NO_TABLE' && noTableCount > 0 && (
               <div className="px-3.5 py-2 flex items-center gap-2 border-b border-iron-border/20 bg-iron-elevated/30">
-                <span className="text-[11px] text-iron-muted/70 font-medium">בחר הזמנה לשיבוץ שולחן</span>
+                <span className="text-[11px] text-iron-muted/70 font-medium">לחץ "שבץ" להצמדת שולחן, או לחץ שולחן בתצוגה להסרה</span>
                 <svg className="text-iron-muted/40 shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
@@ -408,7 +404,7 @@ export default function ReservationPanel({
                           className="text-[11px] font-bold px-2 py-1 rounded text-white shrink-0 transition-colors whitespace-nowrap"
                           style={{ backgroundColor: '#4a6930', boxShadow: '0 1px 4px rgba(0,0,0,0.28)' }}
                         >
-                          שבץ לשולחן
+                          שבץ
                         </button>
                       )}
                     </div>
@@ -561,7 +557,7 @@ export default function ReservationPanel({
                             className="text-[11px] font-bold px-2 py-1 rounded text-white transition-colors whitespace-nowrap"
                             style={{ backgroundColor: '#4a6930', boxShadow: '0 1px 4px rgba(0,0,0,0.28)' }}
                           >
-                            שבץ לשולחן
+                            שבץ
                           </button>
                         </div>
                       )}
@@ -644,12 +640,7 @@ export default function ReservationPanel({
                   <button
                     type="button"
                     onClick={() => {
-                      // In NO_TABLE mode: row click directly arms the floor picker — no detour via drawer.
-                      if (filter === 'NO_TABLE' && !r.tableId && onChooseTable) {
-                        onChooseTable(r);
-                      } else {
-                        onSelect(r);
-                      }
+                      onSelect(r);
                     }}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     dir={dir}

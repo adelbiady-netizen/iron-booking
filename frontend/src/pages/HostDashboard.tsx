@@ -246,6 +246,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // arrays, which means SSE updates automatically propagate without any manual sync.
   const [quickTable, setQuickTable] = useState<{ tableId: string; reservationId: string | null } | null>(null);
 
+  // No-table lift mode
+  const [noTableLiftMode, setNoTableLiftMode] = useState(false);
+
   // Management Reorganize Mode
   const [reorganizeMode, setReorganizeMode] = useState(false);
   const [rebuildDayTarget, setRebuildDayTarget] = useState<{ table: FloorTable; resv: Reservation[] } | null>(null);
@@ -1509,6 +1512,25 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, showToast, T]);
 
+  const handleRemoveFromFloor = useCallback(async (res: Reservation) => {
+    const prev = reservations;
+    setReservations(r => r.map(x => x.id === res.id
+      ? { ...x, tableId: null, table: null, combinedTableIds: [] }
+      : x
+    ));
+    try {
+      const updated = await api.reservations.update(res.id, {
+        tableId: null,
+        combinedTableIds: [],
+      });
+      setReservations(r => r.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+      showToast('ההזמנה הוסרה מהשולחן');
+    } catch (err) {
+      setReservations(prev);
+      showToast(err instanceof Error ? err.message : 'שגיאה', 'error');
+    }
+  }, [reservations, showToast]);
+
   const handleChooseTable = useCallback(async (r: Reservation) => {
     const hasNoTable    = !r.tableId;
     const hasSecondaries = (r.combinedTableIds?.length ?? 0) > 0;
@@ -2642,6 +2664,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onWaitlistTablePick={handleWaitlistTablePick}
           onWaitlistAssignCancel={handleWaitlistAssignCancel}
           onWaitlistConfirmSeat={handleWaitlistConfirmSeat}
+          noTableLiftMode={noTableLiftMode}
+          onRemoveFromFloor={handleRemoveFromFloor}
+          onExitNoTableMode={() => setNoTableLiftMode(false)}
           reorganizeMode={reorganizeMode}
           onReorganizeTableClick={handleReorganizeTableClick}
           hoveredResId={hoveredResId}
@@ -2740,6 +2765,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onReorganizeSelect={handleReorganizeSelect}
               allTables={allTables}
               onChooseTable={handleChooseTable}
+              onNoTableMode={(active) => setNoTableLiftMode(active)}
               onMarkArrived={handleContextMenuArrive}
               onUnmarkArrived={handleUnmarkArrived}
               onSendSms={handleSendSms}

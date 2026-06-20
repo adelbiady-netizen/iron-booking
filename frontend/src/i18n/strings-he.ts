@@ -119,6 +119,7 @@ export const THe = {
     pickModeAssignHint:       'שבץ שולחנות — בחר שולחן אחד או יותר להזמנה',
     pickModeNewResHint:       'בחר שולחן להזמנה',
     pickModeLockWarn:      'שולחן ראשי קבוע — לא ניתן להסיר',
+    noTableLiftBanner: 'מצב ללא שולחן — לחץ על שולחן כדי להסיר ממנו את ההזמנה',
     reorganizeBanner: 'מצב סידור מחדש — לחץ על שולחן להעברת הזמנותיו לתור הסידור',
     soon:             'בקרוב',
     ctxSwap:          'החלף הזמנות',

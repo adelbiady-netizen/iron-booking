@@ -404,6 +404,10 @@ interface Props {
   onWaitlistTablePick?: (tableId: string) => void;
   onWaitlistAssignCancel?: () => void;
   onWaitlistConfirmSeat?: () => void;
+  // No-table lift mode: clicking an occupied table removes its reservation from the floor
+  noTableLiftMode?: boolean;
+  onRemoveFromFloor?: (res: Reservation) => void;
+  onExitNoTableMode?: () => void;
   // Management Reorganize Mode
   reorganizeMode?: boolean;
   onReorganizeTableClick?: (table: FloorTable) => void;
@@ -475,6 +479,7 @@ export default function FloorBoard({
   pickLockIds = [], pickInitialSelection,
   waitlistAssignEntry = null, waitlistAssignTableId = null,
   onWaitlistTablePick, onWaitlistAssignCancel, onWaitlistConfirmSeat,
+  noTableLiftMode = false, onRemoveFromFloor, onExitNoTableMode,
   reorganizeMode = false, onReorganizeTableClick,
   hoveredResId,
   drawerOpen: _drawerOpen = false,
@@ -644,6 +649,14 @@ export default function FloorBoard({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [pickMode, onPickCancel]);
+
+  // Exit no-table lift mode on Esc (only when pick mode is not active)
+  useEffect(() => {
+    if (!noTableLiftMode || pickMode) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onExitNoTableMode?.(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [noTableLiftMode, pickMode, onExitNoTableMode]);
 
   // Cancel swap mode on Esc
   useEffect(() => {
@@ -914,6 +927,19 @@ export default function FloorBoard({
       }
       return;
     }
+    // No-table lift mode: clicking an occupied table removes its reservation from the floor.
+    // Use currentReservation (seated) first, then first upcoming reservation.
+    // Fall back to reservations prop for far-future bookings excluded from upcomingReservations.
+    // Free tables (no reservation found) → no-op. pick mode (Flow B) takes priority.
+    if (noTableLiftMode && !pickMode) {
+      const res = (
+        t.currentReservation ??
+        t.upcomingReservations[0] ??
+        reservations.find(r => (r.tableId === t.id || r.combinedTableIds?.includes(t.id)) && ['PENDING', 'CONFIRMED'].includes(r.status))
+      ) as Reservation | undefined;
+      if (res) onRemoveFromFloor?.(res);
+      return;
+    }
     // Pick mode takes priority: a specific in-progress pick overrides reorganize mode.
     if (pickMode) {
       const ps = getPickStatus(t);
@@ -1106,6 +1132,23 @@ export default function FloorBoard({
           <span className="text-status-warning text-xs font-medium flex-1">
             {T.floorBoard.reorganizeBanner}
           </span>
+        </div>
+      )}
+
+      {/* No-table lift mode banner */}
+      {noTableLiftMode && !pickMode && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-red-900/20 border-b border-status-danger/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-danger animate-pulse shrink-0" />
+          <span className="text-status-danger text-xs font-medium flex-1">
+            {T.floorBoard.noTableLiftBanner}
+          </span>
+          <button
+            type="button"
+            onClick={onExitNoTableMode}
+            className="text-status-danger/60 hover:text-status-danger text-xs transition-colors shrink-0"
+          >
+            יציאה
+          </button>
         </div>
       )}
 

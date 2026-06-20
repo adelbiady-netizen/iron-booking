@@ -118,6 +118,7 @@ export const T = {
     pickModeAssignHint:       'Assign tables — select one or more tables for this reservation',
     pickModeNewResHint:       'Select table(s) for new reservation',
     pickModeLockWarn:      'Primary table is fixed — cannot be removed',
+    noTableLiftBanner: 'No-Table Lift Mode — click a table to remove its reservation from the floor',
     reorganizeBanner: 'Reorganize Mode — click any table to lift its upcoming reservations to the queue',
     soon:             'Soon',
     ctxSwap:          'Swap Reservations',
