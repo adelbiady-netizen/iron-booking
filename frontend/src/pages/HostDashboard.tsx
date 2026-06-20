@@ -1437,7 +1437,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
-    tablePickRestoreRef.current = null; // confirmed — no date restore needed
+    // change-table: restore floor position (date/time/liveMode) so the host returns
+    // to their live view. assign/reallocate intentionally keep the floor at the
+    // reservation's date/time so the result is immediately visible.
+    if (tablePickActionRef.current === 'change-table') {
+      const restore = tablePickRestoreRef.current;
+      if (restore) {
+        setDate(restore.date);
+        setTime(restore.time);
+        setLiveMode(restore.liveMode);
+      }
+    }
+    tablePickRestoreRef.current = null;
     setTablePickMode(false);
     setTablePickAction(undefined);
     setTablePickGuestName(undefined);
@@ -1549,9 +1560,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       table: null,
     };
 
-    // Travel to reservation's time so the floor shows occupancy at that slot
+    // Travel to reservation's time so the floor shows occupancy at that slot.
+    // Always snap to 30-min boundary — the floor API and TopBar both expect snapped times.
     const [rH, rM] = r.time.split(':').map(Number);
-    setTime(snapTo30(rH * 60 + rM));
+    const snappedResTime = snapTo30(rH * 60 + rM);
+    setTime(snappedResTime);
     setLiveMode(false);
 
     // Arm pick mode IMMEDIATELY so table clicks register without waiting for the network.
@@ -1571,8 +1584,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             tableId: primaryId,
             combinedTableIds: secondaryIds,
           });
-          // Reconcile with server truth (SSE will also trigger a background refresh)
+          // Reconcile with server truth and force an immediate floor refresh so
+          // floorTables reflects the new assignment without waiting for SSE.
           setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+          setRefreshKey(k => k + 1);
           showToast(T.guestDrawer.toastTableAssigned(name));
         } catch (err) {
           // Roll back optimistic update
@@ -1599,7 +1614,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       pickAction,
       r.guestName,
       false,
-      r.time,
+      snappedResTime,                                                            // snapped — floor API expects 30-min boundary
       hasSecondaries ? [] : undefined,                                          // lockIds
       hasSecondaries ? [r.tableId!, ...(r.combinedTableIds ?? [])] : undefined, // initialIds (none for assign)
       (hasNoTable || hasSecondaries) ? r.date.slice(0, 10) : undefined,         // pickDate → snapshot + floor jump
