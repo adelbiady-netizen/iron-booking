@@ -450,7 +450,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         if (ids.length === 0) return;
         const [primaryId, ...secondaryIds] = ids;
         if (action === 'seat') {
-          seatWithReorganizeCheck(primaryId, secondaryIds, T.guestDrawer.toastSeated(res.guestName, tableName(primaryId)));
+          // forceAll=true: host came through the floor picker — explicit table choice, no intermediate modals.
+          seatWithReorganizeCheck(primaryId, secondaryIds, T.guestDrawer.toastSeated(res.guestName, tableName(primaryId)), true);
         } else if (action === 'move') {
           run(
             () => api.reservations.move(res.id, primaryId, undefined, secondaryIds),
@@ -606,7 +607,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
-  async function seatWithReorganizeCheck(tableId: string, combinedIds: string[], toastMsg: string) {
+  // forceAll=true: host-override mode (came from floor picker — host explicitly chose
+  // this table). Skip the pre-flight occupied check and call the API with both
+  // overrideConflicts and forceOverrideOccupied so no intermediate modal appears.
+  async function seatWithReorganizeCheck(tableId: string, combinedIds: string[], toastMsg: string, forceAll = false) {
     // Hard guard: never fire the seat API without a valid table.
     // Routes to picker instead so the host can assign one.
     if (!tableId) {
@@ -614,20 +618,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       else setMode('seat');
       return;
     }
-    // Pre-flight: if the target table already has a seated guest, show the handoff
-    // modal before touching the API. Faster than waiting for a backend error and
-    // avoids any error-code routing ambiguity.
-    const seatedOccupant = allReservations?.find(r =>
-      r.tableId === tableId && r.status === 'SEATED' && r.id !== res.id
-    );
-    if (seatedOccupant) {
-      setOccupiedModal({
-        occupiedBy: { id: seatedOccupant.id, guestName: seatedOccupant.guestName, time: seatedOccupant.time, partySize: seatedOccupant.partySize },
-        pendingTableId: tableId,
-        pendingCombinedIds: combinedIds,
-        pendingToast: toastMsg,
-      });
-      return;
+
+    if (!forceAll) {
+      // Pre-flight: if the target table already has a seated guest, show the handoff
+      // modal before touching the API. Faster than waiting for a backend error and
+      // avoids any error-code routing ambiguity.
+      const seatedOccupant = allReservations?.find(r =>
+        r.tableId === tableId && r.status === 'SEATED' && r.id !== res.id
+      );
+      if (seatedOccupant) {
+        console.log('[seat:preflight] occupied table — showing modal', {
+          reservationId: res.id, tableId,
+          occupiedBy: { id: seatedOccupant.id, guestName: seatedOccupant.guestName, time: seatedOccupant.time },
+        });
+        setOccupiedModal({
+          occupiedBy: { id: seatedOccupant.id, guestName: seatedOccupant.guestName, time: seatedOccupant.time, partySize: seatedOccupant.partySize },
+          pendingTableId: tableId,
+          pendingCombinedIds: combinedIds,
+          pendingToast: toastMsg,
+        });
+        return;
+      }
     }
 
     setError(null);
@@ -636,9 +647,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     // Rolled back below if the backend rejects the request.
     onOptimisticSeat?.(res, tableId, combinedIds);
     const t0 = performance.now();
-    console.log('[perf:seat] click → request', new Date().toISOString());
+    console.log('[perf:seat] click → request', new Date().toISOString(), { forceAll });
     try {
-      const updated = await api.reservations.seat(res.id, tableId, false, combinedIds);
+      const updated = await api.reservations.seat(res.id, tableId, forceAll, combinedIds, [], forceAll);
       console.log('[perf:seat] API response received', Math.round(performance.now() - t0) + 'ms');
       setRes(updated); onUpdated(updated); setMode('view'); setUnseatConfirm(false);
       console.log('[perf:seat] UI updated', Math.round(performance.now() - t0) + 'ms');
@@ -896,6 +907,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {isFutureReservation && (
           <p className="text-xs text-iron-muted mt-1.5 px-0.5">{T.guestDrawer.seatFutureDisabled}</p>
         )}
+        {/* Secondary */}
+        {onPickTables && res.tableId && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
+            <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
+          </div>
+        )}
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
           <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
@@ -927,6 +945,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
           <ActionBtn label={T.guestDrawer.actionUnconfirm} cls={btnAmber} onClick={() => run(() => api.reservations.unconfirm(res.id), T.guestDrawer.toastUnconfirmed)} disabled={busy} />
+          {onPickTables && res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
+          )}
           {onPickTables && res.tableId && (
             <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
           )}
