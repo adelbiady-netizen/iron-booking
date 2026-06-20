@@ -197,6 +197,52 @@ export interface GroupConfigBody {
   sortOrder?: number;
 }
 
+// ── Turn Time Rules ─────────────────────────────────────────────────────────
+export interface TurnTimeRule {
+  id: string;
+  name: string;
+  description: string | null;
+  partySizeMin: number;
+  partySizeMax: number;
+  durationMinutes: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+export interface TurnTimeRuleBody {
+  name: string;
+  description?: string | null;
+  partySizeMin: number;
+  partySizeMax: number;
+  durationMinutes: number;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+// ── Booking Time Windows ─────────────────────────────────────────────────────
+export interface TimeWindow {
+  id: string;
+  name: string;
+  description: string | null;
+  dayOfWeek: number | null;
+  specificDate: string | null;
+  startTime: string;
+  endTime: string;
+  sourceScope: 'ONLINE' | 'HOST' | 'ALL';
+  isActive: boolean;
+  sortOrder: number;
+}
+export interface TimeWindowBody {
+  name: string;
+  description?: string | null;
+  dayOfWeek?: number | null;
+  specificDate?: string | null;
+  startTime: string;
+  endTime: string;
+  sourceScope?: 'ONLINE' | 'HOST' | 'ALL';
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -681,6 +727,26 @@ export const api = {
           request<GroupConfig>(`/admin/restaurants/${id}/group-configs/${cid}`, { method: 'PATCH', body: JSON.stringify(body) }),
         delete: (id: string, cid: string) =>
           request<{ ok: boolean }>(`/admin/restaurants/${id}/group-configs/${cid}`, { method: 'DELETE' }),
+      },
+      turnTimeRules: {
+        list: (id: string) =>
+          request<{ rules: TurnTimeRule[] }>(`/admin/restaurants/${id}/turn-time-rules`),
+        create: (id: string, body: TurnTimeRuleBody) =>
+          request<TurnTimeRule>(`/admin/restaurants/${id}/turn-time-rules`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, rid: string, body: Partial<TurnTimeRuleBody>) =>
+          request<TurnTimeRule>(`/admin/restaurants/${id}/turn-time-rules/${rid}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        delete: (id: string, rid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/turn-time-rules/${rid}`, { method: 'DELETE' }),
+      },
+      timeWindows: {
+        list: (id: string) =>
+          request<{ windows: TimeWindow[] }>(`/admin/restaurants/${id}/time-windows`),
+        create: (id: string, body: TimeWindowBody) =>
+          request<TimeWindow>(`/admin/restaurants/${id}/time-windows`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, wid: string, body: Partial<TimeWindowBody>) =>
+          request<TimeWindow>(`/admin/restaurants/${id}/time-windows/${wid}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        delete: (id: string, wid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/time-windows/${wid}`, { method: 'DELETE' }),
       },
     },
     sms: {

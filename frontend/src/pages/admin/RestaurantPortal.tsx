@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
-import type { GroupConfig, GroupConfigSection, GroupConfigBody } from '../../api';
+import type { GroupConfig, GroupConfigSection, GroupConfigBody, TurnTimeRule, TurnTimeRuleBody, TimeWindow, TimeWindowBody } from '../../api';
 import type { AuthState } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -209,6 +209,45 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   const [gcBusy,              setGcBusy]              = useState(false);
   const [gcError,             setGcError]             = useState<string | null>(null);
 
+  // ── Op Settings (Phase 1) ─────────────────────────────────────────────────
+  type OpSettings = {
+    defaultTurnMinutes: number;
+    bufferBetweenTurnsMinutes: number;
+    slotIntervalMinutes: number;
+    maxOnlinePartySize: number;
+    maxAdvanceBookingDays: number;
+    minAdvanceBookingHours: number;
+    reminderEnabled: boolean;
+    reminderLeadMinutes: number;
+  };
+  const DEFAULT_OP_SETTINGS: OpSettings = {
+    defaultTurnMinutes: 90, bufferBetweenTurnsMinutes: 15, slotIntervalMinutes: 30,
+    maxOnlinePartySize: 10, maxAdvanceBookingDays: 60, minAdvanceBookingHours: 2,
+    reminderEnabled: true, reminderLeadMinutes: 60,
+  };
+  const [opSettings,     setOpSettings]     = useState<OpSettings>(DEFAULT_OP_SETTINGS);
+  const [opSettingsBusy, setOpSettingsBusy] = useState(false);
+  const [opSettingsError,setOpSettingsError]= useState<string | null>(null);
+
+  // ── Turn Time Rules (Phase 2) ─────────────────────────────────────────────
+  const DEFAULT_TTR_FORM: TurnTimeRuleBody = { name: '', partySizeMin: 1, partySizeMax: 2, durationMinutes: 90, isActive: true };
+  const [turnRules,    setTurnRules]    = useState<TurnTimeRule[]>([]);
+  const [ttrLoading,   setTtrLoading]   = useState(false);
+  const [ttrEditId,    setTtrEditId]    = useState<string | 'new' | null>(null);
+  const [ttrForm,      setTtrForm]      = useState<TurnTimeRuleBody>(DEFAULT_TTR_FORM);
+  const [ttrBusy,      setTtrBusy]      = useState(false);
+  const [ttrError,     setTtrError]     = useState<string | null>(null);
+
+  // ── Time Windows (Phase 3) ────────────────────────────────────────────────
+  const DAY_NAMES_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const DEFAULT_TW_FORM: TimeWindowBody = { name: '', dayOfWeek: 0, startTime: '12:00', endTime: '22:00', sourceScope: 'ONLINE', isActive: true };
+  const [timeWindows,  setTimeWindows]  = useState<TimeWindow[]>([]);
+  const [twLoading,    setTwLoading]    = useState(false);
+  const [twEditId,     setTwEditId]     = useState<string | 'new' | null>(null);
+  const [twForm,       setTwForm]       = useState<TimeWindowBody>(DEFAULT_TW_FORM);
+  const [twBusy,       setTwBusy]       = useState(false);
+  const [twError,      setTwError]      = useState<string | null>(null);
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   function showToast(msg: string) {
     setToast(msg);
@@ -225,6 +264,26 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       setGcSections(d.sections);
     } catch { /* best-effort */ }
     finally { setGcLoading(false); }
+  }
+
+  async function loadTurnRules() {
+    if (!restaurantId || !isSuperAdmin) return;
+    setTtrLoading(true);
+    try {
+      const d = await api.admin.restaurants.turnTimeRules.list(restaurantId);
+      setTurnRules(d.rules);
+    } catch { /* best-effort */ }
+    finally { setTtrLoading(false); }
+  }
+
+  async function loadTimeWindows() {
+    if (!restaurantId || !isSuperAdmin) return;
+    setTwLoading(true);
+    try {
+      const d = await api.admin.restaurants.timeWindows.list(restaurantId);
+      setTimeWindows(d.windows);
+    } catch { /* best-effort */ }
+    finally { setTwLoading(false); }
   }
 
   async function refreshPermissions() {
@@ -253,6 +312,18 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       setLoadedRestaurantName(detail.name ?? null);
       setRestrictions(rl);
       setPermissions(detail.portalPermissions ?? null);
+      // Populate op settings from loaded restaurant settings JSON
+      const s = (detail.settings ?? {}) as Record<string, unknown>;
+      setOpSettings({
+        defaultTurnMinutes:        (s['defaultTurnMinutes']        as number) ?? 90,
+        bufferBetweenTurnsMinutes: (s['bufferBetweenTurnsMinutes'] as number) ?? 15,
+        slotIntervalMinutes:       (s['slotIntervalMinutes']        as number) ?? 30,
+        maxOnlinePartySize:        (s['maxOnlinePartySize']         as number) ?? 10,
+        maxAdvanceBookingDays:     (s['maxAdvanceBookingDays']      as number) ?? 60,
+        minAdvanceBookingHours:    (s['minAdvanceBookingHours']     as number) ?? 2,
+        reminderEnabled:           (s['reminderEnabled']            as boolean) ?? true,
+        reminderLeadMinutes:       (s['reminderLeadMinutes']        as number) ?? 60,
+      });
       if (detail.operatingHours?.length === 7) {
         setScheduleRows(detail.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -276,7 +347,13 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   }, [restaurantId]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { if (activeSection === 'operations') loadGroupConfigs(); }, [activeSection, restaurantId]);
+  useEffect(() => {
+    if (activeSection === 'operations') {
+      loadGroupConfigs();
+      loadTurnRules();
+      loadTimeWindows();
+    }
+  }, [activeSection, restaurantId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -409,6 +486,94 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     } catch { showToast('שגיאה במחיקה'); }
   }
 
+  // ── Op Settings handlers (Phase 1) ───────────────────────────────────────
+  async function handleSaveOpSettings() {
+    setOpSettingsBusy(true);
+    setOpSettingsError(null);
+    try {
+      await api.admin.restaurants.settings(restaurantId, opSettings as unknown as Record<string, unknown>);
+      showToast('ההגדרות נשמרו');
+    } catch (err) {
+      setOpSettingsError(err instanceof Error ? err.message : 'שגיאה בשמירה');
+    } finally { setOpSettingsBusy(false); }
+  }
+
+  // ── Turn Time Rule handlers (Phase 2) ────────────────────────────────────
+  async function handleSaveTurnRule() {
+    if (!ttrForm.name.trim() || ttrForm.partySizeMin > ttrForm.partySizeMax) return;
+    setTtrBusy(true);
+    setTtrError(null);
+    try {
+      if (ttrEditId === 'new') {
+        const r = await api.admin.restaurants.turnTimeRules.create(restaurantId, ttrForm);
+        setTurnRules(rs => [...rs, r]);
+        showToast('הכלל נוצר');
+      } else if (ttrEditId) {
+        const r = await api.admin.restaurants.turnTimeRules.update(restaurantId, ttrEditId, ttrForm);
+        setTurnRules(rs => rs.map(x => x.id === ttrEditId ? r : x));
+        showToast('הכלל עודכן');
+      }
+      setTtrEditId(null);
+    } catch (err) {
+      setTtrError(err instanceof Error ? err.message : 'שגיאה בשמירה');
+    } finally { setTtrBusy(false); }
+  }
+
+  async function handleDeleteTurnRule(r: TurnTimeRule) {
+    if (!confirm(`למחוק את הכלל "${r.name}"?`)) return;
+    try {
+      await api.admin.restaurants.turnTimeRules.delete(restaurantId, r.id);
+      setTurnRules(rs => rs.filter(x => x.id !== r.id));
+      if (ttrEditId === r.id) setTtrEditId(null);
+      showToast('הכלל נמחק');
+    } catch { showToast('שגיאה במחיקה'); }
+  }
+
+  async function handleToggleTurnRule(r: TurnTimeRule) {
+    try {
+      const updated = await api.admin.restaurants.turnTimeRules.update(restaurantId, r.id, { isActive: !r.isActive });
+      setTurnRules(rs => rs.map(x => x.id === r.id ? updated : x));
+    } catch { showToast('שגיאה בעדכון'); }
+  }
+
+  // ── Time Window handlers (Phase 3) ───────────────────────────────────────
+  async function handleSaveTimeWindow() {
+    if (!twForm.name.trim() || !twForm.startTime || !twForm.endTime) return;
+    setTwBusy(true);
+    setTwError(null);
+    try {
+      if (twEditId === 'new') {
+        const w = await api.admin.restaurants.timeWindows.create(restaurantId, twForm);
+        setTimeWindows(ws => [...ws, w]);
+        showToast('חלון הזמן נוצר');
+      } else if (twEditId) {
+        const w = await api.admin.restaurants.timeWindows.update(restaurantId, twEditId, twForm);
+        setTimeWindows(ws => ws.map(x => x.id === twEditId ? w : x));
+        showToast('חלון הזמן עודכן');
+      }
+      setTwEditId(null);
+    } catch (err) {
+      setTwError(err instanceof Error ? err.message : 'שגיאה בשמירה');
+    } finally { setTwBusy(false); }
+  }
+
+  async function handleDeleteTimeWindow(w: TimeWindow) {
+    if (!confirm(`למחוק את חלון הזמן "${w.name}"?`)) return;
+    try {
+      await api.admin.restaurants.timeWindows.delete(restaurantId, w.id);
+      setTimeWindows(ws => ws.filter(x => x.id !== w.id));
+      if (twEditId === w.id) setTwEditId(null);
+      showToast('חלון הזמן נמחק');
+    } catch { showToast('שגיאה במחיקה'); }
+  }
+
+  async function handleToggleTimeWindow(w: TimeWindow) {
+    try {
+      const updated = await api.admin.restaurants.timeWindows.update(restaurantId, w.id, { isActive: !w.isActive });
+      setTimeWindows(ws => ws.map(x => x.id === w.id ? updated : x));
+    } catch { showToast('שגיאה בעדכון'); }
+  }
+
   // ── Button styles ─────────────────────────────────────────────────────────
   const btnPrimary   = 'bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50';
   const btnSecondary = 'bg-iron-surface hover:bg-iron-bg text-iron-text font-medium text-sm px-4 py-2 rounded-lg border border-iron-border transition-colors';
@@ -532,6 +697,353 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     );
   }
 
+  // ── Phase 1: Op Settings card ─────────────────────────────────────────────
+  function renderOpSettings() {
+    type NumKey = 'defaultTurnMinutes' | 'bufferBetweenTurnsMinutes' | 'slotIntervalMinutes' | 'maxOnlinePartySize' | 'maxAdvanceBookingDays' | 'minAdvanceBookingHours' | 'reminderLeadMinutes';
+    function NumField({ label, hint, k, min, max }: { label: string; hint?: string; k: NumKey; min: number; max: number }) {
+      return (
+        <div>
+          <label className="block text-xs text-iron-muted mb-1">{label}</label>
+          {hint && <p className="text-[10px] text-iron-muted mb-1">{hint}</p>}
+          <input type="number" min={min} max={max} value={opSettings[k]}
+            onChange={e => setOpSettings(s => ({ ...s, [k]: Math.max(min, Math.min(max, +e.target.value)) }))}
+            className="w-28 bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-6" dir="rtl">
+        <h3 className="font-medium text-iron-text">הגדרות הזמנה בסיסיות</h3>
+
+        {/* Section A — Booking Availability */}
+        <div className="space-y-4">
+          <p className="text-xs font-medium text-iron-muted border-b border-iron-border pb-1">זמינות הזמנות מקוונות</p>
+          <div className="grid grid-cols-2 gap-4">
+            <NumField label="גודל קבוצה מקסימלי להזמנה מקוונת" hint="קבוצות גדולות יותר לא יוכלו להזמין אונליין" k="maxOnlinePartySize" min={1} max={100} />
+            <NumField label="מרווח זמן בין משבצות (דקות)" hint="כל כמה דקות מוצגות משבצות זמינות" k="slotIntervalMinutes" min={5} max={60} />
+            <NumField label="ימים מראש מקסימליים" hint="כמה ימים לפני ניתן להזמין" k="maxAdvanceBookingDays" min={1} max={365} />
+            <NumField label="שעות מינימום מראש" hint="כמה שעות לפני ההגעה ניתן להזמין" k="minAdvanceBookingHours" min={0} max={72} />
+          </div>
+        </div>
+
+        {/* Section B — Table Utilization */}
+        <div className="space-y-4">
+          <p className="text-xs font-medium text-iron-muted border-b border-iron-border pb-1">ניצול שולחנות</p>
+          <div className="grid grid-cols-2 gap-4">
+            <NumField label="זמן ישיבה ברירת מחדל (דקות)" hint="בהעדר כלל זמן ישיבה ספציפי" k="defaultTurnMinutes" min={15} max={480} />
+            <NumField label="מאגר בין תורות (דקות)" hint="זמן פנוי לניקוי ואיפוס שולחן" k="bufferBetweenTurnsMinutes" min={0} max={60} />
+          </div>
+        </div>
+
+        {/* Section E — Reminders */}
+        <div className="space-y-4">
+          <p className="text-xs font-medium text-iron-muted border-b border-iron-border pb-1">תזכורות אורחים</p>
+          <div className="flex items-center gap-3 mb-2">
+            <button type="button"
+              onClick={() => setOpSettings(s => ({ ...s, reminderEnabled: !s.reminderEnabled }))}
+              className={`w-9 h-5 rounded-full transition-colors relative ${opSettings.reminderEnabled ? 'bg-iron-green' : 'bg-iron-border'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${opSettings.reminderEnabled ? 'right-0.5' : 'left-0.5'}`} />
+            </button>
+            <span className="text-sm text-iron-text">תזכורות הזמנות מופעלות</span>
+          </div>
+          {opSettings.reminderEnabled && (
+            <NumField label="שליחת תזכורת X דקות לפני ההגעה" k="reminderLeadMinutes" min={0} max={1440} />
+          )}
+        </div>
+
+        {opSettingsError && <p className="text-xs text-status-danger">{opSettingsError}</p>}
+        <button onClick={handleSaveOpSettings} disabled={opSettingsBusy}
+          className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+        >
+          {opSettingsBusy ? 'שומר…' : 'שמור הגדרות'}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Phase 2: Turn Time Rules card ─────────────────────────────────────────
+  function renderTurnTimeRules() {
+    const minuteOptions = [30, 45, 60, 75, 90, 105, 120, 135, 150, 180, 210, 240];
+    return (
+      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-iron-text">זמני ישיבה לפי גודל קבוצה</h3>
+            <p className="text-[11px] text-iron-muted mt-0.5">כשמוגדרים כללים, הם גוברים על ברירת המחדל הכללית</p>
+          </div>
+          {ttrEditId === null && (
+            <button onClick={() => { setTtrForm(DEFAULT_TTR_FORM); setTtrEditId('new'); setTtrError(null); }}
+              className="text-xs text-iron-green hover:underline font-medium">
+              + כלל חדש
+            </button>
+          )}
+        </div>
+
+        {ttrLoading && <p className="text-iron-muted text-sm">טוען…</p>}
+
+        {!ttrLoading && ttrEditId === null && (
+          turnRules.length === 0
+            ? <p className="text-iron-muted text-sm">אין כללים. זמן הישיבה נקבע על פי ברירת המחדל הכללית.</p>
+            : <div className="space-y-2">
+                {turnRules.map(r => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-iron-text text-sm font-medium">{r.name}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${r.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+                          {r.isActive ? 'פעיל' : 'לא פעיל'}
+                        </span>
+                      </div>
+                      <p className="text-iron-muted text-xs mt-0.5">
+                        {r.partySizeMin === r.partySizeMax ? `${r.partySizeMin} סועדים` : `${r.partySizeMin}–${r.partySizeMax} סועדים`}
+                        {' · '}{r.durationMinutes} דקות
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => handleToggleTurnRule(r)}
+                        className={`w-9 h-5 rounded-full transition-colors relative ${r.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+                        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${r.isActive ? 'right-0.5' : 'left-0.5'}`} />
+                      </button>
+                      <button onClick={() => { setTtrForm({ name: r.name, description: r.description, partySizeMin: r.partySizeMin, partySizeMax: r.partySizeMax, durationMinutes: r.durationMinutes, isActive: r.isActive, sortOrder: r.sortOrder }); setTtrEditId(r.id); setTtrError(null); }}
+                        className="text-iron-muted hover:text-iron-text text-xs">עריכה</button>
+                      <button onClick={() => handleDeleteTurnRule(r)} className="text-iron-muted hover:text-status-danger text-xs">מחק</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+        )}
+
+        {ttrEditId !== null && (
+          <div className="space-y-4 pt-1">
+            <h4 className="text-sm font-medium text-iron-text">{ttrEditId === 'new' ? 'כלל חדש' : 'עריכת כלל'}</h4>
+
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">שם הכלל *</label>
+              <input value={ttrForm.name} onChange={e => setTtrForm(f => ({ ...f, name: e.target.value }))}
+                placeholder='לדוגמה: קבוצות גדולות'
+                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">מינימום סועדים</label>
+                <input type="number" min={1} max={50} value={ttrForm.partySizeMin}
+                  onChange={e => setTtrForm(f => ({ ...f, partySizeMin: +e.target.value }))}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+              </div>
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">מקסימום סועדים</label>
+                <input type="number" min={1} max={50} value={ttrForm.partySizeMax}
+                  onChange={e => setTtrForm(f => ({ ...f, partySizeMax: +e.target.value }))}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">זמן ישיבה (דקות) *</label>
+              <div className="flex flex-wrap gap-2">
+                {minuteOptions.map(m => (
+                  <button key={m} type="button"
+                    onClick={() => setTtrForm(f => ({ ...f, durationMinutes: m }))}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${ttrForm.durationMinutes === m ? 'bg-iron-green text-white border-iron-green' : 'bg-iron-bg text-iron-muted border-iron-border hover:border-iron-text'}`}
+                  >
+                    {m < 60 ? `${m}′` : `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')} שעות`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setTtrForm(f => ({ ...f, isActive: !f.isActive }))}
+                className={`w-9 h-5 rounded-full transition-colors relative ${ttrForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${ttrForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
+              </button>
+              <span className="text-sm text-iron-text">{ttrForm.isActive ? 'פעיל' : 'לא פעיל'}</span>
+            </div>
+
+            {ttrError && <p className="text-xs text-status-danger">{ttrError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveTurnRule} disabled={ttrBusy || !ttrForm.name.trim() || ttrForm.partySizeMin > ttrForm.partySizeMax}
+                className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                {ttrBusy ? 'שומר…' : 'שמור'}
+              </button>
+              <button onClick={() => { setTtrEditId(null); setTtrError(null); }}
+                className="bg-iron-surface hover:bg-iron-bg text-iron-text font-medium text-sm px-4 py-2 rounded-lg border border-iron-border transition-colors">
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Phase 3: Time Windows card ────────────────────────────────────────────
+  function renderTimeWindows() {
+    const twsByDay = (dayOfWeek: number) => timeWindows.filter(w => w.dayOfWeek === dayOfWeek && !w.specificDate);
+    const specificTws = timeWindows.filter(w => w.specificDate);
+
+    function WindowRow({ w }: { w: TimeWindow }) {
+      const dayLabel = w.specificDate ? w.specificDate : (w.dayOfWeek !== null ? DAY_NAMES_HE[w.dayOfWeek] : '—');
+      return (
+        <div className="flex items-center justify-between gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-2.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-iron-text text-sm">{w.name}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded ${w.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+                {w.isActive ? 'פעיל' : 'לא פעיל'}
+              </span>
+            </div>
+            <p className="text-iron-muted text-xs mt-0.5">{dayLabel} · {w.startTime}–{w.endTime}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => handleToggleTimeWindow(w)}
+              className={`w-9 h-5 rounded-full transition-colors relative ${w.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${w.isActive ? 'right-0.5' : 'left-0.5'}`} />
+            </button>
+            <button onClick={() => { setTwForm({ name: w.name, description: w.description, dayOfWeek: w.dayOfWeek, specificDate: w.specificDate, startTime: w.startTime, endTime: w.endTime, sourceScope: w.sourceScope, isActive: w.isActive, sortOrder: w.sortOrder }); setTwEditId(w.id); setTwError(null); }}
+              className="text-iron-muted hover:text-iron-text text-xs">עריכה</button>
+            <button onClick={() => handleDeleteTimeWindow(w)} className="text-iron-muted hover:text-status-danger text-xs">מחק</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-iron-text">חלונות זמינות מקוונת</h3>
+            <p className="text-[11px] text-iron-muted mt-0.5">הגדר את המשבצות המקוונות הזמינות לכל יום בשבוע</p>
+          </div>
+          {twEditId === null && (
+            <button onClick={() => { setTwForm(DEFAULT_TW_FORM); setTwEditId('new'); setTwError(null); }}
+              className="text-xs text-iron-green hover:underline font-medium">
+              + חלון חדש
+            </button>
+          )}
+        </div>
+
+        {twLoading && <p className="text-iron-muted text-sm">טוען…</p>}
+
+        {!twLoading && twEditId === null && (
+          timeWindows.length === 0
+            ? <p className="text-iron-muted text-sm">אין חלונות. ההזמנות מקוונות זמינות על פי שעות הפעילות הרגילות.</p>
+            : <div className="space-y-4">
+                {/* Group by day */}
+                {[0,1,2,3,4,5,6].map(day => {
+                  const dws = twsByDay(day);
+                  if (dws.length === 0) return null;
+                  return (
+                    <div key={day}>
+                      <p className="text-xs font-medium text-iron-muted mb-1.5">יום {DAY_NAMES_HE[day]}</p>
+                      <div className="space-y-1.5">{dws.map(w => <WindowRow key={w.id} w={w} />)}</div>
+                    </div>
+                  );
+                })}
+                {specificTws.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-iron-muted mb-1.5">תאריכים ספציפיים</p>
+                    <div className="space-y-1.5">{specificTws.map(w => <WindowRow key={w.id} w={w} />)}</div>
+                  </div>
+                )}
+              </div>
+        )}
+
+        {twEditId !== null && (
+          <div className="space-y-4 pt-1">
+            <h4 className="text-sm font-medium text-iron-text">{twEditId === 'new' ? 'חלון חדש' : 'עריכת חלון'}</h4>
+
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">שם *</label>
+              <input value={twForm.name} onChange={e => setTwForm(f => ({ ...f, name: e.target.value }))}
+                placeholder='לדוגמה: שבת צהריים'
+                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+            </div>
+
+            {/* Recurring vs specific date */}
+            <div>
+              <label className="block text-xs text-iron-muted mb-2">סוג חלון</label>
+              <div className="flex gap-2">
+                {(['weekly', 'specific'] as const).map(t => (
+                  <button key={t} type="button"
+                    onClick={() => setTwForm(f => t === 'weekly'
+                      ? { ...f, dayOfWeek: f.dayOfWeek ?? 0, specificDate: null }
+                      : { ...f, dayOfWeek: null, specificDate: f.specificDate ?? new Date().toISOString().slice(0,10) }
+                    )}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${(t === 'weekly' ? twForm.dayOfWeek !== null : twForm.specificDate !== null) ? 'bg-iron-green text-white border-iron-green' : 'bg-iron-bg text-iron-muted border-iron-border hover:border-iron-text'}`}
+                  >
+                    {t === 'weekly' ? 'יום בשבוע (חוזר)' : 'תאריך ספציפי'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {twForm.dayOfWeek !== null && (
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">יום בשבוע</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAY_NAMES_HE.map((d, i) => (
+                    <button key={i} type="button"
+                      onClick={() => setTwForm(f => ({ ...f, dayOfWeek: i }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${twForm.dayOfWeek === i ? 'bg-iron-green text-white border-iron-green' : 'bg-iron-bg text-iron-muted border-iron-border hover:border-iron-text'}`}
+                    >{d}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {twForm.specificDate !== null && twForm.dayOfWeek === null && (
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">תאריך</label>
+                <input type="date" value={twForm.specificDate ?? ''}
+                  onChange={e => setTwForm(f => ({ ...f, specificDate: e.target.value }))}
+                  className="bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">שעת פתיחה</label>
+                <input type="time" value={twForm.startTime}
+                  onChange={e => setTwForm(f => ({ ...f, startTime: e.target.value }))}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+              </div>
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">שעת סגירה</label>
+                <input type="time" value={twForm.endTime}
+                  onChange={e => setTwForm(f => ({ ...f, endTime: e.target.value }))}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setTwForm(f => ({ ...f, isActive: !f.isActive }))}
+                className={`w-9 h-5 rounded-full transition-colors relative ${twForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${twForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
+              </button>
+              <span className="text-sm text-iron-text">{twForm.isActive ? 'פעיל' : 'לא פעיל'}</span>
+            </div>
+
+            {twError && <p className="text-xs text-status-danger">{twError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveTimeWindow} disabled={twBusy || !twForm.name.trim()}
+                className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                {twBusy ? 'שומר…' : 'שמור'}
+              </button>
+              <button onClick={() => { setTwEditId(null); setTwError(null); }}
+                className="bg-iron-surface hover:bg-iron-bg text-iron-text font-medium text-sm px-4 py-2 rounded-lg border border-iron-border transition-colors">
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function renderGroupConfigs() {
     // Validation helpers for the form
     const formSection = gcSections.find(s => s.id === gcForm.targetSectionId);
@@ -560,17 +1072,24 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 {groupConfigs.map(c => {
                   const sec = gcSections.find(s => s.id === c.targetSectionId);
                   const comboOk = c.allocationMode !== 'COMBINATION' || (sec?.hasCombinations ?? false);
+                  // Phase 4: specific inactivity reason
+                  const inactiveReason = !c.isActive && c.allocationMode === 'COMBINATION' && sec && !sec.hasCombinations
+                    ? `לא פעיל — אין שילוב שולחנות תקף בסקשן "${sec.name}"`
+                    : !c.isActive
+                    ? 'לא פעיל'
+                    : null;
                   return (
                     <div key={c.id}
                       className="flex items-start justify-between gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-iron-text text-sm font-medium">{c.name}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
-                            {c.isActive ? 'פעיל' : 'לא פעיל'}
-                          </span>
+                          {c.isActive
+                            ? <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-iron-green/15 text-iron-green">פעיל</span>
+                            : <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-iron-surface border border-iron-border text-iron-muted">{inactiveReason}</span>
+                          }
                           {c.isActive && !comboOk && (
-                            <span className="text-xs text-status-warning">⚠ אין שילוב שולחנות</span>
+                            <span className="text-xs text-status-warning">⚠ אין שילוב שולחנות — הכלל לא יפעל</span>
                           )}
                         </div>
                         <p className="text-iron-muted text-xs mt-0.5">
@@ -926,6 +1445,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               )}
             </div>
           )}
+          {isSuperAdmin && renderOpSettings()}
+          {isSuperAdmin && renderTurnTimeRules()}
+          {isSuperAdmin && renderTimeWindows()}
           {isSuperAdmin && renderGroupConfigs()}
         </>)}
       </div>

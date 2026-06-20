@@ -453,6 +453,171 @@ router.delete('/restaurants/:id/group-configs/:cid', superAdminOnly, async (req:
   } catch (err) { next(err); }
 });
 
+// ─── Turn Time Rules ─────────────────────────────────────────────────────────
+
+const TurnTimeRuleSchema = z.object({
+  name:            z.string().min(1).max(100),
+  description:     z.string().max(500).nullish(),
+  partySizeMin:    z.number().int().min(1).max(50),
+  partySizeMax:    z.number().int().min(1).max(50),
+  durationMinutes: z.number().int().min(15).max(480),
+  isActive:        z.boolean().optional(),
+  sortOrder:       z.number().int().optional(),
+});
+const TurnTimeRulePatchSchema = TurnTimeRuleSchema.partial();
+
+// GET /admin/restaurants/:id/turn-time-rules
+router.get('/restaurants/:id/turn-time-rules', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const rules = await prisma.turnTimeRule.findMany({
+      where: { profile: { restaurantId: p(req, 'id') } },
+      orderBy: [{ sortOrder: 'asc' }, { partySizeMin: 'asc' }],
+      select: { id: true, name: true, description: true, partySizeMin: true, partySizeMax: true, durationMinutes: true, isActive: true, sortOrder: true },
+    });
+    res.json({ rules });
+  } catch (err) { next(err); }
+});
+
+// POST /admin/restaurants/:id/turn-time-rules
+router.post('/restaurants/:id/turn-time-rules', superAdminOnly, validate(TurnTimeRuleSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const restaurantId = p(req, 'id');
+    const body = req.body as z.infer<typeof TurnTimeRuleSchema>;
+    // Auto-create OP profile if missing
+    await prisma.restaurantOpProfile.upsert({
+      where: { restaurantId },
+      create: { restaurantId },
+      update: {},
+    });
+    const profile = await prisma.restaurantOpProfile.findUniqueOrThrow({ where: { restaurantId }, select: { id: true } });
+    const rule = await prisma.turnTimeRule.create({
+      data: {
+        profileId:       profile.id,
+        name:            body.name,
+        description:     body.description ?? null,
+        partySizeMin:    body.partySizeMin,
+        partySizeMax:    body.partySizeMax,
+        durationMinutes: body.durationMinutes,
+        isActive:        body.isActive ?? true,
+        sortOrder:       body.sortOrder ?? 0,
+      },
+    });
+    res.status(201).json(rule);
+  } catch (err) { next(err); }
+});
+
+// PATCH /admin/restaurants/:id/turn-time-rules/:rid
+router.patch('/restaurants/:id/turn-time-rules/:rid', superAdminOnly, validate(TurnTimeRulePatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.turnTimeRule.findFirst({
+      where: { id: p(req, 'rid'), profile: { restaurantId: p(req, 'id') } },
+    });
+    if (!existing) throw new NotFoundError('TurnTimeRule', p(req, 'rid'));
+    const rule = await prisma.turnTimeRule.update({ where: { id: p(req, 'rid') }, data: req.body });
+    res.json(rule);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/restaurants/:id/turn-time-rules/:rid
+router.delete('/restaurants/:id/turn-time-rules/:rid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.turnTimeRule.findFirst({
+      where: { id: p(req, 'rid'), profile: { restaurantId: p(req, 'id') } },
+    });
+    if (!existing) throw new NotFoundError('TurnTimeRule', p(req, 'rid'));
+    await prisma.turnTimeRule.delete({ where: { id: p(req, 'rid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ─── Booking Time Windows ─────────────────────────────────────────────────────
+
+const TimeWindowSchema = z.object({
+  name:         z.string().min(1).max(100),
+  description:  z.string().max(500).nullish(),
+  dayOfWeek:    z.number().int().min(0).max(6).nullable().optional(),
+  specificDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  startTime:    z.string().regex(/^\d{2}:\d{2}$/),
+  endTime:      z.string().regex(/^\d{2}:\d{2}$/),
+  sourceScope:  z.enum(['ONLINE', 'HOST', 'ALL']).optional(),
+  isActive:     z.boolean().optional(),
+  sortOrder:    z.number().int().optional(),
+});
+const TimeWindowPatchSchema = TimeWindowSchema.partial();
+
+// GET /admin/restaurants/:id/time-windows
+router.get('/restaurants/:id/time-windows', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const windows = await prisma.bookingTimeWindow.findMany({
+      where: { profile: { restaurantId: p(req, 'id') } },
+      orderBy: [{ sortOrder: 'asc' }, { dayOfWeek: 'asc' }],
+      select: { id: true, name: true, description: true, dayOfWeek: true, specificDate: true, startTime: true, endTime: true, sourceScope: true, isActive: true, sortOrder: true },
+    });
+    res.json({ windows });
+  } catch (err) { next(err); }
+});
+
+// POST /admin/restaurants/:id/time-windows
+router.post('/restaurants/:id/time-windows', superAdminOnly, validate(TimeWindowSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const restaurantId = p(req, 'id');
+    const body = req.body as z.infer<typeof TimeWindowSchema>;
+    await prisma.restaurantOpProfile.upsert({
+      where: { restaurantId },
+      create: { restaurantId },
+      update: {},
+    });
+    const profile = await prisma.restaurantOpProfile.findUniqueOrThrow({ where: { restaurantId }, select: { id: true } });
+    const window = await prisma.bookingTimeWindow.create({
+      data: {
+        profileId:    profile.id,
+        name:         body.name,
+        description:  body.description ?? null,
+        dayOfWeek:    body.dayOfWeek   ?? null,
+        specificDate: body.specificDate ?? null,
+        startTime:    body.startTime,
+        endTime:      body.endTime,
+        sourceScope:  body.sourceScope ?? 'ONLINE',
+        isActive:     body.isActive    ?? true,
+        sortOrder:    body.sortOrder   ?? 0,
+      },
+    });
+    res.status(201).json(window);
+  } catch (err) { next(err); }
+});
+
+// PATCH /admin/restaurants/:id/time-windows/:wid
+router.patch('/restaurants/:id/time-windows/:wid', superAdminOnly, validate(TimeWindowPatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.bookingTimeWindow.findFirst({
+      where: { id: p(req, 'wid'), profile: { restaurantId: p(req, 'id') } },
+    });
+    if (!existing) throw new NotFoundError('BookingTimeWindow', p(req, 'wid'));
+    const window = await prisma.bookingTimeWindow.update({ where: { id: p(req, 'wid') }, data: req.body });
+    res.json(window);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/restaurants/:id/time-windows/:wid
+router.delete('/restaurants/:id/time-windows/:wid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.bookingTimeWindow.findFirst({
+      where: { id: p(req, 'wid'), profile: { restaurantId: p(req, 'id') } },
+    });
+    if (!existing) throw new NotFoundError('BookingTimeWindow', p(req, 'wid'));
+    await prisma.bookingTimeWindow.delete({ where: { id: p(req, 'wid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // POST /admin/create-super-admin — create an additional SUPER_ADMIN account
 const CreateSuperAdminSchema = z.object({
   email:     z.string().email(),
@@ -591,8 +756,10 @@ const SmsTemplatesSchema = z.object({
 
 const UpdateSettingsSchema = z.object({
   defaultTurnMinutes:        z.number().int().min(15).max(480).optional(),
-  slotIntervalMinutes:       z.number().int().optional(),
-  maxPartySize:              z.number().int().optional(),
+  slotIntervalMinutes:       z.number().int().min(5).max(60).optional(),
+  maxPartySize:              z.number().int().min(1).max(50).optional(),
+  maxAdvanceBookingDays:     z.number().int().min(1).max(365).optional(),
+  minAdvanceBookingHours:    z.number().int().min(0).max(72).optional(),
   depositRequired:           z.boolean().optional(),
   autoConfirm:               z.boolean().optional(),
   bufferBetweenTurnsMinutes: z.number().int().optional(),
