@@ -1510,30 +1510,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [handlePickTables, showToast, T]);
 
   const handleChooseTable = useCallback(async (r: Reservation) => {
-    let sug: BackendTableSuggestion[] = [];
-    try {
-      sug = await api.tables.suggest({
-        date: r.date,
-        time: r.time,
-        partySize: r.partySize,
-        duration: r.duration,
-        excludeReservationId: r.id,
-      });
-    } catch { /* proceed with no suggestions — tables still selectable */ }
-
-    // Travel to reservation's time so the floor shows occupancy at that slot
-    const [rH, rM] = r.time.split(':').map(Number);
-    setTime(snapTo30(rH * 60 + rM));
-    setLiveMode(false);
-
-    // Store reservation info for instant optimistic update in handlePickDone
-    tablePickOptimisticRef.current = {
-      resId: r.id,
-      tableId: '',  // filled per-table in handlePickDone
-      combinedTableIds: [],
-      table: null,
-    };
-
     const hasNoTable    = !r.tableId;
     const hasSecondaries = (r.combinedTableIds?.length ?? 0) > 0;
 
@@ -1543,9 +1519,24 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     //   single-table → 'change-table' (auto-confirm on first click)
     const pickAction = hasNoTable ? 'assign' : hasSecondaries ? 'reallocate' : 'change-table';
 
+    // Store reservation info for instant optimistic update in handlePickDone
+    tablePickOptimisticRef.current = {
+      resId: r.id,
+      tableId: '',  // filled per-table in handlePickDone
+      combinedTableIds: [],
+      table: null,
+    };
+
+    // Travel to reservation's time so the floor shows occupancy at that slot
+    const [rH, rM] = r.time.split(':').map(Number);
+    setTime(snapTo30(rH * 60 + rM));
+    setLiveMode(false);
+
+    // Arm pick mode IMMEDIATELY so table clicks register without waiting for the network.
+    // Suggestions load in the background and update highlights once they arrive.
     handlePickTables(
       [],
-      sug,
+      [],
       async (ids) => {
         if (!ids || ids.length === 0) return;
         const [primaryId, ...secondaryIds] = ids;
@@ -1591,6 +1582,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       hasSecondaries ? [r.tableId!, ...(r.combinedTableIds ?? [])] : undefined, // initialIds (none for assign)
       (hasNoTable || hasSecondaries) ? r.date.slice(0, 10) : undefined,         // pickDate → snapshot + floor jump
     );
+
+    // Fetch suggestions in the background — they update table highlights but pick mode is already live.
+    api.tables.suggest({
+      date: r.date,
+      time: r.time,
+      partySize: r.partySize,
+      duration: r.duration,
+      excludeReservationId: r.id,
+    }).then(sug => {
+      setTablePickSuggestions(sug);
+    }).catch(() => { /* suggestions are visual-only; silence errors */ });
   }, [handlePickTables, floorTables, allTables, showToast]);
 
   const handleContextMenuSeat = useCallback(async (res: Reservation) => {
