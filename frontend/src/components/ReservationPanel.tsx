@@ -242,7 +242,15 @@ export default function ReservationPanel({
                 {FILTERS.map(f => (
                   <button
                     key={f.value}
-                    onClick={() => setFilter(f.value)}
+                    onClick={() => {
+                      setFilter(f.value);
+                      // If switching to NO_TABLE and a no-table reservation is already selected,
+                      // arm the floor picker immediately instead of waiting for a second click.
+                      if (f.value === 'NO_TABLE' && onChooseTable) {
+                        const sel = reservations.find(r => r.id === selectedId && !r.tableId && ['PENDING', 'CONFIRMED'].includes(r.status));
+                        if (sel) onChooseTable(sel);
+                      }
+                    }}
                     className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
                       filter === f.value
                         ? 'font-semibold text-white'
@@ -294,6 +302,15 @@ export default function ReservationPanel({
       ) : (
         <>
           <div className="flex-1 overflow-y-auto" style={{ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.05) 0%, transparent 36px)' }}>
+            {/* NO_TABLE assignment hint — shown above the list to make the workflow obvious */}
+            {filter === 'NO_TABLE' && noTableCount > 0 && (
+              <div className="px-3.5 py-2 flex items-center gap-2 border-b border-iron-border/20 bg-iron-elevated/30">
+                <span className="text-[11px] text-iron-muted/70 font-medium">בחר הזמנה לשיבוץ שולחן</span>
+                <svg className="text-iron-muted/40 shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+            )}
             {/* Overdue section — CONFIRMED/PENDING reservations 50+ min past their time
                 that still have a table assigned. Floor map released these already;
                 host must manually mark no-show or recover. */}
@@ -626,7 +643,14 @@ export default function ReservationPanel({
 
                   <button
                     type="button"
-                    onClick={() => onSelect(r)}
+                    onClick={() => {
+                      // In NO_TABLE mode: row click directly arms the floor picker — no detour via drawer.
+                      if (filter === 'NO_TABLE' && !r.tableId && onChooseTable) {
+                        onChooseTable(r);
+                      } else {
+                        onSelect(r);
+                      }
+                    }}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ res: r, x: e.clientX, y: e.clientY }); }}
                     dir={dir}
                     className="flex-1 text-start px-3 py-3 min-w-0 touch-manipulation active:bg-iron-green/8 transition-colors duration-100"
