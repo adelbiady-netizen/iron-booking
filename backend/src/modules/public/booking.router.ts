@@ -688,10 +688,14 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Restaurant not found.' } });
     }
 
-    const s          = parseSettings(restaurant.settings);
-    const maxParty   = Math.min(s.maxPartySize, config.maxPartySizeAbsolute);
+    const s               = parseSettings(restaurant.settings);
+    const maxParty        = Math.min(s.maxPartySize, config.maxPartySizeAbsolute);
+    const maxOnlineParty  = Math.min(s.maxOnlinePartySize, maxParty);
     if (partySize < 1 || partySize > maxParty) {
       return res.status(400).json({ error: { code: 'INVALID_PARTY_SIZE', message: `Party size must be between 1 and ${maxParty}.` } });
+    }
+    if (partySize > maxOnlineParty) {
+      return res.status(400).json({ error: { code: 'PARTY_TOO_LARGE_ONLINE', message: `Online booking is not available for groups larger than ${maxOnlineParty}.` } });
     }
 
     const now            = new Date();
