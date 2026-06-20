@@ -1930,8 +1930,8 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Pick mode action bar — shown for move, combine, and new-reservation. seat uses GuestDrawer confirmation card; change-table auto-confirms on click. */}
-      {pickMode && pickAction !== 'change-table' && pickAction !== 'seat' && (
+      {/* Pick mode action bar — shown for seat, move, combine, and new-reservation. change-table auto-confirms on click. */}
+      {pickMode && pickAction !== 'change-table' && (
         <div className="shrink-0 border-t border-status-reserved/30 bg-iron-card/90 px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             {pickCurrentWarn ? (
