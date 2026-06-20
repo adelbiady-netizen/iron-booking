@@ -961,11 +961,19 @@ export default function FloorBoard({
         setTimeout(() => setPickCurrentWarn(false), 2000);
         return;
       }
-      // Combine / reallocate / assign: tables occupied by a different reservation are blocked when ADDING.
+      // Combine / reallocate: tables with any reservation (current or future) are blocked when ADDING.
       // Already-selected tables (pre-existing secondaries) can always be deselected.
-      if ((pickAction === 'combine' || pickAction === 'reallocate' || pickAction === 'assign') && !pickSelection.includes(t.id)) {
+      if ((pickAction === 'combine' || pickAction === 'reallocate') && !pickSelection.includes(t.id)) {
         const hasOtherRes = !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId));
         if (hasOtherRes || t.locked) return;
+      }
+      // Assign is planning — only hard-block tables that are physically occupied now,
+      // admin-locked, or carry a true time-overlap conflict from the backend.
+      // Tables with non-overlapping future reservations are selectable (planning rule).
+      if (pickAction === 'assign' && !pickSelection.includes(t.id)) {
+        const isSeatedNow = !!t.currentReservation;
+        const isTrulyBlocked = t.locked || getPickStatus(t) === 'unavailable';
+        if (isSeatedNow || isTrulyBlocked) return;
       }
       // Toggle multi-select for seat and move: first click selects, second deselects.
       // First selected table = tableId (primary), rest = combinedTableIds.
@@ -1423,17 +1431,21 @@ export default function FloorBoard({
                 !_canvasSwapRes.tableId ||
                 !!_canvasSwapRes.reorganizeAt
               );
-              const combineDimmed = pickMode && (pickAction === 'combine' || pickAction === 'reallocate' || pickAction === 'assign') &&
+              const combineDimmed = pickMode && (pickAction === 'combine' || pickAction === 'reallocate') &&
                 !pickLockIds.includes(t.id) &&
                 !pickSelection.includes(t.id) &&
                 (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
+              // Assign (planning): only dim when physically occupied, locked, or backend-unavailable.
+              const assignDimmed = pickMode && pickAction === 'assign' &&
+                !pickSelection.includes(t.id) &&
+                (t.locked || !!t.currentReservation || getPickStatus(t) === 'unavailable');
               return (
                 <MapTable
                   key={t.id}
                   table={t}
                   selected={!pickMode && !waitlistAssignEntry && isSelected(t)}
                   combinedSelected={false}
-                  dimmed={dimmed || swapDimmed || combineDimmed}
+                  dimmed={dimmed || swapDimmed || combineDimmed || assignDimmed}
                   bestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
                   waitlistAssignTarget={isWLCanvasTarget}
                   softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
@@ -1549,6 +1561,9 @@ export default function FloorBoard({
                     !pickLockIds.includes(t.id) &&
                     !pickSelection.includes(t.id) &&
                     (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
+                  const gridAssignDimmed = pickMode && pickAction === 'assign' &&
+                    !pickSelection.includes(t.id) &&
+                    (t.locked || !!t.currentReservation);
                   return (
                     <div
                       key={t.id}
@@ -1563,7 +1578,7 @@ export default function FloorBoard({
                           ? 'ring-2 ring-status-reserved/50 rounded-lg'
                           : ''
                       }
-                      style={(ineligibleForAssign || gridSwapDimmed || gridCombineDimmed) ? { opacity: 0.3 } : undefined}
+                      style={(ineligibleForAssign || gridSwapDimmed || gridCombineDimmed || gridAssignDimmed) ? { opacity: 0.3 } : undefined}
                     >
                       <TableCard
                         table={t}
