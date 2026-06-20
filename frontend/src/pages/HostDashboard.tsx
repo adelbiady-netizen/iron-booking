@@ -258,8 +258,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickMode,        setTablePickMode]        = useState(false);
   const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
-  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | undefined>(undefined);
-  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | undefined>(undefined);
+  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | undefined>(undefined);
+  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | undefined>(undefined);
   const [tablePickLockIds,     setTablePickLockIds]     = useState<string[]>([]);
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const [tablePickWalkIn,      setTablePickWalkIn]      = useState(false);
@@ -1391,7 +1391,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign',
     guestName?: string,
     _walkIn?: boolean,
     pickTime?: string,
@@ -1471,7 +1471,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign',
     guestName?: string,
     walkIn?: boolean,
     pickTime?: string,
@@ -1534,7 +1534,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       table: null,
     };
 
+    const hasNoTable    = !r.tableId;
     const hasSecondaries = (r.combinedTableIds?.length ?? 0) > 0;
+
+    // Pick action:
+    //   no table  → 'assign'      (multi-select confirm bar, no pre-selection, floor jumps to res date)
+    //   multi-table → 'reallocate' (multi-select confirm bar, all tables pre-selected)
+    //   single-table → 'change-table' (auto-confirm on first click)
+    const pickAction = hasNoTable ? 'assign' : hasSecondaries ? 'reallocate' : 'change-table';
 
     handlePickTables(
       [],
@@ -1576,15 +1583,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
         }
       },
-      // Multi-table reservations use reallocate mode: confirm bar, all tables preselected,
-      // no locked primary, floor navigates to reservation's date so conflict check is correct.
-      hasSecondaries ? 'reallocate' : 'change-table',
+      pickAction,
       r.guestName,
       false,
       r.time,
-      hasSecondaries ? [] : undefined,
-      hasSecondaries ? [r.tableId!, ...(r.combinedTableIds ?? [])] : undefined,
-      hasSecondaries ? r.date.slice(0, 10) : undefined,
+      hasSecondaries ? [] : undefined,                                          // lockIds
+      hasSecondaries ? [r.tableId!, ...(r.combinedTableIds ?? [])] : undefined, // initialIds (none for assign)
+      (hasNoTable || hasSecondaries) ? r.date.slice(0, 10) : undefined,         // pickDate → snapshot + floor jump
     );
   }, [handlePickTables, floorTables, allTables, showToast]);
 

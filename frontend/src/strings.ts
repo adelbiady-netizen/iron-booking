@@ -115,6 +115,7 @@ export const T = {
     pickModeCurrentTableWarn: 'That\'s the current table — choose a different one',
     pickModeCombineHint:      'Select additional tables for this reservation',
     pickModeReallocateHint:   'Reallocate tables — select the new table group',
+    pickModeAssignHint:       'Assign tables — select one or more tables for this reservation',
     pickModeNewResHint:       'Select table(s) for new reservation',
     pickModeLockWarn:      'Primary table is fixed — cannot be removed',
     reorganizeBanner: 'Reorganize Mode — click any table to lift its upcoming reservations to the queue',

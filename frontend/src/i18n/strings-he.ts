@@ -116,6 +116,7 @@ export const THe = {
     pickModeCurrentTableWarn: 'זהו השולחן הנוכחי — בחר שולחן אחר',
     pickModeCombineHint:      'בחר שולחנות נוספים להזמנה',
     pickModeReallocateHint:   'שנה שולחנות — בחר את קבוצת השולחנות החדשה',
+    pickModeAssignHint:       'שבץ שולחנות — בחר שולחן אחד או יותר להזמנה',
     pickModeNewResHint:       'בחר שולחן להזמנה',
     pickModeLockWarn:      'שולחן ראשי קבוע — לא ניתן להסיר',
     reorganizeBanner: 'מצב סידור מחדש — לחץ על שולחן להעברת הזמנותיו לתור הסידור',
