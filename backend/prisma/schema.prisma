@@ -136,6 +136,7 @@ model Restaurant {
   clubMembers               ClubMember[]
   clubJoinInvites           ClubJoinInvite[]
   guestRewards              GuestReward[]
+  opProfile                 RestaurantOpProfile?
 
   @@map("restaurants")
 }
@@ -219,14 +220,16 @@ model OperatingHour {
 // ─── Sections ────────────────────────────────────────────────────────────────
 
 model Section {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
   restaurantId String
   name         String // "Main Dining", "Bar", "Patio", "Private"
-  sortOrder    Int    @default(0)
-  color        String @default("#6366f1") // UI color for section
+  sortOrder    Int     @default(0)
+  color        String  @default("#6366f1") // UI color for section
+  onlineAvailable Boolean @default(true) // false = section never shown in online booking
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  tables     Table[]
+  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables       Table[]
+  groupConfigs BookingGroupConfig[]
 
   @@unique([restaurantId, name])
   @@map("sections")
@@ -1367,4 +1370,145 @@ model GuestReward {
   @@index([guestId])
   @@index([expiresAt])
   @@map("guest_rewards")
+}
+
+// ─── Restaurant Operating Profile ────────────────────────────────────────────
+// Single source of truth for restaurant operational behavior.
+// One profile per restaurant (1:1). All rule sub-tables cascade from here.
+// Absence of a profile = system defaults apply everywhere.
+
+model RestaurantOpProfile {
+  id           String @id @default(uuid())
+  restaurantId String @unique
+
+  // Seating philosophy — how the engine distributes incoming guests across tables.
+  seatingPhilosophy SeatingPhilosophy @default(FILL_THEN_NEXT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant    Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  turnTimeRules TurnTimeRule[]
+  timeWindows   BookingTimeWindow[]
+  groupConfigs  BookingGroupConfig[]
+
+  @@map("restaurant_op_profiles")
+}
+
+enum SeatingPhilosophy {
+  FILL_THEN_NEXT // pack tables to capacity before moving to next section
+  BALANCE        // spread covers evenly across sections
+  KEEP_FLEXIBLE  // prefer smaller tables; hold combinations for large parties
+}
+
+// ─── Turn Time Rules ──────────────────────────────────────────────────────────
+// Per party-size range turn time overrides.
+// Engine evaluates rules in sortOrder; first match wins.
+// If no rule matches, falls back to restaurant.settings.defaultTurnMinutes.
+
+model TurnTimeRule {
+  id          String  @id @default(uuid())
+  profileId   String
+  name        String  // "Large Groups", "Solo Diners"
+  description String? // operator note
+
+  // Party size range (inclusive both ends)
+  partySizeMin Int
+  partySizeMax Int
+
+  durationMinutes Int
+  isActive        Boolean @default(true)
+  sortOrder       Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile RestaurantOpProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("turn_time_rules")
+}
+
+// ─── Booking Time Windows ─────────────────────────────────────────────────────
+// Override available time slots for online booking on specific days or dates.
+// Example: Saturday → only 19:00–22:00 visible online.
+// If no window applies for a given day the full operating hours are used.
+
+model BookingTimeWindow {
+  id          String  @id @default(uuid())
+  profileId   String
+  name        String  // "Saturday Evening Only", "Lunch Only"
+  description String? // operator note
+
+  // Scope: specificDate takes precedence over dayOfWeek when both are set.
+  specificDate String? // "YYYY-MM-DD" — one-off override
+  dayOfWeek   Int?    // 0=Sun … 6=Sat — recurring weekly rule
+
+  startTime String // "HH:mm" — earliest slot visible online
+  endTime   String // "HH:mm" — latest slot visible online
+
+  sourceScope BookingSourceScope @default(ONLINE)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile RestaurantOpProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("booking_time_windows")
+}
+
+// v1 scope: ONLINE (guest-facing portal) and ALL.
+// HOST scope reserved for v2 (host overrides without touching guest rules).
+enum BookingSourceScope {
+  ONLINE // online / guest-facing portal only
+  HOST   // host-created reservations only (v2)
+  ALL    // applies to every booking source
+}
+
+// ─── Booking Group Configs ────────────────────────────────────────────────────
+// Routing rules for large-party online bookings.
+// Example: 7–8 guests → ספות section, 2 tables, COMBINATION mode.
+
+model BookingGroupConfig {
+  id          String  @id @default(uuid())
+  profileId   String
+  name        String  // "Large Groups — Sofas"
+  description String? // operator note
+
+  // Party size range this rule applies to (inclusive)
+  partySizeMin Int
+  partySizeMax Int
+
+  // Target section — null means any section is eligible
+  targetSectionId String?
+
+  // v1 supported: SINGLE (one table big enough) or COMBINATION (push tables together)
+  allocationMode AllocationMode @default(SINGLE)
+
+  // For COMBINATION: how many tables to join (v1 max = 2, matches TableCombination model)
+  tableCount Int @default(1)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile       RestaurantOpProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  targetSection Section?            @relation(fields: [targetSectionId], references: [id])
+
+  @@index([profileId])
+  @@map("booking_group_configs")
+}
+
+// v1 runtime: SINGLE + COMBINATION only.
+// MULTI_TABLE (3+ arbitrary tables) reserved for v2 when TableCombination supports it.
+enum AllocationMode {
+  SINGLE      // assign one table that fits the entire party
+  COMBINATION // combine tableCount pre-defined adjacent tables
+  MULTI_TABLE // v2: arbitrary N-table join (not yet enforced by engine)
 }
