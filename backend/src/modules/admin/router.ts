@@ -307,6 +307,152 @@ router.use(authenticate, requireRole('HQ_ADMIN'));
 
 const superAdminOnly = requireRole('SUPER_ADMIN');
 
+// ─── Group Allocation Rules (BookingGroupConfig) ────────────────────────────
+// All mutations: SUPER_ADMIN only.
+// GET: accessible to any HQ_ADMIN+ (already gated by router.use above).
+
+const GroupConfigSchema = z.object({
+  name:            z.string().min(1).max(100),
+  description:     z.string().max(500).nullish(),
+  partySizeMin:    z.number().int().min(1).max(50),
+  partySizeMax:    z.number().int().min(1).max(50),
+  targetSectionId: z.string().uuid().nullable().optional(),
+  allocationMode:  z.enum(['SINGLE', 'COMBINATION']),
+  tableCount:      z.number().int().min(1).max(10).optional(),
+  isActive:        z.boolean().optional(),
+  sortOrder:       z.number().int().optional(),
+});
+
+const GroupConfigPatchSchema = GroupConfigSchema.partial();
+
+// GET /admin/restaurants/:id/group-configs
+// Returns { configs, sections (with hasCombinations flag), hasProfile }
+router.get('/restaurants/:id/group-configs', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: restaurantId, isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', restaurantId);
+
+    const [profile, sections, combos] = await Promise.all([
+      prisma.restaurantOpProfile.findUnique({ where: { restaurantId }, select: { id: true } }),
+      prisma.section.findMany({
+        where: { restaurantId },
+        select: { id: true, name: true, color: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
+      }),
+      prisma.tableCombination.findMany({
+        where: { restaurantId, isActive: true },
+        select: {
+          tableA: { select: { sectionId: true } },
+          tableB: { select: { sectionId: true } },
+        },
+      }),
+    ]);
+
+    const sectionsWithCombos = new Set<string>();
+    for (const c of combos) {
+      if (c.tableA.sectionId) sectionsWithCombos.add(c.tableA.sectionId);
+      if (c.tableB.sectionId) sectionsWithCombos.add(c.tableB.sectionId);
+    }
+
+    const configs = profile
+      ? await prisma.bookingGroupConfig.findMany({
+          where:   { profileId: profile.id },
+          include: { targetSection: { select: { id: true, name: true } } },
+          orderBy: { sortOrder: 'asc' },
+        })
+      : [];
+
+    res.json({
+      configs,
+      sections: sections.map(s => ({ ...s, hasCombinations: sectionsWithCombos.has(s.id) })),
+      hasProfile: !!profile,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /admin/restaurants/:id/group-configs
+router.post('/restaurants/:id/group-configs', superAdminOnly, validate(GroupConfigSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: restaurantId, isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', restaurantId);
+
+    const body = req.body as z.infer<typeof GroupConfigSchema>;
+    if (body.partySizeMin > body.partySizeMax) throw new BusinessRuleError('partySizeMin must be ≤ partySizeMax');
+
+    // Auto-create OP profile if missing (safe upsert)
+    let profile = await prisma.restaurantOpProfile.findUnique({ where: { restaurantId }, select: { id: true } });
+    if (!profile) {
+      profile = await prisma.restaurantOpProfile.create({
+        data: { restaurantId, seatingPhilosophy: 'FILL_THEN_NEXT' },
+        select: { id: true },
+      });
+    }
+
+    const config = await prisma.bookingGroupConfig.create({
+      data: {
+        profileId:       profile.id,
+        name:            body.name,
+        description:     body.description ?? null,
+        partySizeMin:    body.partySizeMin,
+        partySizeMax:    body.partySizeMax,
+        targetSectionId: body.targetSectionId ?? null,
+        allocationMode:  body.allocationMode,
+        tableCount:      body.tableCount ?? (body.allocationMode === 'COMBINATION' ? 2 : 1),
+        isActive:        body.isActive ?? false,
+        sortOrder:       body.sortOrder ?? 0,
+      },
+      include: { targetSection: { select: { id: true, name: true } } },
+    });
+    res.status(201).json(config);
+  } catch (err) { next(err); }
+});
+
+// PATCH /admin/restaurants/:id/group-configs/:cid
+router.patch('/restaurants/:id/group-configs/:cid', superAdminOnly, validate(GroupConfigPatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.bookingGroupConfig.findFirst({
+      where: { id: p(req, 'cid'), profile: { restaurantId: p(req, 'id') } },
+    });
+    if (!existing) throw new NotFoundError('BookingGroupConfig', p(req, 'cid'));
+
+    const body = req.body as z.infer<typeof GroupConfigPatchSchema>;
+    const min = body.partySizeMin ?? existing.partySizeMin;
+    const max = body.partySizeMax ?? existing.partySizeMax;
+    if (min > max) throw new BusinessRuleError('partySizeMin must be ≤ partySizeMax');
+
+    const updated = await prisma.bookingGroupConfig.update({
+      where: { id: p(req, 'cid') },
+      data: {
+        ...(body.name            !== undefined && { name:            body.name }),
+        ...(body.description     !== undefined && { description:     body.description ?? null }),
+        ...(body.partySizeMin    !== undefined && { partySizeMin:    body.partySizeMin }),
+        ...(body.partySizeMax    !== undefined && { partySizeMax:    body.partySizeMax }),
+        ...(body.targetSectionId !== undefined && { targetSectionId: body.targetSectionId ?? null }),
+        ...(body.allocationMode  !== undefined && { allocationMode:  body.allocationMode }),
+        ...(body.tableCount      !== undefined && { tableCount:      body.tableCount }),
+        ...(body.isActive        !== undefined && { isActive:        body.isActive }),
+        ...(body.sortOrder       !== undefined && { sortOrder:       body.sortOrder }),
+      },
+      include: { targetSection: { select: { id: true, name: true } } },
+    });
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/restaurants/:id/group-configs/:cid
+router.delete('/restaurants/:id/group-configs/:cid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.bookingGroupConfig.findFirst({
+      where: { id: p(req, 'cid'), profile: { restaurantId: p(req, 'id') } },
+    });
+    if (!existing) throw new NotFoundError('BookingGroupConfig', p(req, 'cid'));
+    await prisma.bookingGroupConfig.delete({ where: { id: p(req, 'cid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // POST /admin/create-super-admin — create an additional SUPER_ADMIN account
 const CreateSuperAdminSchema = z.object({
   email:     z.string().email(),

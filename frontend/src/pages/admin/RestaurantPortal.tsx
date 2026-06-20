@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api, ApiError } from '../../api';
+import type { GroupConfig, GroupConfigSection, GroupConfigBody } from '../../api';
 import type { AuthState } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -186,6 +187,18 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
     canManageOnlineRestrictions: boolean;
   } | null>(null);
 
+  // ── Group Allocation Rules state ──────────────────────────────────────────
+  const isSuperAdmin = auth.user.role === 'SUPER_ADMIN';
+  const [groupConfigs,        setGroupConfigs]        = useState<GroupConfig[]>([]);
+  const [gcSections,          setGcSections]          = useState<GroupConfigSection[]>([]);
+  const [gcLoading,           setGcLoading]           = useState(false);
+  const [gcEditId,            setGcEditId]            = useState<string | 'new' | null>(null);
+  const [gcForm,              setGcForm]              = useState<GroupConfigBody>({
+    name: '', partySizeMin: 1, partySizeMax: 2, allocationMode: 'SINGLE', tableCount: 1, isActive: false,
+  });
+  const [gcBusy,              setGcBusy]              = useState(false);
+  const [gcError,             setGcError]             = useState<string | null>(null);
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   function showToast(msg: string) {
     setToast(msg);
@@ -193,6 +206,17 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
   }
 
   // ── Data loading ──────────────────────────────────────────────────────────
+  async function loadGroupConfigs() {
+    if (!restaurantId || !isSuperAdmin) return;
+    setGcLoading(true);
+    try {
+      const d = await api.admin.restaurants.groupConfigs.list(restaurantId);
+      setGroupConfigs(d.configs);
+      setGcSections(d.sections);
+    } catch { /* best-effort */ }
+    finally { setGcLoading(false); }
+  }
+
   async function refreshPermissions() {
     try {
       const d = await api.admin.restaurants.get(restaurantId);
@@ -241,6 +265,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
   }, [restaurantId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (activeSection === 'operations') loadGroupConfigs(); }, [activeSection, restaurantId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -318,6 +343,59 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
         showToast('Failed to delete restriction');
       }
     }
+  }
+
+  // ── Group config handlers ─────────────────────────────────────────────────
+
+  function openNewConfig() {
+    setGcForm({ name: '', partySizeMin: 1, partySizeMax: 2, allocationMode: 'SINGLE', tableCount: 1, isActive: false });
+    setGcError(null);
+    setGcEditId('new');
+  }
+
+  function openEditConfig(c: GroupConfig) {
+    setGcForm({
+      name: c.name, description: c.description ?? '', partySizeMin: c.partySizeMin,
+      partySizeMax: c.partySizeMax, targetSectionId: c.targetSectionId,
+      allocationMode: c.allocationMode, tableCount: c.tableCount,
+      isActive: c.isActive, sortOrder: c.sortOrder,
+    });
+    setGcError(null);
+    setGcEditId(c.id);
+  }
+
+  async function handleSaveConfig() {
+    setGcBusy(true); setGcError(null);
+    try {
+      if (gcEditId === 'new') {
+        const created = await api.admin.restaurants.groupConfigs.create(restaurantId, gcForm);
+        setGroupConfigs(cs => [...cs, created]);
+      } else if (gcEditId) {
+        const updated = await api.admin.restaurants.groupConfigs.update(restaurantId, gcEditId, gcForm);
+        setGroupConfigs(cs => cs.map(c => c.id === gcEditId ? updated : c));
+      }
+      setGcEditId(null);
+      showToast('נשמר בהצלחה');
+    } catch (err) {
+      setGcError(err instanceof ApiError ? err.message : 'שגיאה בשמירה');
+    } finally { setGcBusy(false); }
+  }
+
+  async function handleToggleConfig(c: GroupConfig) {
+    try {
+      const updated = await api.admin.restaurants.groupConfigs.update(restaurantId, c.id, { isActive: !c.isActive });
+      setGroupConfigs(cs => cs.map(x => x.id === c.id ? updated : x));
+    } catch { showToast('שגיאה בעדכון'); }
+  }
+
+  async function handleDeleteConfig(c: GroupConfig) {
+    if (!confirm(`למחוק את הכלל "${c.name}"?`)) return;
+    try {
+      await api.admin.restaurants.groupConfigs.delete(restaurantId, c.id);
+      setGroupConfigs(cs => cs.filter(x => x.id !== c.id));
+      if (gcEditId === c.id) setGcEditId(null);
+      showToast('הכלל נמחק');
+    } catch { showToast('שגיאה במחיקה'); }
   }
 
   // ── Button styles ─────────────────────────────────────────────────────────
@@ -443,10 +521,201 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
     );
   }
 
+  function renderGroupConfigs() {
+    // Validation helpers for the form
+    const formSection = gcSections.find(s => s.id === gcForm.targetSectionId);
+    const needsCombo  = gcForm.allocationMode === 'COMBINATION';
+    const hasCombo    = formSection?.hasCombinations ?? false;
+    const canActivate = !needsCombo || hasCombo;
+
+    return (
+      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-iron-text">הגדרות הקצאה לקבוצות גדולות</h3>
+          {gcEditId === null && (
+            <button onClick={openNewConfig} className="text-xs text-iron-green hover:underline font-medium">
+              + כלל חדש
+            </button>
+          )}
+        </div>
+
+        {gcLoading && <p className="text-iron-muted text-sm">טוען…</p>}
+
+        {/* Rule list */}
+        {!gcLoading && gcEditId === null && (
+          groupConfigs.length === 0
+            ? <p className="text-iron-muted text-sm">אין כללים מוגדרים.</p>
+            : <div className="space-y-2">
+                {groupConfigs.map(c => {
+                  const sec = gcSections.find(s => s.id === c.targetSectionId);
+                  const comboOk = c.allocationMode !== 'COMBINATION' || (sec?.hasCombinations ?? false);
+                  return (
+                    <div key={c.id}
+                      className="flex items-start justify-between gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-iron-text text-sm font-medium">{c.name}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+                            {c.isActive ? 'פעיל' : 'לא פעיל'}
+                          </span>
+                          {c.isActive && !comboOk && (
+                            <span className="text-xs text-status-warning">⚠ אין שילוב שולחנות</span>
+                          )}
+                        </div>
+                        <p className="text-iron-muted text-xs mt-0.5">
+                          {c.partySizeMin}–{c.partySizeMax} סועדים
+                          {sec ? ` · ${sec.name}` : ''}
+                          {' · '}{c.allocationMode === 'COMBINATION' ? `שילוב ${c.tableCount} שולחנות` : 'שולחן בודד'}
+                        </p>
+                        {c.description && <p className="text-iron-muted text-xs mt-0.5 truncate">{c.description}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleToggleConfig(c)}
+                          disabled={!c.isActive && !canActivate && !(gcSections.find(s => s.id === c.targetSectionId)?.hasCombinations ?? true)}
+                          title={c.isActive ? 'השבת' : 'הפעל'}
+                          className={`w-9 h-5 rounded-full transition-colors relative ${c.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}
+                        >
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${c.isActive ? 'right-0.5' : 'left-0.5'}`} />
+                        </button>
+                        <button onClick={() => openEditConfig(c)} className="text-iron-muted hover:text-iron-text text-xs">עריכה</button>
+                        <button onClick={() => handleDeleteConfig(c)} className="text-iron-muted hover:text-status-danger text-xs">מחק</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+        )}
+
+        {/* Create / Edit form */}
+        {gcEditId !== null && (
+          <div className="space-y-4 pt-1">
+            <h4 className="text-sm font-medium text-iron-text">{gcEditId === 'new' ? 'כלל חדש' : 'עריכת כלל'}</h4>
+
+            {/* Name */}
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">שם הכלל *</label>
+              <input value={gcForm.name} onChange={e => setGcForm(f => ({ ...f, name: e.target.value }))}
+                placeholder='לדוגמה: קבוצות גדולות — ספות'
+                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">הערה פנימית (אופציונלי)</label>
+              <input value={gcForm.description ?? ''} onChange={e => setGcForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="הערה לצוות"
+                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+              />
+            </div>
+
+            {/* Party size */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">מינימום סועדים *</label>
+                <input type="number" min={1} max={50} value={gcForm.partySizeMin}
+                  onChange={e => setGcForm(f => ({ ...f, partySizeMin: +e.target.value }))}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">מקסימום סועדים *</label>
+                <input type="number" min={1} max={50} value={gcForm.partySizeMax}
+                  onChange={e => setGcForm(f => ({ ...f, partySizeMax: +e.target.value }))}
+                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+                />
+              </div>
+            </div>
+
+            {/* Section */}
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">אזור יעד (אופציונלי)</label>
+              <select value={gcForm.targetSectionId ?? ''}
+                onChange={e => setGcForm(f => ({ ...f, targetSectionId: e.target.value || null }))}
+                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+              >
+                <option value="">— כל אזור —</option>
+                {gcSections.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}{s.hasCombinations ? '' : ' (ללא שילוב שולחנות)'}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Allocation mode */}
+            <div>
+              <label className="block text-xs text-iron-muted mb-2">סוג הקצאה *</label>
+              <div className="flex gap-2">
+                {(['SINGLE', 'COMBINATION'] as const).map(mode => (
+                  <button key={mode} type="button"
+                    onClick={() => setGcForm(f => ({ ...f, allocationMode: mode, tableCount: mode === 'COMBINATION' ? 2 : 1 }))}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${gcForm.allocationMode === mode ? 'bg-iron-green text-white border-iron-green' : 'bg-iron-bg text-iron-muted border-iron-border hover:border-iron-text'}`}
+                  >
+                    {mode === 'SINGLE' ? 'שולחן בודד' : `שילוב שולחנות`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Table count — only for COMBINATION */}
+            {gcForm.allocationMode === 'COMBINATION' && (
+              <div>
+                <label className="block text-xs text-iron-muted mb-1">מספר שולחנות לשילוב</label>
+                <input type="number" min={2} max={2} value={gcForm.tableCount}
+                  onChange={e => setGcForm(f => ({ ...f, tableCount: +e.target.value }))}
+                  className="w-24 bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
+                />
+                <p className="text-iron-muted text-xs mt-1">גרסה 1 תומכת בשילוב 2 שולחנות בלבד.</p>
+              </div>
+            )}
+
+            {/* COMBINATION warning — no combos in selected section */}
+            {needsCombo && formSection && !hasCombo && (
+              <div className="flex gap-2 items-start bg-status-warning/10 border border-status-warning/40 rounded-lg px-3 py-2.5">
+                <span className="text-status-warning text-sm mt-0.5">⚠</span>
+                <p className="text-status-warning text-xs leading-relaxed">
+                  אין שילוב שולחנות מוגדר באזור <strong>{formSection.name}</strong>.
+                  יש להגדיר שילוב שולחנות בפלאג׳ אחיזת השולחן לפני הפעלת הכלל.
+                  ניתן לשמור כלל לא פעיל עכשיו.
+                </p>
+              </div>
+            )}
+
+            {/* Active toggle */}
+            <div className="flex items-center gap-3">
+              <button type="button"
+                onClick={() => setGcForm(f => ({ ...f, isActive: !f.isActive }))}
+                disabled={!gcForm.isActive && needsCombo && formSection != null && !hasCombo}
+                title={!canActivate && needsCombo ? 'לא ניתן להפעיל — אין שילוב שולחנות' : undefined}
+                className={`w-9 h-5 rounded-full transition-colors relative disabled:opacity-40 ${gcForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${gcForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
+              </button>
+              <span className="text-sm text-iron-text">{gcForm.isActive ? 'פעיל' : 'לא פעיל'}</span>
+            </div>
+
+            {gcError && <p className="text-xs text-status-danger">{gcError}</p>}
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={handleSaveConfig} disabled={gcBusy || !gcForm.name.trim() || gcForm.partySizeMin > gcForm.partySizeMax}
+                className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {gcBusy ? 'שומר…' : 'שמור'}
+              </button>
+              <button onClick={() => { setGcEditId(null); setGcError(null); }}
+                className="bg-iron-surface hover:bg-iron-bg text-iron-text font-medium text-sm px-4 py-2 rounded-lg border border-iron-border transition-colors"
+              >ביטול</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function renderOperations() {
     const canHours        = permissions?.canManageOperatingHours     ?? false;
     const canRestrictions = permissions?.canManageOnlineRestrictions ?? false;
-    const hasAnyTool      = canHours || canRestrictions;
+    const hasAnyTool      = canHours || canRestrictions || isSuperAdmin;
 
     return (
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -646,6 +915,7 @@ export default function RestaurantPortal({ auth, onLogout }: Props) {
               )}
             </div>
           )}
+          {isSuperAdmin && renderGroupConfigs()}
         </>)}
       </div>
     );

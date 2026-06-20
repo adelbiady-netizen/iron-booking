@@ -158,6 +158,45 @@ async function publicRequest<T>(path: string, options: RequestInit = {}): Promis
   return res.json() as Promise<T>;
 }
 
+// ─── Group Allocation Rule types ───────────────────────────────────────────
+
+export interface GroupConfigSection {
+  id: string;
+  name: string;
+  color: string;
+  sortOrder: number;
+  hasCombinations: boolean;
+}
+
+export interface GroupConfig {
+  id: string;
+  profileId: string;
+  name: string;
+  description: string | null;
+  partySizeMin: number;
+  partySizeMax: number;
+  targetSectionId: string | null;
+  targetSection: { id: string; name: string } | null;
+  allocationMode: 'SINGLE' | 'COMBINATION';
+  tableCount: number;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupConfigBody {
+  name: string;
+  description?: string | null;
+  partySizeMin: number;
+  partySizeMax: number;
+  targetSectionId?: string | null;
+  allocationMode: 'SINGLE' | 'COMBINATION';
+  tableCount?: number;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -628,6 +667,20 @@ export const api = {
           request<{ id: string; date: string; startTime: string | null; endTime: string | null; restrictionType: string; reason: string | null; guestMessage: string | null; createdAt: string; createdBy: string }>(`/admin/restaurants/${id}/online-restrictions`, { method: 'POST', body: JSON.stringify(body) }),
         delete: (id: string, rid: string) =>
           request<{ ok: boolean }>(`/admin/restaurants/${id}/online-restrictions/${rid}`, { method: 'DELETE' }),
+      },
+      groupConfigs: {
+        list: (id: string) =>
+          request<{
+            configs: GroupConfig[];
+            sections: GroupConfigSection[];
+            hasProfile: boolean;
+          }>(`/admin/restaurants/${id}/group-configs`),
+        create: (id: string, body: GroupConfigBody) =>
+          request<GroupConfig>(`/admin/restaurants/${id}/group-configs`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, cid: string, body: Partial<GroupConfigBody>) =>
+          request<GroupConfig>(`/admin/restaurants/${id}/group-configs/${cid}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        delete: (id: string, cid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/group-configs/${cid}`, { method: 'DELETE' }),
       },
     },
     sms: {
