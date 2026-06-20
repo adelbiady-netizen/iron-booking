@@ -4,6 +4,7 @@ import { validate } from '../../middleware/validate';
 import { z } from 'zod';
 import * as service from './service';
 import { eventBus } from '../../lib/eventBus';
+import { prisma } from '../../lib/prisma';
 
 const router = Router();
 router.use(authenticate);
@@ -65,6 +66,21 @@ const SuggestQuerySchema = z.object({
 
 type FloorStateQuery = z.infer<typeof FloorStateQuerySchema>;
 type SuggestQuery = z.infer<typeof SuggestQuerySchema>;
+
+// GET /tables/op-settings — operational thresholds for the frontend (must come before /:id)
+router.get('/op-settings', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const row = await prisma.restaurant.findUniqueOrThrow({
+      where: { id: req.auth.restaurantId },
+      select: { settings: true },
+    });
+    const s = (row.settings as Record<string, unknown>) ?? {};
+    res.json({
+      lateThresholdMinutes:   (s.lateThresholdMinutes   as number) ?? 20,
+      noShowThresholdMinutes: (s.noShowThresholdMinutes as number) ?? 30,
+    });
+  } catch (err) { next(err); }
+});
 
 // GET /tables/floor — live floor state (must come before /:id)
 router.get('/floor', validate(FloorStateQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {

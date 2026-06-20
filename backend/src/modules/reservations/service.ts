@@ -9,7 +9,6 @@ import {
   ValidationError,
 } from '../../lib/errors';
 import { getTableAvailability } from '../../engine/availability';
-import { NO_SHOW_AFTER_MINUTES } from '../../engine/occupancy';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -32,6 +31,7 @@ async function getRestaurantSettings(restaurantId: string) {
     defaultTurnMinutes: (s.defaultTurnMinutes as number) ?? 90,
     bufferBetweenTurnsMinutes: (s.bufferBetweenTurnsMinutes as number) ?? 15,
     autoConfirm: (s.autoConfirm as boolean) ?? false,
+    noShowThresholdMinutes: (s.noShowThresholdMinutes as number) ?? 30,
   };
 }
 
@@ -347,6 +347,12 @@ export async function updateReservation(
 
   if (tableId && (input.date || input.time || input.duration || input.tableId !== undefined || input.combinedTableIds !== undefined)) {
     if (!input.overrideConflicts) {
+      // When only the table assignment changes (no time/date/duration shift), use
+      // bufferMinutes=0 so that adjacent reservations (end==start) are allowed.
+      // The buffer is meant to pad auto-suggestions, not block manual host overrides.
+      const isTableOnlyChange = !input.date && !input.time && !input.duration &&
+        (input.tableId !== undefined || input.combinedTableIds !== undefined);
+      const effectiveBuffer = isTableOnlyChange ? 0 : settings.bufferBetweenTurnsMinutes;
       try {
         await validateTableAssignment(
           restaurantId,
@@ -354,7 +360,7 @@ export async function updateReservation(
           date,
           time,
           duration,
-          settings.bufferBetweenTurnsMinutes,
+          effectiveBuffer,
           input.partySize ?? existing.partySize,
           [id],
           combinedTableIds
@@ -880,7 +886,7 @@ export async function seatReservation(
 
       for (const candidate of candidates) {
         const [cH, cM] = candidate.time.split(':').map(Number);
-        if ((cH * 60 + cM) + NO_SHOW_AFTER_MINUTES > nowMins) continue;
+        if ((cH * 60 + cM) + settings.noShowThresholdMinutes > nowMins) continue;
         await tx.reservation.update({
           where: { id: candidate.id },
           data: { tableId: null, combinedTableIds: [], returnedToListAt: new Date() },
@@ -1036,7 +1042,7 @@ export async function moveReservation(
       });
       for (const candidate of candidates) {
         const [cH, cM] = candidate.time.split(':').map(Number);
-        if ((cH * 60 + cM) + NO_SHOW_AFTER_MINUTES > nowMoveMins) continue;
+        if ((cH * 60 + cM) + settings.noShowThresholdMinutes > nowMoveMins) continue;
         await tx.reservation.update({
           where: { id: candidate.id },
           data: { tableId: null, combinedTableIds: [], returnedToListAt: new Date() },

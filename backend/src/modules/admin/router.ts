@@ -363,8 +363,7 @@ router.post('/restaurants', superAdminOnly, validate(CreateRestaurantSchema), as
             defaultTurnMinutes: 90, slotIntervalMinutes: 30, maxPartySize: 20,
             depositRequired: false, depositAmountCents: 0, autoConfirm: false,
             bufferBetweenTurnsMinutes: 15, openingHour: '11:00', closingHour: '22:00',
-            lastSeatingOffset: 60, lateThresholdMinutes: 5, noShowThresholdMinutes: 15,
-            confirmationRequired: false,
+            lastSeatingOffset: 60, lateThresholdMinutes: 20, noShowThresholdMinutes: 30,
           },
         },
       });
@@ -456,7 +455,6 @@ const UpdateSettingsSchema = z.object({
   lastSeatingOffset:         z.number().int().optional(),
   lateThresholdMinutes:      z.number().int().min(1).max(60).optional(),
   noShowThresholdMinutes:    z.number().int().min(5).max(120).optional(),
-  confirmationRequired:      z.boolean().optional(),
   // SMS service configuration (stored in restaurant.settings JSON)
   smsEnabled:                z.boolean().optional(),
   smsProvider:               z.enum(['INFORU', 'MOCK']).optional(),

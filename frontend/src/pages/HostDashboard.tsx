@@ -144,6 +144,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Stays equal to `date` on background polls so the list stays visible.
   const loadedDateRef  = useRef<string>('');
 
+  const [opSettings,   setOpSettings]   = useState({ lateThresholdMinutes: 20, noShowThresholdMinutes: 30 });
   const [floorTables,  setFloorTables]  = useState<FloorTable[]>([]);
   const [floorObjs,    setFloorObjs]    = useState<FloorObjectData[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -392,6 +393,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     if (id === null) { setHoveredResId(null); return; }
     hoverTimerRef.current = setTimeout(() => setHoveredResId(id), 50);
+  }, []);
+
+  // Fetch operational thresholds once on mount — drives late/no-show badge logic.
+  useEffect(() => {
+    api.tables.opSettings().then(setOpSettings).catch(() => {});
   }, []);
 
   // Fetch floor + reservations together whenever date, time, or refreshKey change.
@@ -1112,9 +1118,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const resMap = new Map(reservations.map(r => [r.id, r]));
     return reservations
       .filter(r => r.status === 'CONFIRMED')
-      .filter(r => !isFloorReleased(r.time, r.status, time)) // floor-released → sidebar "needs action" only
+      .filter(r => !isFloorReleased(r.time, r.status, time, opSettings.noShowThresholdMinutes))
       .flatMap(r => {
-        const state = arrivalState(r.time, r.status, time);
+        const state = arrivalState(r.time, r.status, time, opSettings.lateThresholdMinutes);
         if (state !== 'LATE' && state !== 'NO_SHOW_RISK') return [];
         const minsLate = Math.abs(minutesUntilRes(r.time, time));
         return [{
@@ -1133,7 +1139,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         const bMins = Math.abs(minutesUntilRes(resMap.get(b.reservationId)?.time ?? '00:00', time));
         return bMins - aMins;
       });
-  }, [reservations, time, T, isLiveView]);
+  }, [reservations, time, T, isLiveView, opSettings]);
 
   // Backend insights + frontend arrival insights, deduped by reservationId.
   // Backend messages are English-hardcoded, so we re-derive them from raw data using T.

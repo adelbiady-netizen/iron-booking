@@ -44,14 +44,20 @@ export function minutesUntilRes(resTime: string, nowTime: string): number {
 // True when a PENDING/CONFIRMED reservation is past the floor-release threshold.
 // The table stops being treated as RESERVED and the sidebar surfaces a "needs action" row.
 // Display-only flag — never writes to the DB.
-export function isFloorReleased(resTime: string, status: string, nowTime: string): boolean {
+export function isFloorReleased(
+  resTime: string, status: string, nowTime: string,
+  floorReleaseMinutes = FLOOR_RELEASE_MINUTES,
+): boolean {
   if (status !== 'PENDING' && status !== 'CONFIRMED') return false;
-  return minutesUntilRes(resTime, nowTime) <= -FLOOR_RELEASE_MINUTES;
+  return minutesUntilRes(resTime, nowTime) <= -floorReleaseMinutes;
 }
 
 // Alias used in ReservationPanel for the stale-row dimming style.
-export function isStaleReservation(resTime: string, status: string, nowTime: string): boolean {
-  return isFloorReleased(resTime, status, nowTime);
+export function isStaleReservation(
+  resTime: string, status: string, nowTime: string,
+  floorReleaseMinutes = FLOOR_RELEASE_MINUTES,
+): boolean {
+  return isFloorReleased(resTime, status, nowTime, floorReleaseMinutes);
 }
 
 // Strict FIFO comparator for arrived guests.
@@ -68,12 +74,13 @@ export function arrivalState(
   resTime: string,
   status: string,
   nowTime: string,
+  lateWarnMinutes = LATE_WARN_MINUTES,
 ): ArrivalState | null {
   if (status !== 'CONFIRMED') return null;
   const diff = minutesUntilRes(resTime, nowTime);
-  if (diff <= -LATE_WARN_MINUTES) return 'NO_SHOW_RISK'; // 20+ min late → red alert
-  if (diff < 0)                   return 'LATE';          // 0–20 min late → orange
-  if (diff <=  5)                 return 'DUE_NOW';
-  if (diff <= 15)                 return 'ARRIVING_SOON';
+  if (diff <= -lateWarnMinutes) return 'NO_SHOW_RISK';
+  if (diff < 0)                 return 'LATE';
+  if (diff <=  5)               return 'DUE_NOW';
+  if (diff <= 15)               return 'ARRIVING_SOON';
   return null;
 }

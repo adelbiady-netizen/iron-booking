@@ -783,7 +783,7 @@ export async function getFloorInsights(
     }),
     prisma.restaurant.findUnique({
       where: { id: restaurantId },
-      select: { timezone: true },
+      select: { timezone: true, settings: true },
     }),
   ]);
 
@@ -797,15 +797,17 @@ export async function getFloorInsights(
   const timezone = (restaurantRow?.timezone as string) ?? 'UTC';
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
   const isToday  = date === todayStr;
+  const rowSettings = (restaurantRow?.settings as Record<string, unknown>) ?? {};
+  const noShowThresholdMinutes = (rowSettings.noShowThresholdMinutes as number) ?? NO_SHOW_AFTER_MINUTES;
 
   // SEAT_NOW only fires for unassigned reservations that are imminent (within
-  // RESERVED_SOON_MINUTES) or already late (up to 30 min). Far-future
-  // reservations are excluded so guest names don't appear on AVAILABLE table
-  // cards hours before the turn.
+  // RESERVED_SOON_MINUTES) or already late (up to configured noShowThreshold).
+  // Far-future reservations are excluded so guest names don't appear on AVAILABLE
+  // table cards hours before the turn.
   const imminentUnassigned = unassigned.filter(res => {
     const [rH, rM] = res.time.split(':').map(Number);
     const diff = rH * 60 + rM - nowMinutes;
-    return diff >= -NO_SHOW_AFTER_MINUTES && diff <= RESERVED_SOON_MINUTES;
+    return diff >= -noShowThresholdMinutes && diff <= RESERVED_SOON_MINUTES;
   });
 
   const insights: FloorInsight[] = [];

@@ -118,6 +118,8 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
             openingHour: '11:00',
             closingHour: '22:00',
             lastSeatingOffset: 60,
+            lateThresholdMinutes: 20,
+            noShowThresholdMinutes: 30,
           },
         },
       });
@@ -319,6 +321,8 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
             openingHour: '11:00',
             closingHour: '22:00',
             lastSeatingOffset: 60,
+            lateThresholdMinutes: 20,
+            noShowThresholdMinutes: 30,
           },
         },
       });

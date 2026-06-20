@@ -185,6 +185,8 @@ export const api = {
   },
 
   tables: {
+    opSettings: () =>
+      request<{ lateThresholdMinutes: number; noShowThresholdMinutes: number }>('/tables/op-settings'),
     floor: (date: string, time: string) =>
       request<FloorTable[]>(`/tables/floor?date=${date}&time=${encodeURIComponent(time)}`),
     suggestions: (date: string, time: string) =>
