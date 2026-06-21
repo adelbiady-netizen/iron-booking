@@ -33,7 +33,6 @@ interface DashData {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const DEFAULT_SCHEDULE: ScheduleRow[] = [0, 1, 2, 3, 4, 5, 6].map(d => ({
   dayOfWeek: d, isOpen: d !== 0, openTime: '11:00', closeTime: '22:00', lastSeating: '21:00',
@@ -1401,7 +1400,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
             <span className="text-sm text-iron-text">תזכורות הזמנות מופעלות</span>
           </div>
           {opSettings.reminderEnabled && (
-            <NumField label="שליחת תזכורת X דקות לפני ההגעה" k="reminderLeadMinutes" min={0} max={1440} />
+            <NumField label="כמה דקות לפני ההגעה לשלוח תזכורת" k="reminderLeadMinutes" min={0} max={1440} />
           )}
         </div>
 
@@ -1720,6 +1719,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
 
         {!twLoading && (
           <div className="space-y-2">
+            {timeWindows.length === 0 && twEditId === null && (
+              <p className="text-iron-muted text-xs pb-1">אין חלונות מוגדרים — הזמנות אונליין יפעלו לפי שעות הפעילות הרגילות של המסעדה.</p>
+            )}
             {[0,1,2,3,4,5,6].map(day => <DaySection key={day} day={day} />)}
 
             {/* Specific-date windows section */}
@@ -1766,9 +1768,6 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
           </div>
         )}
 
-        {timeWindows.length === 0 && !twLoading && twEditId === null && (
-          <p className="text-iron-muted text-xs -mt-2">אין חלונות מוגדרים — הזמנות אונליין יפעלו לפי שעות הפעילות הרגילות של המסעדה</p>
-        )}
       </div>
     );
   }
@@ -1924,7 +1923,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                   onChange={e => setGcForm(f => ({ ...f, tableCount: +e.target.value }))}
                   className="w-24 bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green"
                 />
-                <p className="text-iron-muted text-xs mt-1">גרסה 1 תומכת בשילוב 2 שולחנות בלבד.</p>
+                <p className="text-iron-muted text-xs mt-1">כרגע ניתן לשלב 2 שולחנות בלבד.</p>
               </div>
             )}
 
@@ -1934,7 +1933,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 <span className="text-status-warning text-sm mt-0.5">⚠</span>
                 <p className="text-status-warning text-xs leading-relaxed">
                   אין שילוב שולחנות מוגדר באזור <strong>{formSection.name}</strong>.
-                  יש להגדיר שילוב שולחנות בפלאג׳ אחיזת השולחן לפני הפעלת הכלל.
+                  לפני הפעלת הכלל, הגדירו שילוב שולחנות בטאב "Floor Plan".
                   ניתן לשמור כלל לא פעיל עכשיו.
                 </p>
               </div>
@@ -1977,10 +1976,10 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     const hasAnyTool      = canHours || canRestrictions || isSuperAdmin || !!restaurantId;
 
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6" dir="rtl">
         <div>
-          <h2 className="text-iron-text font-semibold text-lg mb-1">Operations</h2>
-          <p className="text-iron-muted text-sm">Manage hours and booking availability.</p>
+          <h2 className="text-iron-text font-semibold text-lg mb-1">ניהול פעילות</h2>
+          <p className="text-iron-muted text-sm">הגדרת שעות פעילות וזמינות הזמנות.</p>
         </div>
 
         {!hasAnyTool ? (
@@ -1990,50 +1989,50 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
             </div>
-            <p className="text-iron-text font-medium mb-1">Portal access is currently limited</p>
-            <p className="text-iron-muted text-sm">Contact Iron Booking support to enable tools for your restaurant.</p>
+            <p className="text-iron-text font-medium mb-1">גישה לפורטל מוגבלת כרגע</p>
+            <p className="text-iron-muted text-sm">לפתיחת כלים נוספים, צרו קשר עם תמיכת Iron Booking.</p>
           </div>
         ) : (<>
 
           {/* Weekly Schedule */}
           {canHours && (editSchedule ? (
-            <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
-              <h3 className="font-medium text-iron-text">Weekly Schedule</h3>
+            <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
+              <h3 className="font-medium text-iron-text">לוח שבועי</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs text-iron-muted border-b border-iron-border">
-                      <th className="pb-2 pr-4 font-normal w-24">Day</th>
-                      <th className="pb-2 pr-4 font-normal w-12">Open</th>
-                      <th className="pb-2 pr-4 font-normal">Service starts</th>
-                      <th className="pb-2 pr-4 font-normal">Closes</th>
-                      <th className="pb-2 font-normal">Last seating</th>
+                    <tr className="text-right text-xs text-iron-muted border-b border-iron-border">
+                      <th className="pb-2 pe-4 font-normal w-24">יום</th>
+                      <th className="pb-2 pe-4 font-normal w-12">פתוח</th>
+                      <th className="pb-2 pe-4 font-normal">פתיחה</th>
+                      <th className="pb-2 pe-4 font-normal">סגירה</th>
+                      <th className="pb-2 font-normal">ישיבה אחרונה</th>
                     </tr>
                   </thead>
                   <tbody>
                     {scheduleRows.map((row, i) => (
                       <tr key={row.dayOfWeek} className="border-b border-iron-border/20 last:border-0">
-                        <td className="py-2 pr-4 text-iron-muted text-xs">{DAY_NAMES[row.dayOfWeek]}</td>
-                        <td className="py-2 pr-4">
+                        <td className="py-2 pe-4 text-iron-muted text-xs">{DAY_NAMES_HE[row.dayOfWeek]}</td>
+                        <td className="py-2 pe-4">
                           <input type="checkbox" checked={row.isOpen}
                             onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, isOpen: e.target.checked } : r))}
                             className="w-4 h-4 cursor-pointer accent-iron-green"
                           />
                         </td>
-                        <td className="py-2 pr-4">
-                          <input type="time" value={row.openTime} disabled={!row.isOpen}
+                        <td className="py-2 pe-4">
+                          <input type="time" value={row.openTime} disabled={!row.isOpen} dir="ltr"
                             onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, openTime: e.target.value } : r))}
                             className="bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
-                        <td className="py-2 pr-4">
-                          <input type="time" value={row.closeTime} disabled={!row.isOpen}
+                        <td className="py-2 pe-4">
+                          <input type="time" value={row.closeTime} disabled={!row.isOpen} dir="ltr"
                             onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, closeTime: e.target.value } : r))}
                             className="bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
                         <td className="py-2">
-                          <input type="time" value={row.lastSeating} disabled={!row.isOpen}
+                          <input type="time" value={row.lastSeating} disabled={!row.isOpen} dir="ltr"
                             onChange={e => setScheduleRows(rows => rows.map((r, j) => j === i ? { ...r, lastSeating: e.target.value } : r))}
                             className="bg-iron-bg border border-iron-border rounded px-2 py-1 text-sm text-iron-text focus:outline-none focus:border-iron-green disabled:opacity-40 disabled:cursor-not-allowed"
                           />
@@ -2043,30 +2042,30 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                   </tbody>
                 </table>
               </div>
-              <p className="text-[11px] text-iron-muted">Service starts = first booking slot on the public page. Last seating = last reservation allowed.</p>
+              <p className="text-[11px] text-iron-muted">פתיחה = משבצת ההזמנה הראשונה שתוצג לאורחים. ישיבה אחרונה = שעת ההזמנה האחרונה המותרת.</p>
               {scheduleError && <p className="text-xs text-status-danger">{scheduleError}</p>}
               <div className="flex gap-3 pt-1">
                 <button onClick={handleSaveSchedule} disabled={scheduleBusy} className={btnPrimary}>
-                  {scheduleBusy ? 'Saving…' : 'Save'}
+                  {scheduleBusy ? 'שומר…' : 'שמור'}
                 </button>
-                <button onClick={() => { setEditSchedule(false); setScheduleError(null); }} className={btnSecondary}>Cancel</button>
+                <button onClick={() => { setEditSchedule(false); setScheduleError(null); }} className={btnSecondary}>ביטול</button>
               </div>
             </div>
           ) : (
-            <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <div className="bg-iron-surface rounded-lg p-5 border border-iron-border" dir="rtl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-iron-text">Weekly Schedule</h3>
+                <h3 className="font-medium text-iron-text">לוח שבועי</h3>
                 <button onClick={() => setEditSchedule(true)} className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg">
-                  Edit
+                  עריכה
                 </button>
               </div>
               <div className="space-y-1.5 text-sm">
                 {scheduleRows.map(row => (
                   <div key={row.dayOfWeek} className="flex items-baseline gap-3">
-                    <span className="text-iron-muted text-xs w-24 shrink-0">{DAY_NAMES[row.dayOfWeek]}</span>
+                    <span className="text-iron-muted text-xs w-24 shrink-0">{DAY_NAMES_HE[row.dayOfWeek]}</span>
                     {row.isOpen
-                      ? <span className="text-iron-text">{row.openTime} – {row.closeTime} <span className="text-iron-muted text-xs">last seating {row.lastSeating}</span></span>
-                      : <span className="text-iron-muted italic text-xs">Closed</span>}
+                      ? <span className="text-iron-text" dir="ltr">{row.openTime} – {row.closeTime} <span className="text-iron-muted text-xs"> · ישיבה אחרונה: {row.lastSeating}</span></span>
+                      : <span className="text-iron-muted italic text-xs">סגור</span>}
                   </div>
                 ))}
               </div>
@@ -2075,23 +2074,23 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
 
           {/* Online Booking Restrictions */}
           {canRestrictions && (
-            <div className="bg-iron-surface rounded-lg p-5 border border-iron-border">
+            <div className="bg-iron-surface rounded-lg p-5 border border-iron-border" dir="rtl">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-medium text-iron-text">Online Booking Restrictions</h3>
+                <h3 className="font-medium text-iron-text">חסימות הזמנות אונליין</h3>
                 {!showAddRestriction && (
                   <button
                     onClick={() => { setShowAddRestriction(true); setRestrictionError(null); }}
                     className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-bg"
-                  >+ Add rule</button>
+                  >+ הוסף חסימה</button>
                 )}
               </div>
               <p className="text-[11px] text-iron-muted mb-4">
-                Blocks online guest booking for specific dates or time windows.
-                Staff can still create reservations manually from the dashboard.
+                חוסם הזמנות אורחים לתאריכים או שעות ספציפיות.
+                הצוות עדיין יכול לקבוע הזמנות ידנית מהדשבורד.
               </p>
 
               {restrictions.length === 0 && !showAddRestriction && (
-                <p className="text-xs text-iron-muted italic">No active restrictions.</p>
+                <p className="text-xs text-iron-muted italic">אין חסימות פעילות.</p>
               )}
 
               {restrictions.length > 0 && (
@@ -2100,9 +2099,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                     <div key={r.id} className="flex items-start justify-between gap-3 bg-iron-bg rounded px-3 py-2.5 border border-iron-border/50">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm text-iron-text font-medium">{r.date}</span>
+                          <span className="text-sm text-iron-text font-medium" dir="ltr">{r.date}</span>
                           <span dir="ltr" className="text-xs text-iron-muted bg-iron-surface px-1.5 py-0.5 rounded">
-                            {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : 'Full day'}
+                            {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : 'כל היום'}
                           </span>
                         </div>
                         {r.reason && <p className="text-xs text-iron-muted mt-0.5">{r.reason}</p>}
@@ -2111,7 +2110,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                       <button
                         onClick={() => handleDeleteRestriction(r.id)}
                         className="shrink-0 text-xs text-iron-muted hover:text-status-danger px-1.5 py-1 rounded hover:bg-iron-bg transition-colors"
-                        title="Delete restriction"
+                        title="מחק חסימה"
                       >✕</button>
                     </div>
                   ))}
@@ -2121,7 +2120,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               {showAddRestriction && (
                 <div className="border-t border-iron-border/50 pt-4 mt-2 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Date *">
+                    <Field label="תאריך *">
                       <Input type="date" value={restrictionForm.date}
                         onChange={e => setRestrictionForm(f => ({ ...f, date: e.target.value }))}
                       />
@@ -2131,44 +2130,44 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                         onChange={e => setRestrictionForm(f => ({ ...f, fullDay: e.target.checked }))}
                         className="w-4 h-4 cursor-pointer accent-iron-green"
                       />
-                      <label htmlFor="rpFullDay" className="text-sm text-iron-text cursor-pointer select-none">Full day</label>
+                      <label htmlFor="rpFullDay" className="text-sm text-iron-text cursor-pointer select-none">כל היום</label>
                     </div>
                   </div>
                   {!restrictionForm.fullDay && (
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Start time *">
+                      <Field label="שעת התחלה *">
                         <Input type="time" value={restrictionForm.startTime}
                           onChange={e => setRestrictionForm(f => ({ ...f, startTime: e.target.value }))}
                         />
                       </Field>
-                      <Field label="End time *">
+                      <Field label="שעת סיום *">
                         <Input type="time" value={restrictionForm.endTime}
                           onChange={e => setRestrictionForm(f => ({ ...f, endTime: e.target.value }))}
                         />
                       </Field>
                     </div>
                   )}
-                  <Field label="Reason (internal — not shown to guests)">
+                  <Field label="סיבה (פנימית — לא תוצג לאורחים)">
                     <Input value={restrictionForm.reason}
                       onChange={e => setRestrictionForm(f => ({ ...f, reason: e.target.value }))}
-                      placeholder="Private event, staff training, kitchen closed…"
+                      placeholder="אירוע פרטי, הדרכת צוות, מטבח סגור…"
                     />
                   </Field>
-                  <Field label="Guest message (optional — shown in booking widget if set)">
+                  <Field label="הודעה לאורחים (אופציונלי — תוצג בווידג׳ט אם מולאה)">
                     <Input value={restrictionForm.guestMessage} maxLength={200}
                       onChange={e => setRestrictionForm(f => ({ ...f, guestMessage: e.target.value }))}
-                      placeholder="Online booking unavailable for this date. Please call us to reserve."
+                      placeholder="הזמנות אונליין לא זמינות לתאריך זה. נא להתקשר לקביעת מקום."
                     />
                   </Field>
                   {restrictionError && <p className="text-xs text-status-danger">{restrictionError}</p>}
                   <div className="flex gap-3 pt-1">
                     <button onClick={handleCreateRestriction} disabled={restrictionCreateBusy} className={btnPrimary}>
-                      {restrictionCreateBusy ? 'Adding…' : 'Add rule'}
+                      {restrictionCreateBusy ? 'מוסיף…' : 'הוסף'}
                     </button>
                     <button
                       onClick={() => { setShowAddRestriction(false); setRestrictionForm(DEFAULT_RESTRICTION_FORM); setRestrictionError(null); }}
                       className={btnSecondary}
-                    >Cancel</button>
+                    >ביטול</button>
                   </div>
                 </div>
               )}

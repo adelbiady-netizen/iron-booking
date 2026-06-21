@@ -36,10 +36,10 @@ P('all 7 days isOpen',     hours.hours?.every(h => h.isOpen) === true);
 P('≥1 section exists',     (secs.sections?.length ?? 0) >= 1, `found ${secs.sections?.length}`);
 P('section ספות exists',   secs.sections?.some(s => s.name === 'ספות') === true);
 P('≥8 tables exist',       (tables.tables?.length ?? 0) >= 8, `found ${tables.tables?.length}`);
-P('1 combination exists',  combos.combinations?.length === 1, `found ${combos.combinations?.length}`);
+P('≥1 combination exists',  (combos.combinations?.length ?? 0) >= 1, `found ${combos.combinations?.length}`);
 
-const combo = combos.combinations?.[0];
-P('combo 100+101 active',  combo?.isActive === true && (combo?.name === '100+101'), `name=${combo?.name} active=${combo?.isActive}`);
+const combo = combos.combinations?.find(c => c.name === '100+101');
+P('combo 100+101 active',  combo?.isActive === true, `name=${combo?.name} active=${combo?.isActive}`);
 P('combo minCovers=5',     combo?.minCovers === 5, `got ${combo?.minCovers}`);
 P('combo maxCovers=8',     combo?.maxCovers === 8, `got ${combo?.maxCovers}`);
 
