@@ -222,6 +222,33 @@ if (mwAId && mwBId) {
 }
 
 // ════════════════════════════════════════════════════════════════
+console.log('\n=== 9. OPTIONAL NAME ===');
+// ════════════════════════════════════════════════════════════════
+// name is optional — both payloads should return 201
+
+// Pre-cleanup day 1 (Monday) to avoid pollution
+const monDow = 1;
+const monWins = (await GET(`/admin/restaurants/${R_ID}/time-windows`)).windows?.filter(w => w.dayOfWeek === monDow && !w.specificDate) ?? [];
+for (const w of monWins) { await DEL(`/admin/restaurants/${R_ID}/time-windows/${w.id}`); }
+
+// Without name
+const noName = await POST(`/admin/restaurants/${R_ID}/time-windows`, {
+  dayOfWeek: monDow, startTime: '10:00', endTime: '11:00', sourceScope: 'ONLINE', isActive: true
+});
+P('window without name → 201', noName.status === 201, `status ${noName.status} body=${JSON.stringify(noName.body?.error ?? 'ok')}`);
+
+// With name
+const withName = await POST(`/admin/restaurants/${R_ID}/time-windows`, {
+  name: 'ארוחת בוקר', dayOfWeek: monDow, startTime: '11:30', endTime: '13:00', sourceScope: 'ONLINE', isActive: true
+});
+P('window with name → 201', withName.status === 201, `status ${withName.status}`);
+
+// Cleanup
+if (noName.body?.id)   await DEL(`/admin/restaurants/${R_ID}/time-windows/${noName.body.id}`);
+if (withName.body?.id) await DEL(`/admin/restaurants/${R_ID}/time-windows/${withName.body.id}`);
+P('optional-name cleanup ok', true, 'windows deleted');
+
+// ════════════════════════════════════════════════════════════════
 console.log('\n=== 5. DELETE GUARDS ===');
 // ════════════════════════════════════════════════════════════════
 const secWithTables = secs.sections?.find(s => (s.tableCount ?? 0) > 0);

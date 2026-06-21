@@ -706,7 +706,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
 
   // ── Time Window handlers (Phase 3) ───────────────────────────────────────
   async function handleSaveTimeWindow() {
-    if (!twForm.name.trim() || !twForm.startTime || !twForm.endTime) return;
+    if (!twForm.startTime || !twForm.endTime) return;
     setTwBusy(true);
     setTwError(null);
     try {
@@ -726,7 +726,8 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   }
 
   async function handleDeleteTimeWindow(w: TimeWindow) {
-    if (!confirm(`למחוק את חלון הזמן "${w.name}"?`)) return;
+    const label = w.name || (w.dayOfWeek != null ? `${DAY_NAMES_HE[w.dayOfWeek]} ${w.startTime}–${w.endTime}` : `${w.specificDate} ${w.startTime}–${w.endTime}`);
+    if (!confirm(`למחוק את חלון הזמן "${label}"?`)) return;
     try {
       await api.admin.restaurants.timeWindows.delete(restaurantId, w.id);
       setTimeWindows(ws => ws.filter(x => x.id !== w.id));
@@ -1480,15 +1481,17 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       : false;
 
     function WindowRow({ w }: { w: TimeWindow }) {
+      const dayLabel = w.dayOfWeek != null ? DAY_NAMES_HE[w.dayOfWeek] : w.specificDate ?? '';
+      const timeRange = `${w.startTime}–${w.endTime}`;
+      const label = w.name ? `${w.name} · ${dayLabel} · ${timeRange}` : `${dayLabel} · ${timeRange}`;
       return (
         <div className="flex items-center justify-between gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-2.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm text-iron-text">{w.startTime}–{w.endTime}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded ${w.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+              <span className="text-sm text-iron-text truncate">{label}</span>
+              <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded ${w.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
                 {w.isActive ? 'פעיל' : 'לא פעיל'}
               </span>
-              {w.name && <span className="text-iron-muted text-xs truncate">{w.name}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -1543,7 +1546,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
           <h4 className="text-sm font-medium text-iron-text">{twEditId === 'new' ? 'חלון חדש' : 'עריכת חלון'}</h4>
 
           <div>
-            <label className="block text-xs text-iron-muted mb-1">שם (אופציונלי)</label>
+            <label className="block text-xs text-iron-muted mb-1">שם <span className="text-iron-muted/60">(אופציונלי)</span></label>
             <input value={twForm.name} onChange={e => setTwForm(f => ({ ...f, name: e.target.value }))}
               placeholder='לדוגמה: ארוחת צהריים'
               className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />

@@ -537,7 +537,7 @@ router.delete('/restaurants/:id/turn-time-rules/:rid', superAdminOnly, async (re
 // ─── Booking Time Windows ─────────────────────────────────────────────────────
 
 const TimeWindowSchema = z.object({
-  name:         z.string().min(1).max(100),
+  name:         z.string().max(100).optional().nullable(),
   description:  z.string().max(500).nullish(),
   dayOfWeek:    z.number().int().min(0).max(6).nullable().optional(),
   specificDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -610,7 +610,7 @@ router.post('/restaurants/:id/time-windows', validate(TimeWindowSchema), async (
     const window = await prisma.bookingTimeWindow.create({
       data: {
         profileId:    profile.id,
-        name:         body.name,
+        name:         body.name?.trim() ?? '',
         description:  body.description ?? null,
         dayOfWeek:    body.dayOfWeek   ?? null,
         specificDate: body.specificDate ?? null,
