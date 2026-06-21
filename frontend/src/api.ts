@@ -243,6 +243,83 @@ export interface TimeWindowBody {
   sortOrder?: number;
 }
 
+// ── Floor Plan ────────────────────────────────────────────────────────────────
+export interface OperatingHourDay {
+  id: string;
+  dayOfWeek: number;
+  isOpen: boolean;
+  openTime: string;
+  closeTime: string;
+  lastSeating: string;
+}
+export interface OperatingHourDayBody {
+  dayOfWeek: number;
+  isOpen: boolean;
+  openTime: string;
+  closeTime: string;
+  lastSeating: string;
+}
+
+export interface AdminSection {
+  id: string;
+  name: string;
+  color: string;
+  onlineAvailable: boolean;
+  sortOrder: number;
+  tableCount: number;
+}
+export interface AdminSectionBody {
+  name: string;
+  color?: string;
+  onlineAvailable?: boolean;
+  sortOrder?: number;
+}
+
+export interface AdminTable {
+  id: string;
+  name: string;
+  sectionId: string | null;
+  minCovers: number;
+  maxCovers: number;
+  isActive: boolean;
+  isCombinable: boolean;
+  section: { id: string; name: string } | null;
+}
+export interface AdminTableBody {
+  name: string;
+  sectionId?: string | null;
+  minCovers: number;
+  maxCovers: number;
+  isActive?: boolean;
+  isCombinable?: boolean;
+}
+
+export interface AdminCombination {
+  id: string;
+  name: string;
+  tableAId: string;
+  tableBId: string;
+  minCovers: number;
+  maxCovers: number;
+  isActive: boolean;
+  tableA: { id: string; name: string; sectionId: string | null; section: { id: string; name: string } | null };
+  tableB: { id: string; name: string; sectionId: string | null; section: { id: string; name: string } | null };
+}
+export interface AdminCombinationBody {
+  name?: string;
+  tableAId: string;
+  tableBId: string;
+  minCovers: number;
+  maxCovers: number;
+  isActive?: boolean;
+}
+export interface AdminCombinationPatchBody {
+  name?: string;
+  minCovers?: number;
+  maxCovers?: number;
+  isActive?: boolean;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -748,6 +825,44 @@ export const api = {
         delete: (id: string, wid: string) =>
           request<{ ok: boolean }>(`/admin/restaurants/${id}/time-windows/${wid}`, { method: 'DELETE' }),
       },
+      operatingHours: {
+        list: (id: string) =>
+          request<{ hours: OperatingHourDay[] }>(`/admin/restaurants/${id}/operating-hours`),
+        save: (id: string, hours: OperatingHourDayBody[]) =>
+          request<{ hours: OperatingHourDay[] }>(`/admin/restaurants/${id}/operating-hours`, { method: 'PUT', body: JSON.stringify({ hours }) }),
+      },
+      sections: {
+        list: (id: string) =>
+          request<{ sections: AdminSection[] }>(`/admin/restaurants/${id}/sections`),
+        create: (id: string, body: AdminSectionBody) =>
+          request<AdminSection>(`/admin/restaurants/${id}/sections`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, sid: string, body: Partial<AdminSectionBody>) =>
+          request<AdminSection>(`/admin/restaurants/${id}/sections/${sid}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        delete: (id: string, sid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/sections/${sid}`, { method: 'DELETE' }),
+      },
+      tables: {
+        list: (id: string) =>
+          request<{ tables: AdminTable[] }>(`/admin/restaurants/${id}/tables`),
+        create: (id: string, body: AdminTableBody) =>
+          request<AdminTable>(`/admin/restaurants/${id}/tables`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, tid: string, body: Partial<AdminTableBody>) =>
+          request<AdminTable>(`/admin/restaurants/${id}/tables/${tid}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        delete: (id: string, tid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/tables/${tid}`, { method: 'DELETE' }),
+      },
+      combinations: {
+        list: (id: string) =>
+          request<{ combinations: AdminCombination[] }>(`/admin/restaurants/${id}/table-combinations`),
+        create: (id: string, body: AdminCombinationBody) =>
+          request<AdminCombination>(`/admin/restaurants/${id}/table-combinations`, { method: 'POST', body: JSON.stringify(body) }),
+        update: (id: string, cid: string, body: AdminCombinationPatchBody) =>
+          request<AdminCombination>(`/admin/restaurants/${id}/table-combinations/${cid}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        delete: (id: string, cid: string) =>
+          request<{ ok: boolean }>(`/admin/restaurants/${id}/table-combinations/${cid}`, { method: 'DELETE' }),
+      },
+      seedFloorPlan: (id: string) =>
+        request<{ ok: boolean; sections: AdminSection[]; tables: AdminTable[]; combinations: AdminCombination[] }>(`/admin/restaurants/${id}/seed-floor-plan`, { method: 'POST' }),
     },
     sms: {
       usage: (month?: string) =>

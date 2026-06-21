@@ -618,6 +618,372 @@ router.delete('/restaurants/:id/time-windows/:wid', superAdminOnly, async (req: 
   } catch (err) { next(err); }
 });
 
+// ─── Operating Hours ─────────────────────────────────────────────────────────
+
+const OperatingHourDaySchema = z.object({
+  dayOfWeek:   z.number().int().min(0).max(6),
+  isOpen:      z.boolean(),
+  openTime:    z.string().regex(/^\d{2}:\d{2}$/),
+  closeTime:   z.string().regex(/^\d{2}:\d{2}$/),
+  lastSeating: z.string().regex(/^\d{2}:\d{2}$/),
+});
+const FloorOperatingHoursSchema = z.object({ hours: z.array(OperatingHourDaySchema).min(1).max(7) });
+
+router.get('/restaurants/:id/operating-hours', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const hours = await prisma.operatingHour.findMany({
+      where: { restaurantId: p(req, 'id') },
+      orderBy: { dayOfWeek: 'asc' },
+    });
+    res.json({ hours });
+  } catch (err) { next(err); }
+});
+
+router.put('/restaurants/:id/operating-hours', superAdminOnly, validate(FloorOperatingHoursSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    await assertRestaurantAccess(req, restaurantId);
+    const { hours } = req.body as z.infer<typeof FloorOperatingHoursSchema>;
+    const results = await Promise.all(
+      hours.map(h =>
+        prisma.operatingHour.upsert({
+          where: { restaurantId_dayOfWeek: { restaurantId, dayOfWeek: h.dayOfWeek } },
+          create: { restaurantId, ...h },
+          update: { isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime, lastSeating: h.lastSeating },
+        })
+      )
+    );
+    res.json({ hours: results.sort((a, b) => a.dayOfWeek - b.dayOfWeek) });
+  } catch (err) { next(err); }
+});
+
+// ─── Sections ─────────────────────────────────────────────────────────────────
+
+const SectionSchema = z.object({
+  name:            z.string().min(1).max(80),
+  color:           z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  onlineAvailable: z.boolean().optional(),
+  sortOrder:       z.number().int().optional(),
+});
+const SectionPatchSchema = SectionSchema.partial();
+
+router.get('/restaurants/:id/sections', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const sections = await prisma.section.findMany({
+      where: { restaurantId: p(req, 'id') },
+      include: {
+        _count: { select: { tables: true } },
+        tables: { select: { id: true }, take: 0 },
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json({ sections: sections.map(s => ({ ...s, tableCount: s._count.tables, _count: undefined })) });
+  } catch (err) { next(err); }
+});
+
+router.post('/restaurants/:id/sections', superAdminOnly, validate(SectionSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    await assertRestaurantAccess(req, restaurantId);
+    const { name, color, onlineAvailable, sortOrder } = req.body as z.infer<typeof SectionSchema>;
+    const existing = await prisma.section.findFirst({ where: { restaurantId, name } });
+    if (existing) throw new ConflictError(`Section "${name}" already exists`);
+    const maxOrder = await prisma.section.aggregate({ where: { restaurantId }, _max: { sortOrder: true } });
+    const section = await prisma.section.create({
+      data: {
+        restaurantId,
+        name,
+        color: color ?? '#6366f1',
+        onlineAvailable: onlineAvailable ?? true,
+        sortOrder: sortOrder ?? ((maxOrder._max.sortOrder ?? -1) + 1),
+      },
+    });
+    res.status(201).json(section);
+  } catch (err) { next(err); }
+});
+
+router.patch('/restaurants/:id/sections/:sid', superAdminOnly, validate(SectionPatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.section.findFirst({ where: { id: p(req, 'sid'), restaurantId: p(req, 'id') } });
+    if (!existing) throw new NotFoundError('Section', p(req, 'sid'));
+    const section = await prisma.section.update({ where: { id: p(req, 'sid') }, data: req.body as z.infer<typeof SectionPatchSchema> });
+    res.json(section);
+  } catch (err) { next(err); }
+});
+
+router.delete('/restaurants/:id/sections/:sid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.section.findFirst({ where: { id: p(req, 'sid'), restaurantId: p(req, 'id') } });
+    if (!existing) throw new NotFoundError('Section', p(req, 'sid'));
+    const tableCount = await prisma.table.count({ where: { sectionId: p(req, 'sid') } });
+    if (tableCount > 0) {
+      return res.status(409).json({ error: { code: 'SECTION_HAS_TABLES', message: `Cannot delete section with ${tableCount} table(s). Move or delete tables first.` } });
+    }
+    await prisma.section.delete({ where: { id: p(req, 'sid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ─── Tables ───────────────────────────────────────────────────────────────────
+
+const TableBodySchema = z.object({
+  name:        z.string().min(1).max(40),
+  sectionId:   z.string().uuid().nullable().optional(),
+  minCovers:   z.number().int().min(1).max(50),
+  maxCovers:   z.number().int().min(1).max(50),
+  isActive:    z.boolean().optional(),
+  isCombinable: z.boolean().optional(),
+});
+const TablePatchSchema = TableBodySchema.partial();
+
+router.get('/restaurants/:id/tables', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const tables = await prisma.table.findMany({
+      where: { restaurantId: p(req, 'id') },
+      select: { id: true, name: true, sectionId: true, minCovers: true, maxCovers: true, isActive: true, isCombinable: true, section: { select: { id: true, name: true } } },
+      orderBy: [{ sectionId: 'asc' }, { name: 'asc' }],
+    });
+    res.json({ tables });
+  } catch (err) { next(err); }
+});
+
+router.post('/restaurants/:id/tables', superAdminOnly, validate(TableBodySchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    await assertRestaurantAccess(req, restaurantId);
+    const body = req.body as z.infer<typeof TableBodySchema>;
+    if (body.minCovers > body.maxCovers) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'minCovers must be ≤ maxCovers' } });
+    }
+    const existing = await prisma.table.findFirst({ where: { restaurantId, name: body.name } });
+    if (existing) throw new ConflictError(`Table "${body.name}" already exists`);
+    if (body.sectionId) {
+      const sec = await prisma.section.findFirst({ where: { id: body.sectionId, restaurantId } });
+      if (!sec) throw new NotFoundError('Section', body.sectionId);
+    }
+    const table = await prisma.table.create({
+      data: { restaurantId, name: body.name, sectionId: body.sectionId ?? null, minCovers: body.minCovers, maxCovers: body.maxCovers, isActive: body.isActive ?? true, isCombinable: body.isCombinable ?? false },
+      select: { id: true, name: true, sectionId: true, minCovers: true, maxCovers: true, isActive: true, isCombinable: true, section: { select: { id: true, name: true } } },
+    });
+    res.status(201).json(table);
+  } catch (err) { next(err); }
+});
+
+router.patch('/restaurants/:id/tables/:tid', superAdminOnly, validate(TablePatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.table.findFirst({ where: { id: p(req, 'tid'), restaurantId: p(req, 'id') } });
+    if (!existing) throw new NotFoundError('Table', p(req, 'tid'));
+    const body = req.body as z.infer<typeof TablePatchSchema>;
+    const minC = body.minCovers ?? existing.minCovers;
+    const maxC = body.maxCovers ?? existing.maxCovers;
+    if (minC > maxC) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'minCovers must be ≤ maxCovers' } });
+    }
+    const table = await prisma.table.update({
+      where: { id: p(req, 'tid') },
+      data: body,
+      select: { id: true, name: true, sectionId: true, minCovers: true, maxCovers: true, isActive: true, isCombinable: true, section: { select: { id: true, name: true } } },
+    });
+    res.json(table);
+  } catch (err) { next(err); }
+});
+
+router.delete('/restaurants/:id/tables/:tid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.table.findFirst({ where: { id: p(req, 'tid'), restaurantId: p(req, 'id') } });
+    if (!existing) throw new NotFoundError('Table', p(req, 'tid'));
+    const comboCount = await prisma.tableCombination.count({ where: { OR: [{ tableAId: p(req, 'tid') }, { tableBId: p(req, 'tid') }] } });
+    if (comboCount > 0) {
+      return res.status(409).json({ error: { code: 'TABLE_IN_COMBINATION', message: `Cannot delete table that belongs to ${comboCount} combination(s). Delete combinations first.` } });
+    }
+    await prisma.table.delete({ where: { id: p(req, 'tid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ─── Table Combinations ───────────────────────────────────────────────────────
+
+const CombinationSchema = z.object({
+  name:      z.string().min(1).max(80).optional(),
+  tableAId:  z.string().uuid(),
+  tableBId:  z.string().uuid(),
+  minCovers: z.number().int().min(1).max(100),
+  maxCovers: z.number().int().min(1).max(100),
+  isActive:  z.boolean().optional(),
+});
+const CombinationPatchSchema = z.object({
+  name:      z.string().min(1).max(80).optional(),
+  minCovers: z.number().int().min(1).max(100).optional(),
+  maxCovers: z.number().int().min(1).max(100).optional(),
+  isActive:  z.boolean().optional(),
+});
+
+router.get('/restaurants/:id/table-combinations', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const combos = await prisma.tableCombination.findMany({
+      where: { restaurantId: p(req, 'id') },
+      include: {
+        tableA: { select: { id: true, name: true, sectionId: true, section: { select: { id: true, name: true } } } },
+        tableB: { select: { id: true, name: true, sectionId: true, section: { select: { id: true, name: true } } } },
+      },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ combinations: combos });
+  } catch (err) { next(err); }
+});
+
+router.post('/restaurants/:id/table-combinations', superAdminOnly, validate(CombinationSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    await assertRestaurantAccess(req, restaurantId);
+    const body = req.body as z.infer<typeof CombinationSchema>;
+    if (body.tableAId === body.tableBId) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'tableA and tableB must be different' } });
+    }
+    if (body.minCovers > body.maxCovers) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'minCovers must be ≤ maxCovers' } });
+    }
+    const [tA, tB] = await Promise.all([
+      prisma.table.findFirst({ where: { id: body.tableAId, restaurantId } }),
+      prisma.table.findFirst({ where: { id: body.tableBId, restaurantId } }),
+    ]);
+    if (!tA) throw new NotFoundError('Table', body.tableAId);
+    if (!tB) throw new NotFoundError('Table', body.tableBId);
+    const autoName = body.name ?? `${tA.name}+${tB.name}`;
+    const combo = await prisma.tableCombination.create({
+      data: { restaurantId, name: autoName, tableAId: body.tableAId, tableBId: body.tableBId, minCovers: body.minCovers, maxCovers: body.maxCovers, isActive: body.isActive ?? true },
+      include: {
+        tableA: { select: { id: true, name: true, sectionId: true, section: { select: { id: true, name: true } } } },
+        tableB: { select: { id: true, name: true, sectionId: true, section: { select: { id: true, name: true } } } },
+      },
+    });
+    res.status(201).json(combo);
+  } catch (err) { next(err); }
+});
+
+router.patch('/restaurants/:id/table-combinations/:cid', superAdminOnly, validate(CombinationPatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.tableCombination.findFirst({ where: { id: p(req, 'cid'), restaurantId: p(req, 'id') } });
+    if (!existing) throw new NotFoundError('TableCombination', p(req, 'cid'));
+    const body = req.body as z.infer<typeof CombinationPatchSchema>;
+    const minC = body.minCovers ?? existing.minCovers;
+    const maxC = body.maxCovers ?? existing.maxCovers;
+    if (minC > maxC) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'minCovers must be ≤ maxCovers' } });
+    }
+    const combo = await prisma.tableCombination.update({
+      where: { id: p(req, 'cid') },
+      data: body,
+      include: {
+        tableA: { select: { id: true, name: true, sectionId: true, section: { select: { id: true, name: true } } } },
+        tableB: { select: { id: true, name: true, sectionId: true, section: { select: { id: true, name: true } } } },
+      },
+    });
+    res.json(combo);
+  } catch (err) { next(err); }
+});
+
+router.delete('/restaurants/:id/table-combinations/:cid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    const existing = await prisma.tableCombination.findFirst({ where: { id: p(req, 'cid'), restaurantId: p(req, 'id') } });
+    if (!existing) throw new NotFoundError('TableCombination', p(req, 'cid'));
+    await prisma.tableCombination.delete({ where: { id: p(req, 'cid') } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ─── Floor Plan Seed (SUPER_ADMIN, empty restaurants only) ────────────────────
+
+router.post('/restaurants/:id/seed-floor-plan', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = p(req, 'id');
+    await assertRestaurantAccess(req, restaurantId);
+
+    const [secCount, tableCount] = await Promise.all([
+      prisma.section.count({ where: { restaurantId } }),
+      prisma.table.count({ where: { restaurantId } }),
+    ]);
+    if (secCount > 0 || tableCount > 0) {
+      return res.status(409).json({ error: { code: 'FLOOR_PLAN_EXISTS', message: `Restaurant already has ${secCount} section(s) and ${tableCount} table(s). Seed is only allowed for empty restaurants.` } });
+    }
+
+    // Create sections
+    const [mainRoom, sofas] = await Promise.all([
+      prisma.section.create({ data: { restaurantId, name: 'חדר ראשי', color: '#6366f1', onlineAvailable: true, sortOrder: 0 } }),
+      prisma.section.create({ data: { restaurantId, name: 'ספות', color: '#f59e0b', onlineAvailable: true, sortOrder: 1 } }),
+    ]);
+
+    // Create tables in חדר ראשי (T1–T6)
+    const mainTables = await Promise.all(
+      ['T1','T2','T3','T4','T5','T6'].map((name, i) =>
+        prisma.table.create({ data: { restaurantId, sectionId: mainRoom.id, name, minCovers: 1, maxCovers: 4, isActive: true, isCombinable: false, posX: 100 + (i % 3) * 120, posY: 100 + Math.floor(i / 3) * 120 } })
+      )
+    );
+
+    // Create tables in ספות (S1, S2)
+    const [s1, s2] = await Promise.all([
+      prisma.table.create({ data: { restaurantId, sectionId: sofas.id, name: 'S1', minCovers: 1, maxCovers: 4, isActive: true, isCombinable: true, posX: 100, posY: 100 } }),
+      prisma.table.create({ data: { restaurantId, sectionId: sofas.id, name: 'S2', minCovers: 1, maxCovers: 4, isActive: true, isCombinable: true, posX: 240, posY: 100 } }),
+    ]);
+
+    // Create combination S1+S2
+    const combo = await prisma.tableCombination.create({
+      data: { restaurantId, name: 'S1+S2', tableAId: s1.id, tableBId: s2.id, minCovers: 5, maxCovers: 8, isActive: true },
+    });
+
+    // Upsert operating hours (Sun–Thu 12:00–22:00, Fri 12:00–23:00, Sat 11:00–23:00)
+    const hoursDef = [
+      { dayOfWeek: 0, isOpen: true,  openTime: '12:00', closeTime: '22:00', lastSeating: '20:30' }, // Sun
+      { dayOfWeek: 1, isOpen: true,  openTime: '12:00', closeTime: '22:00', lastSeating: '20:30' }, // Mon
+      { dayOfWeek: 2, isOpen: true,  openTime: '12:00', closeTime: '22:00', lastSeating: '20:30' }, // Tue
+      { dayOfWeek: 3, isOpen: true,  openTime: '12:00', closeTime: '22:00', lastSeating: '20:30' }, // Wed
+      { dayOfWeek: 4, isOpen: true,  openTime: '12:00', closeTime: '22:00', lastSeating: '20:30' }, // Thu
+      { dayOfWeek: 5, isOpen: true,  openTime: '12:00', closeTime: '23:00', lastSeating: '21:30' }, // Fri
+      { dayOfWeek: 6, isOpen: true,  openTime: '11:00', closeTime: '23:00', lastSeating: '21:30' }, // Sat
+    ];
+    const hours = await Promise.all(
+      hoursDef.map(h =>
+        prisma.operatingHour.upsert({
+          where: { restaurantId_dayOfWeek: { restaurantId, dayOfWeek: h.dayOfWeek } },
+          create: { restaurantId, ...h },
+          update: h,
+        })
+      )
+    );
+
+    // Update settings
+    await prisma.restaurant.update({
+      where: { id: restaurantId },
+      data: {
+        settings: {
+          ...(await prisma.restaurant.findUnique({ where: { id: restaurantId }, select: { settings: true } }))?.settings as object ?? {},
+          maxOnlinePartySize: 8,
+          minAdvanceBookingHours: 2,
+          maxAdvanceBookingDays: 60,
+        },
+      },
+    });
+
+    res.json({
+      ok: true,
+      sections: [mainRoom, sofas],
+      tables: [...mainTables, s1, s2],
+      combinations: [combo],
+      hours: hours.sort((a, b) => a.dayOfWeek - b.dayOfWeek),
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /admin/create-super-admin — create an additional SUPER_ADMIN account
 const CreateSuperAdminSchema = z.object({
   email:     z.string().email(),
