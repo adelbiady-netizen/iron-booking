@@ -51,17 +51,17 @@ function fmtLocalDate(d: Date): string {
 function computeHoursStatus(rows: ScheduleRow[]): { label: string; open: boolean } {
   const now = new Date();
   const row = rows.find(r => r.dayOfWeek === now.getDay());
-  if (!row || !row.isOpen) return { label: 'Closed today', open: false };
+  if (!row || !row.isOpen) return { label: 'סגור היום', open: false };
   const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  if (hm < row.openTime)  return { label: `Opens ${row.openTime}`, open: false };
-  if (hm > row.closeTime) return { label: 'Closed for the day', open: false };
-  return { label: `Closes ${row.closeTime}`, open: true };
+  if (hm < row.openTime)  return { label: `נפתח ב-${row.openTime}`, open: false };
+  if (hm > row.closeTime) return { label: 'סגור לשאר היום', open: false };
+  return { label: `סוגר ב-${row.closeTime}`, open: true };
 }
 
 function greeting(firstName: string): string {
   const h = new Date().getHours();
-  const time = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  return firstName ? `Good ${time}, ${firstName}` : `Good ${time}`;
+  const time = h < 12 ? 'בוקר טוב' : h < 17 ? 'צהריים טובים' : 'ערב טוב';
+  return firstName ? `${time}, ${firstName}` : time;
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
@@ -125,12 +125,12 @@ function IcoSliders({ s = 18 }: { s?: number }) {
 type NavItem = { id: Section; label: string; short: string; Icon: React.FC<{ s?: number }> };
 
 const NAV: NavItem[] = [
-  { id: 'dashboard',        label: 'Dashboard',        short: 'Home',  Icon: IcoGrid    },
-  { id: 'guest-experience', label: 'Guest Experience', short: 'Guests',Icon: IcoStar    },
-  { id: 'operations',       label: 'Operations',       short: 'Ops',   Icon: IcoClock   },
-  { id: 'floor-plan',       label: 'Floor Plan',       short: 'Floor', Icon: IcoSliders },
-  { id: 'marketing',        label: 'Marketing',        short: 'Market',Icon: IcoChart   },
-  { id: 'settings',         label: 'Settings',         short: 'More',  Icon: IcoSliders },
+  { id: 'dashboard',        label: 'לוח בקרה',         short: 'בית',    Icon: IcoGrid    },
+  { id: 'guest-experience', label: 'חוויית אורח',      short: 'אורחים', Icon: IcoStar    },
+  { id: 'operations',       label: 'ניהול פעילות',     short: 'פעילות', Icon: IcoClock   },
+  { id: 'floor-plan',       label: 'תוכנית רצפה',      short: 'רצפה',   Icon: IcoSliders },
+  { id: 'marketing',        label: 'שיווק',             short: 'שיווק',  Icon: IcoChart   },
+  { id: 'settings',         label: 'הגדרות',            short: 'עוד',    Icon: IcoSliders },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -753,42 +753,42 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   function renderDashboard() {
     const hours = computeHoursStatus(scheduleRows);
 
-    const hubLabel = dashData.hubStatus === 'PUBLISHED' ? 'Live'
-                   : dashData.hubStatus === 'DRAFT'     ? 'Draft'
-                   : dashData.hubStatus === 'INACTIVE'  ? 'Inactive'
-                   : 'Not set up';
+    const hubLabel = dashData.hubStatus === 'PUBLISHED' ? 'פעיל'
+                   : dashData.hubStatus === 'DRAFT'     ? 'טיוטה'
+                   : dashData.hubStatus === 'INACTIVE'  ? 'לא פעיל'
+                   : 'לא הוגדר';
     const hubColor = dashData.hubStatus === 'PUBLISHED' ? 'text-iron-green'
                    : dashData.hubStatus === 'DRAFT'     ? 'text-status-warning'
                    : 'text-iron-muted';
 
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-2xl mx-auto px-6 py-8" dir="rtl">
         <h2 className="text-iron-text font-semibold text-lg leading-tight mb-1">
           {greeting(auth.user.firstName ?? '')}
         </h2>
-        <p className="text-iron-muted text-sm mb-7">Here's what's happening today.</p>
+        <p className="text-iron-muted text-sm mb-7">הנה מה שקורה היום.</p>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 mb-7">
 
           <div className="bg-iron-surface border border-iron-border rounded-xl p-4">
-            <p className="text-iron-muted text-xs mb-2">Today</p>
+            <p className="text-iron-muted text-xs mb-2">היום</p>
             <p className="text-iron-text text-3xl font-bold leading-none mb-1 tabular-nums">
               {dashData.todayCount ?? '—'}
             </p>
-            <p className="text-iron-muted text-xs">reservations</p>
+            <p className="text-iron-muted text-xs">הזמנות</p>
           </div>
 
           <div className="bg-iron-surface border border-iron-border rounded-xl p-4">
-            <p className="text-iron-muted text-xs mb-2">Tomorrow</p>
+            <p className="text-iron-muted text-xs mb-2">מחר</p>
             <p className="text-iron-text text-3xl font-bold leading-none mb-1 tabular-nums">
               {dashData.tomorrowCount ?? '—'}
             </p>
-            <p className="text-iron-muted text-xs">reservations</p>
+            <p className="text-iron-muted text-xs">הזמנות</p>
           </div>
 
           <div className="bg-iron-surface border border-iron-border rounded-xl p-4">
-            <p className="text-iron-muted text-xs mb-2">Guest Hub</p>
+            <p className="text-iron-muted text-xs mb-2">עמוד הזמנות אונליין</p>
             <p className={`text-base font-semibold leading-tight mb-1 ${hubColor}`}>{hubLabel}</p>
             {dashData.hubStatus === 'PUBLISHED' && dashData.hubSlug && (
               <a
@@ -796,23 +796,28 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-iron-muted hover:text-iron-text underline transition-colors"
-              >View page ↗</a>
+              >צפה בעמוד ↗</a>
+            )}
+            {dashData.hubStatus === 'DRAFT' && (
+              <p className="text-xs text-iron-muted mt-0.5">לא נגיש לאורחים עדיין</p>
+            )}
+            {(!dashData.hubStatus || dashData.hubStatus === 'INACTIVE') && (
+              <p className="text-xs text-iron-muted mt-0.5">צרו קשר להפעלה</p>
             )}
           </div>
 
           <div className="bg-iron-surface border border-iron-border rounded-xl p-4">
-            <p className="text-iron-muted text-xs mb-2">Hours</p>
+            <p className="text-iron-muted text-xs mb-2">שעות פעילות</p>
             <p className={`text-base font-semibold leading-tight mb-1 ${hours.open ? 'text-iron-green' : 'text-iron-text'}`}>
-              {hours.open ? 'Open now' : 'Closed'}
+              {hours.open ? 'פתוח כרגע' : 'סגור'}
             </p>
             <p className="text-iron-muted text-xs">{hours.label}</p>
           </div>
         </div>
 
         {/* Quick actions */}
-        <p className="text-iron-muted text-xs uppercase tracking-wider mb-3">Quick actions</p>
+        <p className="text-iron-muted text-xs font-medium mb-3">פעולות מהירות</p>
         <div className="space-y-2">
-
           {dashData.hubSlug ? (
             <a
               href={`/hub/${dashData.hubSlug}`}
@@ -820,30 +825,22 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               rel="noopener noreferrer"
               className="flex items-center justify-between w-full bg-iron-surface hover:bg-iron-surface/80 border border-iron-border rounded-xl px-4 py-3 text-iron-text text-sm transition-colors"
             >
-              <span>View my page</span>
+              <span>צפה בעמוד שלי</span>
               <span className="text-iron-muted">↗</span>
             </a>
           ) : (
-            <div className="flex items-center justify-between w-full bg-iron-surface border border-iron-border rounded-xl px-4 py-3 text-iron-muted text-sm cursor-not-allowed">
-              <span>View my page</span>
-              <span className="text-xs">Hub not set up</span>
+            <div className="flex items-center justify-between w-full bg-iron-surface border border-iron-border rounded-xl px-4 py-3 text-iron-muted text-sm">
+              <span>עמוד הזמנות לא הוגדר</span>
+              <span className="text-xs">צרו קשר להפעלה</span>
             </div>
           )}
 
           <button
-            onClick={() => setActiveSection('guest-experience')}
-            className="flex items-center justify-between w-full bg-iron-surface hover:bg-iron-surface/80 border border-iron-border rounded-xl px-4 py-3 text-iron-text text-sm transition-colors text-left"
+            onClick={() => setActiveSection('operations')}
+            className="flex items-center justify-between w-full bg-iron-surface hover:bg-iron-surface/80 border border-iron-border rounded-xl px-4 py-3 text-iron-text text-sm transition-colors"
           >
-            <span>Edit menu</span>
-            <span className="text-iron-muted">→</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSection('guest-experience')}
-            className="flex items-center justify-between w-full bg-iron-surface hover:bg-iron-surface/80 border border-iron-border rounded-xl px-4 py-3 text-iron-text text-sm transition-colors text-left"
-          >
-            <span>Add promotion</span>
-            <span className="text-iron-muted">→</span>
+            <span>ערוך שעות פעילות</span>
+            <span className="text-iron-muted">←</span>
           </button>
         </div>
       </div>
@@ -851,15 +848,24 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   }
 
   function renderGuestExperience() {
+    const items = [
+      { label: 'תפריטים ומנות',  desc: 'ניהול תפריט המסעדה וצילומי מנות' },
+      { label: 'מבצעים',          desc: 'הצעות מיוחדות ומבצעי תקופה' },
+      { label: 'אירועים',         desc: 'ערבי טעימות, קבלות פנים, וחגיגות' },
+      { label: 'מיתוג',           desc: 'לוגו, צבעים ותמונות לעמוד הציבורי' },
+    ];
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h2 className="text-iron-text font-semibold text-lg mb-1">Guest Experience</h2>
-        <p className="text-iron-muted text-sm mb-7">Manage your guest-facing hub, menus, and promotions.</p>
+      <div className="max-w-2xl mx-auto px-6 py-8" dir="rtl">
+        <h2 className="text-iron-text font-semibold text-lg mb-1">חוויית אורח</h2>
+        <p className="text-iron-muted text-sm mb-7">ניהול עמוד האורחים, תפריטים ומבצעים.</p>
         <div className="space-y-3">
-          {(['Menus & Dishes', 'Promotions', 'Events', 'Branding'] as const).map(item => (
-            <div key={item} className="bg-iron-surface border border-iron-border rounded-xl px-4 py-4 flex items-center justify-between">
-              <span className="text-iron-text text-sm font-medium">{item}</span>
-              <span className="text-iron-muted text-xs bg-iron-bg border border-iron-border rounded px-2 py-0.5">Coming soon</span>
+          {items.map(({ label, desc }) => (
+            <div key={label} className="bg-iron-surface border border-iron-border rounded-xl px-4 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-iron-text text-sm font-medium">{label}</span>
+                <p className="text-iron-muted text-xs mt-0.5">{desc}</p>
+              </div>
+              <span className="text-iron-muted text-xs bg-iron-bg border border-iron-border rounded px-2 py-0.5 shrink-0 mr-3">בקרוב</span>
             </div>
           ))}
         </div>
@@ -2183,15 +2189,23 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   }
 
   function renderMarketing() {
+    const items = [
+      { label: 'מבצעים',           desc: 'ניהול קמפיינים והטבות ללקוחות' },
+      { label: 'קמפיינים',          desc: 'תזמון פרסומות ומסרים שיווקיים' },
+      { label: 'נתוני ביצועים',     desc: 'מעקב אחר המרות ונפח הזמנות' },
+    ];
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h2 className="text-iron-text font-semibold text-lg mb-1">Marketing</h2>
-        <p className="text-iron-muted text-sm mb-7">Promotions, campaigns, and performance insights.</p>
+      <div className="max-w-2xl mx-auto px-6 py-8" dir="rtl">
+        <h2 className="text-iron-text font-semibold text-lg mb-1">שיווק</h2>
+        <p className="text-iron-muted text-sm mb-7">מבצעים, קמפיינים ותובנות ביצועים.</p>
         <div className="space-y-3">
-          {(['Promotions', 'Campaigns', 'Performance'] as const).map(item => (
-            <div key={item} className="bg-iron-surface border border-iron-border rounded-xl px-4 py-4 flex items-center justify-between">
-              <span className="text-iron-text text-sm font-medium">{item}</span>
-              <span className="text-iron-muted text-xs bg-iron-bg border border-iron-border rounded px-2 py-0.5">Coming soon</span>
+          {items.map(({ label, desc }) => (
+            <div key={label} className="bg-iron-surface border border-iron-border rounded-xl px-4 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-iron-text text-sm font-medium">{label}</span>
+                <p className="text-iron-muted text-xs mt-0.5">{desc}</p>
+              </div>
+              <span className="text-iron-muted text-xs bg-iron-bg border border-iron-border rounded px-2 py-0.5 shrink-0 mr-3">בקרוב</span>
             </div>
           ))}
         </div>
@@ -2200,25 +2214,25 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   }
 
   function renderSettings() {
+    const items = [
+      { label: 'התראות',     desc: 'הגדרות SMS ואימייל לצוות' },
+      { label: 'חשבון',      desc: 'פרטי המסעדה וסיסמה' },
+      { label: 'הרשאות גישה', desc: 'ניהול גישת צוות לפורטל' },
+    ];
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h2 className="text-iron-text font-semibold text-lg mb-1">Settings</h2>
-        <p className="text-iron-muted text-sm mb-7">Account, notifications, and portal preferences.</p>
+      <div className="max-w-2xl mx-auto px-6 py-8" dir="rtl">
+        <h2 className="text-iron-text font-semibold text-lg mb-1">הגדרות</h2>
+        <p className="text-iron-muted text-sm mb-7">חשבון, התראות והעדפות פורטל.</p>
         <div className="space-y-3">
-          {(['Notifications', 'Account', 'Portal access'] as const).map(item => (
-            <div key={item} className="bg-iron-surface border border-iron-border rounded-xl px-4 py-4 flex items-center justify-between">
-              <span className="text-iron-text text-sm font-medium">{item}</span>
-              <span className="text-iron-muted text-xs bg-iron-bg border border-iron-border rounded px-2 py-0.5">Coming soon</span>
+          {items.map(({ label, desc }) => (
+            <div key={label} className="bg-iron-surface border border-iron-border rounded-xl px-4 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-iron-text text-sm font-medium">{label}</span>
+                <p className="text-iron-muted text-xs mt-0.5">{desc}</p>
+              </div>
+              <span className="text-iron-muted text-xs bg-iron-bg border border-iron-border rounded px-2 py-0.5 shrink-0 mr-3">בקרוב</span>
             </div>
           ))}
-          <div className="pt-4">
-            <button
-              onClick={() => setHqTheme(t => t === 'dark' ? 'light' : 'dark')}
-              className={btnSecondary}
-            >
-              Switch to {hqTheme === 'dark' ? 'light' : 'dark'} theme
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -2239,33 +2253,33 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     <div className="h-screen bg-iron-bg flex flex-col overflow-hidden">
 
       {/* Header */}
-      <header className="shrink-0 border-b border-iron-border bg-iron-surface px-4 md:px-6 py-3 flex items-center justify-between">
+      <header className="shrink-0 border-b border-iron-border bg-iron-surface px-4 md:px-6 py-3 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-iron-green rounded-lg flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-xs tracking-tight">IB</span>
           </div>
           <div>
             <p className="text-iron-text font-semibold text-sm leading-tight">{restaurantName}</p>
-            <p className="text-iron-muted text-xs">Restaurant Portal</p>
+            <p className="text-iron-muted text-xs">פורטל המסעדה</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <a
             href="/"
             className="hidden sm:inline-flex text-iron-muted hover:text-iron-text text-xs px-3 py-1.5 rounded-lg border border-iron-border/50 hover:border-iron-border transition-colors"
-          >← Live Operations</a>
+          >חזרה לניהול ←</a>
           <span className="text-iron-muted text-xs hidden md:block px-1">
             {auth.user.firstName} {auth.user.lastName}
           </span>
           <button
             onClick={() => setHqTheme(t => t === 'dark' ? 'light' : 'dark')}
             className="text-iron-muted hover:text-iron-text text-xs px-2 py-1 rounded hover:bg-iron-bg transition-colors"
-            title="Toggle theme"
+            title="החלפת ערכת נושא"
           >{hqTheme === 'dark' ? '☀' : '☾'}</button>
           <button
             onClick={onLogout}
             className="text-iron-muted hover:text-iron-text text-xs px-3 py-1.5 rounded-lg border border-iron-border hover:border-iron-text/30 transition-colors"
-          >Sign out</button>
+          >התנתקות</button>
         </div>
       </header>
 
@@ -2298,7 +2312,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              Live Operations
+              חזרה לניהול
             </a>
           </div>
         </aside>
@@ -2310,7 +2324,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
             </div>
           ) : sessionError ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-6">
+            <div className="flex flex-col items-center justify-center h-full text-center px-6" dir="rtl">
               <div className="w-12 h-12 rounded-full bg-iron-surface border border-iron-border flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-iron-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -2318,17 +2332,17 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               </div>
               {sessionError === 'not-found' ? (
                 <>
-                  <p className="text-iron-text font-medium mb-1">Restaurant not found</p>
-                  <p className="text-iron-muted text-sm">This restaurant may have been removed. Contact Iron Booking support.</p>
+                  <p className="text-iron-text font-medium mb-1">מסעדה לא נמצאה</p>
+                  <p className="text-iron-muted text-sm">ייתכן שהמסעדה הוסרה. צרו קשר עם תמיכת Iron Booking.</p>
                 </>
               ) : (
                 <>
-                  <p className="text-iron-text font-medium mb-1">Access denied</p>
-                  <p className="text-iron-muted text-sm">Your account does not have access to this restaurant. Contact Iron Booking support.</p>
+                  <p className="text-iron-text font-medium mb-1">גישה נדחתה</p>
+                  <p className="text-iron-muted text-sm">לחשבון שלך אין גישה למסעדה זו. צרו קשר עם תמיכת Iron Booking.</p>
                 </>
               )}
               <button onClick={onLogout} className="mt-6 text-xs text-iron-muted hover:text-iron-text underline transition-colors">
-                Sign out
+                התנתקות
               </button>
             </div>
           ) : sectionMap[activeSection]()}
