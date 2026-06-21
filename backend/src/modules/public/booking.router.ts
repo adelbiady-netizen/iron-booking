@@ -5,7 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { Prisma, ClubJoinSource, ClubMemberStatus } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
-import { resolveTurnTime, resolveTimeWindows, resolveGroupConfig, type GroupConfig } from '../../engine/opProfile';
+import { resolveTurnTime, resolveTimeWindows, resolveGroupConfig, type GroupConfig, type TimeWindowRange } from '../../engine/opProfile';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { sendReservationReceivedSms } from '../../lib/messaging';
 import { findOrCreateGuest, splitName } from '../guests/service';
@@ -112,7 +112,8 @@ async function computePublicSlots(
   intervalMinutes: number,
   durationMinutes: number,
   bufferMinutes:   number,
-  minBookingTime:  Date
+  minBookingTime:  Date,
+  timeWindows?:    TimeWindowRange[] | null,
 ): Promise<PublicSlot[]> {
   const firstSlot = parseTimeOnDate(date, openTime);
   const lastSlot  = parseTimeOnDate(date, lastSeating);
@@ -189,6 +190,16 @@ async function computePublicSlots(
     const effStart     = addMinutes(cursor, -bufferMinutes);
     const effEnd       = addMinutes(slotEnd, bufferMinutes);
     const slotInterval = { start: effStart, end: effEnd };
+
+    // Skip slots that fall outside every active time window (multi-window support)
+    if (timeWindows && timeWindows.length > 0) {
+      const slotMin = timeToMinutes(timeStr);
+      const inWindow = timeWindows.some(w => slotMin >= timeToMinutes(w.startTime) && slotMin <= timeToMinutes(w.endTime));
+      if (!inWindow) {
+        cursor = addMinutes(cursor, intervalMinutes);
+        continue;
+      }
+    }
 
     // Skip past the minimum advance booking window
     if (cursor < minBookingTime) {
@@ -323,12 +334,13 @@ async function findAlternatives(
     const hours = restaurant.operatingHours.find(h => h.dayOfWeek === d.getUTCDay());
     if (!hours?.isOpen) continue;
 
-    const dStr  = d.toISOString().split('T')[0]!;
+    const dStr      = d.toISOString().split('T')[0]!;
+    const dWindows  = await resolveTimeWindows(restaurant.id, dStr, d.getUTCDay());
     const slots = await computePublicSlots(
       restaurant.id, d, dStr, partySize,
       hours.openTime, hours.lastSeating,
       s.slotIntervalMinutes, resolvedTurnMinutes ?? s.defaultTurnMinutes, s.bufferBetweenTurnsMinutes,
-      minBookingTime
+      minBookingTime, dWindows,
     );
 
     let available = slots.filter(sl => sl.available);
@@ -720,18 +732,16 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
     }
 
     const heuristicTurn = s.defaultTurnMinutes || (partySize >= 3 ? 120 : 90);
-    const [resolvedTurnMinutes, timeWindow] = await Promise.all([
+    const [resolvedTurnMinutes, timeWindows] = await Promise.all([
       resolveTurnTime(restaurant.id, partySize, heuristicTurn),
       resolveTimeWindows(restaurant.id, date, dateObj.getUTCDay()),
     ]);
-    const effectiveOpenTime    = timeWindow ? laterOf(hours.openTime, timeWindow.startTime)     : hours.openTime;
-    const effectiveLastSeating = timeWindow ? earlierOf(hours.lastSeating, timeWindow.endTime)  : hours.lastSeating;
 
     const slots        = await computePublicSlots(
       restaurant.id, dateObj, date, partySize,
-      effectiveOpenTime, effectiveLastSeating,
+      hours.openTime, hours.lastSeating,
       s.slotIntervalMinutes, resolvedTurnMinutes, s.bufferBetweenTurnsMinutes,
-      minBookingTime
+      minBookingTime, timeWindows,
     );
     const availableSlots  = slots.filter(sl => sl.available);
     const isFullyBooked   = slots.length > 0 && availableSlots.length === 0;
@@ -816,6 +826,16 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     }
     if (body.time < hours.openTime || body.time > hours.lastSeating) {
       return res.status(400).json({ error: { code: 'OUTSIDE_HOURS', message: 'That time is outside of operating hours.' } });
+    }
+
+    // Time-window guard — reject bookings outside every active window for this day
+    const reserveWindows = await resolveTimeWindows(restaurant.id, body.date, dateObj.getUTCDay());
+    if (reserveWindows) {
+      const slotMin = timeToMinutes(body.time);
+      const inWindow = reserveWindows.some(w => slotMin >= timeToMinutes(w.startTime) && slotMin <= timeToMinutes(w.endTime));
+      if (!inWindow) {
+        return res.status(400).json({ error: { code: 'OUTSIDE_TIME_WINDOW', message: 'That time is not available for online booking.' } });
+      }
     }
 
     // Online booking restriction guard — public guests only; host POSTs bypass this

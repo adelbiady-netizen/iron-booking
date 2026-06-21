@@ -1464,18 +1464,32 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     const twsByDay = (dayOfWeek: number) => timeWindows.filter(w => w.dayOfWeek === dayOfWeek && !w.specificDate);
     const specificTws = timeWindows.filter(w => w.specificDate);
 
+    // Client-side overlap detection: checks existing windows for same day, excluding the window being edited
+    function hasLocalOverlap(startTime: string, endTime: string, dayOfWeek: number | null, specificDate: string | null, excludeId?: string): boolean {
+      const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+      const ns = toMin(startTime), ne = toMin(endTime);
+      if (ns >= ne) return false; // invalid range — let server validate
+      return timeWindows
+        .filter(w => w.id !== excludeId && (w.isActive ?? true))
+        .filter(w => specificDate ? w.specificDate === specificDate : (w.dayOfWeek === dayOfWeek && !w.specificDate))
+        .some(w => ns < toMin(w.endTime) && toMin(w.startTime) < ne);
+    }
+
+    const localOverlap = twEditId
+      ? hasLocalOverlap(twForm.startTime, twForm.endTime, twForm.dayOfWeek ?? null, twForm.specificDate ?? null, twEditId === 'new' ? undefined : twEditId)
+      : false;
+
     function WindowRow({ w }: { w: TimeWindow }) {
-      const dayLabel = w.specificDate ? w.specificDate : (w.dayOfWeek !== null ? DAY_NAMES_HE[w.dayOfWeek] : '—');
       return (
         <div className="flex items-center justify-between gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-2.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-iron-text text-sm">{w.name}</span>
+              <span className="font-mono text-sm text-iron-text">{w.startTime}–{w.endTime}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded ${w.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
                 {w.isActive ? 'פעיל' : 'לא פעיל'}
               </span>
+              {w.name && <span className="text-iron-muted text-xs truncate">{w.name}</span>}
             </div>
-            <p className="text-iron-muted text-xs mt-0.5">{dayLabel} · {w.startTime}–{w.endTime}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={() => handleToggleTimeWindow(w)}
@@ -1490,59 +1504,53 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       );
     }
 
-    return (
-      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-medium text-iron-text">חלונות זמינות מקוונת</h3>
-            <p className="text-[11px] text-iron-muted mt-0.5">הגדר את המשבצות המקוונות הזמינות לכל יום בשבוע</p>
+    function DaySection({ day }: { day: number }) {
+      const dws = twsByDay(day);
+      const isEditingThisDay = twEditId !== null && twForm.dayOfWeek === day && !twForm.specificDate;
+      return (
+        <div className="border border-iron-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-iron-bg/50">
+            <span className="text-sm font-medium text-iron-text">יום {DAY_NAMES_HE[day]}</span>
+            {!isEditingThisDay && (
+              <button
+                onClick={() => { setTwForm({ ...DEFAULT_TW_FORM, dayOfWeek: day }); setTwEditId('new'); setTwError(null); }}
+                className="text-xs text-iron-green hover:underline font-medium">
+                + הוסף חלון
+              </button>
+            )}
           </div>
-          {twEditId === null && (
-            <button onClick={() => { setTwForm(DEFAULT_TW_FORM); setTwEditId('new'); setTwError(null); }}
-              className="text-xs text-iron-green hover:underline font-medium">
-              + חלון חדש
-            </button>
+          {dws.length > 0 && (
+            <div className="divide-y divide-iron-border">
+              {dws.map(w => (
+                <div key={w.id} className="px-4 py-2.5">
+                  <WindowRow w={w} />
+                </div>
+              ))}
+            </div>
+          )}
+          {isEditingThisDay && (
+            <div className="px-4 py-3 bg-iron-surface/50 border-t border-iron-border">
+              {renderWindowForm()}
+            </div>
           )}
         </div>
+      );
+    }
 
-        {twLoading && <p className="text-iron-muted text-sm">טוען…</p>}
+    function renderWindowForm() {
+      return (
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-iron-text">{twEditId === 'new' ? 'חלון חדש' : 'עריכת חלון'}</h4>
 
-        {!twLoading && twEditId === null && (
-          timeWindows.length === 0
-            ? <p className="text-iron-muted text-sm">אין חלונות. ההזמנות מקוונות זמינות על פי שעות הפעילות הרגילות.</p>
-            : <div className="space-y-4">
-                {/* Group by day */}
-                {[0,1,2,3,4,5,6].map(day => {
-                  const dws = twsByDay(day);
-                  if (dws.length === 0) return null;
-                  return (
-                    <div key={day}>
-                      <p className="text-xs font-medium text-iron-muted mb-1.5">יום {DAY_NAMES_HE[day]}</p>
-                      <div className="space-y-1.5">{dws.map(w => <WindowRow key={w.id} w={w} />)}</div>
-                    </div>
-                  );
-                })}
-                {specificTws.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-iron-muted mb-1.5">תאריכים ספציפיים</p>
-                    <div className="space-y-1.5">{specificTws.map(w => <WindowRow key={w.id} w={w} />)}</div>
-                  </div>
-                )}
-              </div>
-        )}
+          <div>
+            <label className="block text-xs text-iron-muted mb-1">שם (אופציונלי)</label>
+            <input value={twForm.name} onChange={e => setTwForm(f => ({ ...f, name: e.target.value }))}
+              placeholder='לדוגמה: ארוחת צהריים'
+              className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+          </div>
 
-        {twEditId !== null && (
-          <div className="space-y-4 pt-1">
-            <h4 className="text-sm font-medium text-iron-text">{twEditId === 'new' ? 'חלון חדש' : 'עריכת חלון'}</h4>
-
-            <div>
-              <label className="block text-xs text-iron-muted mb-1">שם *</label>
-              <input value={twForm.name} onChange={e => setTwForm(f => ({ ...f, name: e.target.value }))}
-                placeholder='לדוגמה: שבת צהריים'
-                className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
-            </div>
-
-            {/* Recurring vs specific date */}
+          {/* Recurring vs specific date — only shown when not opening from a day row */}
+          {(twForm.dayOfWeek === null || twForm.specificDate !== null) && (
             <div>
               <label className="block text-xs text-iron-muted mb-2">סוג חלון</label>
               <div className="flex gap-2">
@@ -1559,64 +1567,132 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 ))}
               </div>
             </div>
+          )}
 
-            {twForm.dayOfWeek !== null && (
-              <div>
-                <label className="block text-xs text-iron-muted mb-1">יום בשבוע</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {DAY_NAMES_HE.map((d, i) => (
-                    <button key={i} type="button"
-                      onClick={() => setTwForm(f => ({ ...f, dayOfWeek: i }))}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${twForm.dayOfWeek === i ? 'bg-iron-green text-white border-iron-green' : 'bg-iron-bg text-iron-muted border-iron-border hover:border-iron-text'}`}
-                    >{d}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {twForm.specificDate !== null && twForm.dayOfWeek === null && (
-              <div>
-                <label className="block text-xs text-iron-muted mb-1">תאריך</label>
-                <input type="date" value={twForm.specificDate ?? ''}
-                  onChange={e => setTwForm(f => ({ ...f, specificDate: e.target.value }))}
-                  className="bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-iron-muted mb-1">שעת פתיחה</label>
-                <input type="time" value={twForm.startTime}
-                  onChange={e => setTwForm(f => ({ ...f, startTime: e.target.value }))}
-                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
-              </div>
-              <div>
-                <label className="block text-xs text-iron-muted mb-1">שעת סגירה</label>
-                <input type="time" value={twForm.endTime}
-                  onChange={e => setTwForm(f => ({ ...f, endTime: e.target.value }))}
-                  className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+          {twForm.dayOfWeek !== null && twForm.specificDate === null && (
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">יום בשבוע</label>
+              <div className="flex flex-wrap gap-1.5">
+                {DAY_NAMES_HE.map((d, i) => (
+                  <button key={i} type="button"
+                    onClick={() => setTwForm(f => ({ ...f, dayOfWeek: i }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${twForm.dayOfWeek === i ? 'bg-iron-green text-white border-iron-green' : 'bg-iron-bg text-iron-muted border-iron-border hover:border-iron-text'}`}
+                  >{d}</button>
+                ))}
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button type="button" onClick={() => setTwForm(f => ({ ...f, isActive: !f.isActive }))}
-                className={`w-9 h-5 rounded-full transition-colors relative ${twForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${twForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
-              </button>
-              <span className="text-sm text-iron-text">{twForm.isActive ? 'פעיל' : 'לא פעיל'}</span>
+          )}
+          {twForm.specificDate !== null && twForm.dayOfWeek === null && (
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">תאריך</label>
+              <input type="date" value={twForm.specificDate ?? ''}
+                onChange={e => setTwForm(f => ({ ...f, specificDate: e.target.value }))}
+                className="bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
             </div>
+          )}
 
-            {twError && <p className="text-xs text-status-danger">{twError}</p>}
-            <div className="flex gap-3 pt-1">
-              <button onClick={handleSaveTimeWindow} disabled={twBusy || !twForm.name.trim()}
-                className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
-                {twBusy ? 'שומר…' : 'שמור'}
-              </button>
-              <button onClick={() => { setTwEditId(null); setTwError(null); }}
-                className="bg-iron-surface hover:bg-iron-bg text-iron-text font-medium text-sm px-4 py-2 rounded-lg border border-iron-border transition-colors">
-                ביטול
-              </button>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">שעת פתיחה</label>
+              <input type="time" value={twForm.startTime}
+                onChange={e => setTwForm(f => ({ ...f, startTime: e.target.value }))}
+                className={`w-full bg-iron-bg border rounded px-3 py-2 text-iron-text text-sm focus:outline-none ${localOverlap ? 'border-status-danger' : 'border-iron-border focus:border-iron-green'}`} />
+            </div>
+            <div>
+              <label className="block text-xs text-iron-muted mb-1">שעת סגירה</label>
+              <input type="time" value={twForm.endTime}
+                onChange={e => setTwForm(f => ({ ...f, endTime: e.target.value }))}
+                className={`w-full bg-iron-bg border rounded px-3 py-2 text-iron-text text-sm focus:outline-none ${localOverlap ? 'border-status-danger' : 'border-iron-border focus:border-iron-green'}`} />
             </div>
           </div>
+          {localOverlap && <p className="text-xs text-status-danger">⚠ חפיפה עם חלון קיים באותו יום</p>}
+
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setTwForm(f => ({ ...f, isActive: !f.isActive }))}
+              className={`w-9 h-5 rounded-full transition-colors relative ${twForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${twForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
+            </button>
+            <span className="text-sm text-iron-text">{twForm.isActive ? 'פעיל' : 'לא פעיל'}</span>
+          </div>
+
+          {twError && <p className="text-xs text-status-danger">{twError}</p>}
+          <div className="flex gap-3 pt-1">
+            <button onClick={handleSaveTimeWindow} disabled={twBusy || localOverlap}
+              className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+              {twBusy ? 'שומר…' : 'שמור'}
+            </button>
+            <button onClick={() => { setTwEditId(null); setTwError(null); }}
+              className="bg-iron-surface hover:bg-iron-bg text-iron-text font-medium text-sm px-4 py-2 rounded-lg border border-iron-border transition-colors">
+              ביטול
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // A standalone form for specific-date windows and top-level "add" button
+    const isEditingSpecific = twEditId !== null && (twForm.specificDate !== null || twForm.dayOfWeek === null);
+    return (
+      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium text-iron-text">חלונות זמינות מקוונת</h3>
+            <p className="text-[11px] text-iron-muted mt-0.5">ניתן להגדיר כמה חלונות לכל יום — הלקוח יראה רק סלוטים בתוך החלונות הפעילים</p>
+          </div>
+        </div>
+
+        {twLoading && <p className="text-iron-muted text-sm">טוען…</p>}
+
+        {!twLoading && (
+          <div className="space-y-2">
+            {[0,1,2,3,4,5,6].map(day => <DaySection key={day} day={day} />)}
+
+            {/* Specific-date windows section */}
+            {(specificTws.length > 0 || isEditingSpecific) && (
+              <div className="border border-iron-border rounded-lg overflow-hidden mt-2">
+                <div className="flex items-center justify-between px-4 py-2.5 bg-iron-bg/50">
+                  <span className="text-sm font-medium text-iron-text">תאריכים ספציפיים</span>
+                  {!isEditingSpecific && (
+                    <button
+                      onClick={() => { setTwForm({ ...DEFAULT_TW_FORM, dayOfWeek: null, specificDate: new Date().toISOString().slice(0,10) }); setTwEditId('new'); setTwError(null); }}
+                      className="text-xs text-iron-green hover:underline font-medium">
+                      + הוסף תאריך
+                    </button>
+                  )}
+                </div>
+                {specificTws.length > 0 && (
+                  <div className="divide-y divide-iron-border">
+                    {specificTws.map(w => (
+                      <div key={w.id} className="px-4 py-2.5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium text-iron-muted">{w.specificDate}</span>
+                        </div>
+                        <WindowRow w={w} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {isEditingSpecific && (
+                  <div className="px-4 py-3 bg-iron-surface/50 border-t border-iron-border">
+                    {renderWindowForm()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bottom-level "add specific date" if none exist yet */}
+            {specificTws.length === 0 && !isEditingSpecific && (
+              <button
+                onClick={() => { setTwForm({ ...DEFAULT_TW_FORM, dayOfWeek: null, specificDate: new Date().toISOString().slice(0,10) }); setTwEditId('new'); setTwError(null); }}
+                className="text-xs text-iron-muted hover:text-iron-text mt-1">
+                + הוסף תאריך ספציפי
+              </button>
+            )}
+          </div>
+        )}
+
+        {timeWindows.length === 0 && !twLoading && twEditId === null && (
+          <p className="text-iron-muted text-xs -mt-2">אין חלונות פעילים — ההזמנות מקוונות יפעלו לפי שעות הפעילות הרגילות</p>
         )}
       </div>
     );

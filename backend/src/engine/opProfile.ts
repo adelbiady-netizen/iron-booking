@@ -43,31 +43,34 @@ export async function resolveTurnTime(
 }
 
 // ─── resolveTimeWindows ──────────────────────────────────────────────────────
-// Returns an overriding {startTime, endTime} window for online slot generation
-// on a given date, or null when no window rule applies (use full operating hours).
+// Returns all active online-scoped windows for a date as a sorted array, or
+// null when no window rule applies (use full operating hours).
 //
-// specificDate rules always take precedence over dayOfWeek recurring rules.
+// specificDate rules always take precedence: if any specific-date windows exist
+// for the given date, ONLY those are used (weekly rules are ignored).
+// Multiple windows per day are supported — the engine unions their time ranges.
 // sourceScope filter: only ONLINE and ALL windows affect the public slot engine.
+
+export type TimeWindowRange = { startTime: string; endTime: string };
 
 export async function resolveTimeWindows(
   restaurantId: string,
   dateStr: string,   // "YYYY-MM-DD"
   dayOfWeek: number, // 0=Sun … 6=Sat
-): Promise<{ startTime: string; endTime: string } | null> {
+): Promise<TimeWindowRange[] | null> {
   try {
-    // Fetch both rule types in parallel — specificDate overrides dayOfWeek.
     const [specific, weekly] = await Promise.all([
-      prisma.bookingTimeWindow.findFirst({
+      prisma.bookingTimeWindow.findMany({
         where: {
           profile:      { restaurantId },
           isActive:     true,
           sourceScope:  { in: ['ONLINE', 'ALL'] },
           specificDate: dateStr,
         },
-        orderBy: { sortOrder: 'asc' },
+        orderBy: { startTime: 'asc' },
         select:  { startTime: true, endTime: true },
       }),
-      prisma.bookingTimeWindow.findFirst({
+      prisma.bookingTimeWindow.findMany({
         where: {
           profile:      { restaurantId },
           isActive:     true,
@@ -75,11 +78,13 @@ export async function resolveTimeWindows(
           specificDate: null,
           dayOfWeek,
         },
-        orderBy: { sortOrder: 'asc' },
+        orderBy: { startTime: 'asc' },
         select:  { startTime: true, endTime: true },
       }),
     ]);
-    return specific ?? weekly ?? null;
+    // specificDate windows take full precedence when present
+    const windows = specific.length > 0 ? specific : weekly;
+    return windows.length > 0 ? windows : null;
   } catch {
     return null;
   }

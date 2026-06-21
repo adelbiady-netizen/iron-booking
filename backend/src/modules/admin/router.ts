@@ -562,12 +562,45 @@ router.get('/restaurants/:id/time-windows', async (req: Request, res: Response, 
   } catch (err) { next(err); }
 });
 
+// Helper: check for time-range overlap among active windows for the same day/date.
+// Excludes the window being edited (excludeId) so a no-op PATCH is allowed.
+async function checkTimeWindowOverlap(
+  restaurantId: string,
+  dayOfWeek: number | null | undefined,
+  specificDate: string | null | undefined,
+  startTime: string,
+  endTime: string,
+  excludeId?: string,
+): Promise<boolean> {
+  const tw = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const newStart = tw(startTime);
+  const newEnd   = tw(endTime);
+  const siblings = await prisma.bookingTimeWindow.findMany({
+    where: {
+      profile: { restaurantId },
+      isActive: true,
+      ...(specificDate
+        ? { specificDate }
+        : { dayOfWeek: dayOfWeek ?? undefined, specificDate: null }),
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { startTime: true, endTime: true },
+  });
+  return siblings.some(w => newStart < tw(w.endTime) && tw(w.startTime) < newEnd);
+}
+
 // POST /admin/restaurants/:id/time-windows
 router.post('/restaurants/:id/time-windows', superAdminOnly, validate(TimeWindowSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
     const restaurantId = p(req, 'id');
     const body = req.body as z.infer<typeof TimeWindowSchema>;
+
+    if (body.isActive !== false) {
+      const overlaps = await checkTimeWindowOverlap(restaurantId, body.dayOfWeek, body.specificDate, body.startTime, body.endTime);
+      if (overlaps) return res.status(409).json({ error: { code: 'TIME_WINDOW_OVERLAP', message: 'Time range overlaps with an existing active window for the same day.' } });
+    }
+
     await prisma.restaurantOpProfile.upsert({
       where: { restaurantId },
       create: { restaurantId },
@@ -600,6 +633,19 @@ router.patch('/restaurants/:id/time-windows/:wid', superAdminOnly, validate(Time
       where: { id: p(req, 'wid'), profile: { restaurantId: p(req, 'id') } },
     });
     if (!existing) throw new NotFoundError('BookingTimeWindow', p(req, 'wid'));
+
+    const body = req.body as z.infer<typeof TimeWindowPatchSchema>;
+    const mergedActive = body.isActive ?? existing.isActive;
+    const mergedStart  = body.startTime ?? existing.startTime;
+    const mergedEnd    = body.endTime   ?? existing.endTime;
+    const mergedDay    = 'dayOfWeek'    in body ? body.dayOfWeek    : existing.dayOfWeek;
+    const mergedDate   = 'specificDate' in body ? body.specificDate : existing.specificDate;
+
+    if (mergedActive) {
+      const overlaps = await checkTimeWindowOverlap(p(req, 'id'), mergedDay, mergedDate, mergedStart, mergedEnd, p(req, 'wid'));
+      if (overlaps) return res.status(409).json({ error: { code: 'TIME_WINDOW_OVERLAP', message: 'Time range overlaps with an existing active window for the same day.' } });
+    }
+
     const window = await prisma.bookingTimeWindow.update({ where: { id: p(req, 'wid') }, data: req.body });
     res.json(window);
   } catch (err) { next(err); }
