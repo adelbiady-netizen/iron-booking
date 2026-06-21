@@ -991,7 +991,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       date:              body.date,
       time:              body.time,
       partySize:         body.partySize,
-      duration:          s.defaultTurnMinutes,
+      duration:          effectiveTurnMinutes,
       restaurantName:    restaurant.name,
       restaurantLogoUrl: restaurant.logoUrl,
     });
