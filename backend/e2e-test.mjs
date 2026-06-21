@@ -128,7 +128,14 @@ console.log(`  Saturday available: party=2 -> ${availSat2}, party=3 -> ${availSa
 P('party=2 (shorter turn) ≥ party=3 slot count', availSat2 >= availSat3, `${availSat2} vs ${availSat3}`);
 
 // 4f. Single time window: create Saturday window, verify restriction
-const slotsBefore = aSat2.slots?.filter(s => s.available).map(s => s.time) ?? [];
+// Pre-cleanup: remove any leftover windows for dayOfWeek=6 from prior runs
+const satWinsExisting = await GET(`/admin/restaurants/${R_ID}/time-windows`);
+const staleSatWins = satWinsExisting.windows?.filter(w => w.dayOfWeek === 6 && !w.specificDate) ?? [];
+for (const w of staleSatWins) { await DEL(`/admin/restaurants/${R_ID}/time-windows/${w.id}`); }
+
+// Re-fetch availability after cleanup so slotsBefore reflects no active windows
+const aSat2Clean = await avail(satDate, 2);
+const slotsBefore = aSat2Clean.slots?.filter(s => s.available).map(s => s.time) ?? [];
 const satOpen = satHours?.openTime ?? '11:00';
 const satOpenPlus2 = (() => { const [h,m] = satOpen.split(':').map(Number); const end = h*60+m+120; return `${String(Math.floor(end/60)).padStart(2,'0')}:${String(end%60).padStart(2,'0')}`; })();
 console.log(`  Creating time window Sat ${satOpen}-${satOpenPlus2}`);

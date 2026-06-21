@@ -277,6 +277,8 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   const [tableForm, setTableForm]           = useState<AdminTableBody>(DEFAULT_TABLE_FORM);
   const [tableBusy, setTableBusy]           = useState(false);
   const [tableError, setTableError]         = useState<string | null>(null);
+  const [tableSearch, setTableSearch]       = useState('');
+  const [collapsedSecs, setCollapsedSecs]   = useState<Set<string>>(new Set());
 
   const [floorCombos, setFloorCombos]       = useState<AdminCombination[]>([]);
   const [comboLoading, setComboLoading]     = useState(false);
@@ -870,8 +872,59 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   function renderFloorPlan() {
     const hasFloor = floorSections.length > 0 || floorTables.length > 0;
 
+    // Derived stats
+    const combinedTableIds = new Set(floorCombos.flatMap(c => [c.tableAId, c.tableBId]));
+    const sectionOnline = new Map(floorSections.map(s => [s.id, s.onlineAvailable]));
+    const onlineCount   = floorTables.filter(t => t.sectionId ? sectionOnline.get(t.sectionId) !== false : true).length;
+    const inactiveCount = floorTables.filter(t => !t.isActive).length;
+
+    // Search-filtered tables
+    const q = tableSearch.trim().toLowerCase();
+    const filteredTables = q
+      ? floorTables.filter(t => t.name.toLowerCase().includes(q) || t.section?.name.toLowerCase().includes(q))
+      : floorTables;
+
+    // Compact table row
+    function TableRow({ t }: { t: typeof floorTables[0] }) {
+      const online    = t.sectionId ? sectionOnline.get(t.sectionId) !== false : true;
+      const inCombo   = combinedTableIds.has(t.id);
+      return (
+        <div className={`flex items-center justify-between gap-2 px-3 py-2 border-b border-iron-border/50 last:border-0 ${!t.isActive ? 'opacity-50' : ''}`}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-iron-text">{t.name}</span>
+              <span className="text-iron-muted text-xs">{t.minCovers}–{t.maxCovers}</span>
+              {/* Tags */}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${t.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+                {t.isActive ? 'פעיל' : 'לא פעיל'}
+              </span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${online ? 'bg-blue-500/10 text-blue-400' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+                {online ? 'אונליין' : 'לא אונליין'}
+              </span>
+              {t.isCombinable && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-surface border border-iron-border text-iron-muted">ניתן לשילוב</span>
+              )}
+              {inCombo && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">בשילוב</span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={() => handleToggleTable(t)}
+              title={t.isActive ? 'השבת' : 'הפעל'}
+              className={`w-8 h-4 rounded-full transition-colors relative ${t.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+              <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${t.isActive ? 'right-0.5' : 'left-0.5'}`} />
+            </button>
+            <button onClick={() => { setTableForm({ name: t.name, sectionId: t.sectionId, minCovers: t.minCovers, maxCovers: t.maxCovers, isActive: t.isActive, isCombinable: t.isCombinable }); setTableEditId(t.id); setTableError(null); }}
+              className="text-iron-muted hover:text-iron-text text-xs px-1">עריכה</button>
+            <button onClick={() => handleDeleteTable(t)} className="text-iron-muted hover:text-status-danger text-xs px-1">מחק</button>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6" dir="rtl">
 
         {/* ── Seed banner ─────────────────────────────────────────────── */}
         {!hasFloor && isSuperAdmin && (
@@ -887,6 +940,24 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
           </div>
         )}
 
+        {/* ── Summary bar ─────────────────────────────────────────────── */}
+        {hasFloor && (
+          <div className="grid grid-cols-5 gap-2">
+            {[
+              { label: 'אזורים',    value: floorSections.length },
+              { label: 'שולחנות',   value: floorTables.length   },
+              { label: 'אונליין',   value: onlineCount           },
+              { label: 'שילובים',   value: floorCombos.length   },
+              { label: 'לא פעילים', value: inactiveCount         },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-iron-surface border border-iron-border rounded-lg px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-iron-text leading-none">{value}</p>
+                <p className="text-[10px] text-iron-muted mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── Operating Hours ─────────────────────────────────────────── */}
         <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
           <div className="flex items-center justify-between">
@@ -895,9 +966,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               <button onClick={() => setHoursEditing(true)} className="text-xs text-iron-green hover:underline font-medium">עריכה</button>
             )}
           </div>
-
           {hoursLoading && <p className="text-iron-muted text-sm">טוען…</p>}
-
           {!hoursLoading && !hoursEditing && (
             floorHours.length === 0
               ? <p className="text-iron-muted text-sm">שעות פעילות לא הוגדרו</p>
@@ -909,14 +978,12 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                         <p className="font-medium text-iron-text mb-1">{day}</p>
                         {h?.isOpen
                           ? <><p className="text-iron-muted">{h.openTime}</p><p className="text-iron-muted">עד</p><p className="text-iron-muted">{h.lastSeating}</p></>
-                          : <p className="text-iron-muted">סגור</p>
-                        }
+                          : <p className="text-iron-muted">סגור</p>}
                       </div>
                     );
                   })}
                 </div>
           )}
-
           {!hoursLoading && hoursEditing && (
             <div className="space-y-3">
               {floorHoursDraft.map((h, i) => (
@@ -951,9 +1018,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                   {hoursBusy ? 'שומר…' : 'שמור שעות'}
                 </button>
                 <button onClick={() => { setHoursEditing(false); setHoursError(null); }}
-                  className="bg-iron-surface border border-iron-border text-iron-text font-medium text-sm px-4 py-2 rounded-lg transition-colors hover:bg-iron-bg">
-                  ביטול
-                </button>
+                  className="bg-iron-surface border border-iron-border text-iron-text font-medium text-sm px-4 py-2 rounded-lg transition-colors hover:bg-iron-bg">ביטול</button>
               </div>
             </div>
           )}
@@ -963,20 +1028,18 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
         <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-medium text-iron-text">סקשנים</h3>
+              <h3 className="font-medium text-iron-text">אזורים</h3>
               <p className="text-[11px] text-iron-muted mt-0.5">אזורי ישיבה שניתן להקצות להם שולחנות</p>
             </div>
             {secEditId === null && (
               <button onClick={() => { setSecForm({ name: '', color: '#6366f1', onlineAvailable: true }); setSecEditId('new'); setSecError(null); }}
-                className="text-xs text-iron-green hover:underline font-medium">+ סקשן חדש</button>
+                className="text-xs text-iron-green hover:underline font-medium">+ אזור חדש</button>
             )}
           </div>
-
           {secLoading && <p className="text-iron-muted text-sm">טוען…</p>}
-
           {!secLoading && secEditId === null && (
             floorSections.length === 0
-              ? <p className="text-iron-muted text-sm">אין סקשנים. צור את הראשון.</p>
+              ? <p className="text-iron-muted text-sm">אין אזורים. צור את הראשון.</p>
               : <div className="space-y-2">
                   {floorSections.map(s => (
                     <div key={s.id} className="flex items-center gap-3 bg-iron-bg border border-iron-border rounded-lg px-4 py-3">
@@ -984,7 +1047,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium text-iron-text">{s.name}</span>
                         <span className="text-iron-muted text-xs mr-2">· {s.tableCount} שולחנות</span>
-                        {!s.onlineAvailable && <span className="text-xs text-iron-muted">(לא מקוון)</span>}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded mr-1 ${s.onlineAvailable ? 'bg-blue-500/10 text-blue-400' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
+                          {s.onlineAvailable ? 'אונליין' : 'לא אונליין'}
+                        </span>
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <button onClick={() => { setSecForm({ name: s.name, color: s.color, onlineAvailable: s.onlineAvailable }); setSecEditId(s.id); setSecError(null); }}
@@ -995,10 +1060,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                   ))}
                 </div>
           )}
-
           {secEditId !== null && (
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-iron-text">{secEditId === 'new' ? 'סקשן חדש' : 'עריכת סקשן'}</h4>
+              <h4 className="text-sm font-medium text-iron-text">{secEditId === 'new' ? 'אזור חדש' : 'עריכת אזור'}</h4>
               <div>
                 <label className="block text-xs text-iron-muted mb-1">שם *</label>
                 <input value={secForm.name} onChange={e => setSecForm(f => ({ ...f, name: e.target.value }))}
@@ -1016,7 +1080,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                     className={`w-9 h-5 rounded-full transition-colors relative ${secForm.onlineAvailable ? 'bg-iron-green' : 'bg-iron-border'}`}>
                     <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${secForm.onlineAvailable ? 'right-0.5' : 'left-0.5'}`} />
                   </button>
-                  <span className="text-sm text-iron-text">זמין להזמנה מקוונת</span>
+                  <span className="text-sm text-iron-text">זמין להזמנות אונליין</span>
                 </div>
               </div>
               {secError && <p className="text-xs text-status-danger">{secError}</p>}
@@ -1033,8 +1097,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
         </div>
 
         {/* ── Tables ──────────────────────────────────────────────────── */}
-        <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-iron-surface rounded-lg border border-iron-border">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-iron-border">
             <div>
               <h3 className="font-medium text-iron-text">שולחנות</h3>
               <p className="text-[11px] text-iron-muted mt-0.5">{floorTables.length} שולחנות סה"כ</p>
@@ -1045,128 +1110,138 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
             )}
           </div>
 
-          {tableLoading && <p className="text-iron-muted text-sm">טוען…</p>}
-
-          {!tableLoading && tableEditId === null && (
-            floorTables.length === 0
-              ? <p className="text-iron-muted text-sm">אין שולחנות. צור את הראשון.</p>
-              : (() => {
-                  const bySec = floorSections.map(s => ({ sec: s, tables: floorTables.filter(t => t.sectionId === s.id) }));
-                  const unassigned = floorTables.filter(t => !t.sectionId);
-                  return (
-                    <div className="space-y-3">
-                      {bySec.map(({ sec, tables }) => tables.length === 0 ? null : (
-                        <div key={sec.id}>
-                          <p className="text-xs font-medium text-iron-muted mb-1.5 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ background: sec.color }} />
-                            {sec.name}
-                          </p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {tables.map(t => (
-                              <div key={t.id} className="flex items-center justify-between gap-2 bg-iron-bg border border-iron-border rounded-lg px-3 py-2">
-                                <div>
-                                  <span className="text-sm font-medium text-iron-text">{t.name}</span>
-                                  <span className="text-iron-muted text-xs mr-1">· {t.minCovers}–{t.maxCovers} סועדים</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button onClick={() => handleToggleTable(t)}
-                                    className={`w-8 h-4 rounded-full transition-colors relative ${t.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
-                                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${t.isActive ? 'right-0.5' : 'left-0.5'}`} />
-                                  </button>
-                                  <button onClick={() => { setTableForm({ name: t.name, sectionId: t.sectionId, minCovers: t.minCovers, maxCovers: t.maxCovers, isActive: t.isActive, isCombinable: t.isCombinable }); setTableEditId(t.id); setTableError(null); }}
-                                    className="text-iron-muted hover:text-iron-text text-xs">עריכה</button>
-                                  <button onClick={() => handleDeleteTable(t)} className="text-iron-muted hover:text-status-danger text-xs">מחק</button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                      {unassigned.length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium text-iron-muted mb-1.5">ללא סקשן</p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {unassigned.map(t => (
-                              <div key={t.id} className="flex items-center justify-between gap-2 bg-iron-bg border border-iron-border rounded-lg px-3 py-2">
-                                <span className="text-sm font-medium text-iron-text">{t.name}</span>
-                                <div className="flex gap-1.5">
-                                  <button onClick={() => handleToggleTable(t)}
-                                    className={`w-8 h-4 rounded-full transition-colors relative ${t.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
-                                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${t.isActive ? 'right-0.5' : 'left-0.5'}`} />
-                                  </button>
-                                  <button onClick={() => handleDeleteTable(t)} className="text-iron-muted hover:text-status-danger text-xs">מחק</button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()
-          )}
-
-          {tableEditId !== null && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-iron-text">{tableEditId === 'new' ? 'שולחן חדש' : 'עריכת שולחן'}</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-iron-muted mb-1">שם/מספר שולחן *</label>
-                  <input value={tableForm.name} onChange={e => setTableForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="לדוגמה: T1"
-                    className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
-                </div>
-                <div>
-                  <label className="block text-xs text-iron-muted mb-1">סקשן</label>
-                  <select value={tableForm.sectionId ?? ''} onChange={e => setTableForm(f => ({ ...f, sectionId: e.target.value || null }))}
-                    className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green">
-                    <option value="">ללא סקשן</option>
-                    {floorSections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-iron-muted mb-1">מינימום סועדים</label>
-                  <input type="number" min={1} max={50} value={tableForm.minCovers}
-                    onChange={e => setTableForm(f => ({ ...f, minCovers: +e.target.value }))}
-                    className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
-                </div>
-                <div>
-                  <label className="block text-xs text-iron-muted mb-1">מקסימום סועדים</label>
-                  <input type="number" min={1} max={50} value={tableForm.maxCovers}
-                    onChange={e => setTableForm(f => ({ ...f, maxCovers: +e.target.value }))}
-                    className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
-                </div>
-              </div>
-              {tableForm.minCovers > tableForm.maxCovers && (
-                <p className="text-xs text-status-danger">מינימום לא יכול להיות גדול ממקסימום</p>
-              )}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setTableForm(f => ({ ...f, isActive: !f.isActive }))}
-                    className={`w-9 h-5 rounded-full transition-colors relative ${tableForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${tableForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
-                  </button>
-                  <span className="text-sm text-iron-text">פעיל</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setTableForm(f => ({ ...f, isCombinable: !f.isCombinable }))}
-                    className={`w-9 h-5 rounded-full transition-colors relative ${tableForm.isCombinable ? 'bg-iron-green' : 'bg-iron-border'}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${tableForm.isCombinable ? 'right-0.5' : 'left-0.5'}`} />
-                  </button>
-                  <span className="text-sm text-iron-text">ניתן לשילוב</span>
-                </div>
-              </div>
-              {tableError && <p className="text-xs text-status-danger">{tableError}</p>}
-              <div className="flex gap-3">
-                <button onClick={handleSaveTable} disabled={tableBusy || !tableForm.name.trim() || tableForm.minCovers > tableForm.maxCovers}
-                  className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
-                  {tableBusy ? 'שומר…' : 'שמור'}
-                </button>
-                <button onClick={() => { setTableEditId(null); setTableError(null); }}
-                  className="bg-iron-surface border border-iron-border text-iron-text font-medium text-sm px-4 py-2 rounded-lg hover:bg-iron-bg transition-colors">ביטול</button>
-              </div>
+          {/* Search */}
+          {floorTables.length > 0 && tableEditId === null && (
+            <div className="px-5 py-3 border-b border-iron-border">
+              <input
+                value={tableSearch}
+                onChange={e => setTableSearch(e.target.value)}
+                placeholder="חיפוש שולחן..."
+                className="w-full bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green placeholder:text-iron-muted"
+              />
             </div>
           )}
+
+          <div className="p-5 space-y-3">
+            {tableLoading && <p className="text-iron-muted text-sm">טוען…</p>}
+
+            {!tableLoading && tableEditId === null && (
+              floorTables.length === 0
+                ? <p className="text-iron-muted text-sm">אין שולחנות. צור את הראשון.</p>
+                : filteredTables.length === 0
+                  ? <p className="text-iron-muted text-sm">אין תוצאות לחיפוש "{tableSearch}"</p>
+                  : (() => {
+                      const bySec = floorSections.map(s => ({
+                        sec: s,
+                        tables: filteredTables.filter(t => t.sectionId === s.id),
+                      }));
+                      const unassigned = filteredTables.filter(t => !t.sectionId);
+                      const toggleCollapse = (id: string) =>
+                        setCollapsedSecs(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+                      return (
+                        <div className="space-y-2">
+                          {bySec.map(({ sec, tables }) => tables.length === 0 ? null : (
+                            <div key={sec.id} className="border border-iron-border rounded-lg overflow-hidden">
+                              {/* Collapsible section header */}
+                              <button
+                                type="button"
+                                onClick={() => toggleCollapse(sec.id)}
+                                className="w-full flex items-center justify-between px-4 py-2.5 bg-iron-bg/60 hover:bg-iron-bg transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: sec.color }} />
+                                  <span className="text-sm font-medium text-iron-text">{sec.name}</span>
+                                  <span className="text-iron-muted text-xs">· {tables.length} שולחנות</span>
+                                  {!sec.onlineAvailable && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-iron-surface border border-iron-border text-iron-muted">לא אונליין</span>
+                                  )}
+                                </div>
+                                <span className="text-iron-muted text-xs">{collapsedSecs.has(sec.id) ? '▸' : '▾'}</span>
+                              </button>
+                              {!collapsedSecs.has(sec.id) && (
+                                <div>
+                                  {tables.map(t => <TableRow key={t.id} t={t} />)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {unassigned.length > 0 && (
+                            <div className="border border-iron-border rounded-lg overflow-hidden">
+                              <div className="flex items-center px-4 py-2.5 bg-iron-bg/60">
+                                <span className="text-xs font-medium text-iron-muted">ללא אזור · {unassigned.length} שולחנות</span>
+                              </div>
+                              {unassigned.map(t => <TableRow key={t.id} t={t} />)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()
+            )}
+
+            {/* Table edit form */}
+            {tableEditId !== null && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-iron-text">{tableEditId === 'new' ? 'שולחן חדש' : 'עריכת שולחן'}</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-iron-muted mb-1">שם/מספר שולחן *</label>
+                    <input value={tableForm.name} onChange={e => setTableForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="לדוגמה: T1"
+                      className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-iron-muted mb-1">אזור</label>
+                    <select value={tableForm.sectionId ?? ''} onChange={e => setTableForm(f => ({ ...f, sectionId: e.target.value || null }))}
+                      className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green">
+                      <option value="">ללא אזור</option>
+                      {floorSections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-iron-muted mb-1">מינימום סועדים</label>
+                    <input type="number" min={1} max={50} value={tableForm.minCovers}
+                      onChange={e => setTableForm(f => ({ ...f, minCovers: +e.target.value }))}
+                      className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-iron-muted mb-1">מקסימום סועדים</label>
+                    <input type="number" min={1} max={50} value={tableForm.maxCovers}
+                      onChange={e => setTableForm(f => ({ ...f, maxCovers: +e.target.value }))}
+                      className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-iron-text text-sm focus:outline-none focus:border-iron-green" />
+                  </div>
+                </div>
+                {tableForm.minCovers > tableForm.maxCovers && (
+                  <p className="text-xs text-status-danger">מינימום לא יכול להיות גדול ממקסימום</p>
+                )}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setTableForm(f => ({ ...f, isActive: !f.isActive }))}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${tableForm.isActive ? 'bg-iron-green' : 'bg-iron-border'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${tableForm.isActive ? 'right-0.5' : 'left-0.5'}`} />
+                    </button>
+                    <span className="text-sm text-iron-text">פעיל</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setTableForm(f => ({ ...f, isCombinable: !f.isCombinable }))}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${tableForm.isCombinable ? 'bg-iron-green' : 'bg-iron-border'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${tableForm.isCombinable ? 'right-0.5' : 'left-0.5'}`} />
+                    </button>
+                    <span className="text-sm text-iron-text">ניתן לשילוב</span>
+                  </div>
+                </div>
+                {tableError && <p className="text-xs text-status-danger">{tableError}</p>}
+                <div className="flex gap-3">
+                  <button onClick={handleSaveTable} disabled={tableBusy || !tableForm.name.trim() || tableForm.minCovers > tableForm.maxCovers}
+                    className="bg-iron-green hover:bg-iron-green-light text-white font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
+                    {tableBusy ? 'שומר…' : 'שמור'}
+                  </button>
+                  <button onClick={() => { setTableEditId(null); setTableError(null); }}
+                    className="bg-iron-surface border border-iron-border text-iron-text font-medium text-sm px-4 py-2 rounded-lg hover:bg-iron-bg transition-colors">ביטול</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Table Combinations ──────────────────────────────────────── */}
@@ -1181,9 +1256,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 className="text-xs text-iron-green hover:underline font-medium">+ שילוב חדש</button>
             )}
           </div>
-
           {comboLoading && <p className="text-iron-muted text-sm">טוען…</p>}
-
           {!comboLoading && comboEditId === null && (
             floorCombos.length === 0
               ? <p className="text-iron-muted text-sm">{floorTables.length < 2 ? 'יש להוסיף לפחות 2 שולחנות לפני יצירת שילוב' : 'אין שילובים. צור את הראשון.'}</p>
@@ -1198,7 +1271,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                             <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.isActive ? 'bg-iron-green/15 text-iron-green' : 'bg-iron-surface border border-iron-border text-iron-muted'}`}>
                               {c.isActive ? 'פעיל' : 'לא פעיל'}
                             </span>
-                            {crossSection && <span className="text-xs text-status-warning">⚠ שולחנות מסקשנים שונים</span>}
+                            {crossSection && <span className="text-xs text-status-warning">⚠ שולחנות מאזורים שונים</span>}
                           </div>
                           <p className="text-iron-muted text-xs mt-0.5">
                             {c.tableA.name} + {c.tableB.name}
@@ -1216,7 +1289,6 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                   })}
                 </div>
           )}
-
           {comboEditId !== null && (
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-iron-text">{comboEditId === 'new' ? 'שילוב חדש' : 'עריכת שילוב'}</h4>
@@ -1242,7 +1314,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
                 const tA = floorTables.find(t => t.id === comboForm.tableAId);
                 const tB = floorTables.find(t => t.id === comboForm.tableBId);
                 if (tA?.sectionId && tB?.sectionId && tA.sectionId !== tB.sectionId) {
-                  return <p className="text-xs text-status-warning">⚠ שולחנות {tA.name} ו-{tB.name} שייכים לסקשנים שונים — השילוב יעבוד טכנית אך לא מומלץ</p>;
+                  return <p className="text-xs text-status-warning">⚠ שולחנות {tA.name} ו-{tB.name} שייכים לאזורים שונים — השילוב יעבוד טכנית אך לא מומלץ</p>;
                 }
                 return null;
               })()}
