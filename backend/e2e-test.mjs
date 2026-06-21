@@ -163,6 +163,11 @@ console.log('\n=== 8. MULTI-WINDOW PER DAY ===');
 
 const thuDow = 4; // Thursday in E2E = dayOfWeek 4
 
+// Pre-cleanup: remove any leftover windows for this day from prior test runs
+const allWins = await GET(`/admin/restaurants/${R_ID}/time-windows`);
+const staleWins = allWins.windows?.filter(w => w.dayOfWeek === thuDow && !w.specificDate) ?? [];
+for (const w of staleWins) { await DEL(`/admin/restaurants/${R_ID}/time-windows/${w.id}`); }
+
 // Create window A: 11:30–12:30
 const mwA = await POST(`/admin/restaurants/${R_ID}/time-windows`, {
   name: 'E2E Multi A', dayOfWeek: thuDow, startTime: '11:30', endTime: '12:30', sourceScope: 'ONLINE', isActive: true

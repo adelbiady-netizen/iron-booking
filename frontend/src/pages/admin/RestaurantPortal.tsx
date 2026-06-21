@@ -316,7 +316,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   }
 
   async function loadTimeWindows() {
-    if (!restaurantId || !isSuperAdmin) return;
+    if (!restaurantId) return;
     setTwLoading(true);
     try {
       const d = await api.admin.restaurants.timeWindows.list(restaurantId);
@@ -1636,8 +1636,8 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4" dir="rtl">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-medium text-iron-text">חלונות זמינות מקוונת</h3>
-            <p className="text-[11px] text-iron-muted mt-0.5">ניתן להגדיר כמה חלונות לכל יום — הלקוח יראה רק סלוטים בתוך החלונות הפעילים</p>
+            <h3 className="font-medium text-iron-text">חלונות הזמנות אונליין</h3>
+            <p className="text-[11px] text-iron-muted mt-0.5">קובע מתי ניתן להזמין אונליין — בלי קשר לשעות הפעילות של המסעדה. ניתן להגדיר כמה חלונות ביום.</p>
           </div>
         </div>
 
@@ -1692,7 +1692,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
         )}
 
         {timeWindows.length === 0 && !twLoading && twEditId === null && (
-          <p className="text-iron-muted text-xs -mt-2">אין חלונות פעילים — ההזמנות מקוונות יפעלו לפי שעות הפעילות הרגילות</p>
+          <p className="text-iron-muted text-xs -mt-2">אין חלונות מוגדרים — הזמנות אונליין יפעלו לפי שעות הפעילות הרגילות של המסעדה</p>
         )}
       </div>
     );
@@ -1899,7 +1899,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   function renderOperations() {
     const canHours        = permissions?.canManageOperatingHours     ?? false;
     const canRestrictions = permissions?.canManageOnlineRestrictions ?? false;
-    const hasAnyTool      = canHours || canRestrictions || isSuperAdmin;
+    const hasAnyTool      = canHours || canRestrictions || isSuperAdmin || !!restaurantId;
 
     return (
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -2099,9 +2099,9 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               )}
             </div>
           )}
+          {renderTimeWindows()}
           {isSuperAdmin && renderOpSettings()}
           {isSuperAdmin && renderTurnTimeRules()}
-          {isSuperAdmin && renderTimeWindows()}
           {isSuperAdmin && renderGroupConfigs()}
         </>)}
       </div>

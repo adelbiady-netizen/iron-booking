@@ -590,7 +590,7 @@ async function checkTimeWindowOverlap(
 }
 
 // POST /admin/restaurants/:id/time-windows
-router.post('/restaurants/:id/time-windows', superAdminOnly, validate(TimeWindowSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/restaurants/:id/time-windows', validate(TimeWindowSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
     const restaurantId = p(req, 'id');
@@ -626,7 +626,7 @@ router.post('/restaurants/:id/time-windows', superAdminOnly, validate(TimeWindow
 });
 
 // PATCH /admin/restaurants/:id/time-windows/:wid
-router.patch('/restaurants/:id/time-windows/:wid', superAdminOnly, validate(TimeWindowPatchSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/restaurants/:id/time-windows/:wid', validate(TimeWindowPatchSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
     const existing = await prisma.bookingTimeWindow.findFirst({
@@ -652,7 +652,7 @@ router.patch('/restaurants/:id/time-windows/:wid', superAdminOnly, validate(Time
 });
 
 // DELETE /admin/restaurants/:id/time-windows/:wid
-router.delete('/restaurants/:id/time-windows/:wid', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/restaurants/:id/time-windows/:wid', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await assertRestaurantAccess(req, p(req, 'id'));
     const existing = await prisma.bookingTimeWindow.findFirst({
