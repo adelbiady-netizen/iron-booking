@@ -104,6 +104,19 @@ class MockSmsProvider implements SmsProvider {
 // Auth: Authorization: Basic <INFORU_BASIC_AUTH env var>
 // Credentials are never written to logs.
 
+// HTTP header values must be ASCII-only (ByteString). Throws a clear diagnostic
+// rather than the cryptic "Cannot convert argument to a ByteString" error.
+function assertAsciiHeader(value: string, label: string): void {
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) > 127) {
+      throw new Error(
+        `${label} contains a non-ASCII character at index ${i} (charCode=${value.charCodeAt(i)}). ` +
+        `HTTP headers must be ASCII only. Check the env var — it may contain Hebrew or other Unicode text.`,
+      );
+    }
+  }
+}
+
 const INFORU_ENDPOINT = 'https://capi.inforu.co.il/api/v2/SMS/SendSms';
 const INFORU_TIMEOUT_MS = 10_000;
 
@@ -138,6 +151,10 @@ class InforUSmsProvider implements SmsProvider {
     const rawAuth = (process.env.INFORU_BASIC_AUTH ?? '').trim();
     if (!rawAuth) throw new Error('INFORU_BASIC_AUTH environment variable is not set');
     const authorization = rawAuth.startsWith('Basic ') ? rawAuth : `Basic ${rawAuth}`;
+
+    // Validate before fetch — HTTP headers are ByteStrings (ASCII only).
+    assertAsciiHeader(authorization, 'INFORU_BASIC_AUTH (Authorization header)');
+    console.log(`[InforU] headers OK | Authorization: Basic <${authorization.length - 6} chars> | Content-Type: application/json`);
 
     const phone = toInforUPhone(to);
 

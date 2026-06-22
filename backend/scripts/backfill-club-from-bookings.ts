@@ -9,6 +9,10 @@
  *
  * Run write mode:
  *   WRITE=true npx tsx backend/scripts/backfill-club-from-bookings.ts
+ *
+ * NOTE: This script predates the ConsentAudit system. Members created here will
+ * not have a ConsentAudit row. If re-run after the migration, add a
+ * writeConsentAudit() call with source=IMPORT after each prisma.clubMember.create().
  */
 import { prisma } from '../src/lib/prisma';
 import { ClubJoinSource, ClubMemberStatus } from '@prisma/client';

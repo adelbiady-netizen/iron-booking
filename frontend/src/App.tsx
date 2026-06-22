@@ -18,6 +18,7 @@ import GuestHubQrRedirect  from './features/guestHub/GuestHubQrRedirect';
 import GuestHubPreviewPage from './features/guestHub/GuestHubPreviewPage';
 import FeedbackPage from './pages/FeedbackPage';
 import JoinPage from './pages/JoinPage';
+import UnsubscribePage from './pages/UnsubscribePage';
 import type { AuthState } from './types';
 
 export type Theme = 'dark' | 'light';
@@ -260,6 +261,10 @@ export default function App() {
     const token = path.split('/')[2];
     if (token) return <FeedbackPage token={token} />;
   }
+  if (path.startsWith('/unsubscribe/')) {
+    const token = path.split('/')[2];
+    if (token) return <UnsubscribePage token={token} />;
+  }
   if (path.startsWith('/join/')) {
     const token = path.split('/')[2];
     if (token) return <JoinPage token={token} />;
@@ -280,7 +285,7 @@ export default function App() {
   // that specific restaurant.
   const RESERVED_SEGMENTS = new Set([
     'hq', 'restaurant-admin', 'book', 'waitlist', 'r', 'r-preview', 'q',
-    'f', 'c', 'join', 'privacy', 'terms', 'accessibility', 'contact',
+    'f', 'c', 'join', 'unsubscribe', 'privacy', 'terms', 'accessibility', 'contact',
     'confirm', 'guest-hub-demo',
   ]);
   const pathParts = path.split('/').filter(Boolean);

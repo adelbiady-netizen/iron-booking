@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { validate } from '../../middleware/validate';
 import { sendSms } from '../../lib/messaging';
 import { applyTemplate } from '../../lib/clubBirthdaySms';
+import { writeConsentAudit, ConsentType, ConsentAction, ConsentSource, deriveAction } from '../../lib/consentAudit';
 
 const router = Router({ mergeParams: true });
 
@@ -126,6 +127,19 @@ router.post('/members', validate(CreateMemberSchema), async (req: Request, res: 
       },
     });
 
+    void writeConsentAudit({
+      restaurantId,
+      guestId,
+      clubMemberId:    member.id,
+      consentType:     ConsentType.CLUB_MEMBERSHIP,
+      action:          ConsentAction.GRANTED,
+      source:          ConsentSource.HOST_MANUAL,
+      smsConsent:      member.smsConsent,
+      marketingConsent: member.marketingConsent,
+      emailConsent:    member.emailConsent,
+      actorId:         (req as Request & { user?: { id: string } }).user?.id ?? null,
+    });
+
     res.status(201).json(member);
   } catch (err) { next(err); }
 });
@@ -172,6 +186,33 @@ router.patch('/members/:memberId', validate(UpdateMemberSchema), async (req: Req
         notes:            data.notes !== undefined ? data.notes : undefined,
       },
     });
+
+    // Audit any consent or status change made by staff
+    const consentChanged =
+      (data.smsConsent      !== undefined && data.smsConsent      !== existing.smsConsent)      ||
+      (data.marketingConsent !== undefined && data.marketingConsent !== existing.marketingConsent) ||
+      (data.emailConsent    !== undefined && data.emailConsent    !== existing.emailConsent)    ||
+      (data.status          !== undefined && data.status          !== existing.status);
+
+    if (consentChanged) {
+      const isRevoke = data.status === 'OPTED_OUT' ||
+        (data.smsConsent === false && existing.smsConsent) ||
+        (data.marketingConsent === false && existing.marketingConsent);
+      void writeConsentAudit({
+        restaurantId:    existing.restaurantId,
+        guestId:         existing.guestId,
+        clubMemberId:    existing.id,
+        consentType:     data.status === 'OPTED_OUT' ? ConsentType.CLUB_MEMBERSHIP : ConsentType.SMS_MARKETING,
+        action:          isRevoke ? ConsentAction.REVOKED : deriveAction(existing.smsConsent, data.smsConsent ?? existing.smsConsent),
+        source:          ConsentSource.HOST_MANUAL,
+        smsConsent:      updated.smsConsent,
+        marketingConsent: updated.marketingConsent,
+        emailConsent:    updated.emailConsent,
+        actorId:         (req as Request & { user?: { id: string } }).user?.id ?? null,
+        notes:           data.status ? `status changed to ${data.status}` : undefined,
+      });
+    }
+
     res.json(updated);
   } catch (err) { next(err); }
 });
@@ -285,7 +326,7 @@ router.get('/upcoming-events', async (req: Request, res: Response, next: NextFun
           ? `${phone.slice(0, 3)}****${phone.slice(-3)}`
           : '—';
 
-        const smsEligible = m.smsConsent || m.marketingConsent;
+        const smsEligible = m.smsConsent; // SMS requires explicit smsConsent; marketingConsent alone is not sufficient
         return {
           memberId:            m.id,
           name:                `${m.guest.firstName ?? ''} ${m.guest.lastName ?? ''}`.trim() || '—',

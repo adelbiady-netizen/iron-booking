@@ -108,4 +108,73 @@ router.post('/:id/merge', async (req: Request, res: Response, next: NextFunction
   } catch (err) { next(err); }
 });
 
+// GET /guests/:id/consent-audit — consent history for a guest, scoped to this restaurant
+router.get('/:id/consent-audit', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guestId      = p(req, 'id');
+    const restaurantId = req.auth.restaurantId;
+
+    // Verify the guest belongs to this restaurant (prevents cross-tenant leakage)
+    const guest = await prisma.guest.findFirst({
+      where:  { id: guestId, restaurantId },
+      select: { id: true },
+    });
+    if (!guest) {
+      return res.status(404).json({ error: 'Guest not found' });
+    }
+
+    const rows = await prisma.consentAudit.findMany({
+      where:   { guestId, restaurantId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id:                  true,
+        consentType:         true,
+        action:              true,
+        source:              true,
+        smsConsent:          true,
+        marketingConsent:    true,
+        emailConsent:        true,
+        consentTextVersion:  true,
+        ipAddress:           true,
+        userAgent:           true,
+        actorId:             true,
+        notes:               true,
+        createdAt:           true,
+        clubMemberId:        true,
+      },
+    });
+
+    // Privacy: partial-mask IP, summarise user-agent
+    const sanitised = rows.map(r => ({
+      ...r,
+      ipAddress: r.ipAddress ? maskIp(r.ipAddress) : null,
+      userAgent: r.userAgent ? summariseUA(r.userAgent) : null,
+      createdAt: r.createdAt.toISOString(),
+    }));
+
+    return res.json({ data: sanitised });
+  } catch (err) { next(err); }
+});
+
 export default router;
+
+// ── Privacy helpers ───────────────────────────────────────────────────────────
+
+function maskIp(ip: string): string {
+  // IPv4: show first two octets, mask the rest  →  "1.2.x.x"
+  const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (v4) return `${v4[1]}.${v4[2]}.x.x`;
+  // IPv6: show first group only  →  "2001:x:x:…"
+  if (ip.includes(':')) return ip.split(':')[0] + ':x:x:x:x:x:x:x';
+  return '?.?.?.?';
+}
+
+function summariseUA(ua: string): string {
+  if (/iPhone|iPad/.test(ua))   return 'iOS Safari';
+  if (/Android/.test(ua))       return 'Android';
+  if (/Chrome/.test(ua))        return 'Chrome';
+  if (/Firefox/.test(ua))       return 'Firefox';
+  if (/Safari/.test(ua))        return 'Safari';
+  if (/curl|wget|axios|node/i.test(ua)) return 'API';
+  return 'דפדפן';
+}

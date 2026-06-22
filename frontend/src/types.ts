@@ -46,6 +46,37 @@ export interface ClubMember {
   };
 }
 
+// ─── Consent Audit ───────────────────────────────────────────────────────────
+
+export type ConsentAuditAction = 'GRANTED' | 'REVOKED' | 'UPDATED';
+export type ConsentAuditSource =
+  | 'BOOKING_FLOW'
+  | 'CLUB_JOIN_FORM'
+  | 'FEEDBACK_FORM'
+  | 'HOST_MANUAL'
+  | 'IMPORT'
+  | 'API'
+  | 'UNSUBSCRIBE_LINK';
+
+export interface ConsentAuditRow {
+  id:                 string;
+  consentType:        string;
+  action:             ConsentAuditAction;
+  source:             ConsentAuditSource;
+  smsConsent:         boolean | null;
+  marketingConsent:   boolean | null;
+  emailConsent:       boolean | null;
+  consentTextVersion: string | null;
+  ipAddress:          string | null;   // already masked by backend
+  userAgent:          string | null;   // already summarised by backend
+  actorId:            string | null;
+  notes:              string | null;
+  clubMemberId:       string | null;
+  createdAt:          string;
+}
+
+// ─── IRON CLUB ───────────────────────────────────────────────────────────────
+
 export interface UpcomingClubEvent {
   memberId:            string;
   name:                string;

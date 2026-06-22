@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { authenticate, requireRole } from '../../middleware/auth';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
 import { ClubJoinSource } from '@prisma/client';
+import { writeConsentAudit, ConsentType, ConsentAction, ConsentSource } from '../../lib/consentAudit';
 import { z } from 'zod';
 import { validate } from '../../middleware/validate';
 import { config } from '../../config';
@@ -169,6 +170,20 @@ joinPublicRouter.post('/:token', validate(JoinSchema), async (req: Request, res:
         occurredAt: new Date(),
         addedBy: 'CLUB',
       },
+    });
+
+    void writeConsentAudit({
+      restaurantId,
+      guestId,
+      clubMemberId:    member.id,
+      consentType:     ConsentType.CLUB_MEMBERSHIP,
+      action:          ConsentAction.GRANTED,
+      source:          source === 'RESERVATION_LINK' ? ConsentSource.CLUB_JOIN_FORM : ConsentSource.FEEDBACK_FORM,
+      smsConsent:      member.smsConsent,
+      marketingConsent: member.marketingConsent,
+      emailConsent:    member.emailConsent,
+      ipAddress:       req.ip ?? null,
+      userAgent:       req.headers['user-agent'] ?? null,
     });
 
     return res.status(201).json({ ok: true, membershipId: member.id });

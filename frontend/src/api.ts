@@ -533,6 +533,8 @@ export const api = {
       preferences: Record<string, unknown>; internalNotes: string | null;
     }>) =>
       request<GuestDetail>(`/guests/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    consentAudit: (id: string) =>
+      request<{ data: import('./types').ConsentAuditRow[] }>(`/guests/${id}/consent-audit`),
   },
 
   club: {

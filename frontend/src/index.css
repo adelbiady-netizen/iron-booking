@@ -78,6 +78,12 @@
   --ease-hospitality: cubic-bezier(0.16, 1, 0.3, 1);  /* fast-start, long settle — no bounce */
 }
 
+/* ── Utility keyframes ───────────────────────────────────────────────────── */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ── Micro-motion ─────────────────────────────────────────────────────────── */
 
 @keyframes drawer-in {

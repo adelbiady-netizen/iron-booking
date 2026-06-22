@@ -9,6 +9,10 @@
  *   DATABASE_URL="<neon_url>" npx tsx scripts/backfill-sms-consent-eataliano.ts
  *
  * Delete after use.
+ *
+ * NOTE: This script predates the ConsentAudit system. Rows updated here will not
+ * have a ConsentAudit entry. If re-run, add writeConsentAudit() calls with
+ * source=IMPORT after each update.
  */
 
 import { PrismaClient } from '@prisma/client';

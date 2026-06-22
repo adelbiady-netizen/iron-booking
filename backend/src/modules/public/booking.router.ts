@@ -8,6 +8,7 @@ import { parseTimeOnDate, formatTime } from '../../engine/availability';
 import { resolveTurnTime, resolveTimeWindows, resolveGroupConfig, type GroupConfig, type TimeWindowRange } from '../../engine/opProfile';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { sendReservationReceivedSms } from '../../lib/messaging';
+import { writeConsentAudit, ConsentType, ConsentAction, ConsentSource } from '../../lib/consentAudit';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { config } from '../../config';
 import { eventBus } from '../../lib/eventBus';
@@ -941,7 +942,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
               await prisma.clubMember.update({ where: { id: existing.id }, data: patch });
             }
           } else {
-            await prisma.clubMember.create({
+            const newMember = await prisma.clubMember.create({
               data: {
                 restaurantId: restaurant.id,
                 guestId:      guest.id,
@@ -953,6 +954,19 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
                 smsConsent:      body.smsConsent === true,
                 emailConsent:    false,
               },
+            });
+            void writeConsentAudit({
+              restaurantId:    restaurant.id,
+              guestId:         guest.id,
+              clubMemberId:    newMember.id,
+              consentType:     ConsentType.CLUB_MEMBERSHIP,
+              action:          ConsentAction.GRANTED,
+              source:          ConsentSource.BOOKING_FLOW,
+              smsConsent:      newMember.smsConsent,
+              marketingConsent: newMember.marketingConsent,
+              emailConsent:    newMember.emailConsent,
+              ipAddress:       req.ip ?? null,
+              userAgent:       req.headers['user-agent'] ?? null,
             });
           }
           console.log('[booking] club upsert', { guestId: guest.id, existing: !!existing, birthday: body.birthday ?? null, anniversary: body.anniversary ?? null });

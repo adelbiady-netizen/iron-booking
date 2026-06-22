@@ -136,6 +136,8 @@ model Restaurant {
   clubMembers               ClubMember[]
   clubJoinInvites           ClubJoinInvite[]
   guestRewards              GuestReward[]
+  consentAudits             ConsentAudit[]
+  unsubscribeTokens         UnsubscribeToken[]
   opProfile                 RestaurantOpProfile?
 
   @@map("restaurants")
@@ -361,8 +363,10 @@ model Guest {
   recoveryCases   RecoveryCase[]
   momentQueue     MomentQueue[]
   feedback        GuestFeedback[]
-  clubMemberships ClubMember[]
-  rewards         GuestReward[]
+  clubMemberships    ClubMember[]
+  rewards            GuestReward[]
+  consentAudits      ConsentAudit[]
+  unsubscribeTokens  UnsubscribeToken[]
 
   @@unique([restaurantId, email])
   @@index([restaurantId])
@@ -1275,10 +1279,12 @@ model ClubMember {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  guest       Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  messageLogs MessageLog[]
-  rewards     GuestReward[]
+  restaurant         Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest              Guest            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  messageLogs        MessageLog[]
+  rewards            GuestReward[]
+  consentAudits      ConsentAudit[]
+  unsubscribeTokens  UnsubscribeToken[]
 
   @@unique([restaurantId, guestId])
   @@index([restaurantId])
@@ -1511,4 +1517,96 @@ enum AllocationMode {
   SINGLE      // assign one table that fits the entire party
   COMBINATION // combine tableCount pre-defined adjacent tables
   MULTI_TABLE // v2: arbitrary N-table join (not yet enforced by engine)
+}
+
+// ─── Consent Audit ────────────────────────────────────────────────────────────
+// Immutable, append-only ledger of every consent change.
+// Rows are NEVER updated or deleted — only INSERT is allowed.
+// Answers: "How did this customer agree to receive messages?" with full evidence.
+
+model ConsentAudit {
+  id              String        @id @default(uuid())
+  restaurantId    String
+  guestId         String
+  clubMemberId    String?       // null for reservation-level consent (pre-club)
+
+  consentType     ConsentType
+  action          ConsentAction
+  source          ConsentSource
+
+  // Snapshot of consent values at the moment of the event
+  smsConsent      Boolean?
+  marketingConsent Boolean?
+  emailConsent    Boolean?
+
+  // Legal evidence
+  consentTextVersion String?    // e.g. "v2026-06-22" — version of the checkbox text shown
+  ipAddress          String?
+  userAgent          String?
+
+  // Human context
+  actorId         String?       // userId of the staff member who made the change (null = guest self-service)
+  notes           String?       // free-text reason, e.g. "customer called to unsubscribe"
+
+  createdAt       DateTime      @default(now())
+
+  restaurant  Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest       Guest       @relation(fields: [guestId],      references: [id], onDelete: Cascade)
+  clubMember  ClubMember? @relation(fields: [clubMemberId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId])
+  @@index([guestId])
+  @@index([clubMemberId])
+  @@index([restaurantId, createdAt])
+  @@map("consent_audits")
+}
+
+enum ConsentType {
+  SMS_MARKETING   // general SMS marketing consent
+  BIRTHDAY_SMS    // birthday-specific SMS
+  ANNIVERSARY_SMS // anniversary-specific SMS
+  SURVEY          // survey / feedback request
+  CLUB_MEMBERSHIP // joining / leaving the club
+  EMAIL_MARKETING
+}
+
+enum ConsentAction {
+  GRANTED
+  REVOKED
+  UPDATED // value changed but still positive (e.g. smsConsent true→true, marketingConsent true→false)
+}
+
+enum ConsentSource {
+  BOOKING_FLOW     // guest checked opt-in during online reservation
+  CLUB_JOIN_FORM   // guest submitted the /join/:token form
+  FEEDBACK_FORM    // consent captured via feedback flow
+  HOST_MANUAL      // staff member changed consent in the admin portal
+  IMPORT           // bulk import / backfill script
+  API              // direct API call (e.g. POS integration)
+  UNSUBSCRIBE_LINK // guest clicked the unsubscribe link in an SMS
+}
+
+// ─── Unsubscribe Tokens ───────────────────────────────────────────────────────
+// Tokenised one-click unsubscribe infrastructure.
+// Raw token is NEVER stored — only its SHA-256 hex digest.
+// URL sent in SMS: https://www.ironbooking.com/unsubscribe/{rawToken}
+
+model UnsubscribeToken {
+  id           String    @id @default(uuid())
+  tokenHash    String    @unique // SHA-256(rawToken) — raw token never persisted
+  restaurantId String
+  guestId      String
+  clubMemberId String?
+  phone        String    // phone snapshot at generation time (for audit)
+  expiresAt    DateTime  // 90 days from creation
+  usedAt       DateTime? // null = not yet clicked; set on first valid use
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  guest      Guest       @relation(fields: [guestId],      references: [id], onDelete: Cascade)
+  clubMember ClubMember? @relation(fields: [clubMemberId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, guestId])
+  @@index([expiresAt])
+  @@map("unsubscribe_tokens")
 }

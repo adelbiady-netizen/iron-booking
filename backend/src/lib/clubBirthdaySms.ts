@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { MessageType, MessageStatus, RewardType, RewardStatus } from '@prisma/client';
 import { sendSms } from './messaging';
+import { generateOrReuseToken } from './unsubscribeToken';
 
 function getMmDd(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -61,13 +62,13 @@ async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped:
   const tz         = restaurant.timezone ?? 'UTC';
   const targetMmDd = getMmDd(addDays(new Date(), daysBefore), tz);
 
-  // Rule B: send if smsConsent=true OR marketingConsent=true (ACTIVE only)
+  // SMS requires explicit smsConsent=true. marketingConsent alone is not sufficient.
   const members = await prisma.clubMember.findMany({
     where: {
       restaurantId: p.restaurantId,
       status:       'ACTIVE',
       [p.field]:    targetMmDd,
-      OR: [{ smsConsent: true }, { marketingConsent: true }],
+      smsConsent:   true,
     },
     select: {
       id:      true,
@@ -104,13 +105,22 @@ async function runClubSmsBatch(p: BatchParams): Promise<{ sent: number; skipped:
     const gift        = typeof s[p.giftKey] === 'string' ? (s[p.giftKey] as string).trim() : '';
     const bookingLink = `https://www.ironbooking.com/book/${restaurant.slug}`;
     const tpl         = typeof s[p.templateKey] === 'string' ? (s[p.templateKey] as string).trim() : '';
-    const message     = tpl
+    const baseMessage = tpl
       ? applyTemplate(tpl, { firstName, restaurantName: restaurant.name, gift, bookingLink })
       : p.defaultTemplate(firstName, restaurant.name, gift, bookingLink);
 
+    // Every marketing SMS must include a one-click unsubscribe link.
+    const { unsubscribeUrl } = await generateOrReuseToken({
+      restaurantId: p.restaurantId,
+      guestId:      member.guestId,
+      clubMemberId: member.id,
+      phone,
+    });
+    const message = `${baseMessage}\nלהסרה: ${unsubscribeUrl}`;
+
     if (p.dryRun) {
       const masked = `${phone.slice(0, 3)}****${phone.slice(-3)}`;
-      console.log(`[club-sms] DRY-RUN | ${p.messageType} | member=${member.id} | ${masked} | "${message.slice(0, 50)}…"`);
+      console.log(`[club-sms] DRY-RUN | ${p.messageType} | member=${member.id} | ${masked} | "${message.slice(0, 60)}…"`);
       skipped++;
       continue;
     }

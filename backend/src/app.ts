@@ -28,6 +28,7 @@ import recoveryRouter      from './modules/recovery/router';
 import alertsRouter        from './modules/alerts/router';
 import messagingAnalytics  from './modules/messaging/analyticsRouter';
 import telemetryRouter     from './modules/telemetry/router';
+import unsubscribeRouter  from './modules/public/unsubscribe.router';
 
 const app = express();
 
@@ -123,6 +124,7 @@ app.use('/api/restaurants/:restaurantId/recovery',         recoveryRouter);
 app.use('/api/restaurants/:restaurantId/alerts',           alertsRouter);
 app.use('/api/messaging/analytics',                        messagingAnalytics);
 app.use('/api/telemetry',                                  telemetryRouter);
+app.use('/api/public/unsubscribe',                         unsubscribeRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

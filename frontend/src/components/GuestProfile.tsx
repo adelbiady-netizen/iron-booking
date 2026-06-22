@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import type { GuestDetail, GuestIntelligence, GuestMemoryRecord, GuestAlertRecord, RecoveryCaseRecord, ReservationStatus } from '../types';
+import type { GuestDetail, GuestIntelligence, GuestMemoryRecord, GuestAlertRecord, RecoveryCaseRecord, ReservationStatus, ConsentAuditRow } from '../types';
 import { api } from '../api';
 import { operationalTags, guestOriginLabel, isImportNote, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 
@@ -46,7 +46,32 @@ const ALERT_ICON: Record<string, string> = {
 
 // ─── Tab type ─────────────────────────────────────────────────────────────────
 
-type Tab = 'details' | 'upcoming' | 'history' | 'memory';
+type Tab = 'details' | 'upcoming' | 'history' | 'memory' | 'consent';
+
+// ─── Consent helpers ──────────────────────────────────────────────────────────
+
+const SOURCE_LABEL: Record<string, string> = {
+  BOOKING_FLOW:    'הזמנה אונליין',
+  CLUB_JOIN_FORM:  'טופס הצטרפות למועדון',
+  FEEDBACK_FORM:   'טופס משוב',
+  HOST_MANUAL:     'עדכון ידני',
+  IMPORT:          'ייבוא נתונים',
+  API:             'API',
+  UNSUBSCRIBE_LINK:'קישור הסרה',
+};
+
+const ACTION_LABEL: Record<string, { text: string; icon: string; cls: string }> = {
+  GRANTED: { text: 'אישור',  icon: '✓', cls: 'text-iron-green-light' },
+  REVOKED: { text: 'הסרה',   icon: '✕', cls: 'text-status-danger'    },
+  UPDATED: { text: 'עדכון',  icon: '↻', cls: 'text-status-warning'   },
+};
+
+function fmtDateTimeFull(iso: string): string {
+  return new Date(iso).toLocaleString('he-IL', {
+    day: 'numeric', month: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -415,6 +440,7 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
 
   const [guest, setGuest]         = useState<GuestDetail | null>(null);
   const [intel, setIntel]         = useState<GuestIntelligence | null>(null);
+  const [consentRows, setConsentRows] = useState<ConsentAuditRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [tab, setTab]             = useState<Tab>('details');
   const [savingVip, setSavingVip] = useState(false);
@@ -442,10 +468,17 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
     } catch { /* noop */ }
   }, [restaurantId, guestId]);
 
+  const loadConsent = useCallback(async () => {
+    try {
+      const res = await api.guests.consentAudit(guestId);
+      setConsentRows(res.data);
+    } catch { /* noop */ }
+  }, [guestId]);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadGuest(), loadIntel()]).finally(() => setLoading(false));
-  }, [loadGuest, loadIntel]);
+    Promise.all([loadGuest(), loadIntel(), loadConsent()]).finally(() => setLoading(false));
+  }, [loadGuest, loadIntel, loadConsent]);
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (guest?.reservations ?? []).filter(
@@ -512,6 +545,7 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
     { id: 'memory',   label: 'זיכרונות', count: memories.length },
     { id: 'upcoming', label: 'עתידיות',  count: upcoming.length },
     { id: 'history',  label: 'היסטוריה', count: history.length },
+    { id: 'consent',  label: 'הרשאות',   count: consentRows.length || undefined },
   ];
 
   return createPortal(
@@ -887,12 +921,146 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
                   )}
                 </div>
               )}
+
+              {/* ── הרשאות ── */}
+              {tab === 'consent' && (
+                <ConsentTab guest={guest} rows={consentRows} />
+              )}
             </>
           )}
         </div>
       </div>
     </>,
     document.body,
+  );
+}
+
+// ─── Consent tab ─────────────────────────────────────────────────────────────
+
+function ConsentTab({ guest, rows }: { guest: GuestDetail; rows: ConsentAuditRow[] }) {
+  const m = guest.clubMembership;
+
+  // Derive current consent state from latest row for each type,
+  // falling back to clubMembership flags when no audit row exists yet.
+  const smsList         = rows.filter(r => r.smsConsent       !== null);
+  const marketingList   = rows.filter(r => r.marketingConsent !== null);
+  const emailList       = rows.filter(r => r.emailConsent     !== null);
+  const latestSms       = smsList[smsList.length - 1];
+  const latestMarketing = marketingList[marketingList.length - 1];
+  const latestEmail     = emailList[emailList.length - 1];
+
+  const smsOk  = latestSms       ? latestSms.smsConsent        === true : (m?.smsConsent       ?? false);
+  const mktOk  = latestMarketing ? latestMarketing.marketingConsent === true : (m?.marketingConsent ?? false);
+  const emailOk = latestEmail    ? latestEmail.emailConsent     === true : (m?.emailConsent     ?? false);
+
+  const clubStatus = !m ? null
+    : m.status === 'ACTIVE'    ? { text: 'פעיל',   cls: 'bg-green-900/30 text-green-400 border-green-700/40' }
+    : m.status === 'PAUSED'    ? { text: 'מושהה',  cls: 'bg-yellow-900/30 text-yellow-400 border-yellow-700/40' }
+    : { text: 'יצא', cls: 'bg-red-900/20 text-status-danger border-red-700/35' };
+
+  return (
+    <div className="space-y-4">
+      {/* ── Status summary cards ── */}
+      <div className="grid grid-cols-2 gap-2">
+        <ConsentCard label="SMS"    allowed={smsOk}   />
+        <ConsentCard label="שיווק"  allowed={mktOk}   />
+        <ConsentCard label="אימייל" allowed={emailOk} />
+        <div className="rounded-xl bg-iron-card border border-iron-border/25 px-3 py-2.5 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-iron-muted/70">מועדון</span>
+          {clubStatus ? (
+            <span className={`text-[11px] font-semibold rounded-full border px-2 py-0.5 ${clubStatus.cls}`}>
+              {clubStatus.text}
+            </span>
+          ) : (
+            <span className="text-[11px] text-iron-muted/40">לא חבר</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Timeline ── */}
+      {rows.length === 0 ? (
+        <div className="rounded-xl bg-iron-card border border-iron-border/25 px-4 py-8 text-center">
+          <p className="text-iron-muted/50 text-[13px]">עדיין אין היסטוריית הרשאות לאורח הזה</p>
+        </div>
+      ) : (
+        <div className="rounded-xl bg-iron-card border border-iron-border/25 divide-y divide-iron-border/20 overflow-hidden">
+          {[...rows].reverse().map(row => {
+            const act = ACTION_LABEL[row.action] ?? { text: row.action, icon: '•', cls: 'text-iron-muted' };
+            return (
+              <div key={row.id} className="px-4 py-3">
+                {/* Action line */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[13px] font-bold w-4 text-center shrink-0 ${act.cls}`}>{act.icon}</span>
+                  <span className={`text-[13px] font-semibold ${act.cls}`}>{act.text}</span>
+                  <span className="text-[11px] text-iron-muted/50 font-medium">
+                    {row.consentType === 'SMS_MARKETING' ? 'SMS' :
+                     row.consentType === 'CLUB_MEMBERSHIP' ? 'חברות במועדון' :
+                     row.consentType === 'MARKETING' ? 'שיווק' :
+                     row.consentType === 'EMAIL_MARKETING' ? 'אימייל' : row.consentType}
+                  </span>
+                </div>
+
+                {/* Meta line */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-iron-muted/60 ps-6">
+                  <span>מקור: {SOURCE_LABEL[row.source] ?? row.source}</span>
+                  <span>·</span>
+                  <span dir="ltr">{fmtDateTimeFull(row.createdAt)}</span>
+                </div>
+
+                {/* Consent snapshot pills */}
+                <div className="flex flex-wrap gap-1.5 mt-2 ps-6">
+                  {row.smsConsent !== null && (
+                    <ConsentPill label="SMS" value={row.smsConsent} />
+                  )}
+                  {row.marketingConsent !== null && (
+                    <ConsentPill label="שיווק" value={row.marketingConsent} />
+                  )}
+                  {row.emailConsent !== null && (
+                    <ConsentPill label="אימייל" value={row.emailConsent} />
+                  )}
+                </div>
+
+                {/* Secondary meta */}
+                {(row.ipAddress || row.userAgent || row.notes) && (
+                  <div className="mt-1.5 ps-6 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-iron-muted/40">
+                    {row.userAgent  && <span>{row.userAgent}</span>}
+                    {row.ipAddress  && <span dir="ltr">{row.ipAddress}</span>}
+                    {row.notes      && <span className="italic">{row.notes}</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConsentCard({ label, allowed }: { label: string; allowed: boolean }) {
+  return (
+    <div className="rounded-xl bg-iron-card border border-iron-border/25 px-3 py-2.5 flex items-center justify-between gap-2">
+      <span className="text-[11px] text-iron-muted/70">{label}</span>
+      <span className={`text-[11px] font-semibold rounded-full border px-2 py-0.5 ${
+        allowed
+          ? 'bg-green-900/30 text-green-400 border-green-700/40'
+          : 'bg-red-900/20 text-status-danger border-red-700/35'
+      }`}>
+        {allowed ? 'מאושר' : 'לא מאושר'}
+      </span>
+    </div>
+  );
+}
+
+function ConsentPill({ label, value }: { label: string; value: boolean }) {
+  return (
+    <span className={`text-[10px] font-medium rounded-full border px-1.5 py-0.5 ${
+      value
+        ? 'bg-green-900/25 text-green-400/80 border-green-700/30'
+        : 'bg-red-900/15 text-status-danger/70 border-red-700/25'
+    }`}>
+      {label} {value ? '✓' : '✕'}
+    </span>
   );
 }
 

@@ -15,7 +15,10 @@
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
     "list:restaurants": "ts-node --transpile-only src/scripts/listRestaurants.ts",
     "test:engine": "ts-node --transpile-only src/engine/occupancy.test.ts",
-    "test:service-day": "ts-node --transpile-only src/engine/serviceDay.test.ts"
+    "test:service-day": "ts-node --transpile-only src/engine/serviceDay.test.ts",
+    "test:consent": "ts-node --transpile-only src/lib/consentAudit.test.ts",
+    "test:unsubscribe": "ts-node --transpile-only src/lib/unsubscribeToken.test.ts",
+    "test:unsubscribe-phase3": "ts-node --transpile-only scripts/unsubscribe-phase3-verify.ts"
   },
   "keywords": [],
   "author": "",
