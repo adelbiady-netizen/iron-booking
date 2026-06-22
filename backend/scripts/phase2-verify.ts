@@ -122,14 +122,29 @@ async function main() {
   console.log(`  Auth:   ${adminUser.email} (${adminUser.role}) → scoped to ${restaurant.id}`);
 
   // JWT carries restaurantId = eataliano — endpoint enforces guestId ∈ this restaurant
-  const authToken = signToken({
+  const jwtPayload = {
     userId:       adminUser.id,
     restaurantId: restaurant.id,   // ← scoped to target restaurant
     role:         adminUser.role,
     email:        adminUser.email,
     firstName:    adminUser.firstName,
     lastName:     adminUser.lastName,
-  });
+  };
+  const authToken = signToken(jwtPayload);
+
+  // Print decoded payload (base64, no secret) so mismatches are visible
+  const [, payloadB64] = authToken.split('.');
+  const decoded = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+  console.log(`  JWT payload: ${JSON.stringify({ ...decoded, exp: new Date(decoded.exp * 1000).toISOString() })}`);
+
+  // Quick smoke-test: verify the token locally with the script's own secret.
+  // If this throws, --jwt-secret or JWT_SECRET is wrong for this script run.
+  try {
+    jwt.verify(authToken, JWT_SECRET);
+    console.log(`  JWT self-verify: OK (secret length=${JWT_SECRET.length})`);
+  } catch (e) {
+    console.error(`  JWT self-verify: FAIL — ${(e as Error).message}`);
+  }
 
   // ── Resolve a second restaurant for cross-tenant test ─────────────────────
 
@@ -361,20 +376,24 @@ async function main() {
       check(realData.length > 0, `Real guest has ${realData.length} audit row(s) (expected ≥1)`);
 
       // Verify masking on real production data
-      const sample = realData[0] as Record<string, unknown>;
-      if (sample.ipAddress) {
+      const sample = realData[0] as Record<string, unknown> | undefined;
+      if (!sample) {
+        fail('realData[0] is undefined — API returned empty array despite DB having rows');
+      } else if (sample.ipAddress) {
         check(!String(sample.ipAddress).match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/),
           'Real production IP is masked (no full IPv4 exposed)');
       } else {
         ok('Real production row has no IP (null is fine)');
       }
-      if (sample.userAgent) {
+      if (sample && sample.userAgent) {
         check(String(sample.userAgent).length <= 30,
           `Real UA is summarised (≤30 chars): "${sample.userAgent}"`);
-      } else {
+      } else if (sample) {
         ok('Real production row has no UA (null is fine)');
       }
-      console.log(`\n  Sample real row: action=${sample.action} source=${sample.source} ip=${sample.ipAddress} ua=${sample.userAgent}`);
+      if (sample) {
+        console.log(`\n  Sample real row: action=${sample.action} source=${sample.source} ip=${sample.ipAddress} ua=${sample.userAgent}`);
+      }
     } else {
       console.log('\n  ⚠️  No real ConsentAudit rows in production yet — skipping live-data check');
     }
