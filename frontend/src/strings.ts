@@ -89,6 +89,7 @@ export const T = {
     ctxReassign:      'Reassign',
     ctxComplete:      'Complete table',
     ctxMove:          'Move table',
+    ctxChangeTable:   'Change table',
     ctxOpenDetails:   'Open details',
     ctxMarkArrived:   'Mark arrived',
     moveConfirmTitle: (guest: string) => `Move ${guest}?`,
@@ -533,6 +534,7 @@ export const T = {
     toastTableAssigned:   (table: string) => `Table ${table} assigned`,
     toastSeated:          (guest: string, table: string) => `${guest} seated at ${table}`,
     toastMoved:           (table: string) => `Moved to ${table}`,
+    toastTableChanged:    (table: string) => `Table changed to ${table}`,
     toastLocked:          (name: string) => `${name} locked`,
     toastUnlocked:        (name: string) => `${name} unlocked`,
     // Reorganize

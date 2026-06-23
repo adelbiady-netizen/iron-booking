@@ -960,8 +960,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {onPickTables && !res.tableId && (
             <ActionBtn label={T.guestDrawer.actionAssignTable} cls={btnNeutral} onClick={() => openActionMapPicker('assign')} disabled={busy} />
           )}
-          {onPickTables && res.tableId && (
-            <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => openActionMapPicker('change-table')} disabled={busy} />
+          {res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => setMode('change-table')} disabled={busy} />
           )}
           {onPickTables && res.tableId && (res.combinedTableIds?.length ?? 0) > 0 && (
             <ActionBtn label={T.guestDrawer.actionChangeCombination} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
@@ -995,6 +995,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
             onClick={() => onPickTables ? openActionMapPicker('move') : setMode('move')}
             disabled={busy}
           />
+          {res.tableId && (
+            <ActionBtn label={T.guestDrawer.actionChangeTable} cls={btnNeutral} onClick={() => setMode('change-table')} disabled={busy} />
+          )}
           {onPickTables && (
             <ActionBtn label={T.guestDrawer.actionCombineTables} cls={btnNeutral} onClick={() => openActionMapPicker('combine')} disabled={busy} />
           )}

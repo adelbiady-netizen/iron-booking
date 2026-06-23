@@ -419,6 +419,7 @@ interface Props {
   onContextMenuSeat?: (res: Reservation) => void;
   onContextMenuComplete?: (res: Reservation) => void;
   onContextMenuMove?: (res: Reservation) => void;
+  onContextMenuChangeTable?: (res: Reservation) => void;
   onContextMenuOpenDetails?: (res: Reservation) => void;
   onContextMenuArrive?: (res: Reservation) => void;
   onContextMenuSwap?: (res: Reservation) => void;
@@ -487,6 +488,7 @@ export default function FloorBoard({
   onContextMenuSeat,
   onContextMenuComplete,
   onContextMenuMove,
+  onContextMenuChangeTable,
   onContextMenuOpenDetails,
   onContextMenuArrive,
   onContextMenuSwap,
@@ -1008,6 +1010,22 @@ export default function FloorBoard({
     e.preventDefault();
     const x = Math.min(e.clientX, window.innerWidth - 168);
     const y = Math.min(e.clientY, window.innerHeight - 190);
+    // Debug: log data driving canChangeTable visibility
+    const _dbgRes = t.currentReservation
+      ?? t.upcomingReservations.find(r => r.tableId)
+      ?? t.upcomingReservations.find(r => r.status === 'PENDING' || r.status === 'CONFIRMED' || r.status === 'SEATED')
+      ?? null;
+    console.log('[FloorBoard ctx]', {
+      tableId: t.id,
+      liveStatus: t.liveStatus,
+      resolvedReservationId: _dbgRes?.id ?? null,
+      resolvedReservationStatus: _dbgRes?.status ?? null,
+      resolvedTableId: _dbgRes?.tableId ?? null,
+      canChangeTable: !!onContextMenuChangeTable && !!_dbgRes && !t.locked,
+      currentResId: t.currentReservation?.id ?? null,
+      upcomingCount: t.upcomingReservations.length,
+      upcoming: t.upcomingReservations.map(r => ({ id: r.id, tableId: r.tableId, status: r.status })),
+    });
     setCtxMenu({ x, y, table: t, drawerRes: activeDrawerRes });
   }
 
@@ -1648,6 +1666,21 @@ export default function FloorBoard({
         const canArrive     = !!onContextMenuArrive      && !!seatableRes && !seatableRes.isArrived && !t.locked && isToday && !isOccupied && !inFlightIds?.has(seatableRes.id);
         const canComplete        = !!onContextMenuComplete       && isOccupied && !t.locked && !inFlightIds?.has(currentRes?.id ?? '');
         const canMove            = !!onContextMenuMove           && isOccupied && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
+        // Change table: available for any reservation on this table (PENDING/CONFIRMED/ARRIVED/SEATED).
+        // upcomingReservations may omit tableId in the payload — backfill from t.id so the
+        // condition doesn't silently fail for non-SEATED reservations.
+        const changeTableRes = (() => {
+          if (currentRes) return currentRes;
+          const withId = t.upcomingReservations.find(r => r.tableId);
+          if (withId) return withId;
+          const anyActive = t.upcomingReservations.find(r =>
+            r.status === 'PENDING' || r.status === 'CONFIRMED' || r.status === 'SEATED'
+          );
+          if (anyActive) return { ...anyActive, tableId: t.id };
+          return null;
+        })();
+        const canChangeTable = !!onContextMenuChangeTable && !!changeTableRes && !t.locked && !inFlightIds?.has(changeTableRes?.id ?? '');
+        console.log('[CTX] tableId:', t.id, '| changeTableRes.id:', changeTableRes?.id, '| status:', changeTableRes?.status, '| tableId:', changeTableRes?.tableId, '| locked:', t.locked, '| canChangeTable:', canChangeTable, '| hasHandler:', !!onContextMenuChangeTable);
         const canReturnToList    = !!onContextMenuReturnToList   && isOccupied && !t.locked && isToday && !inFlightIds?.has(currentRes?.id ?? '');
         const canSwap       = !!onContextMenuSwap && !!swapRes && !t.locked && isToday
                                 && !inFlightIds?.has(swapRes.id)
@@ -1667,7 +1700,7 @@ export default function FloorBoard({
         const canDetach = !!onContextMenuDetachTable && !!attachTarget && isAlreadyCombined && !t.locked;
         const canQuickSeat = !!onQuickSeat && !!seatableRes && !isOccupied && !t.locked && isToday;
         const canCombineRes = !!onContextMenuCombineRes && !!swapRes && !t.locked;
-        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere || canAttach || canDetach || canQuickSeat || canCombineRes;
+        const hasActions    = canSeat || canRecover || canArrive || canComplete || canMove || canChangeTable || canReturnToList || canSwap || canOpenDetails || canTableFirstSeat || canWalkInHere || canAttach || canDetach || canQuickSeat || canCombineRes;
 
         return (
           <>
@@ -1776,6 +1809,14 @@ export default function FloorBoard({
                   className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-status-warning hover:bg-status-warning/10 transition-colors touch-manipulation"
                 >
                   {T.floorBoard.ctxMove}
+                </button>
+              )}
+              {canChangeTable && (
+                <button
+                  onClick={() => { onContextMenuChangeTable!(changeTableRes!); setCtxMenu(null); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors touch-manipulation"
+                >
+                  {T.floorBoard.ctxChangeTable}
                 </button>
               )}
               {canReturnToList && (

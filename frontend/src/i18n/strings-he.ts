@@ -90,6 +90,7 @@ export const THe = {
     ctxReassign:      'שבץ מחדש',
     ctxComplete:      'סיום הושבה',
     ctxMove:          'העבר שולחן',
+    ctxChangeTable:   'שנה שולחן',
     ctxOpenDetails:   'פתח פרטים',
     ctxMarkArrived:   'סמן הגיע',
     moveConfirmTitle: (guest: string) => `להעביר את ${guest}?`,
@@ -520,6 +521,7 @@ export const THe = {
     toastTableAssigned:   (table: string) => `שולחן ${table} שויך`,
     toastSeated:          (guest: string, table: string) => `${guest} הושב לשולחן ${table}`,
     toastMoved:           (table: string) => `הועבר לשולחן ${table}`,
+    toastTableChanged:    (table: string) => `שולחן שונה ל${table}`,
     toastLocked:          (name: string) => `${name} נעול`,
     toastUnlocked:        (name: string) => `${name} שוחרר`,
     // Reorganize

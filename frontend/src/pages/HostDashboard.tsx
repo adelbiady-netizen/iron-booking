@@ -1995,6 +1995,55 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }, [handlePickTables, floorTables, showToast]);
 
+  const handleContextMenuChangeTable = useCallback(async (res: Reservation) => {
+    let sug: BackendTableSuggestion[] = [];
+    try {
+      sug = await api.tables.suggest({
+        date: res.date,
+        time: res.time,
+        partySize: res.partySize,
+        duration: res.duration,
+        excludeReservationId: res.id,
+      });
+    } catch { /* proceed with no suggestions */ }
+    const currentIds = [res.tableId, ...(res.combinedTableIds ?? [])].filter(Boolean) as string[];
+    handlePickTables(
+      currentIds,
+      sug,
+      async (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [primaryId, ...secondaryIds] = ids;
+        const targetName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
+        try {
+          const updated = await api.reservations.update(res.id, { tableId: primaryId, combinedTableIds: secondaryIds });
+          trackEvent('reservation.table_changed', { reservationId: res.id, fromTableId: res.tableId, toTableId: primaryId });
+          setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+          setQuickTable(null);
+          showToast(T.guestDrawer.toastTableChanged(targetName));
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'CONFLICT') {
+            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+              setReorganizeConflict({
+                conflicts: det.conflicts,
+                pendingReservationId: res.id,
+                pendingTableId: primaryId,
+                pendingCombinedIds: secondaryIds,
+                tableName: targetName,
+                busy: false,
+                _key: ++reorganizeKeyRef.current,
+              });
+              return;
+            }
+          }
+          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+        }
+      },
+      'change-table',
+      res.guestName,
+    );
+  }, [handlePickTables, floorTables, showToast]);
+
   const handleContextMenuAttachTable = useCallback(async (res: Reservation, tableId: string) => {
     const newCombined = [...(res.combinedTableIds ?? []), tableId];
     try {
@@ -2707,6 +2756,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onContextMenuSeat={handleContextMenuSeat}
           onContextMenuComplete={handleContextMenuComplete}
           onContextMenuMove={handleContextMenuMove}
+          onContextMenuChangeTable={handleContextMenuChangeTable}
           onContextMenuReturnToList={handleContextMenuReturnToList}
           onContextMenuOpenDetails={handleContextMenuOpenDetails}
           onContextMenuArrive={handleContextMenuArrive}
