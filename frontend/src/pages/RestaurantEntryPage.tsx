@@ -3,6 +3,9 @@ import { api, storeAuth, clearAuth, setSessionToken } from '../api';
 import HostSelectionScreen from './HostSelectionScreen';
 import HostDashboard from './HostDashboard';
 import CinematicRestaurantIntro from '../components/CinematicRestaurantIntro';
+import PwaInstallBanner from '../components/PwaInstallBanner';
+import { useRestaurantManifest } from '../hooks/useRestaurantManifest';
+import { useIsMobile } from '../hooks/useIsMobile';
 import type { AuthState, AuthUser } from '../types';
 import type { Theme } from '../App';
 
@@ -47,6 +50,14 @@ export default function RestaurantEntryPage(props: Props) {
   const [showIntro, setShowIntro] = useState(false);
   const authRef = useRef(auth);
   useEffect(() => { authRef.current = auth; }, [auth]);
+
+  // Inject a restaurant-specific manifest so "Add to Home Screen" saves
+  // start_url = /slug, not /. Works for both iOS 16.4+ and Android Chrome.
+  const restaurantName = auth?.user.restaurant?.name
+    ?? (info && typeof info === 'object' ? (info as RestaurantInfo).name : undefined);
+  useRestaurantManifest(slug, restaurantName);
+
+  const isMobile = useIsMobile();
 
   // Email login form state
   const [email,    setEmail]    = useState('');
@@ -254,6 +265,11 @@ export default function RestaurantEntryPage(props: Props) {
     );
   }
 
+  // Install banner shown on the login screen for unauthenticated mobile users.
+  // Rendered here (outside HostDashboard) so it appears before login too,
+  // ensuring the user installs from /slug — not from /.
+  const installBanner = isMobile ? <PwaInstallBanner /> : null;
+
   // ── Not authenticated — show mismatch error if needed ────────────────────
   if (slugMismatch) {
     return (
@@ -290,17 +306,24 @@ export default function RestaurantEntryPage(props: Props) {
       );
     }
     return (
-      <HostSelectionScreen
-        restaurantId={restaurant.id}
-        onLogin={wrapLogin}
-        onManagerLogin={onForceLoginPage}
-      />
+      <div className="h-full flex flex-col">
+        {installBanner}
+        <div className="flex-1">
+          <HostSelectionScreen
+            restaurantId={restaurant.id}
+            onLogin={wrapLogin}
+            onManagerLogin={onForceLoginPage}
+          />
+        </div>
+      </div>
     );
   }
 
   // ── Manager email login (only reachable via "Manager login" link) ─────────
   return (
-    <div className="h-full bg-iron-bg flex items-center justify-center p-4" dir="rtl">
+    <div className="h-full flex flex-col bg-iron-bg" dir="rtl">
+    {installBanner}
+    <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
 
         <div className="text-center mb-8">
@@ -380,6 +403,7 @@ export default function RestaurantEntryPage(props: Props) {
           ← חזרה לבחירת עובד
         </button>
       </div>
+    </div>
     </div>
   );
 }
