@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { GuestDetail, GuestIntelligence, GuestMemoryRecord, GuestAlertRecord, RecoveryCaseRecord, ReservationStatus, ConsentAuditRow } from '../types';
-import { api } from '../api';
+import { api, getStoredAuth } from '../api';
 import { operationalTags, guestOriginLabel, isImportNote, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -938,6 +938,38 @@ export default function GuestProfile({ guestId, restaurantId: restaurantIdProp, 
 // ─── Consent tab ─────────────────────────────────────────────────────────────
 
 function ConsentTab({ guest, rows }: { guest: GuestDetail; rows: ConsentAuditRow[] }) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function handleDownloadProof() {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const auth = getStoredAuth();
+      const token = auth?.token;
+      const res = await fetch(`/api/guests/${guest.id}/consent-proof`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        setDownloadError(`שגיאה ${res.status} — לא ניתן להפיק מסמך`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `consent-proof-${guest.id.slice(0, 8)}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError('שגיאת רשת — נסה שוב');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   const m = guest.clubMembership;
 
   // Derive current consent state from latest row for each type,
@@ -975,6 +1007,27 @@ function ConsentTab({ guest, rows }: { guest: GuestDetail; rows: ConsentAuditRow
             <span className="text-[11px] text-iron-muted/40">לא חבר</span>
           )}
         </div>
+      </div>
+
+      {/* ── Export button ── */}
+      <div className="flex flex-col gap-1.5">
+        <button
+          onClick={handleDownloadProof}
+          disabled={downloading}
+          className="w-full rounded-xl border border-iron-border/30 bg-iron-card px-4 py-2.5 text-[13px] font-medium text-iron-text hover:bg-iron-border/10 active:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity"
+        >
+          {downloading ? (
+            <>
+              <span style={{ display: 'inline-block', width: 13, height: 13, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+              מפיק מסמך…
+            </>
+          ) : (
+            <>⬇ ייצוא הוכחת הרשאה</>
+          )}
+        </button>
+        {downloadError && (
+          <p className="text-[11px] text-status-danger text-center">{downloadError}</p>
+        )}
       </div>
 
       {/* ── Timeline ── */}
