@@ -1,4 +1,20 @@
+import { getStoredAuth } from '../api';
+
 export default function RootPage() {
+  // Diagnostic: log why we ended up here
+  const fastAuth = getStoredAuth();
+  const isStandalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true);
+  console.warn('[RootPage] rendered — should not appear for authenticated staff', {
+    href: window.location.href,
+    isStandalone,
+    hasAuth: !!fastAuth,
+    role: fastAuth?.user?.role ?? null,
+    restaurant: fastAuth?.user?.restaurant ?? null,
+  });
+
   return (
     <div className="h-full bg-iron-bg flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-sm text-center">
@@ -30,6 +46,21 @@ export default function RootPage() {
         </div>
 
         <p className="text-iron-muted text-xs">Iron Booking · מערכת ניהול הזמנות</p>
+
+        {/* Dev diagnostic — shows why we landed here and what's in auth */}
+        {import.meta.env.DEV && (
+          <div
+            className="mt-4 text-left text-xs font-mono bg-black/60 border border-red-500/40 rounded-lg p-3"
+            dir="ltr"
+          >
+            <div className="text-red-400 font-bold mb-1">RootPage diagnostic</div>
+            <div>href: {window.location.href}</div>
+            <div>standalone: {String(isStandalone)}</div>
+            <div>hasAuth: {String(!!fastAuth)}</div>
+            <div>role: {fastAuth?.user?.role ?? '—'}</div>
+            <div>slug: {fastAuth?.user?.restaurant?.slug ?? '—'}</div>
+          </div>
+        )}
 
       </div>
     </div>

@@ -452,6 +452,26 @@ export default function App() {
   }
 
   function renderPage() {
+    // ── Fast-path redirect (fires on first render, before bootstrap completes) ─
+    // Read localStorage directly so we don't depend on the async auth state update
+    // that races with setReady(true). Fixes the PWA-opens-to-RootPage bug where
+    // ready=true fired before auth React state was applied.
+    const fastAuth = getStoredAuth();
+    console.log('[App /] renderPage', {
+      href: window.location.href,
+      ready,
+      authSlug: auth?.user?.restaurant?.slug ?? null,
+      fastSlug: fastAuth?.user?.restaurant?.slug ?? null,
+      standalone: typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches,
+      iosSA: typeof window !== 'undefined' && (window.navigator as { standalone?: boolean }).standalone,
+    });
+
+    if (fastAuth?.user?.restaurant?.slug) {
+      console.log('[App /] redirecting →', `/${fastAuth.user.restaurant.slug}`);
+      window.location.replace(`/${fastAuth.user.restaurant.slug}`);
+      return <></>;
+    }
+
     if (!ready) {
       return (
         <div className="h-full bg-iron-bg flex items-center justify-center">
@@ -472,20 +492,17 @@ export default function App() {
       );
     }
 
-    // Root / — no generic login. Redirect HQ users to /hq, everyone else sees
-    // the "use your restaurant link" landing page.
+    // Root / — no generic login. Redirect HQ users to /hq.
     if (auth?.user.role === 'SUPER_ADMIN' || auth?.user.role === 'HQ_ADMIN') {
       window.location.replace('/hq');
       return <></>;
     }
 
-    // Authenticated restaurant staff landing at / (e.g. PWA start_url or manual navigation):
-    // redirect straight to their restaurant dashboard so the PWA never shows RootPage.
-    if (auth?.user.restaurant?.slug) {
-      window.location.replace(`/${auth.user.restaurant.slug}`);
-      return <></>;
-    }
-
+    console.warn('[App /] RootPage shown — no stored restaurant slug', {
+      fastAuth: !!fastAuth,
+      fastRole: fastAuth?.user?.role ?? null,
+      fastRestaurant: fastAuth?.user?.restaurant ?? null,
+    });
     return <RootPage />;
   }
 
