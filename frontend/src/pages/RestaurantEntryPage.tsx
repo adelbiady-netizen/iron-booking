@@ -52,10 +52,9 @@ export default function RestaurantEntryPage(props: Props) {
   useEffect(() => { authRef.current = auth; }, [auth]);
 
   // Inject a restaurant-specific manifest so "Add to Home Screen" saves
-  // start_url = /slug, not /. Works for both iOS 16.4+ and Android Chrome.
-  const restaurantName = auth?.user.restaurant?.name
-    ?? (info && typeof info === 'object' ? (info as RestaurantInfo).name : undefined);
-  useRestaurantManifest(slug, restaurantName);
+  // start_url = /slug, not /. Uses a real server URL (/api/manifest?slug=)
+  // because iOS Safari ignores blob: manifest URLs.
+  useRestaurantManifest(slug);
 
   const isMobile = useIsMobile();
 
