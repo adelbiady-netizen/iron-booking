@@ -479,6 +479,13 @@ export default function App() {
       return <></>;
     }
 
+    // Authenticated restaurant staff landing at / (e.g. PWA start_url or manual navigation):
+    // redirect straight to their restaurant dashboard so the PWA never shows RootPage.
+    if (auth?.user.restaurant?.slug) {
+      window.location.replace(`/${auth.user.restaurant.slug}`);
+      return <></>;
+    }
+
     return <RootPage />;
   }
 

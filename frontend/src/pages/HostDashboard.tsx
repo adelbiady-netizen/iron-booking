@@ -29,6 +29,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNav, { type MobileTab } from '../components/MobileBottomNav';
 import MobileMorePanel from '../components/MobileMorePanel';
 import PwaInstallBanner from '../components/PwaInstallBanner';
+import PwaDebugBadge from '../components/PwaDebugBadge';
 import CallDrawer from '../components/CallDrawer';
 import IncomingCallCard from '../components/IncomingCallCard';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
@@ -2661,6 +2662,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       />
 
       {isMobile && <PwaInstallBanner />}
+      {import.meta.env.DEV && <PwaDebugBadge slug={auth.user.restaurant?.slug} />}
 
       <ActionBar insights={allInsights} onItemClick={handleActionBarClick} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
 
