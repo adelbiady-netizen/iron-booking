@@ -1,19 +1,127 @@
 import { getStoredAuth } from '../api';
 
+// Build stamp injected at build time — Vite replaces these at bundle time.
+// Falls back gracefully if not configured.
+declare const __APP_VERSION__: string | undefined;
+declare const __GIT_COMMIT__: string | undefined;
+
+function PwaDiagnostic() {
+  const auth = getStoredAuth();
+
+  // All localStorage keys (auth-related and all)
+  const lsKeys: string[] = [];
+  const lsAuthKeys: Record<string, string | null> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) {
+        lsKeys.push(k);
+        if (k.includes('iron') || k.includes('auth') || k.includes('pwa') || k.includes('token')) {
+          lsAuthKeys[k] = localStorage.getItem(k);
+        }
+      }
+    }
+  } catch { /* blocked */ }
+
+  const swController = typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? (navigator.serviceWorker.controller?.scriptURL ?? 'none')
+    : 'unsupported';
+
+  const displayModeStandalone =
+    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
+  const iosStandalone =
+    typeof window !== 'undefined' &&
+    (window.navigator as { standalone?: boolean }).standalone === true;
+
+  const buildVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'n/a';
+  const gitCommit   = typeof __GIT_COMMIT__   !== 'undefined' ? __GIT_COMMIT__   : 'n/a';
+
+  const rows: [string, string][] = [
+    ['href',              window.location.href],
+    ['pathname',          window.location.pathname],
+    ['search',            window.location.search || '(none)'],
+    ['display-mode standalone', String(displayModeStandalone)],
+    ['navigator.standalone',    String(iosStandalone)],
+    ['SW controller',           swController],
+    ['build version',           buildVersion],
+    ['git commit',              gitCommit],
+    ['─── auth ───',            ''],
+    ['has stored auth',         String(!!auth)],
+    ['auth.user.role',          auth?.user?.role ?? 'null'],
+    ['auth.user.restaurant',    auth?.user?.restaurant ? JSON.stringify({ id: auth.user.restaurant.id, slug: auth.user.restaurant.slug, name: auth.user.restaurant.name }) : 'null'],
+    ['─── localStorage ───',    ''],
+    ['all keys',                lsKeys.join(', ') || '(empty)'],
+  ];
+  for (const [k, v] of Object.entries(lsAuthKeys)) {
+    // Truncate values so they fit; never log the raw JWT
+    const safe = v && v.length > 80 ? v.slice(0, 80) + '…' : (v ?? 'null');
+    rows.push([`  ${k}`, safe]);
+  }
+
+  return (
+    <div
+      dir="ltr"
+      style={{
+        marginTop: 24,
+        background: '#0a0a0a',
+        border: '1.5px solid #ef4444',
+        borderRadius: 10,
+        padding: '12px 14px',
+        textAlign: 'left',
+        fontFamily: 'monospace',
+        fontSize: 11,
+        lineHeight: 1.65,
+        color: '#ccc',
+        wordBreak: 'break-all',
+      }}
+    >
+      <div style={{ color: '#ef4444', fontWeight: 700, marginBottom: 6, fontSize: 12 }}>
+        PWA DIAGNOSTIC — ironbooking.com/?debugPwa=1
+      </div>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <tbody>
+          {rows.map(([label, value]) =>
+            label.startsWith('─') ? (
+              <tr key={label}>
+                <td colSpan={2} style={{ color: '#666', paddingTop: 6, paddingBottom: 2, fontSize: 10 }}>
+                  {label}
+                </td>
+              </tr>
+            ) : (
+              <tr key={label}>
+                <td style={{ color: '#888', paddingRight: 10, whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                  {label}
+                </td>
+                <td style={{ color: value === 'null' || value === 'false' || value === 'none' ? '#f87171' : '#86efac' }}>
+                  {value}
+                </td>
+              </tr>
+            )
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function RootPage() {
-  // Diagnostic: log why we ended up here
-  const fastAuth = getStoredAuth();
+  const auth = getStoredAuth();
   const isStandalone =
     typeof window !== 'undefined' &&
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
-  console.warn('[RootPage] rendered — should not appear for authenticated staff', {
+
+  // Always log to console so Safari Web Inspector captures it
+  console.warn('[RootPage] rendered', {
     href: window.location.href,
     isStandalone,
-    hasAuth: !!fastAuth,
-    role: fastAuth?.user?.role ?? null,
-    restaurant: fastAuth?.user?.restaurant ?? null,
+    hasAuth: !!auth,
+    role: auth?.user?.role ?? null,
+    restaurant: auth?.user?.restaurant ?? null,
   });
+
+  const showDiag = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('debugPwa') === '1';
 
   return (
     <div className="h-full bg-iron-bg flex items-center justify-center p-4" dir="rtl">
@@ -47,20 +155,7 @@ export default function RootPage() {
 
         <p className="text-iron-muted text-xs">Iron Booking · מערכת ניהול הזמנות</p>
 
-        {/* Dev diagnostic — shows why we landed here and what's in auth */}
-        {import.meta.env.DEV && (
-          <div
-            className="mt-4 text-left text-xs font-mono bg-black/60 border border-red-500/40 rounded-lg p-3"
-            dir="ltr"
-          >
-            <div className="text-red-400 font-bold mb-1">RootPage diagnostic</div>
-            <div>href: {window.location.href}</div>
-            <div>standalone: {String(isStandalone)}</div>
-            <div>hasAuth: {String(!!fastAuth)}</div>
-            <div>role: {fastAuth?.user?.role ?? '—'}</div>
-            <div>slug: {fastAuth?.user?.restaurant?.slug ?? '—'}</div>
-          </div>
-        )}
+        {showDiag && <PwaDiagnostic />}
 
       </div>
     </div>
