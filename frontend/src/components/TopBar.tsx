@@ -230,7 +230,7 @@ export default function TopBar({
               onClick={() => calendarOpen ? setCalendarOpen(false) : openCalendar()}
               aria-expanded={calendarOpen}
               aria-haspopup="dialog"
-              className="text-iron-text/85 text-[12px] font-semibold whitespace-nowrap tracking-tight hover:text-iron-text transition-colors"
+              className={`whitespace-nowrap tracking-tight hover:text-iron-text transition-colors ${isMobile ? 'text-iron-text/55 text-[11px] font-medium' : 'text-iron-text/85 text-[12px] font-semibold'}`}
             >
               {fmtDate(date)}
             </button>
@@ -252,16 +252,16 @@ export default function TopBar({
 
           {/* Time — operationally dominant, large display */}
           <NavBtn onClick={onPrev30} title={T.topBar.prev30}>‹</NavBtn>
-          <div className="relative flex items-center justify-center px-3 py-1.5" style={{ background: wellBg, borderLeft: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}`, borderRight: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}` }}>
+          <div className={`relative flex items-center justify-center gap-1.5 ${isMobile ? 'px-5' : 'px-3'} py-1.5`} style={{ background: wellBg, borderLeft: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}`, borderRight: `1px solid ${light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}` }}>
             <span
               dir="ltr"
-              className="ib-clock font-bold tabular-nums leading-none pointer-events-none select-none text-iron-text/85"
-              style={{ fontSize: isMobile ? '20px' : '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
+              className="ib-clock font-bold tabular-nums leading-none pointer-events-none select-none text-iron-text"
+              style={{ fontSize: isMobile ? '26px' : '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
             </span>
             {isMobile && isLive && (
-              <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-iron-green-light animate-pulse shrink-0" style={{ animationDuration: '2.4s', boxShadow: '0 0 4px rgba(111,138,60,0.7)' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-iron-green-light animate-pulse shrink-0 self-center" style={{ animationDuration: '2.4s', boxShadow: '0 0 5px rgba(111,138,60,0.8)', minWidth: '6px', minHeight: '6px' }} />
             )}
             <select
               value={time}
