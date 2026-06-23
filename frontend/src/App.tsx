@@ -8,6 +8,7 @@ import ConfirmationPage from './pages/ConfirmationPage';
 import BookingPage from './pages/BookingPage';
 import WaitlistKioskPage from './pages/WaitlistKioskPage';
 import RootPage from './pages/RootPage';
+import PwaDiagnosticsOverlay from './components/PwaDiagnosticsOverlay';
 import RestaurantEntryPage from './pages/RestaurantEntryPage';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
@@ -507,15 +508,18 @@ export default function App() {
   }
 
   return (
-    <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      <div style={{
-        transform: `scale(${scale})`,
-        transformOrigin: '0 0',
-        width:  `${100 / scale}%`,
-        height: `${100 / scale}%`,
-      }}>
-        {renderPage()}
+    <>
+      <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <div style={{
+          transform: `scale(${scale})`,
+          transformOrigin: '0 0',
+          width:  `${100 / scale}%`,
+          height: `${100 / scale}%`,
+        }}>
+          {renderPage()}
+        </div>
       </div>
-    </div>
+      <PwaDiagnosticsOverlay />
+    </>
   );
 }
