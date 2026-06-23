@@ -441,6 +441,7 @@ interface Props {
   onSwapTargetPick?: (res: Reservation) => void;
   onSwapCancel?: () => void;
   onContextMenuCombineRes?: (res: Reservation) => void;
+  mobileMode?: boolean;
 }
 
 const CANVAS_W = 1500;
@@ -504,6 +505,7 @@ export default function FloorBoard({
   onSwapCancel,
   onContextMenuCombineRes,
   inPlanningMode = false,
+  mobileMode: _mobileMode = false,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();

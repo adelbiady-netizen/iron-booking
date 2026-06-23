@@ -94,6 +94,14 @@
   animation: drawer-in 280ms var(--ease-hospitality) forwards;
 }
 
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-sheet-in {
+  animation: sheet-in 300ms var(--ease-hospitality) forwards;
+}
+
 @keyframes backdrop-in {
   from { opacity: 0; }
   to   { opacity: 1; }

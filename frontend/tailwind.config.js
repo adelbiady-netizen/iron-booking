@@ -25,6 +25,12 @@ module.exports = {
           info:     'rgb(var(--status-info) / <alpha-value>)',
         },
       },
+      spacing: {
+        'safe-t': 'env(safe-area-inset-top)',
+        'safe-b': 'env(safe-area-inset-bottom)',
+        'safe-l': 'env(safe-area-inset-left)',
+        'safe-r': 'env(safe-area-inset-right)',
+      },
       fontFamily: {
         sans: [
           '-apple-system', 'BlinkMacSystemFont', 'Inter',

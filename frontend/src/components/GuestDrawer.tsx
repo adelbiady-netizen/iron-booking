@@ -261,9 +261,11 @@ interface Props {
   /** Enter swap mode from the drawer — host then clicks a second table on the floor. */
   onSwap?: (res: Reservation) => void;
   initialMode?: 'view' | 'edit';
+  /** On mobile: render as a bottom sheet instead of a side panel. */
+  mobileSheet?: boolean;
 }
 
-export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, mapPickActive, tablePickSelectedIds, onPickConfirm, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, onSwap, initialMode: _initialMode }: Props) {
+export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, mapPickActive, tablePickSelectedIds, onPickConfirm, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, onSwap, initialMode: _initialMode, mobileSheet = false }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
@@ -1146,7 +1148,23 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       )}
 
       {/* Drawer panel — stays visible during pick so the אישור confirm button is accessible */}
-      <aside className={`fixed right-0 top-0 h-full w-[26rem] bg-iron-elevated border-l border-iron-border/55 z-50 flex flex-col animate-drawer-in${pickingOnMap ? ' hidden' : ''}`} style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.04), -4px 0 0 rgba(0,0,0,0.22), -24px 0 56px rgba(0,0,0,0.68), -64px 0 96px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08), inset 2px 0 0 rgba(111,138,60,0.12)' }}>
+      <aside
+        className={
+          mobileSheet
+            ? `fixed inset-x-0 bottom-0 bg-iron-elevated border-t border-iron-border/55 z-50 flex flex-col rounded-t-2xl animate-sheet-in${pickingOnMap ? ' hidden' : ''}`
+            : `fixed right-0 top-0 h-full w-[26rem] bg-iron-elevated border-l border-iron-border/55 z-50 flex flex-col animate-drawer-in${pickingOnMap ? ' hidden' : ''}`
+        }
+        style={
+          mobileSheet
+            ? { top: '8vh', paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -4px 32px rgba(0,0,0,0.55), 0 -1px 0 rgba(255,255,255,0.06)' }
+            : { boxShadow: '-1px 0 0 rgba(255,255,255,0.04), -4px 0 0 rgba(0,0,0,0.22), -24px 0 56px rgba(0,0,0,0.68), -64px 0 96px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.08), inset 2px 0 0 rgba(111,138,60,0.12)' }
+        }
+      >
+        {mobileSheet && (
+          <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+            <div className="w-10 h-1 rounded-full bg-iron-border/60" />
+          </div>
+        )}
 
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-iron-border/80 shrink-0" style={{ backgroundImage: 'linear-gradient(180deg, rgba(111,138,60,0.15) 0%, rgba(0,0,0,0.04) 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 16px 48px rgba(0,0,0,0.52)' }}>

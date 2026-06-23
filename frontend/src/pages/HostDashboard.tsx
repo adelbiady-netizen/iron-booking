@@ -25,6 +25,9 @@ import ClubCenterPage from './ClubCenterPage';
 import HostsSettingsPage from './HostsSettingsPage';
 import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
+import { useIsMobile } from '../hooks/useIsMobile';
+import MobileBottomNav, { type MobileTab } from '../components/MobileBottomNav';
+import PwaInstallBanner from '../components/PwaInstallBanner';
 import CallDrawer from '../components/CallDrawer';
 import IncomingCallCard from '../components/IncomingCallCard';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
@@ -127,6 +130,8 @@ interface Props {
 
 export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoomStep, onZoomChange, theme, onThemeChange, onAdminPortal }: Props) {
   const T = useT();
+  const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState<MobileTab>('list');
   const [date, setDate]             = useState(todayStr);
   const [time, setTime]             = useState(nowTime);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -2604,23 +2609,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         toolbarSlot={toolbarActions}
       />
 
+      {isMobile && <PwaInstallBanner />}
+
       <ActionBar insights={allInsights} onItemClick={handleActionBarClick} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
 
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left structural rail — table context panel.
-            Width snaps instantly (no transition) so the floor board never reflows
-            continuously during open/close. The panel content uses animate-slide-in-left
-            (GPU transform only) for a smooth entrance without layout cost. */}
+        {/* Left structural rail — table context panel. Hidden on mobile. */}
         <div
           className="shrink-0 overflow-hidden border-e border-iron-border/40"
           style={{
-            width: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 240 : 0,
-            boxShadow: (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '1px 0 0 rgba(255,255,255,0.05), 6px 0 28px rgba(0,0,0,0.55), 20px 0 60px rgba(0,0,0,0.35)' : 'none',
+            width: isMobile ? 0 : (quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? 240 : 0,
+            boxShadow: (!isMobile && quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry) ? '1px 0 0 rgba(255,255,255,0.05), 6px 0 28px rgba(0,0,0,0.55), 20px 0 60px rgba(0,0,0,0.35)' : 'none',
           }}
         >
-          {quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
+          {!isMobile && quickTable && quickFloorTable && !selectedRes && !createMode && !tablePickMode && !waitlistAssignEntry && (
             <TableQuickPanel
               floorTable={quickFloorTable}
               reservation={quickRes}
@@ -2644,6 +2648,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           )}
         </div>
 
+        {/* Floor board — desktop: flex-1; mobile: visible only on 'map' tab */}
+        <div style={
+          isMobile
+            ? (mobileTab === 'map' ? { flex: 1, minWidth: 0, overflow: 'hidden' } : { width: 0, flexShrink: 0, overflow: 'hidden' })
+            : { flex: 1, minWidth: 0, overflow: 'hidden' }
+        }>
         <FloorBoard
           tables={floorTables}
           floorObjs={floorObjs}
@@ -2716,10 +2726,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onSwapTargetPick={handleSwapTargetPick}
           onSwapCancel={() => setSwapSource(null)}
           onContextMenuCombineRes={handleContextMenuCombineRes}
+          mobileMode={isMobile}
         />
+        </div>
 
-        {/* Panel toggle handle — always visible between floor and right rail */}
-        <button
+        {/* Panel toggle handle — desktop only */}
+        {!isMobile && <button
           type="button"
           onClick={() => setPanelCollapsed(c => !c)}
           className="shrink-0 w-4 bg-iron-elevated hover:bg-iron-card border-x border-iron-border/40 hover:border-iron-border/60 transition-colors flex items-center justify-center cursor-pointer"
@@ -2732,20 +2744,23 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           >
             <polyline points="5,1 1,5 5,9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-        </button>
+        </button>}
 
-        {/* Right structural rail — reservation feed or call log. Width animates; map reflows. */}
+        {/* Right structural rail — reservation feed or call log.
+            Desktop: fixed width with transition.
+            Mobile: flex-1 on list/calls tab, hidden on map tab. */}
         <div
-          className="shrink-0 overflow-hidden"
-          style={{
-            width: showCallLog ? 380 : (panelCollapsed ? 0 : 416),
-            transition: 'width 200ms ease-out',
-          }}
+          className={isMobile ? 'overflow-hidden' : 'shrink-0 overflow-hidden'}
+          style={
+            isMobile
+              ? ((mobileTab === 'list' || mobileTab === 'calls') ? { flex: 1 } : { width: 0, flexShrink: 0 })
+              : { width: showCallLog ? 380 : (panelCollapsed ? 0 : 416), transition: 'width 200ms ease-out' }
+          }
         >
-          {showCallLog ? (
+          {(showCallLog || (isMobile && mobileTab === 'calls')) ? (
             <CallLogPanel
               latestCall={latestCall}
-              onClose={() => setShowCallLog(false)}
+              onClose={() => { setShowCallLog(false); if (isMobile) setMobileTab('list'); }}
               onNewReservation={(phone) => {
                 setCallPrefillPhone(phone);
                 setCreateMode('reservation');
@@ -2807,6 +2822,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             initialMode={openDrawerInEdit ? 'edit' : 'view'}
             tables={allTables}
             allReservations={reservations}
+            mobileSheet={isMobile}
             onClose={() => { setSelectedRes(null); setOpenDrawerInEdit(false); }}
             onUpdated={handleUpdated}
             onSuccess={showToast}
@@ -3180,6 +3196,19 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             </div>
           </div>
         </div>
+      )}
+
+      {isMobile && (
+        <MobileBottomNav
+          active={mobileTab}
+          onChange={(tab) => {
+            if (tab === 'guests') {
+              handleGuestsPage();
+            } else {
+              setMobileTab(tab);
+            }
+          }}
+        />
       )}
 
     </div>
