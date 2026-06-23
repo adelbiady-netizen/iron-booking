@@ -805,12 +805,14 @@ export default function FloorBoard({
 
   if (tables.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-2 text-iron-muted">
-        <div className="w-10 h-10 rounded-lg border-2 border-dashed border-iron-border flex items-center justify-center mb-1">
-          <span className="text-lg opacity-40">⊞</span>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <div className="w-16 h-16 rounded-2xl border border-dashed border-iron-border/50 bg-iron-card/30 flex items-center justify-center mb-1">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted/40">
+            <path d="M3 3h7v7H3z" /><path d="M14 3h7v7h-7z" /><path d="M14 14h7v7h-7z" /><path d="M3 14h7v7H3z" />
+          </svg>
         </div>
-        <p className="text-sm">{T.floorBoard.emptyTitle}</p>
-        <p className="text-xs opacity-50">{T.floorBoard.emptyHint}</p>
+        <p className="text-iron-text/70 text-[15px] font-semibold">{T.floorBoard.emptyTitle}</p>
+        <p className="text-iron-muted/55 text-[13px] leading-relaxed max-w-[240px]">{T.floorBoard.emptyHint}</p>
       </div>
     );
   }
@@ -1178,8 +1180,8 @@ export default function FloorBoard({
         </div>
       )}
 
-      {/* Stats + section legend */}
-      <div className="ib-bar flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.15), 0 6px 24px rgba(0,0,0,0.44)' }}>
+      {/* Stats + section legend — hidden on mobile to maximise map area */}
+      {!_mobileMode && <div className="ib-bar flex items-center gap-3 px-5 py-2 bg-iron-elevated shrink-0 flex-wrap" style={{ boxShadow: 'inset 0 -1px 0 rgba(255,215,130,0.15), 0 6px 24px rgba(0,0,0,0.44)' }}>
         {/* Live service cluster */}
         <div className="flex items-center gap-1.5">
           <Stat label={T.floorBoard.statSeated} value={seatedParties} color="text-iron-green-light" live />
@@ -1242,7 +1244,7 @@ export default function FloorBoard({
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* Timeline view */}
       {view === 'timeline' && !pickMode && date && (

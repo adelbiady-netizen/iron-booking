@@ -2607,6 +2607,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         onSwitchHost={onSwitchHost}
         sseStatus={sseStatus}
         toolbarSlot={toolbarActions}
+        isMobile={isMobile}
       />
 
       {isMobile && <PwaInstallBanner />}
@@ -2651,8 +2652,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         {/* Floor board — desktop: flex-1; mobile: visible only on 'map' tab */}
         <div style={
           isMobile
-            ? (mobileTab === 'map' ? { flex: 1, minWidth: 0, overflow: 'hidden' } : { width: 0, flexShrink: 0, overflow: 'hidden' })
-            : { flex: 1, minWidth: 0, overflow: 'hidden' }
+            ? (mobileTab === 'map' ? { flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } : { width: 0, flexShrink: 0, overflow: 'hidden' })
+            : { flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }
         }>
         <FloorBoard
           tables={floorTables}
@@ -2809,6 +2810,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               isLiveView={isLiveView}
               onHoverRow={handleHoverRow}
               onSmartAssign={() => setShowSmartAssign(true)}
+              compact={isMobile}
             />
           )}
         </div>

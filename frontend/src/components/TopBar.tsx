@@ -43,6 +43,8 @@ interface Props {
   sseStatus?: SseStatus;
   /** Board tools (combine/reorganize/call-log/more) hoisted up from the old secondary bar. */
   toolbarSlot?: React.ReactNode;
+  /** Compact single-row layout for mobile — hides brand, nav buttons, real clock. */
+  isMobile?: boolean;
 }
 
 function SunIcon() {
@@ -102,6 +104,7 @@ export default function TopBar({
   onSwitchHost,
   sseStatus,
   toolbarSlot,
+  isMobile = false,
 }: Props) {
   const T = useT();
   const { intlLocale } = useLocale();
@@ -132,10 +135,14 @@ export default function TopBar({
     if (!dateStr) return '';
     const [y, mo, d] = dateStr.split('-').map(Number);
     if (!y || !mo || !d) return dateStr;
+    const dt = new Date(y, mo - 1, d);
+    if (isMobile) {
+      return new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' }).format(dt);
+    }
     return new Intl.DateTimeFormat(intlLocale, {
       weekday: intlLocale === 'he-IL' ? 'long' : 'short',
       day: 'numeric', month: 'long', year: 'numeric',
-    }).format(new Date(y, mo - 1, d));
+    }).format(dt);
   }
 
   const openCalendar = useCallback(() => {
@@ -194,19 +201,22 @@ export default function TopBar({
     : 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)';
 
   return (
-    <header dir="ltr" className="relative ib-compact-top h-[70px] shrink-0 bg-iron-elevated flex items-center px-5 gap-3 overflow-x-hidden" style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
-      {/* Brand */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
-          <span className="text-iron-green-light font-bold text-sm">IB</span>
-        </div>
-        <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden md:block">
-          {T.topBar.brand}
-        </span>
-      </div>
-
-      {/* Zone separator: brand → command */}
-      <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
+    <header dir="ltr" className={`relative ib-compact-top ${isMobile ? 'h-[52px] px-3' : 'h-[70px] px-5'} shrink-0 bg-iron-elevated flex items-center gap-3 overflow-x-hidden`} style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
+      {/* Brand — hidden on mobile */}
+      {!isMobile && (
+        <>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
+              <span className="text-iron-green-light font-bold text-sm">IB</span>
+            </div>
+            <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden md:block">
+              {T.topBar.brand}
+            </span>
+          </div>
+          {/* Zone separator: brand → command */}
+          <div className="w-px h-[28px] bg-iron-border/[0.22] shrink-0" />
+        </>
+      )}
 
       {/* ── Date / Time Command Cluster — absolutely centered ────────── */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5">
@@ -281,15 +291,17 @@ export default function TopBar({
           document.body
         )}
 
-        {/* Real ("wall") clock */}
-        <div
-          dir="ltr"
-          className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
-          style={{ background: wellBgDeep, border: `1px solid ${light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}`, boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
-        >
-          <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
-          <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
-        </div>
+        {/* Real ("wall") clock — hidden on mobile (phone status bar shows it) */}
+        {!isMobile && (
+          <div
+            dir="ltr"
+            className="flex flex-col items-center justify-center px-3 py-1 rounded-lg shrink-0 select-none pointer-events-none"
+            style={{ background: wellBgDeep, border: `1px solid ${light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}`, boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
+          >
+            <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
+            <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
+          </div>
+        )}
 
         {/* Service State */}
         {isLive ? (
@@ -324,16 +336,16 @@ export default function TopBar({
 
       <div className="flex-1" />
 
-      {/* Board tools hoisted up from the old secondary bar */}
-      {toolbarSlot && (
+      {/* Board tools hoisted up from the old secondary bar — hidden on mobile */}
+      {!isMobile && toolbarSlot && (
         <>
           <div className="flex items-center gap-1.5 shrink-0">{toolbarSlot}</div>
           <div className="w-px h-5 bg-iron-border/35 shrink-0" />
         </>
       )}
 
-      {/* Zone separator: operational ← → preference + session */}
-      <div className="w-px h-5 bg-iron-border/35 shrink-0" />
+      {/* Zone separator: operational ← → preference + session — hidden on mobile */}
+      {!isMobile && <div className="w-px h-5 bg-iron-border/35 shrink-0" />}
 
       {/* ── Settings menu: language + theme ──────────────────────── */}
       <div className="relative shrink-0" ref={settingsRef}>
@@ -375,12 +387,13 @@ export default function TopBar({
         )}
       </div>
 
-      {/* Zone separator: preferences → session */}
-      <div className="w-px h-[22px] bg-iron-border/[0.20] shrink-0" />
+      {/* Zone separator: preferences → session — hidden on mobile */}
+      {!isMobile && <div className="w-px h-[22px] bg-iron-border/[0.20] shrink-0" />}
 
       {/* User / session */}
       <div className="flex items-center gap-1">
-        {onGuestsPage && (
+        {/* Guests / Intelligence / Admin — desktop only */}
+        {!isMobile && onGuestsPage && (
           guestsPageEnabled ? (
             <button
               onClick={onGuestsPage}
@@ -397,7 +410,7 @@ export default function TopBar({
             </span>
           )
         )}
-        {onIntelligencePage && (
+        {!isMobile && onIntelligencePage && (
           <button
             onClick={onIntelligencePage}
             className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"
@@ -406,7 +419,7 @@ export default function TopBar({
             ✦ Intelligence
           </button>
         )}
-        {onAdminPortal && (
+        {!isMobile && onAdminPortal && (
           <button
             onClick={onAdminPortal}
             className="text-iron-muted/60 text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:text-iron-text/90 hover:bg-iron-bg/60 border border-transparent hover:border-iron-border/35 transition-colors duration-100"

@@ -88,9 +88,9 @@ export default function MobileBottomNav({ active, onChange }: Props) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[56px] transition-colors ${
+            className={`relative flex flex-col items-center justify-center gap-1 flex-1 min-h-[64px] transition-colors ${
               isActive
-                ? 'text-iron-green-light'
+                ? 'text-iron-green-light bg-iron-green/8'
                 : 'text-iron-muted hover:text-iron-text active:opacity-60'
             }`}
             aria-current={isActive ? 'page' : undefined}
@@ -98,13 +98,13 @@ export default function MobileBottomNav({ active, onChange }: Props) {
             <span className={`transition-transform ${isActive ? 'scale-110' : ''}`}>
               {tab.icon}
             </span>
-            <span className={`text-[10px] font-medium leading-none ${isActive ? 'text-iron-green-light' : ''}`}>
+            <span className={`text-[11px] leading-none ${isActive ? 'font-bold text-iron-green-light' : 'font-medium'}`}>
               {tab.label}
             </span>
             {isActive && (
               <span
-                className="absolute top-0 left-0 right-0 h-[2px] rounded-b"
-                style={{ background: '#435B2A' }}
+                className="absolute top-0 inset-x-[18%] h-[3px] rounded-b"
+                style={{ background: 'rgb(var(--iron-green-light))' }}
               />
             )}
           </button>

@@ -75,6 +75,8 @@ interface Props {
   isLiveView?: boolean;
   onHoverRow?: (id: string | null) => void;
   onSmartAssign?: () => void;
+  /** Reduce vertical padding on header + rows for small mobile screens. */
+  compact?: boolean;
 }
 
 export default function ReservationPanel({
@@ -84,6 +86,7 @@ export default function ReservationPanel({
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
   onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable, onNoTableMode,
+  compact = false,
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
@@ -172,7 +175,7 @@ export default function ReservationPanel({
     <aside className="w-full h-full flex flex-col border-s border-iron-border/60 bg-iron-elevated overflow-x-hidden" style={{ boxShadow: '-1px 0 0 rgba(255,255,255,0.06), -3px 0 0 rgba(0,0,0,0.12), -20px 0 60px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04), inset 2px 0 8px rgba(0,0,0,0.16)' }}>
 
       {/* Tab bar + action buttons */}
-      <div className="px-3.5 pt-3.5 pb-0 border-b border-iron-border/40" style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 18px rgba(0,0,0,0.26)' }}>
+      <div className={`${compact ? 'px-2.5 pt-2' : 'px-3.5 pt-3.5'} pb-0 border-b border-iron-border/40`} style={{ backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.018) 0%, transparent 100%)', boxShadow: '0 1px 0 rgba(255,255,255,0.07), 0 6px 18px rgba(0,0,0,0.26)' }}>
         <div className="flex items-center gap-2 mb-2.5">
           {/* Segmented tab control — premium pill style */}
           <div className="flex gap-0.5 flex-1 rounded-xl p-[3px] bg-iron-bg border border-iron-border/35" style={{ boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.26)' }}>
@@ -420,10 +423,18 @@ export default function ReservationPanel({
             )}
 
             {!loading && reservations.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center gap-2">
-                <p className="text-iron-muted text-sm">{T.reservationPanel.emptyTitle}</p>
-                <p className="text-iron-muted text-xs opacity-75">
-                  {T.reservationPanel.emptyHintPrefix}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-medium text-iron-text">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
+                <div className="w-14 h-14 rounded-2xl border border-iron-border/35 bg-iron-card/40 flex items-center justify-center mb-1" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="text-iron-muted/45">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                <p className="text-iron-text/75 text-[15px] font-semibold">{T.reservationPanel.emptyTitle}</p>
+                <p className="text-iron-muted/70 text-[13px] leading-relaxed max-w-[220px]">
+                  {T.reservationPanel.emptyHintPrefix}<span className="font-semibold text-iron-text/75">{T.reservationPanel.emptyHintNew}</span>{T.reservationPanel.emptyHintMid}<span className="font-semibold text-iron-text/75">{T.reservationPanel.emptyHintWalkIn}</span>{T.reservationPanel.emptyHintSuffix}
                 </p>
               </div>
             )}
@@ -538,7 +549,7 @@ export default function ReservationPanel({
                   onMouseLeave={() => onHoverRow?.(null)}
                 >
                   {/* Time anchor column — left rail for instant time scanning */}
-                  <div dir="ltr" className="w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] py-3 gap-1.5">
+                  <div dir="ltr" className={`w-[58px] shrink-0 flex flex-col items-center justify-center border-e border-iron-border/[0.18] ${compact ? 'py-2 gap-1' : 'py-3 gap-1.5'}`}>
                     <span className="text-iron-text text-[17px] font-bold tabular-nums tracking-tight leading-none">{normalizeTime(r.time)}</span>
                     {r.table ? (
                       <span className="text-iron-muted/65 text-[11px] leading-none font-medium truncate max-w-full px-0.5">{r.table.name}</span>
