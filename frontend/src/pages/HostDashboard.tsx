@@ -27,6 +27,7 @@ import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNav, { type MobileTab } from '../components/MobileBottomNav';
+import MobileMorePanel from '../components/MobileMorePanel';
 import PwaInstallBanner from '../components/PwaInstallBanner';
 import CallDrawer from '../components/CallDrawer';
 import IncomingCallCard from '../components/IncomingCallCard';
@@ -3197,6 +3198,24 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* More tab overlay — settings, language, theme, logout */}
+      {isMobile && mobileTab === 'more' && (
+        <div className="absolute inset-0 z-40" style={{ top: 0 }}>
+          <MobileMorePanel
+            userName={`${auth.user.firstName} ${auth.user.lastName}`}
+            restaurantName={auth.user.restaurant?.name ?? ''}
+            theme={theme}
+            onThemeChange={onThemeChange}
+            onLogout={onLogout}
+            onSwitchHost={onSwitchHost}
+            onAdminPortal={onAdminPortal}
+            onGuestsPage={() => handleGuestsPage()}
+            guestsPageEnabled={canAccessGuests}
+            onIntelligencePage={() => handleIntelligencePage()}
+          />
         </div>
       )}
 

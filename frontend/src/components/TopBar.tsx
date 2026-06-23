@@ -137,7 +137,7 @@ export default function TopBar({
     if (!y || !mo || !d) return dateStr;
     const dt = new Date(y, mo - 1, d);
     if (isMobile) {
-      return new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' }).format(dt);
+      return new Intl.DateTimeFormat(intlLocale, { weekday: 'short', day: 'numeric', month: 'short' }).format(dt);
     }
     return new Intl.DateTimeFormat(intlLocale, {
       weekday: intlLocale === 'he-IL' ? 'long' : 'short',
@@ -201,7 +201,7 @@ export default function TopBar({
     : 'inset 0 2px 12px rgba(0,0,0,0.52), 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(255,255,255,0.05)';
 
   return (
-    <header dir="ltr" className={`relative ib-compact-top ${isMobile ? 'h-[52px] px-3' : 'h-[70px] px-5'} shrink-0 bg-iron-elevated flex items-center gap-3 overflow-x-hidden`} style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
+    <header dir="ltr" className={`relative ib-compact-top ${isMobile ? 'h-[44px] px-2' : 'h-[70px] px-5'} shrink-0 bg-iron-elevated flex items-center gap-3 overflow-x-hidden`} style={{ backgroundImage: light ? 'none' : 'linear-gradient(180deg, rgba(255,255,255,0.024) 0%, rgba(0,0,0,0.06) 100%)', boxShadow: light ? '0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 0 rgba(0,0,0,0.30), 0 20px 80px rgba(0,0,0,0.72)', borderBottom: light ? '1px solid rgb(var(--iron-border))' : '1px solid rgba(255,215,130,0.30)' }}>
       {/* Brand — hidden on mobile */}
       {!isMobile && (
         <>
@@ -256,10 +256,13 @@ export default function TopBar({
             <span
               dir="ltr"
               className="ib-clock font-bold tabular-nums leading-none pointer-events-none select-none text-iron-text/85"
-              style={{ fontSize: '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
+              style={{ fontSize: isMobile ? '20px' : '24px', letterSpacing: '-0.03em', textShadow: '0 1px 12px rgba(0,0,0,0.40)' }}
             >
               {time}
             </span>
+            {isMobile && isLive && (
+              <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-iron-green-light animate-pulse shrink-0" style={{ animationDuration: '2.4s', boxShadow: '0 0 4px rgba(111,138,60,0.7)' }} />
+            )}
             <select
               value={time}
               onChange={e => onTimeChange(e.target.value)}
@@ -303,8 +306,8 @@ export default function TopBar({
           </div>
         )}
 
-        {/* Service State */}
-        {isLive ? (
+        {/* Service State — hidden on mobile (live dot is inlined in the time display) */}
+        {!isMobile && (isLive ? (
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-iron-green/14 border border-iron-green/30 shrink-0" style={{ boxShadow: '0 0 0 3px rgba(111,138,60,0.07), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
             <span className="w-2 h-2 rounded-full bg-iron-green-light animate-pulse shrink-0" style={{ animationDuration: '2.4s', boxShadow: '0 0 6px rgba(111,138,60,0.5)' }} />
             <span className="text-iron-green-light text-[11px] font-bold tracking-[0.18em]">LIVE</span>
@@ -317,7 +320,7 @@ export default function TopBar({
           >
             ↩ {T.topBar.nowBtn}
           </button>
-        )}
+        ))}
       </div>
 
       {/* SSE connection status — only shown when degraded */}
@@ -347,8 +350,8 @@ export default function TopBar({
       {/* Zone separator: operational ← → preference + session — hidden on mobile */}
       {!isMobile && <div className="w-px h-5 bg-iron-border/35 shrink-0" />}
 
-      {/* ── Settings menu: language + theme ──────────────────────── */}
-      <div className="relative shrink-0" ref={settingsRef}>
+      {/* ── Settings menu: language + theme — hidden on mobile (lives in More tab) ── */}
+      {!isMobile && <div className="relative shrink-0" ref={settingsRef}>
         <button
           ref={settingsBtnRef}
           onClick={() => {
@@ -385,13 +388,13 @@ export default function TopBar({
             </button>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Zone separator: preferences → session — hidden on mobile */}
       {!isMobile && <div className="w-px h-[22px] bg-iron-border/[0.20] shrink-0" />}
 
-      {/* User / session */}
-      <div className="flex items-center gap-1">
+      {/* User / session — hidden on mobile (lives in More tab) */}
+      {!isMobile && <div className="flex items-center gap-1">
         {/* Guests / Intelligence / Admin — desktop only */}
         {!isMobile && onGuestsPage && (
           guestsPageEnabled ? (
@@ -482,7 +485,7 @@ export default function TopBar({
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </header>
   );
 }
