@@ -1426,6 +1426,35 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [createMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Arm the same table-pick mode for standby-edit so the floor highlights immediately,
+  // identical to normal reservation creation. createMode stays null to avoid the
+  // board date-jump side-effect fixed previously.
+  useEffect(() => {
+    if (editingStandby) {
+      setTablePickIds([]);
+      setTablePickSuggestions([]);
+      setTablePickAction('new-reservation');
+      setTablePickGuestName(undefined);
+      setTablePickLockIds([]);
+      setTablePickSelectedIds([]);
+      setTablePickMode(true);
+      tablePickCallbackRef.current = (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [primary, ...combined] = ids;
+        setPreselectedTableId(primary || null);
+        setPreselectedCombinedTableIds(combined);
+      };
+    } else {
+      // Only disarm if createMode is also not arming pick (avoid double-cleanup)
+      if (!createMode) {
+        setTablePickMode(false);
+        setTablePickLockIds([]);
+        setTablePickSelectedIds([]);
+        tablePickCallbackRef.current = null;
+      }
+    }
+  }, [editingStandby]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Keep ref in sync so handlePickDone can read current action without stale closure
   useEffect(() => { tablePickActionRef.current = tablePickAction; }, [tablePickAction]);
 
@@ -2962,8 +2991,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onPickTablesCancel={handlePickCancel}
             onUpdatePickSuggestions={setTablePickSuggestions}
             mapPickActive={tablePickMode}
-            newResPickMode={!editingStandby && createMode === 'reservation'}
-            externalResTableIds={createMode === 'reservation' ? tablePickSelectedIds : undefined}
+            newResPickMode={createMode === 'reservation' || !!editingStandby}
+            externalResTableIds={createMode === 'reservation' || editingStandby ? tablePickSelectedIds : undefined}
             onResTableChange={() => { /* selection managed via pickCallback */ }}
             onDateTimeChange={handleDrawerDateTimeChange}
             suppressInitialDateTimeSync={!!editingStandby}
