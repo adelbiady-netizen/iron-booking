@@ -111,14 +111,23 @@ export default function RootPage() {
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
-  // Always log to console so Safari Web Inspector captures it
+  // PWA fallback: if we have a last-visited slug, redirect immediately.
+  // This fires when iOS ignores manifest start_url and opens "/" instead of "/slug".
+  const lastSlug = (() => { try { return localStorage.getItem('iron_last_slug') ?? null; } catch { return null; } })();
+
   console.warn('[RootPage] rendered', {
     href: window.location.href,
     isStandalone,
     hasAuth: !!auth,
     role: auth?.user?.role ?? null,
     restaurant: auth?.user?.restaurant ?? null,
+    lastSlug,
   });
+
+  if (lastSlug) {
+    window.location.replace(`/${lastSlug}`);
+    return null;
+  }
 
   const showDiag = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('debugPwa') === '1';
@@ -147,10 +156,17 @@ export default function RootPage() {
             <p className="text-iron-green text-sm font-mono">ironbooking.com/your-restaurant</p>
           </div>
 
-          <p className="text-iron-muted text-sm">
+          <p className="text-iron-muted text-sm mb-6">
             לא מכירים את הקישור שלכם?<br />
             <span className="text-iron-text">פנו למנהל המסעדה לקבלת הקישור.</span>
           </p>
+
+          <a
+            href="/eataliano-dalla-costa"
+            className="block w-full bg-iron-green text-white font-semibold text-sm rounded-lg px-4 py-3 text-center"
+          >
+            כניסה לאיטליאנו דלה קוסטה
+          </a>
         </div>
 
         <p className="text-iron-muted text-xs">Iron Booking · מערכת ניהול הזמנות</p>

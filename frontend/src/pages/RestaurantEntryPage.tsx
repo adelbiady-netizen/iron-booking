@@ -72,6 +72,8 @@ export default function RestaurantEntryPage(props: Props) {
     api.public.getRestaurantBySlug(slug)
       .then(r => {
         setInfo(r);
+        // Persist slug so PWA fallback in RootPage can redirect here if start_url=/ fires
+        try { localStorage.setItem('iron_last_slug', slug); } catch { /* blocked */ }
         // Show intro only when unauthenticated and not already seen this session
         if (!authRef.current && !sessionStorage.getItem(`iron_intro_seen_${slug}`)) {
           setShowIntro(true);
