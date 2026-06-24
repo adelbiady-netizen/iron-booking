@@ -2895,7 +2895,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onSmartAssign={() => setShowSmartAssign(true)}
               compact={isMobile}
               standbyReservations={standbyReservations}
-              onSelectStandby={(r) => { setEditingStandby(r); setCreateMode('reservation'); }}
+              onSelectStandby={(r) => { setEditingStandby(r); }}
             />
           )}
         </div>
