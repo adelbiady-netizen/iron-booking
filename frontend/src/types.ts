@@ -264,7 +264,8 @@ export type ReservationStatus =
   | 'SEATED'
   | 'COMPLETED'
   | 'CANCELLED'
-  | 'NO_SHOW';
+  | 'NO_SHOW'
+  | 'STANDBY';
 
 export type LiveStatus =
   | 'AVAILABLE'
@@ -917,6 +918,7 @@ export interface CreateReservationBody {
   depositRequired?: boolean;
   overrideConflicts?: boolean;
   reorganizeIds?: string[];
+  status?: 'STANDBY';
 }
 
 export interface ActivityLogEntry {

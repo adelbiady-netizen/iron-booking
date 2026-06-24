@@ -479,12 +479,13 @@ model Reservation {
 }
 
 enum ReservationStatus {
-  PENDING // created, not yet confirmed
+  PENDING   // created, not yet confirmed
   CONFIRMED // confirmed (deposit paid or auto-confirmed)
-  SEATED // guest is at the table
+  SEATED    // guest is at the table
   COMPLETED // table cleared, turn complete
   CANCELLED // cancelled by guest or host
-  NO_SHOW // guest never arrived
+  NO_SHOW   // guest never arrived
+  STANDBY   // future request — no table, no availability block, not counted as booked covers
 }
 
 enum ReservationSource {

@@ -140,6 +140,7 @@ export default function CreateDrawer({
   const [resHostNote,  setResHostNote]  = useState('');
   const [resSource,    setResSource]    = useState<'PHONE' | 'INTERNAL'>('PHONE');
   const [resTable,     setResTable]     = useState(gapHint?.tableId ?? preselectedTableId ?? '');
+  const [isStandby,    setIsStandby]    = useState(false);
 
   // Walk-in fields
   const [wiName,          setWiName]          = useState(initialData?.guestName  ?? '');
@@ -536,12 +537,14 @@ export default function CreateDrawer({
         duration:         resDuration ? parseInt(resDuration, 10) : undefined,
         guestNotes:       resGuestNote.trim() || undefined,
         hostNotes:        resHostNote.trim() || undefined,
-        tableId:          resTable || undefined,
-        combinedTableIds: resCombinedTableIds.length > 0 ? resCombinedTableIds : undefined,
+        // Standby: no table, no conflict checks
+        tableId:          isStandby ? undefined : (resTable || undefined),
+        combinedTableIds: isStandby ? undefined : (resCombinedTableIds.length > 0 ? resCombinedTableIds : undefined),
         source:           resSource,
         lang:             locale,
-        overrideConflicts: overrideConflicts || undefined,
-        reorganizeIds:     reorganizeIds.length > 0 ? reorganizeIds : undefined,
+        overrideConflicts: isStandby ? undefined : (overrideConflicts || undefined),
+        reorganizeIds:     isStandby ? undefined : (reorganizeIds.length > 0 ? reorganizeIds : undefined),
+        status:           isStandby ? 'STANDBY' : undefined,
       });
       return r;
     } catch (err: unknown) {
@@ -661,6 +664,7 @@ export default function CreateDrawer({
   // Shows which table(s) will be used so the host can confirm at a glance.
   function confirmLabel(): string {
     if (busy) return T.createDrawer.submitCreateBusy;
+    if (isStandby) return T.createDrawer.saveStandby;
     if (suggestBusy && !resTable) return T.createDrawer.confirmChecking;
 
     if (manualOverride) {
@@ -767,6 +771,27 @@ export default function CreateDrawer({
                     </p>
                   </div>
                 </div>
+              )}
+
+              {/* Reservation / Standby toggle */}
+              <div className="flex rounded-lg overflow-hidden border border-iron-border text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => setIsStandby(false)}
+                  className={`flex-1 py-1.5 transition-colors ${!isStandby ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'}`}
+                >
+                  {T.createDrawer.toggleReservation}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsStandby(true)}
+                  className={`flex-1 py-1.5 transition-colors ${isStandby ? 'bg-amber-600 text-white' : 'text-iron-muted hover:text-iron-text'}`}
+                >
+                  {T.createDrawer.toggleStandby}
+                </button>
+              </div>
+              {isStandby && (
+                <p className="text-[11px] text-amber-400/80 -mt-2">{T.createDrawer.standbyHint}</p>
               )}
 
               <div className="grid grid-cols-2 gap-3">
@@ -1223,8 +1248,8 @@ export default function CreateDrawer({
                 <button
                   type="submit"
                   form="create-res-form"
-                  disabled={busy || (suggestBusy && !resTable)}
-                  className="w-full bg-iron-green hover:bg-iron-green-light disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors leading-tight"
+                  disabled={busy || (!isStandby && suggestBusy && !resTable)}
+                  className={`w-full disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors leading-tight ${isStandby ? 'bg-amber-600 hover:bg-amber-500' : 'bg-iron-green hover:bg-iron-green-light'}`}
                 >
                   <span className="block">{confirmLabel()}</span>
                   {!busy && bookingSubtext() && (

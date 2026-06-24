@@ -33,10 +33,11 @@ const STATUS_BADGE: Record<ReservationStatus, string> = {
   COMPLETED: 'bg-iron-border/15 text-iron-muted/65 border-iron-border/18',
   CANCELLED: 'bg-red-900/12 text-status-danger/80 border-red-900/20',
   NO_SHOW:   'bg-orange-900/12 text-orange-400/80 border-orange-900/20',
+  STANDBY:   'bg-amber-900/12 text-amber-400/80 border-amber-900/20',
 };
 
 type FilterValue = 'ACTIVE' | 'SEATED' | 'DONE' | 'NO_TABLE';
-type Tab = 'reservations' | 'waitlist';
+type Tab = 'reservations' | 'waitlist' | 'standby';
 
 interface Props {
   reservations: Reservation[];
@@ -77,6 +78,10 @@ interface Props {
   onSmartAssign?: () => void;
   /** Reduce vertical padding on header + rows for small mobile screens. */
   compact?: boolean;
+  // Standby tab
+  standbyReservations?: Reservation[];
+  standbyLoading?: boolean;
+  onSelectStandby?: (r: Reservation) => void;
 }
 
 export default function ReservationPanel({
@@ -87,6 +92,7 @@ export default function ReservationPanel({
   onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
   onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable, onNoTableMode,
   compact = false,
+  standbyReservations = [], standbyLoading = false, onSelectStandby,
 }: Props) {
   const T = useT();
   const { dir, locale } = useLocale();
@@ -208,6 +214,24 @@ export default function ReservationPanel({
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setTab('standby')}
+              className={`flex-1 text-[12px] py-1.5 rounded-[9px] font-medium flex items-center justify-center gap-1.5 transition-[background-color,color,box-shadow] duration-100 ${
+                tab === 'standby'
+                  ? 'bg-iron-elevated text-iron-text font-semibold'
+                  : 'text-iron-muted/65 hover:text-iron-text'
+              }`}
+              style={tab === 'standby' ? { boxShadow: '0 1px 3px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.07)' } : undefined}
+            >
+              {T.reservationPanel.tabStandby}
+              {standbyReservations.length > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                  tab === 'standby' ? 'bg-amber-600/20 text-amber-400' : 'bg-amber-900/20 text-amber-400/80'
+                }`}>
+                  {standbyReservations.length}
+                </span>
+              )}
+            </button>
           </div>
 
           {tab === 'reservations' && (
@@ -281,7 +305,42 @@ export default function ReservationPanel({
       </div>
 
       {/* Content */}
-      {tab === 'waitlist' ? (
+      {tab === 'standby' ? (
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+          {standbyLoading ? (
+            <div className="text-iron-muted text-xs text-center py-8">{'Loading…'}</div>
+          ) : standbyReservations.length === 0 ? (
+            <div className="text-center py-10 space-y-1">
+              <p className="text-iron-muted text-sm font-medium">{T.createDrawer.standbyEmptyTitle}</p>
+              <p className="text-iron-muted/60 text-[11px]">{T.createDrawer.standbyEmptyHint}</p>
+            </div>
+          ) : (
+            standbyReservations.map(r => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => onSelectStandby?.(r)}
+                className="w-full text-start flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-iron-elevated/60 hover:bg-iron-elevated border border-iron-border/25 hover:border-iron-border/50 transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-iron-text truncate">{r.guestName}</span>
+                    <span className="text-[10px] text-amber-400/80 bg-amber-900/20 border border-amber-900/30 px-1.5 py-0.5 rounded-full leading-none shrink-0">
+                      {T.reservationStatus?.STANDBY ?? 'Standby'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-iron-muted/70 mt-0.5">
+                    {r.time} · {r.partySize}p
+                  </div>
+                </div>
+                <svg className="text-iron-muted/40 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </button>
+            ))
+          )}
+        </div>
+      ) : tab === 'waitlist' ? (
         <WaitlistPanel
           entries={search.trim() ? waitlist.filter(e => matchesSearch(e.guestName, e.guestPhone, search)) : waitlist}
           loading={waitlistLoading}

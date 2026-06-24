@@ -71,6 +71,7 @@ const STATUS_PILL: Record<ReservationStatus, string> = {
   COMPLETED: 'bg-iron-border/18 text-iron-muted/75 border border-iron-border/25',
   CANCELLED: 'bg-red-900/15 text-status-danger border border-red-900/25',
   NO_SHOW:   'bg-orange-900/15 text-orange-400 border border-orange-900/25',
+  STANDBY:   'bg-amber-900/15 text-amber-400 border border-amber-900/25',
 };
 
 interface RowProps { label: string; value: string; accent?: boolean; warn?: boolean }
@@ -275,6 +276,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     COMPLETED: T.reservationStatus.COMPLETED,
     CANCELLED: T.reservationStatus.CANCELLED,
     NO_SHOW:   T.reservationStatus.NO_SHOW,
+    STANDBY:   T.reservationStatus.STANDBY,
   };
   const LOCK_QUICK_REASONS = T.guestDrawer.quickLockReasons;
   const [res, setRes] = useState<Reservation>(init);

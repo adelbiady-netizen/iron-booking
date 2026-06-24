@@ -25,6 +25,7 @@ const STATUS_LABEL: Record<ReservationStatus, { text: string; cls: string }> = {
   COMPLETED: { text: 'הסתיים',  cls: 'bg-iron-border/18 text-iron-muted/75 border-iron-border/25' },
   CANCELLED: { text: 'בוטל',    cls: 'bg-red-900/15 text-status-danger border-red-900/25' },
   NO_SHOW:   { text: 'לא הגיע', cls: 'bg-orange-900/15 text-orange-400 border-orange-900/25' },
+  STANDBY:   { text: 'סטנדביי',  cls: 'bg-amber-900/15 text-amber-400 border-amber-900/25' },
 };
 
 const MEMORY_ICON: Record<string, string> = {

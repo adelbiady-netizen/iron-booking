@@ -155,6 +155,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [floorTables,  setFloorTables]  = useState<FloorTable[]>([]);
   const [floorObjs,    setFloorObjs]    = useState<FloorObjectData[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [standbyReservations, setStandbyReservations] = useState<Reservation[]>([]);
   const [insights,     setInsights]     = useState<FloorInsight[]>([]);
   const [allTables,    setAllTables]    = useState<Table[]>([]);
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
@@ -419,10 +420,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       const t0 = performance.now();
       console.log('[perf:floor] load start', { date, time, refreshKey, isBackground });
       if (!isBackground) setResLoading(true);
-      const [floorResult, resResult, insightResult] = await Promise.allSettled([
+      const [floorResult, resResult, insightResult, standbyResult] = await Promise.allSettled([
         api.tables.floor(date, time),
         api.reservations.list({ date, limit: '500' }),
         api.tables.insights(date, time),
+        api.reservations.list({ date, status: 'STANDBY', limit: '200' }),
       ]);
       console.log('[perf:floor] API responses received', Math.round(performance.now() - t0) + 'ms');
       if (cancelled) return;
@@ -447,6 +449,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         loadedDateRef.current = date;
       }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
+      if (standbyResult.status === 'fulfilled') setStandbyReservations((standbyResult.value.data ?? []) as Reservation[]);
       // Clear the error overlay if either critical API responded — partial recovery
       // is enough. Only lock out the UI when both are unreachable simultaneously.
       if (floorOk || resOk) setLoadError(false);
@@ -561,6 +564,21 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     return () => { clearInterval(retryId); clearTimeout(escalateId); };
   }, [loadError]);
 
+  // Apply an updated reservation to both the main list and the standby list.
+  // Removes from standby if it's no longer STANDBY; adds/keeps in standby if it is.
+  function applyReservationUpdate(updated: Reservation) {
+    setReservations(prev => {
+      if (updated.status === 'STANDBY') return prev.filter(r => r.id !== updated.id);
+      return prev.some(r => r.id === updated.id) ? prev.map(r => r.id === updated.id ? { ...r, ...updated } : r) : [...prev, updated];
+    });
+    setStandbyReservations(prev => {
+      if (updated.status === 'STANDBY') {
+        return prev.some(r => r.id === updated.id) ? prev.map(r => r.id === updated.id ? { ...r, ...updated } : r) : [...prev, updated];
+      }
+      return prev.filter(r => r.id !== updated.id);
+    });
+  }
+
   // When an unassigned PENDING/CONFIRMED reservation is active in GuestDrawer,
   // any floor-table click should assign that reservation to the clicked table
   // rather than opening the table's own panel or triggering the reorganize lift flow.
@@ -569,7 +587,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const res = selectedRes;
     try {
       const updated = await api.reservations.update(res.id, { tableId: table.id, combinedTableIds: [] });
-      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      applyReservationUpdate(updated);
       setSelectedRes(updated);
       showToast(T.guestDrawer.toastTableAssigned(table.name));
     } catch (err) {
@@ -2865,6 +2883,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onHoverRow={handleHoverRow}
               onSmartAssign={() => setShowSmartAssign(true)}
               compact={isMobile}
+              standbyReservations={standbyReservations}
+              onSelectStandby={(r) => { setSelectedRes(r); setOpenDrawerInEdit(true); }}
             />
           )}
         </div>

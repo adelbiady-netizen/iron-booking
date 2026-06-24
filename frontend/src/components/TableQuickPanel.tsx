@@ -14,6 +14,7 @@ const STATUS_DOT: Record<ReservationStatus, string> = {
   COMPLETED: 'bg-iron-muted/50',
   CANCELLED: 'bg-status-danger',
   NO_SHOW:   'bg-orange-400',
+  STANDBY:   'bg-amber-400',
 };
 
 interface Props {
@@ -123,6 +124,7 @@ export default function TableQuickPanel({
     COMPLETED: T.reservationStatus.COMPLETED,
     CANCELLED: T.reservationStatus.CANCELLED,
     NO_SHOW:   T.reservationStatus.NO_SHOW,
+    STANDBY:   T.reservationStatus.STANDBY,
   };
 
   // ── Core action helper ─────────────────────────────────────────────────────

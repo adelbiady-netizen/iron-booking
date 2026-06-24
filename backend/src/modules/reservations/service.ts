@@ -90,7 +90,12 @@ export async function listReservations(restaurantId: string, query: ListReservat
       ...(dateTo ? { lte: parseDateArg(dateTo) } : {}),
     };
   }
-  if (status) where.status = status;
+  if (status) {
+    where.status = status;
+  } else {
+    // Default: exclude STANDBY from the main reservation list — it has its own tab
+    where.status = { not: 'STANDBY' };
+  }
   if (guestId) where.guestId = guestId;
   if (tableId) where.tableId = tableId;
   if (search) {
@@ -172,7 +177,10 @@ export async function createReservation(
   const duration = input.duration ?? await resolveTurnTime(restaurantId, input.partySize, heuristicCreate);
   const date = parseDateArg(input.date);
 
-  if (input.tableId && !input.overrideConflicts) {
+  // STANDBY: skip all conflict/availability checks — no table assignment, no blocking
+  const isStandby = input.status === 'STANDBY';
+
+  if (!isStandby && input.tableId && !input.overrideConflicts) {
     try {
       await validateTableAssignment(
         restaurantId,
@@ -213,7 +221,9 @@ export async function createReservation(
     }
   }
 
-  const status: ReservationStatus = settings.autoConfirm ? 'CONFIRMED' : 'PENDING';
+  const status: ReservationStatus = isStandby
+    ? 'STANDBY'
+    : (settings.autoConfirm ? 'CONFIRMED' : 'PENDING');
 
   // Auto-link Guest CRM record when phone or email is present and no explicit guestId provided
   let resolvedGuestId = input.guestId ?? null;
@@ -330,6 +340,11 @@ export async function updateReservation(
     throw new BusinessRuleError(`Cannot modify a ${existing.status} reservation`);
   }
 
+  // STANDBY → only CONFIRMED or CANCELLED are valid next statuses
+  if (existing.status === 'STANDBY' && input.status && !['CONFIRMED', 'CANCELLED', 'STANDBY'].includes(input.status)) {
+    throw new BusinessRuleError(`Cannot transition from STANDBY to ${input.status}`);
+  }
+
   // SEATED guests: date and time are locked; table moves remain allowed so hosts
   // can reassign a party mid-service. Operational fields (party size, notes, duration)
   // are also editable. COMPLETED / NO_SHOW / CANCELLED are blocked above.
@@ -347,7 +362,13 @@ export async function updateReservation(
   const tableId = input.tableId !== undefined ? input.tableId : existing.tableId;
   const combinedTableIds = input.combinedTableIds !== undefined ? input.combinedTableIds : existing.combinedTableIds;
 
-  if (tableId && (input.date || input.time || input.duration || input.tableId !== undefined || input.combinedTableIds !== undefined)) {
+  // STANDBY edits (date/time/notes/party without confirming) skip conflict checks entirely
+  const confirmingStandby = existing.status === 'STANDBY' && input.status === 'CONFIRMED';
+
+  // Skip conflict check for STANDBY-only edits (date/time/notes); always run when confirming.
+  const skipConflict = existing.status === 'STANDBY' && !confirmingStandby;
+
+  if (!skipConflict && tableId && (input.date || input.time || input.duration || input.tableId !== undefined || input.combinedTableIds !== undefined || confirmingStandby)) {
     if (!input.overrideConflicts) {
       // When only the table assignment changes (no time/date/duration shift), use
       // bufferMinutes=0 so that adjacent reservations (end==start) are allowed.
@@ -468,6 +489,8 @@ export async function updateReservation(
         ...(input.tableId !== undefined && { tableId: input.tableId }),
         ...(input.combinedTableIds !== undefined && { combinedTableIds: input.combinedTableIds }),
         ...(input.tags && { tags: input.tags }),
+        // STANDBY → CONFIRMED: stamp status and confirmedAt
+        ...(confirmingStandby && { status: 'CONFIRMED', confirmedAt: new Date() }),
         // Assigning a table to a reorganized reservation resolves it
         ...(resolvingReorganize && { reorganizeAt: null }),
         updatedByName: actorName,
@@ -477,10 +500,19 @@ export async function updateReservation(
 
     await logActivity(tx, id, 'UPDATED', actorName, {
       fromStatus: existing.status,
-      toStatus:   existing.status,
+      toStatus:   confirmingStandby ? 'CONFIRMED' : existing.status,
       tableId:    existing.tableId ?? null,
       changes,
     });
+
+    // STANDBY → CONFIRMED: emit a dedicated audit event
+    if (confirmingStandby) {
+      await logActivity(tx, id, 'CONFIRMED', actorName, {
+        fromStatus: 'STANDBY',
+        toStatus:   'CONFIRMED',
+        tableId:    input.tableId ?? null,
+      });
+    }
 
     // Separate table-change audit so it appears as a distinct timeline event
     if (input.tableId !== undefined && input.tableId !== existing.tableId) {
@@ -510,7 +542,7 @@ export async function confirmReservation(
   actorName: string
 ) {
   const r = await assertReservationBelongsToRestaurant(id, restaurantId);
-  if (r.status !== 'PENDING') {
+  if (!['PENDING', 'STANDBY'].includes(r.status)) {
     throw new BusinessRuleError(`Cannot confirm a reservation with status ${r.status}`);
   }
   return prisma.$transaction(async (tx) => {

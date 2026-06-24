@@ -26,6 +26,7 @@ export const CreateReservationSchema = z.object({
   depositAmountCents: z.number().int().optional(),
   overrideConflicts: z.boolean().default(false),
   reorganizeIds: z.array(z.string().uuid()).default([]),
+  status: z.enum(['STANDBY']).optional(), // only STANDBY can be forced at creation; normal flow uses autoConfirm
 });
 
 export const UpdateReservationSchema = z.object({
@@ -44,6 +45,7 @@ export const UpdateReservationSchema = z.object({
   tags: z.array(z.string()).optional(),
   overrideConflicts: z.boolean().default(false),
   reorganizeIds: z.array(z.string().uuid()).default([]),
+  status: z.enum(['CONFIRMED', 'CANCELLED', 'STANDBY']).optional(), // STANDBY→CONFIRMED or STANDBY→CANCELLED
 });
 
 export const AssignTableSchema = z.object({
@@ -72,7 +74,7 @@ export const ListReservationsQuerySchema = z.object({
   dateFrom: DateString.optional(),
   dateTo: DateString.optional(),
   status: z
-    .enum(['PENDING', 'CONFIRMED', 'SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+    .enum(['PENDING', 'CONFIRMED', 'SEATED', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'STANDBY'])
     .optional(),
   guestId: z.string().uuid().optional(),
   tableId: z.string().uuid().optional(),

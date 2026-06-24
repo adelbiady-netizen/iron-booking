@@ -28,6 +28,7 @@ export const T = {
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
     NO_SHOW:   'No-show',
+    STANDBY:   'Standby',
   } as Record<string, string>,
 
   // ── Live table status labels ────────────────────────────────────────────────
@@ -201,6 +202,7 @@ export const T = {
   // ── ReservationPanel ───────────────────────────────────────────────────────
   reservationPanel: {
     tabReservations:  'Reservations',
+    tabStandby:       'Standby',
     tabWaitlist:      'Waiting now',
     walkIn:           'Walk-in',
     newReservation:   '+ New',
@@ -311,6 +313,13 @@ export const T = {
     titleWalkIn:          'Walk-in',
     tabReservation:       'Reservation',
     tabWalkIn:            'Walk-in',
+    toggleReservation:    'Reservation',
+    toggleStandby:        'Standby',
+    standbyHint:          'No table required — will be confirmed when space opens.',
+    saveStandby:          'Save standby',
+    standbyEmptyTitle:    'No standby requests',
+    standbyEmptyHint:     'Save a reservation as Standby when the requested time is fully booked.',
+    confirmStandby:       'Confirm reservation',
     // Reservation form
     fieldGuestName:       'Guest name *',
     fieldPhone:           'Phone',

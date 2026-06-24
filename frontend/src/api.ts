@@ -442,6 +442,7 @@ export const api = {
       combinedTableIds: string[];
       overrideConflicts: boolean;
       reorganizeIds: string[];
+      status: 'CONFIRMED' | 'CANCELLED' | 'STANDBY';
     }>) =>
       request<Reservation>(`/reservations/${id}`, {
         method: 'PATCH',

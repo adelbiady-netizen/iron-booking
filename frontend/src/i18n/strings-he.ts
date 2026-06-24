@@ -28,6 +28,7 @@ export const THe = {
     COMPLETED: 'הסתיים',
     CANCELLED: 'מבוטל',
     NO_SHOW:   'לא הגיע',
+    STANDBY:   'סטנדביי',
   } as Record<string, string>,
 
   // ── Live table status labels ────────────────────────────────────────────────
@@ -202,6 +203,7 @@ export const THe = {
   // ── ReservationPanel ───────────────────────────────────────────────────────
   reservationPanel: {
     tabReservations:  'הזמנות',
+    tabStandby:       'סטנדביי',
     tabWaitlist:      'ממתינים',
     walkIn:           'Walk-in',
     newReservation:   '+ חדש',
@@ -312,6 +314,13 @@ export const THe = {
     titleWalkIn:          'Walk-in',
     tabReservation:       'הזמנה',
     tabWalkIn:            'Walk-in',
+    toggleReservation:    'הזמנה',
+    toggleStandby:        'סטנדביי',
+    standbyHint:          'ללא שולחן — יאושר כשיתפנה מקום.',
+    saveStandby:          'שמור סטנדביי',
+    standbyEmptyTitle:    'אין בקשות סטנדביי',
+    standbyEmptyHint:     'שמור הזמנה כסטנדביי כשהשעה המבוקשת תפוסה.',
+    confirmStandby:       'אשר הזמנה',
     fieldGuestName:       'שם האורח *',
     fieldPhone:           'טלפון',
     fieldPartySize:       'מספר אורחים *',
