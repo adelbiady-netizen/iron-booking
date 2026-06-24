@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { WaitlistStatus, Prisma } from '@prisma/client';
+import { WaitlistStatus, WaitlistType, Prisma } from '@prisma/client';
 import { NotFoundError, BusinessRuleError, ValidationError, ConflictError } from '../../lib/errors';
 import { getFloorState } from '../tables/service';
 import { sendWhatsApp } from '../../lib/sms';
@@ -128,7 +128,7 @@ export async function listWaitlist(restaurantId: string, date: string, time?: st
 
   const [entries, floorTables, restaurant] = await Promise.all([
     prisma.waitlistEntry.findMany({
-      where: { restaurantId, date: parsedDate, status: { in: ['WAITING', 'NOTIFIED'] } },
+      where: { restaurantId, date: parsedDate, type: 'LIVE', status: { in: ['WAITING', 'NOTIFIED'] } },
       orderBy: { addedAt: 'asc' },
     }),
     getFloorState(restaurantId, parsedDate, timeStr),
@@ -153,6 +153,9 @@ export async function getWaitlistEntry(restaurantId: string, id: string) {
 
 export async function markOffered(restaurantId: string, id: string) {
   const entry = await assertEntry(restaurantId, id);
+  if (entry.type === 'FUTURE') {
+    throw new BusinessRuleError('FUTURE waitlist offers require the full offer flow (not yet implemented)');
+  }
   if (!['WAITING', 'NOTIFIED'].includes(entry.status)) {
     throw new BusinessRuleError(`Entry is already ${entry.status}`);
   }
@@ -167,9 +170,11 @@ export async function addToWaitlist(restaurantId: string, data: {
   guestPhone?: string;
   partySize: number;
   date: string;
+  type?: WaitlistType;
   source?: string;
   notes?: string;
   preferredTime?: string;
+  requestedTime?: string;
   section?: string;
 }) {
   const date = parseDateArg(data.date);
@@ -215,10 +220,12 @@ export async function addToWaitlist(restaurantId: string, data: {
       guestName: data.guestName,
       guestPhone: data.guestPhone ?? null,
       partySize: data.partySize,
+      type: data.type ?? 'LIVE',
       source: (data.source as any) ?? 'WALK_IN',
       quotedWaitMinutes,
       notes: data.notes ?? null,
       preferredTime: data.preferredTime ?? null,
+      requestedTime: data.requestedTime ?? null,
       section: data.section ?? null,
     },
   });

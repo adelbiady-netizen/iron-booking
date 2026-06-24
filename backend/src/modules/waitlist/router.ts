@@ -27,9 +27,11 @@ const AddSchema = z.object({
   guestPhone:    z.string().optional(),
   partySize:     z.number().int().min(1),
   date:          z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  type:          z.enum(['LIVE', 'FUTURE']).optional(),
   source:        z.enum(['WALK_IN', 'HOST', 'PHONE', 'ONLINE']).optional(),
   notes:         z.string().optional(),
   preferredTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  requestedTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   section:       z.string().optional(),
 });
 

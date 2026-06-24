@@ -524,13 +524,14 @@ model WaitlistEntry {
   partySize    Int
   status       WaitlistStatus @default(WAITING)
   source       WaitlistSource @default(WALK_IN)
+  type         WaitlistType   @default(LIVE) // LIVE = walk-in tonight; FUTURE = wants a future date
 
   // Quote given when added
   quotedWaitMinutes Int?
 
   // Timestamps
   addedAt    DateTime  @default(now())
-  notifiedAt DateTime? // when we sent "table ready" notification
+  notifiedAt DateTime? // when we sent "table ready" notification (LIVE: verbal; FUTURE: via link)
   seatedAt   DateTime?
   leftAt     DateTime? // guest decided to leave
 
@@ -539,8 +540,15 @@ model WaitlistEntry {
 
   // Public self-service waitlist fields
   publicToken   String? @unique // opaque guest tracking token
-  preferredTime String? // "HH:MM" requested time
+  preferredTime String? // "HH:MM" — LIVE: advisory ("around 19:30"); FUTURE: use requestedTime
   flexibleTime  Boolean @default(false) // guest accepts ±1 hour
+
+  // FUTURE-type fields (all null on LIVE entries)
+  requestedTime    String?   // "HH:MM" — exact time slot guest is waiting for
+  offerExpiresAt   DateTime? // when the offer window closes
+  offerToken       String?   @unique // UUID sent to guest for confirmation link
+  offerAcceptedAt  DateTime?
+  offerDeclinedAt  DateTime?
 
   // If converted to reservation
   reservationId String?
@@ -549,16 +557,29 @@ model WaitlistEntry {
   guest      Guest?     @relation(fields: [guestId], references: [id])
 
   @@index([restaurantId, date, status])
+  @@index([restaurantId, date, type, status]) // live-queue filter
   @@index([restaurantId, guestId])
   @@map("waitlist_entries")
 }
 
+enum WaitlistType {
+  LIVE   // walk-in / guest physically waiting now
+  FUTURE // guest wants a future slot when none is available
+}
+
 enum WaitlistStatus {
-  WAITING
-  NOTIFIED // told table is ready, waiting confirmation
-  SEATED
-  LEFT // chose to leave
-  REMOVED // host removed
+  // ── LIVE lifecycle ───────────────────────────────────────────
+  WAITING  // in queue
+  NOTIFIED // table offered verbally by host
+  SEATED   // walked to table; reservation created
+  LEFT     // chose to leave without being seated
+  // ── FUTURE lifecycle (mechanics not yet implemented) ─────────
+  OFFERED  // offer link sent; awaiting guest confirmation
+  BOOKED   // guest confirmed; reservation created
+  EXPIRED  // offer window closed without response
+  DECLINED // guest declined the offer
+  // ── Both ─────────────────────────────────────────────────────
+  REMOVED  // host manually removed
   ARCHIVED // auto-closed at end of operational day
 }
 

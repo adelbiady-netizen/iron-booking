@@ -627,7 +627,14 @@ export interface BackendTableSuggestion {
   nextRes?: { guestName: string; time: string; partySize: number };
 }
 
-export type WaitlistStatus = 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT' | 'REMOVED' | 'ARCHIVED';
+export type WaitlistType   = 'LIVE' | 'FUTURE';
+export type WaitlistStatus =
+  // LIVE lifecycle
+  | 'WAITING' | 'NOTIFIED' | 'SEATED' | 'LEFT'
+  // FUTURE lifecycle (mechanics not yet implemented)
+  | 'OFFERED' | 'BOOKED' | 'EXPIRED' | 'DECLINED'
+  // Both
+  | 'REMOVED' | 'ARCHIVED';
 
 // Discriminated union for the table-first seating context menu.
 // Lets FloorBoard pass a typed guest to HostDashboard without importing component types.
@@ -642,6 +649,7 @@ export interface WaitlistEntry {
   guestName: string;
   guestPhone: string | null;
   partySize: number;
+  type: WaitlistType;
   status: WaitlistStatus;
   source: string;
   quotedWaitMinutes: number | null;
@@ -655,6 +663,12 @@ export interface WaitlistEntry {
   reservationId: string | null;
   preferredTime: string | null;
   flexibleTime: boolean;
+  // FUTURE-type fields (null on LIVE entries)
+  requestedTime:   string | null;
+  offerExpiresAt:  string | null;
+  offerToken:      string | null;
+  offerAcceptedAt: string | null;
+  offerDeclinedAt: string | null;
 }
 
 export type FloorObjKind =
