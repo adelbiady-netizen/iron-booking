@@ -124,11 +124,6 @@ export default function RootPage() {
     lastSlug,
   });
 
-  if (lastSlug) {
-    window.location.replace(`/${lastSlug}`);
-    return null;
-  }
-
   const showDiag = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('debugPwa') === '1';
 
@@ -144,6 +139,13 @@ export default function RootPage() {
         </div>
 
         <div className="bg-iron-card border border-iron-border rounded-xl p-8 mb-4">
+          <a
+            href="/eataliano-dalla-costa"
+            className="block w-full bg-iron-green text-white font-semibold text-base rounded-lg px-4 py-4 text-center mb-6"
+          >
+            כניסה לאיטליאנו דלה קוסטה
+          </a>
+
           <p className="text-iron-text font-semibold text-base mb-2">
             קיבלתם קישור מסעדה מ-IRON Booking
           </p>
@@ -151,22 +153,15 @@ export default function RootPage() {
             הכניסה למערכת מתבצעת דרך הקישור הייחודי של המסעדה שלכם.
           </p>
 
-          <div className="bg-iron-bg border border-iron-border rounded-lg px-4 py-3 mb-6 text-left" dir="ltr">
+          <div className="bg-iron-bg border border-iron-border rounded-lg px-4 py-3 mb-4 text-left" dir="ltr">
             <p className="text-iron-muted text-xs mb-1">דוגמה:</p>
             <p className="text-iron-green text-sm font-mono">ironbooking.com/your-restaurant</p>
           </div>
 
-          <p className="text-iron-muted text-sm mb-6">
+          <p className="text-iron-muted text-sm">
             לא מכירים את הקישור שלכם?<br />
             <span className="text-iron-text">פנו למנהל המסעדה לקבלת הקישור.</span>
           </p>
-
-          <a
-            href="/eataliano-dalla-costa"
-            className="block w-full bg-iron-green text-white font-semibold text-sm rounded-lg px-4 py-3 text-center"
-          >
-            כניסה לאיטליאנו דלה קוסטה
-          </a>
         </div>
 
         <p className="text-iron-muted text-xs">Iron Booking · מערכת ניהול הזמנות</p>
