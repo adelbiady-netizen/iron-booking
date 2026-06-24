@@ -54,6 +54,10 @@ interface Props {
   /** Called whenever the reservation date or time changes so the parent can keep
    *  the floor board in sync with the drawer. */
   onDateTimeChange?: (date: string, time: string) => void;
+  /** When true, suppresses the first (mount) call to onDateTimeChange so the board
+   *  doesn't jump to the drawer's initial date. Subsequent user-initiated changes
+   *  still call onDateTimeChange normally. */
+  suppressInitialDateTimeSync?: boolean;
   /** Called when the host wants to add the current guest to the waitlist instead. */
   onAddToWaitlist?: (data: { guestName: string; partySize: number; guestPhone?: string; date: string; time?: string }) => void;
 }
@@ -120,6 +124,7 @@ export default function CreateDrawer({
   externalResTableIds,
   onResTableChange,
   onDateTimeChange,
+  suppressInitialDateTimeSync = false,
   onAddToWaitlist,
 }: Props) {
   const isEditingStandby = !!standbyReservation;
@@ -271,9 +276,15 @@ export default function CreateDrawer({
   // live status for the reservation slot being created, not the previous board time.
   const onDateTimeChangeRef = useRef(onDateTimeChange);
   useEffect(() => { onDateTimeChangeRef.current = onDateTimeChange; }, [onDateTimeChange]);
+  const dateTimeSyncMountedRef = useRef(false);
   useEffect(() => {
+    if (suppressInitialDateTimeSync && !dateTimeSyncMountedRef.current) {
+      dateTimeSyncMountedRef.current = true;
+      return;
+    }
+    dateTimeSyncMountedRef.current = true;
     onDateTimeChangeRef.current?.(resDate, resTime);
-  }, [resDate, resTime]);
+  }, [resDate, resTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // In newResPickMode: clear the selected table whenever booking params change
   // so the user must re-select after changing time/date/duration/party size.
