@@ -425,7 +425,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         api.tables.floor(date, time),
         api.reservations.list({ date, limit: '500' }),
         api.tables.insights(date, time),
-        api.reservations.list({ date, status: 'STANDBY', limit: '200' }),
+        api.reservations.list({ dateFrom: todayStr(), status: 'STANDBY', limit: '500' }),
       ]);
       console.log('[perf:floor] API responses received', Math.round(performance.now() - t0) + 'ms');
       if (cancelled) return;
@@ -450,7 +450,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         loadedDateRef.current = date;
       }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
-      if (standbyResult.status === 'fulfilled') setStandbyReservations((standbyResult.value.data ?? []) as Reservation[]);
+      if (standbyResult.status === 'fulfilled') {
+        const raw = (standbyResult.value.data ?? []) as Reservation[];
+        const sorted = [...raw].sort((a, b) => {
+          const dateCmp = a.date.localeCompare(b.date);
+          if (dateCmp !== 0) return dateCmp;
+          const timeCmp = a.time.localeCompare(b.time);
+          if (timeCmp !== 0) return timeCmp;
+          return a.id.localeCompare(b.id);
+        });
+        setStandbyReservations(sorted);
+      }
       // Clear the error overlay if either critical API responded — partial recovery
       // is enough. Only lock out the UI when both are unreachable simultaneously.
       if (floorOk || resOk) setLoadError(false);

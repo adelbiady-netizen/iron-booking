@@ -95,7 +95,7 @@ export default function ReservationPanel({
   standbyReservations = [], standbyLoading = false, onSelectStandby,
 }: Props) {
   const T = useT();
-  const { dir, locale } = useLocale();
+  const { dir, locale, intlLocale } = useLocale();
   const light = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
   const [tab,    setTab]    = useState<Tab>('reservations');
   const [filter, setFilter] = useState<FilterValue>('ACTIVE');
@@ -314,22 +314,27 @@ export default function ReservationPanel({
               <p className="text-iron-muted text-sm font-medium">{T.createDrawer.standbyEmptyTitle}</p>
               <p className="text-iron-muted/60 text-[11px]">{T.createDrawer.standbyEmptyHint}</p>
             </div>
-          ) : (
-            standbyReservations.map(r => (
+          ) : standbyReservations.map(r => {
+            const [y, m, d] = r.date.slice(0, 10).split('-').map(Number);
+            const dt = new Date(y, m - 1, d);
+            const dayLabel = dt.toLocaleDateString(intlLocale, { weekday: 'long' });
+            const dateLabel = `${dayLabel} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+            return (
               <div
                 key={r.id}
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-iron-elevated/60 border border-iron-border/25"
               >
                 <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-amber-400/70 font-medium mb-0.5">
+                    {dateLabel} · {r.time.slice(0, 5)}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-iron-text truncate">{r.guestName}</span>
-                    <span className="text-[10px] text-amber-400/80 bg-amber-900/20 border border-amber-900/30 px-1.5 py-0.5 rounded-full leading-none shrink-0">
-                      {T.reservationStatus?.STANDBY ?? 'Standby'}
-                    </span>
+                    <span className="text-[11px] text-iron-muted/70 shrink-0">{r.partySize}p</span>
                   </div>
-                  <div className="text-[11px] text-iron-muted/70 mt-0.5">
-                    {r.time} · {r.partySize}p{r.guestPhone ? ` · ${r.guestPhone}` : ''}
-                  </div>
+                  {r.guestPhone && (
+                    <div className="text-[11px] text-iron-muted/55 mt-0.5 font-mono" dir="ltr">{r.guestPhone}</div>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -339,8 +344,9 @@ export default function ReservationPanel({
                   עריכה
                 </button>
               </div>
-            ))
-          )}
+            );
+          })
+          }
         </div>
       ) : tab === 'waitlist' ? (
         <WaitlistPanel
