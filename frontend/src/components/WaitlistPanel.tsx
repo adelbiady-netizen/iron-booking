@@ -146,31 +146,22 @@ function WaitlistEntryDetails({
 
       {/* Secondary actions */}
       <div className="pl-6 flex flex-wrap gap-1.5">
-        {(() => {
-          if (entry.notifiedAt) {
-            const m = Math.floor((Date.now() - new Date(entry.notifiedAt).getTime()) / 60_000);
-            return (
-              <span className="text-[11px] px-2.5 py-1 rounded-md border border-status-reserved/30 text-status-reserved bg-status-reserved/10">
-                {m < 1 ? T.waitlistPanel.notifiedJustNow : T.waitlistPanel.notifiedAgo(m)}
-              </span>
-            );
-          }
-          if (entry.guestPhone && onNotify) {
-            return (
-              <button
-                disabled={notifyBusy}
-                onClick={async () => {
-                  setNotifyBusy(true);
-                  try { await onNotify(entry); } finally { setNotifyBusy(false); }
-                }}
-                className="text-[11px] px-2.5 py-1 rounded-md border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors disabled:opacity-40"
-              >
-                {notifyBusy ? '…' : T.waitlistPanel.notifyButton}
-              </button>
-            );
-          }
-          return null;
-        })()}
+        {entry.notifiedAt ? (
+          <span className="text-[11px] px-2.5 py-1 rounded-md border border-status-reserved/30 text-status-reserved bg-status-reserved/10">
+            {(() => { const m = Math.floor((Date.now() - new Date(entry.notifiedAt!).getTime()) / 60_000); return m < 1 ? T.waitlistPanel.notifiedJustNow : T.waitlistPanel.notifiedAgo(m); })()}
+          </span>
+        ) : onNotify ? (
+          <button
+            disabled={notifyBusy}
+            onClick={async () => {
+              setNotifyBusy(true);
+              try { await onNotify(entry); } finally { setNotifyBusy(false); }
+            }}
+            className="text-[11px] px-2.5 py-1 rounded-md border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors disabled:opacity-40"
+          >
+            {notifyBusy ? '…' : T.waitlistPanel.notifyButton}
+          </button>
+        ) : null}
         <button
           onClick={() => { onNoShow(entry); onClose(); }}
           className="text-[11px] px-2.5 py-1 rounded-md border border-orange-900/20 text-orange-400 hover:bg-orange-900/10 transition-colors"
@@ -257,7 +248,7 @@ function WaitlistEntryDetails({
 interface Props {
   entries: WaitlistEntry[];
   loading: boolean;
-  onAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
+  onAdd: (data: { guestName: string; partySize: number; guestPhone?: string; preferredTime?: string; section?: string; source?: string }) => Promise<void>;
   onSeat: (entry: WaitlistEntry) => void;
   onNotify?: (entry: WaitlistEntry) => Promise<void>;
   onUpdate?: (entry: WaitlistEntry, data: EditData) => Promise<void>;
@@ -282,6 +273,9 @@ export default function WaitlistPanel({
   const [name,          setName]          = useState('');
   const [partySize,     setPartySize]     = useState('2');
   const [phone,         setPhone]         = useState('');
+  const [preferredTime, setPreferredTime] = useState('');
+  const [section,       setSection]       = useState('');
+  const [source,        setSource]        = useState<'WALK_IN' | 'PHONE' | 'HOST' | 'ONLINE'>('WALK_IN');
   const [guestHint,     setGuestHint]     = useState<GuestLookupResult | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [busySeat,      setBusySeat]      = useState<string | null>(null);
@@ -301,7 +295,7 @@ export default function WaitlistPanel({
   }, [active, expandedId]);
 
   function resetForm() {
-    setName(''); setPartySize('2'); setPhone(''); setError(null);
+    setName(''); setPartySize('2'); setPhone(''); setPreferredTime(''); setSection(''); setSource('WALK_IN'); setError(null);
     setGuestHint(null); setHintDismissed(false);
   }
 
@@ -327,6 +321,9 @@ export default function WaitlistPanel({
         guestName: name.trim(),
         partySize: Math.max(1, parseInt(partySize) || 1),
         guestPhone: phone.trim() || undefined,
+        preferredTime: preferredTime.trim() || undefined,
+        section: section.trim() || undefined,
+        source,
       });
       resetForm();
       setShowForm(false);
@@ -409,6 +406,33 @@ export default function WaitlistPanel({
                 placeholder={T.waitlistPanel.phonePlaceholder}
                 className="flex-1 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
               />
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={preferredTime}
+                onChange={e => setPreferredTime(e.target.value)}
+                placeholder={T.waitlistPanel.preferredTimePlaceholder}
+                className="flex-1 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
+              />
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={section}
+                onChange={e => setSection(e.target.value)}
+                placeholder={T.waitlistPanel.sectionPlaceholder}
+                className="flex-1 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
+              />
+              <select
+                value={source}
+                onChange={e => setSource(e.target.value as typeof source)}
+                className="w-24 bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-xs focus:outline-none focus:border-iron-green transition-colors"
+              >
+                <option value="WALK_IN">Walk-in</option>
+                <option value="PHONE">{T.waitlistPanel.sourcePhone}</option>
+                <option value="ONLINE">{T.waitlistPanel.sourceOnline}</option>
+              </select>
             </div>
             {guestHint && !hintDismissed && (
               <div className="rounded-lg border border-iron-green/30 bg-iron-green/5 px-2.5 py-2">

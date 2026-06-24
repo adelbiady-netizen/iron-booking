@@ -495,8 +495,10 @@ export const api = {
   waitlist: {
     list: (date: string, time?: string) =>
       request<WaitlistEntry[]>(`/waitlist?date=${date}${time ? `&time=${encodeURIComponent(time)}` : ''}`),
-    add: (body: { guestName: string; partySize: number; guestPhone?: string; date: string; notes?: string }) =>
+    add: (body: { guestName: string; partySize: number; guestPhone?: string; date: string; notes?: string; preferredTime?: string; section?: string; source?: string }) =>
       request<WaitlistEntry>('/waitlist', { method: 'POST', body: JSON.stringify(body) }),
+    markOffered: (id: string) =>
+      request<WaitlistEntry>(`/waitlist/${id}/mark-offered`, { method: 'POST' }),
     seat: (id: string, tableId?: string, overrideConflicts = false) =>
       request<{ entry: WaitlistEntry; reservation: Reservation }>(`/waitlist/${id}/seat`, {
         method: 'POST',

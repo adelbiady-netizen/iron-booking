@@ -50,6 +50,8 @@ interface Props {
   /** Called whenever the reservation date or time changes so the parent can keep
    *  the floor board in sync with the drawer. */
   onDateTimeChange?: (date: string, time: string) => void;
+  /** Called when the host wants to add the current guest to the waitlist instead. */
+  onAddToWaitlist?: (data: { guestName: string; partySize: number; guestPhone?: string; date: string; time?: string }) => void;
 }
 
 // ─── Shared field components ──────────────────────────────────────────────────
@@ -114,6 +116,7 @@ export default function CreateDrawer({
   externalResTableIds,
   onResTableChange,
   onDateTimeChange,
+  onAddToWaitlist,
 }: Props) {
   const T = useT();
   const { locale, intlLocale } = useLocale();
@@ -1090,22 +1093,33 @@ export default function CreateDrawer({
 
                 {/* No table available, no picker */}
                 {!newResPickMode && !pickingOnMap && !suggestBusy && !autoResult && !manualOverride && !showPicker && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
-                    <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
-                    <button
-                      type="button"
-                      onClick={openTablePicker}
-                      className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
-                    >
-                      {T.createDrawer.tableShowAll}
-                    </button>
-                    {onPickTables && !isDesktop && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
+                      <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                       <button
                         type="button"
-                        onClick={openMapPicker}
-                        className="text-xs px-2 py-1 rounded border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
+                        onClick={openTablePicker}
+                        className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
                       >
-                        {T.createDrawer.tableSelectOnMap}
+                        {T.createDrawer.tableShowAll}
+                      </button>
+                      {onPickTables && !isDesktop && (
+                        <button
+                          type="button"
+                          onClick={openMapPicker}
+                          className="text-xs px-2 py-1 rounded border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
+                        >
+                          {T.createDrawer.tableSelectOnMap}
+                        </button>
+                      )}
+                    </div>
+                    {onAddToWaitlist && (
+                      <button
+                        type="button"
+                        onClick={() => { onAddToWaitlist({ guestName: resName.trim(), partySize: resParty, guestPhone: resPhone.trim() || undefined, date: resDate, time: resTime || undefined }); onClose(); }}
+                        className="w-full text-xs px-3 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors font-medium"
+                      >
+                        {T.waitlistPanel.addToWaitlistButton}
                       </button>
                     )}
                   </div>
@@ -1443,22 +1457,33 @@ export default function CreateDrawer({
 
               {/* No available table */}
               {!wiPickingOnMap && !wiSuggestBusy && !wiAutoResult && !wiManualOverride && !wiShowPicker && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
-                  <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
-                  <button
-                    type="button"
-                    onClick={openWiTablePicker}
-                    className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
-                  >
-                    {T.createDrawer.tableShowAll}
-                  </button>
-                  {onPickTables && !isDesktop && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/10 border border-status-warning/20">
+                    <span className="text-status-warning text-xs flex-1">{T.createDrawer.tableNoAvailable}</span>
                     <button
                       type="button"
-                      onClick={openWiMapPicker}
-                      className="text-xs px-2 py-1 rounded border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
+                      onClick={openWiTablePicker}
+                      className="text-xs px-2 py-1 rounded border border-status-warning/30 text-status-warning hover:bg-status-warning/10 transition-colors shrink-0"
                     >
-                      {T.createDrawer.tableSelectOnMap}
+                      {T.createDrawer.tableShowAll}
+                    </button>
+                    {onPickTables && !isDesktop && (
+                      <button
+                        type="button"
+                        onClick={openWiMapPicker}
+                        className="text-xs px-2 py-1 rounded border border-status-reserved/30 text-status-reserved hover:bg-status-reserved/10 transition-colors shrink-0"
+                      >
+                        {T.createDrawer.tableSelectOnMap}
+                      </button>
+                    )}
+                  </div>
+                  {onAddToWaitlist && (
+                    <button
+                      type="button"
+                      onClick={() => { onAddToWaitlist({ guestName: wiName.trim(), partySize: wiParty, guestPhone: wiPhone.trim() || undefined, date: defaultDate }); onClose(); }}
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors font-medium"
+                    >
+                      {T.waitlistPanel.addToWaitlistButton}
                     </button>
                   )}
                 </div>

@@ -23,12 +23,14 @@ function q(req: Request, key: string): string {
 }
 
 const AddSchema = z.object({
-  guestName: z.string().min(1),
-  guestPhone: z.string().optional(),
-  partySize: z.number().int().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  source: z.enum(['WALK_IN', 'PHONE', 'ONLINE']).optional(),
-  notes: z.string().optional(),
+  guestName:     z.string().min(1),
+  guestPhone:    z.string().optional(),
+  partySize:     z.number().int().min(1),
+  date:          z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  source:        z.enum(['WALK_IN', 'HOST', 'PHONE', 'ONLINE']).optional(),
+  notes:         z.string().optional(),
+  preferredTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  section:       z.string().optional(),
 });
 
 const DateQuerySchema = z.object({
@@ -96,6 +98,14 @@ router.post('/:id/seat', async (req: Request, res: Response, next: NextFunction)
     );
     res.json(result);
     eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
+  } catch (err) { next(err); }
+});
+
+// POST /waitlist/:id/mark-offered — Phase 1: status change only, no SMS
+router.post('/:id/mark-offered', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const entry = await service.markOffered(req.auth.restaurantId, p(req, 'id'));
+    res.json(entry);
   } catch (err) { next(err); }
 });
 

@@ -1197,9 +1197,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     [reservations],
   );
 
-  const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string }) => {
+  const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string; preferredTime?: string; section?: string; source?: string }) => {
     const entry = await api.waitlist.add({ ...data, date });
     setWaitlist(prev => [...prev, entry]);
+    setWaitlistRefreshKey(k => k + 1);
   }, [date]);
 
   const handleWaitlistSeat = useCallback((entry: WaitlistEntry) => {
@@ -1234,7 +1235,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleWaitlistNotify = useCallback(async (entry: WaitlistEntry) => {
     try {
-      const updated = await api.waitlist.notify(entry.id);
+      const updated = await api.waitlist.markOffered(entry.id);
       setWaitlist(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e));
       showToast(T.hostDashboard.toastNotified(entry.guestName));
     } catch (err) {
@@ -2925,6 +2926,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             externalResTableIds={createMode === 'reservation' ? tablePickSelectedIds : undefined}
             onResTableChange={() => { /* selection managed via pickCallback */ }}
             onDateTimeChange={handleDrawerDateTimeChange}
+            onAddToWaitlist={data => { handleWaitlistAdd({ ...data, source: 'HOST' }); }}
           />
         </DrawerErrorBoundary>
       )}

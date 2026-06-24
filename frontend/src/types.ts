@@ -651,6 +651,7 @@ export interface WaitlistEntry {
   seatedAt: string | null;
   leftAt: string | null;
   notes: string | null;
+  section: string | null;
   reservationId: string | null;
   preferredTime: string | null;
   flexibleTime: boolean;

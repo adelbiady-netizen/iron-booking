@@ -151,6 +151,17 @@ export async function getWaitlistEntry(restaurantId: string, id: string) {
   return assertEntry(restaurantId, id);
 }
 
+export async function markOffered(restaurantId: string, id: string) {
+  const entry = await assertEntry(restaurantId, id);
+  if (!['WAITING', 'NOTIFIED'].includes(entry.status)) {
+    throw new BusinessRuleError(`Entry is already ${entry.status}`);
+  }
+  return prisma.waitlistEntry.update({
+    where: { id },
+    data: { status: 'NOTIFIED', notifiedAt: new Date() },
+  });
+}
+
 export async function addToWaitlist(restaurantId: string, data: {
   guestName: string;
   guestPhone?: string;
@@ -158,6 +169,8 @@ export async function addToWaitlist(restaurantId: string, data: {
   date: string;
   source?: string;
   notes?: string;
+  preferredTime?: string;
+  section?: string;
 }) {
   const date = parseDateArg(data.date);
   const quotedWaitMinutes = await estimateWaitMinutes(restaurantId, date, data.partySize);
@@ -189,6 +202,8 @@ export async function addToWaitlist(restaurantId: string, data: {
       source: (data.source as any) ?? 'WALK_IN',
       quotedWaitMinutes,
       notes: data.notes ?? null,
+      preferredTime: data.preferredTime ?? null,
+      section: data.section ?? null,
     },
   });
 }
