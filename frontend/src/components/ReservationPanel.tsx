@@ -316,11 +316,9 @@ export default function ReservationPanel({
             </div>
           ) : (
             standbyReservations.map(r => (
-              <button
+              <div
                 key={r.id}
-                type="button"
-                onClick={() => onSelectStandby?.(r)}
-                className="w-full text-start flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-iron-elevated/60 hover:bg-iron-elevated border border-iron-border/25 hover:border-iron-border/50 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-iron-elevated/60 border border-iron-border/25"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -330,13 +328,17 @@ export default function ReservationPanel({
                     </span>
                   </div>
                   <div className="text-[11px] text-iron-muted/70 mt-0.5">
-                    {r.time} · {r.partySize}p
+                    {r.time} · {r.partySize}p{r.guestPhone ? ` · ${r.guestPhone}` : ''}
                   </div>
                 </div>
-                <svg className="text-iron-muted/40 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M9 18l6-6-6-6"/>
-                </svg>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectStandby?.(r)}
+                  className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-iron-elevated border border-iron-border/50 text-iron-muted hover:text-iron-text hover:border-iron-border transition-colors"
+                >
+                  עריכה
+                </button>
+              </div>
             ))
           )}
         </div>

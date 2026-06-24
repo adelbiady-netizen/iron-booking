@@ -503,6 +503,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       ...(editOccasion.trim() !== (res.occasion ?? '')        ? { occasion:   editOccasion.trim() }  : {}),
       ...(editNotes.trim() !== (res.guestNotes ?? '')         ? { guestNotes: editNotes.trim() }     : {}),
       ...(editHostNotes.trim() !== (res.hostNotes ?? '')      ? { hostNotes:  editHostNotes.trim() } : {}),
+      // Standby + table assigned → confirm automatically; no extra step for the hostess
+      ...(res.status === 'STANDBY' && editTableId ? { status: 'CONFIRMED' as const } : {}),
     };
 
     if (inflightRef.current) return;
@@ -1031,6 +1033,26 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           )}
         </div>
         {/* Destructive */}
+        <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => setMode('cancel')} disabled={busy} />
+        </div>
+      </>
+    );
+
+    if (res.status === 'STANDBY') return (
+      <>
+        <p className="text-[11px] text-amber-400/70 mb-2">
+          {T.createDrawer.standbyHint}
+        </p>
+        <div className="flex gap-2">
+          <ActionBtn
+            label={T.createDrawer.confirmStandby}
+            cls={btnBlue}
+            primary
+            onClick={() => setMode('edit')}
+            disabled={busy}
+          />
+        </div>
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
           <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => setMode('cancel')} disabled={busy} />
         </div>

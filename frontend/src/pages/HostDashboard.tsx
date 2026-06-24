@@ -666,7 +666,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       if (updated.status === 'SEATED')     trackEvent('guest.seated',           { reservationId: updated.id, partySize: updated.partySize, source: updated.source, path: 'drawer' });
       if (updated.status === 'COMPLETED')  trackEvent('reservation.completed',  { reservationId: updated.id, partySize: updated.partySize, source: updated.source, path: 'drawer' });
     }
-    setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+    applyReservationUpdate(updated);
     setQuickTable(null);
     setSelectedRes(updated);
     // Reconcile floor board with API-confirmed seat. Computes floor-specific fields
