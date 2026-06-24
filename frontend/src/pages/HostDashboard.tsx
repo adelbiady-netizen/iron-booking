@@ -2965,7 +2965,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             newResPickMode={!editingStandby && createMode === 'reservation'}
             externalResTableIds={createMode === 'reservation' ? tablePickSelectedIds : undefined}
             onResTableChange={() => { /* selection managed via pickCallback */ }}
-            onDateTimeChange={handleDrawerDateTimeChange}
+            onDateTimeChange={editingStandby ? undefined : handleDrawerDateTimeChange}
             onAddToWaitlist={data => { handleWaitlistAdd({ ...data, source: 'HOST' }); }}
           />
         </DrawerErrorBoundary>
