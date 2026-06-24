@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { getStoredAuth } from '../api';
 
 // Build stamp injected at build time — Vite replaces these at bundle time.
@@ -104,6 +105,8 @@ function PwaDiagnostic() {
   );
 }
 
+const EATALIANO = '/eataliano-dalla-costa';
+
 export default function RootPage() {
   const auth = getStoredAuth();
   const isStandalone =
@@ -111,18 +114,19 @@ export default function RootPage() {
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
-  // PWA fallback: if we have a last-visited slug, redirect immediately.
-  // This fires when iOS ignores manifest start_url and opens "/" instead of "/slug".
-  const lastSlug = (() => { try { return localStorage.getItem('iron_last_slug') ?? null; } catch { return null; } })();
-
   console.warn('[RootPage] rendered', {
     href: window.location.href,
     isStandalone,
     hasAuth: !!auth,
     role: auth?.user?.role ?? null,
     restaurant: auth?.user?.restaurant ?? null,
-    lastSlug,
   });
+
+  // Auto-redirect after 1 s — single restaurant configured for this deployment.
+  useEffect(() => {
+    const id = setTimeout(() => { window.location.replace(EATALIANO); }, 1000);
+    return () => clearTimeout(id);
+  }, []);
 
   const showDiag = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('debugPwa') === '1';
@@ -139,11 +143,15 @@ export default function RootPage() {
         </div>
 
         <div className="bg-iron-card border border-iron-border rounded-xl p-8 mb-4">
+          <p className="text-iron-muted text-sm mb-4">
+            מעביר אותך לאיטליאנו דלה קוסטה...
+          </p>
+
           <a
-            href="/eataliano-dalla-costa"
+            href={EATALIANO}
             className="block w-full bg-iron-green text-white font-semibold text-base rounded-lg px-4 py-4 text-center mb-6"
           >
-            כניסה לאיטליאנו דלה קוסטה
+            כניסה עכשיו
           </a>
 
           <p className="text-iron-text font-semibold text-base mb-2">
