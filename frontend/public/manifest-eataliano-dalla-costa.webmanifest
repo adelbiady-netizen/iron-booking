@@ -1,0 +1,19 @@
+{
+  "name": "Eataliano Dalla Costa",
+  "short_name": "Eataliano",
+  "description": "Host dashboard — reservations and floor management",
+  "start_url": "/eataliano-dalla-costa",
+  "scope": "/",
+  "id": "/eataliano-dalla-costa",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#161A16",
+  "theme_color": "#435B2A",
+  "icons": [
+    { "src": "/pwa-192.png",          "sizes": "192x192", "type": "image/png",     "purpose": "any"      },
+    { "src": "/pwa-512.png",          "sizes": "512x512", "type": "image/png",     "purpose": "any"      },
+    { "src": "/pwa-maskable-512.png", "sizes": "512x512", "type": "image/png",     "purpose": "maskable" },
+    { "src": "/icon.svg",             "sizes": "any",     "type": "image/svg+xml", "purpose": "any"      }
+  ]
+}
