@@ -34,8 +34,12 @@ interface Props {
   initialData?: { guestName?: string; partySize?: number; guestPhone?: string };
   gapHint?: GapHint;
   defaultTurnMinutes?: number;
+  /** When set, the drawer is in standby-edit mode: pre-fills from this reservation and PATCHes on save */
+  standbyReservation?: Reservation;
   onClose: () => void;
   onCreated: (r: Reservation) => void;
+  /** Called after a successful standby update (only when standbyReservation is set) */
+  onUpdated?: (r: Reservation) => void;
   onPickTables?: (currentIds: string[], suggestions: BackendTableSuggestion[], callback: (ids: string[] | null) => void, action?: 'seat' | 'move' | 'change-table', guestName?: string, walkIn?: boolean, time?: string) => void;
   onPickTablesCancel?: () => void;
   onUpdatePickSuggestions?: (suggestions: BackendTableSuggestion[]) => void;
@@ -109,7 +113,7 @@ function snapToSlot(time: string): string {
 export default function CreateDrawer({
   initialMode, defaultDate, defaultTime, tables,
   preselectedTableId, preselectedCombinedTableIds, floorObjs,
-  initialData, gapHint, onClose, onCreated,
+  initialData, gapHint, standbyReservation, onClose, onCreated, onUpdated,
   onPickTables, onPickTablesCancel, onUpdatePickSuggestions,
   mapPickActive,
   newResPickMode = false,
@@ -118,26 +122,28 @@ export default function CreateDrawer({
   onDateTimeChange,
   onAddToWaitlist,
 }: Props) {
+  const isEditingStandby = !!standbyReservation;
   const T = useT();
   const { locale, intlLocale } = useLocale();
   const isDesktop = useIsDesktop();
   const [mode, setMode] = useState<Mode>(gapHint ? 'reservation' : initialMode);
 
-  // Reservation fields
-  const [resName,      setResName]      = useState('');
-  const [resPhone,     setResPhone]     = useState(initialData?.guestPhone ?? '');
-  const [resParty,     setResParty]     = useState(2);
-  const [resDate,      setResDate]      = useState(defaultDate);
-  const [resTime,      setResTime]      = useState(snapToSlot(gapHint?.startTime ?? defaultTime));
+  // Reservation fields — seeded from standbyReservation when in edit-standby mode
+  const sb = standbyReservation;
+  const [resName,      setResName]      = useState(sb?.guestName ?? '');
+  const [resPhone,     setResPhone]     = useState(sb?.guestPhone ?? initialData?.guestPhone ?? '');
+  const [resParty,     setResParty]     = useState(sb?.partySize ?? 2);
+  const [resDate,      setResDate]      = useState(sb ? sb.date.slice(0, 10) : defaultDate);
+  const [resTime,      setResTime]      = useState(sb ? sb.time.slice(0, 5) : snapToSlot(gapHint?.startTime ?? defaultTime));
   const [resDuration,  setResDuration]  = useState(
-    gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
+    sb ? String(sb.duration) : gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
   );
   // durationManual: host has explicitly chosen a duration → suppress auto-defaults.
   // Starts true when a gap hint pre-fills the slot duration; false otherwise so
   // party-size changes continue to update the default automatically.
-  const [durationManual, setDurationManual] = useState(!!gapHint);
-  const [resGuestNote, setResGuestNote] = useState('');
-  const [resHostNote,  setResHostNote]  = useState('');
+  const [durationManual, setDurationManual] = useState(!!(gapHint || sb));
+  const [resGuestNote, setResGuestNote] = useState(sb?.guestNotes ?? '');
+  const [resHostNote,  setResHostNote]  = useState(sb?.hostNotes ?? '');
   const [resSource,    setResSource]    = useState<'PHONE' | 'INTERNAL'>('PHONE');
   const [resTable,     setResTable]     = useState(gapHint?.tableId ?? preselectedTableId ?? '');
   const [isStandby,    setIsStandby]    = useState(false);
@@ -522,12 +528,34 @@ export default function CreateDrawer({
     );
   }
 
-  // Returns the created reservation on success, null on conflict/error.
-  // Does NOT call onCreated — callers must do that AFTER all local cleanup.
+  // Returns the saved reservation on success, null on conflict/error.
+  // Does NOT call onCreated/onUpdated — callers must do that AFTER all local cleanup.
   async function doSubmitReservation(overrideConflicts = false, reorganizeIds: string[] = []): Promise<Reservation | null> {
     setError(null);
     setBusy(true);
     try {
+      // Edit-standby mode: PATCH the existing reservation
+      if (isEditingStandby && standbyReservation) {
+        const tableId = resTable || undefined;
+        const r = await api.reservations.update(standbyReservation.id, {
+          guestName:        resName.trim(),
+          guestPhone:       resPhone.trim() || undefined,
+          partySize:        resParty,
+          date:             resDate,
+          time:             resTime,
+          duration:         resDuration ? parseInt(resDuration, 10) : undefined,
+          guestNotes:       resGuestNote.trim() || undefined,
+          hostNotes:        resHostNote.trim() || undefined,
+          tableId:          tableId ?? null,
+          combinedTableIds: resCombinedTableIds.length > 0 ? resCombinedTableIds : [],
+          overrideConflicts: overrideConflicts || undefined,
+          reorganizeIds:     reorganizeIds.length > 0 ? reorganizeIds : undefined,
+          // Assign table → confirm; no table → keep as STANDBY
+          status:           tableId ? 'CONFIRMED' : 'STANDBY',
+        });
+        return r;
+      }
+
       const r = await api.reservations.create({
         guestName:        resName.trim(),
         guestPhone:       resPhone.trim() || undefined,
@@ -560,7 +588,7 @@ export default function CreateDrawer({
           return null;
         }
       }
-      setError(err instanceof Error ? err.message : 'Failed to create reservation');
+      setError(err instanceof Error ? err.message : isEditingStandby ? 'Failed to update reservation' : 'Failed to create reservation');
       return null;
     } finally {
       setBusy(false);
@@ -569,17 +597,21 @@ export default function CreateDrawer({
 
   async function submitReservation(e: React.FormEvent) {
     e.preventDefault();
-    if (!resPhone.trim()) { setPhoneWarning(true); return; }
+    // In edit-standby mode, phone is already known — skip the confirmation guard
+    if (!isEditingStandby && !resPhone.trim()) { setPhoneWarning(true); return; }
     setPendingResConfirm(true);
   }
 
   async function confirmAndSave() {
     const r = await doSubmitReservation();
-    // Clear local state BEFORE calling onCreated — onCreated unmounts this
-    // component, so any setState after it is a silent no-op in React 18.
+    // Clear local state BEFORE calling the callback — it unmounts this component,
+    // so any setState after it is a silent no-op in React 18.
     setPendingResConfirm(false);
     setBusy(false);
-    if (r) onCreated(r);
+    if (r) {
+      if (isEditingStandby) onUpdated?.(r);
+      else onCreated(r);
+    }
   }
 
   async function doSubmitWalkIn(seatNow: boolean) {
@@ -664,6 +696,11 @@ export default function CreateDrawer({
   // Shows which table(s) will be used so the host can confirm at a glance.
   function confirmLabel(): string {
     if (busy) return T.createDrawer.submitCreateBusy;
+    if (isEditingStandby) {
+      // Show "Confirm reservation" when table is selected, otherwise "Save"
+      if (resTable) return T.createDrawer.confirmStandby;
+      return T.createDrawer.saveStandby;
+    }
     if (isStandby) return T.createDrawer.saveStandby;
     if (suggestBusy && !resTable) return T.createDrawer.confirmChecking;
 
@@ -701,7 +738,9 @@ export default function CreateDrawer({
         <div className="p-4 border-b border-iron-border shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-iron-text font-semibold text-base">
-              {mode === 'reservation' ? T.createDrawer.titleReservation : T.createDrawer.titleWalkIn}
+              {isEditingStandby
+                ? (locale === 'he' ? 'עריכת סטנדביי' : 'Edit Standby')
+                : mode === 'reservation' ? T.createDrawer.titleReservation : T.createDrawer.titleWalkIn}
             </h2>
             <button
               onClick={() => {
@@ -719,33 +758,35 @@ export default function CreateDrawer({
             </button>
           </div>
 
-          {/* Mode tabs */}
-          <div className="flex gap-1 bg-iron-bg rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => {
-                if (wiPickingOnMap) { setWiPickingOnMap(false); onPickTablesCancel?.(); }
-                setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); setPhoneWarning(false);
-              }}
-              className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
-                mode === 'reservation' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
-              }`}
-            >
-              {T.createDrawer.tabReservation}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (pickingOnMap) { setPickingOnMap(false); onPickTablesCancel?.(); }
-                setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); setPhoneWarning(false);
-              }}
-              className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
-                mode === 'walkin' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
-              }`}
-            >
-              {T.createDrawer.tabWalkIn}
-            </button>
-          </div>
+          {/* Mode tabs — hidden when editing an existing standby */}
+          {!isEditingStandby && (
+            <div className="flex gap-1 bg-iron-bg rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (wiPickingOnMap) { setWiPickingOnMap(false); onPickTablesCancel?.(); }
+                  setResTable(prev => prev || wiTable); setMode('reservation'); setError(null); setPhoneWarning(false);
+                }}
+                className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
+                  mode === 'reservation' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
+                }`}
+              >
+                {T.createDrawer.tabReservation}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pickingOnMap) { setPickingOnMap(false); onPickTablesCancel?.(); }
+                  setWiTable(prev => prev || resTable); setMode('walkin'); setError(null); setPhoneWarning(false);
+                }}
+                className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
+                  mode === 'walkin' ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'
+                }`}
+              >
+                {T.createDrawer.tabWalkIn}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Reservation form ── */}
@@ -773,25 +814,32 @@ export default function CreateDrawer({
                 </div>
               )}
 
-              {/* Reservation / Standby toggle */}
-              <div className="flex rounded-lg overflow-hidden border border-iron-border text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => setIsStandby(false)}
-                  className={`flex-1 py-1.5 transition-colors ${!isStandby ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'}`}
-                >
-                  {T.createDrawer.toggleReservation}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsStandby(true)}
-                  className={`flex-1 py-1.5 transition-colors ${isStandby ? 'bg-amber-600 text-white' : 'text-iron-muted hover:text-iron-text'}`}
-                >
-                  {T.createDrawer.toggleStandby}
-                </button>
-              </div>
-              {isStandby && (
-                <p className="text-[11px] text-amber-400/80 -mt-2">{T.createDrawer.standbyHint}</p>
+              {/* Reservation / Standby toggle — hidden when editing an existing standby */}
+              {!isEditingStandby && (
+                <>
+                  <div className="flex rounded-lg overflow-hidden border border-iron-border text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setIsStandby(false)}
+                      className={`flex-1 py-1.5 transition-colors ${!isStandby ? 'bg-iron-green text-white' : 'text-iron-muted hover:text-iron-text'}`}
+                    >
+                      {T.createDrawer.toggleReservation}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsStandby(true)}
+                      className={`flex-1 py-1.5 transition-colors ${isStandby ? 'bg-amber-600 text-white' : 'text-iron-muted hover:text-iron-text'}`}
+                    >
+                      {T.createDrawer.toggleStandby}
+                    </button>
+                  </div>
+                  {isStandby && (
+                    <p className="text-[11px] text-amber-400/80 -mt-2">{T.createDrawer.standbyHint}</p>
+                  )}
+                </>
+              )}
+              {isEditingStandby && (
+                <p className="text-[11px] text-amber-400/70">{T.createDrawer.standbyHint}</p>
               )}
 
               <div className="grid grid-cols-2 gap-3">
@@ -1249,7 +1297,7 @@ export default function CreateDrawer({
                   type="submit"
                   form="create-res-form"
                   disabled={busy || (!isStandby && suggestBusy && !resTable)}
-                  className={`w-full disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors leading-tight ${isStandby ? 'bg-amber-600 hover:bg-amber-500' : 'bg-iron-green hover:bg-iron-green-light'}`}
+                  className={`w-full disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors leading-tight ${!isEditingStandby && isStandby ? 'bg-amber-600 hover:bg-amber-500' : 'bg-iron-green hover:bg-iron-green-light'}`}
                 >
                   <span className="block">{confirmLabel()}</span>
                   {!busy && bookingSubtext() && (

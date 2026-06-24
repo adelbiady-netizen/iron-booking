@@ -156,6 +156,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [floorObjs,    setFloorObjs]    = useState<FloorObjectData[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [standbyReservations, setStandbyReservations] = useState<Reservation[]>([]);
+  const [editingStandby,       setEditingStandby]       = useState<Reservation | null>(null);
   const [insights,     setInsights]     = useState<FloorInsight[]>([]);
   const [allTables,    setAllTables]    = useState<Table[]>([]);
   const [selectedRes,       setSelectedRes]       = useState<Reservation | null>(null);
@@ -2884,7 +2885,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onSmartAssign={() => setShowSmartAssign(true)}
               compact={isMobile}
               standbyReservations={standbyReservations}
-              onSelectStandby={(r) => { setSelectedRes(r); setOpenDrawerInEdit(true); }}
+              onSelectStandby={(r) => { setEditingStandby(r); setCreateMode('reservation'); }}
             />
           )}
         </div>
@@ -2919,14 +2920,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         </DrawerErrorBoundary>
       )}
 
-      {createMode && (
-        <DrawerErrorBoundary key={`create-${createMode}`} onClose={() => {
+      {(createMode || editingStandby) && (
+        <DrawerErrorBoundary key={editingStandby ? `standby-${editingStandby.id}` : `create-${createMode}`} onClose={() => {
           // Safety net: if CreateDrawer was abandoned while map-pick was active, cancel pick mode
           if (tablePickMode && tablePickAction === 'change-table') handlePickCancel();
-          setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone('');
+          setCreateMode(null); setEditingStandby(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone('');
         }}>
           <CreateDrawer
-            initialMode={createMode}
+            initialMode={createMode ?? 'reservation'}
             defaultDate={date}
             defaultTime={time}
             tables={allTables}
@@ -2936,13 +2937,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             gapHint={gapHint ?? undefined}
             defaultTurnMinutes={auth.user.restaurant?.settings?.defaultTurnMinutes}
             initialData={callPrefillPhone ? { guestPhone: callPrefillPhone } : undefined}
-            onClose={() => { setCreateMode(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}
+            standbyReservation={editingStandby ?? undefined}
+            onClose={() => { setCreateMode(null); setEditingStandby(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone(''); }}
             onCreated={handleCreated}
+            onUpdated={(updated) => {
+              applyReservationUpdate(updated);
+              setCreateMode(null);
+              setEditingStandby(null);
+              showToast(updated.status === 'CONFIRMED'
+                ? T.guestDrawer.toastUpdated
+                : T.guestDrawer.toastUpdated);
+            }}
             onPickTables={handlePickTablesFromDrawer}
             onPickTablesCancel={handlePickCancel}
             onUpdatePickSuggestions={setTablePickSuggestions}
             mapPickActive={tablePickMode}
-            newResPickMode={createMode === 'reservation'}
+            newResPickMode={!editingStandby && createMode === 'reservation'}
             externalResTableIds={createMode === 'reservation' ? tablePickSelectedIds : undefined}
             onResTableChange={() => { /* selection managed via pickCallback */ }}
             onDateTimeChange={handleDrawerDateTimeChange}
