@@ -173,6 +173,22 @@ export async function addToWaitlist(restaurantId: string, data: {
   section?: string;
 }) {
   const date = parseDateArg(data.date);
+
+  // Duplicate guard: block re-entry if the same phone already has an active entry for this date
+  if (data.guestPhone) {
+    const existing = await prisma.waitlistEntry.findFirst({
+      where: {
+        restaurantId,
+        date,
+        guestPhone: data.guestPhone,
+        status: { in: ['WAITING', 'NOTIFIED'] },
+      },
+    });
+    if (existing) {
+      throw new ConflictError(`${data.guestPhone} is already on the waitlist for this date`);
+    }
+  }
+
   const quotedWaitMinutes = await estimateWaitMinutes(restaurantId, date, data.partySize);
 
   // Auto-link Guest CRM record when phone is present
