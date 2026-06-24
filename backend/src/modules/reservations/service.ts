@@ -330,12 +330,11 @@ export async function updateReservation(
     throw new BusinessRuleError(`Cannot modify a ${existing.status} reservation`);
   }
 
-  // SEATED guests: date, time, and table are locked; operational fields (party size, notes, duration) remain editable
-  if (existing.status === 'SEATED' && (
-    input.date || input.time ||
-    input.tableId !== undefined || input.combinedTableIds !== undefined
-  )) {
-    throw new BusinessRuleError('Cannot change date, time, or table for a seated reservation');
+  // SEATED guests: date and time are locked; table moves remain allowed so hosts
+  // can reassign a party mid-service. Operational fields (party size, notes, duration)
+  // are also editable. COMPLETED / NO_SHOW / CANCELLED are blocked above.
+  if (existing.status === 'SEATED' && (input.date || input.time)) {
+    throw new BusinessRuleError('Cannot change date or time for a seated reservation');
   }
   const date = input.date ? parseDateArg(input.date) : existing.date;
   const time = input.time ?? existing.time;
