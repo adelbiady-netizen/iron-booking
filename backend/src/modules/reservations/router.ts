@@ -8,6 +8,7 @@ import {
   UpdateReservationSchema,
   AssignTableSchema,
   MoveTableSchema,
+  CombineTablesSchema,
   SwapReservationsSchema,
   ListReservationsQuerySchema,
   ListReservationsQuery,
@@ -313,6 +314,22 @@ router.post('/:id/move', validate(MoveTableSchema), async (req: Request, res: Re
   try {
     const r = await service.moveReservation(req.auth.restaurantId, p(req, 'id'), req.body, actorName(req));
     console.log(`[perf:move] router total ${Date.now() - t0}ms`);
+    res.json(r);
+    notifyFloorUpdated(req.auth.restaurantId);
+  } catch (err) { next(err); }
+});
+
+// POST /reservations/:id/combine
+// Floor-layout operation: set the reservation's combined tables. Blocked only by
+// current physical occupancy (a live SEATED party) — never by future reservations.
+router.post('/:id/combine', validate(CombineTablesSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const r = await service.combineReservationTables(
+      req.auth.restaurantId,
+      p(req, 'id'),
+      req.body.combinedTableIds,
+      actorName(req),
+    );
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }

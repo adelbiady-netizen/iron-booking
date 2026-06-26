@@ -1687,3 +1687,143 @@ export async function validateTableAssignment(
     }
   }
 }
+
+// ─── Combine / Uncombine (floor-layout operation) ─────────────────────────────
+//
+// Combining or uncombining tables is a LAYOUT operation, not a reservation
+// assignment. It must be blocked ONLY by current physical occupancy — a table
+// that has a live SEATED party on it right now. Future PENDING/CONFIRMED
+// reservations (even later today) must NOT block it: the tables are physically
+// free now.
+//
+// This deliberately does NOT use validateTableAssignment / getTableAvailability,
+// which validate reservation conflicts at a *scheduled* time and treat any
+// overlapping CONFIRMED/PENDING as a blocker — wrong semantics for combine.
+//
+// "Real seating interval overlaps now" reconciles to: the table has a SEATED
+// reservation for today's service. A SEATED row is by definition not yet cleared,
+// so it occupies the table from seating until completion (overstays included).
+// Stale SEATED rows from a past board date are forgotten records, not live
+// occupancy, and are excluded by the same-day filter.
+export async function canCombineTablesNow(
+  restaurantId: string,
+  tableIds: string[],
+  excludeReservationIds: string[] = []
+): Promise<
+  | { ok: true }
+  | { ok: false; tableId: string; tableName: string; conflictingReservationId: string }
+> {
+  if (tableIds.length === 0) return { ok: true };
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    select: { timezone: true },
+  });
+  const timezone = restaurant?.timezone ?? 'UTC';
+  // "Today" in the restaurant's local timezone — the server runs in UTC, so a
+  // naive new Date() would mis-bucket evening service for UTC+ restaurants.
+  const todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
+
+  const seated = await prisma.reservation.findMany({
+    where: {
+      restaurantId,
+      status: 'SEATED',
+      reorganizeAt: null, // displaced parties have vacated their table
+      OR: [
+        { tableId: { in: tableIds } },
+        { combinedTableIds: { hasSome: tableIds } },
+      ],
+    },
+    select: { id: true, tableId: true, combinedTableIds: true, date: true },
+  });
+
+  for (const r of seated) {
+    if (excludeReservationIds.includes(r.id)) continue;
+    // Only a SEATED party on TODAY's service is live physical occupancy.
+    if (r.date.toISOString().slice(0, 10) !== todayLocal) continue;
+    const occupied = tableIds.find(
+      (id) => r.tableId === id || r.combinedTableIds.includes(id)
+    );
+    if (occupied) {
+      const t = await prisma.table.findUnique({
+        where: { id: occupied },
+        select: { name: true },
+      });
+      return {
+        ok: false,
+        tableId: occupied,
+        tableName: t?.name ?? occupied,
+        conflictingReservationId: r.id,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+// Set a reservation's combined tables (combine/uncombine). Layout-only:
+// validates table existence/activeness and current physical occupancy via
+// canCombineTablesNow — never reservation-conflict validation.
+export async function combineReservationTables(
+  restaurantId: string,
+  id: string,
+  combinedTableIds: string[],
+  actorName: string
+) {
+  const existing = await assertReservationBelongsToRestaurant(id, restaurantId);
+
+  if (['COMPLETED', 'NO_SHOW', 'CANCELLED'].includes(existing.status)) {
+    throw new BusinessRuleError(`Cannot modify a ${existing.status} reservation`);
+  }
+  const tableId = existing.tableId;
+  if (!tableId) {
+    throw new BusinessRuleError('Assign a primary table before combining tables');
+  }
+
+  // Layout integrity: combined tables must exist and be active. This is NOT a
+  // reservation-conflict check — capacity/time conflicts are intentionally ignored.
+  if (combinedTableIds.length > 0) {
+    const combinedTables = await prisma.table.findMany({
+      where: { id: { in: combinedTableIds }, restaurantId },
+      select: { id: true, name: true, isActive: true },
+    });
+    const missingOrInactive = combinedTableIds.find(
+      (cid) => !combinedTables.find((t) => t.id === cid && t.isActive)
+    );
+    if (missingOrInactive) {
+      const t = combinedTables.find((t) => t.id === missingOrInactive);
+      throw new BusinessRuleError(
+        t ? `Table ${t.name} is inactive` : `Combined table not found: ${missingOrInactive}`
+      );
+    }
+  }
+
+  // Only current physical occupancy (a live SEATED party) can block a combine.
+  // Exclude this reservation so a seated party can extend its own combination.
+  const occupancy = await canCombineTablesNow(
+    restaurantId,
+    [tableId, ...combinedTableIds],
+    [id]
+  );
+  if (!occupancy.ok) {
+    throw new ConflictError(`Table ${occupancy.tableName} is currently occupied`, {
+      conflictingReservationId: occupancy.conflictingReservationId,
+    });
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.reservation.update({
+      where: { id },
+      data: { combinedTableIds, updatedByName: actorName },
+      include: { table: true, guest: true },
+    });
+    await logActivity(tx, id, 'UPDATED', actorName, {
+      fromStatus: existing.status,
+      toStatus: existing.status,
+      tableId: existing.tableId ?? null,
+      changes: {
+        combinedTableIds: { from: existing.combinedTableIds, to: combinedTableIds },
+      },
+    });
+    return updated;
+  });
+}

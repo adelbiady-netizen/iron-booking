@@ -437,18 +437,13 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         if (ids === null) return;
         if (action === 'combine') {
           // ids = selected secondary tables; primary (res.tableId) stays locked.
-          // SEATED reservations reject table changes via PATCH — use move instead.
-          if (res.status === 'SEATED') {
-            run(
-              () => api.reservations.move(res.id, res.tableId!, undefined, ids),
-              T.guestDrawer.toastTableAssigned(tableName(res.tableId!)),
-            );
-          } else {
-            run(
-              () => api.reservations.update(res.id, { tableId: res.tableId!, combinedTableIds: ids }),
-              T.guestDrawer.toastTableAssigned(tableName(res.tableId!)),
-            );
-          }
+          // Combine is a floor-layout operation: it goes through the dedicated
+          // combine endpoint, which is blocked only by current physical occupancy
+          // (a live SEATED party) — never by future reservations.
+          run(
+            () => api.reservations.combine(res.id, ids),
+            T.guestDrawer.toastTableAssigned(tableName(res.tableId!)),
+          );
           return;
         }
         if (ids.length === 0) return;

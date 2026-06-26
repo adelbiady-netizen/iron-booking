@@ -415,6 +415,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ tableId, reason: reason || undefined, overrideConflicts, reorganizeIds, combinedTableIds }),
       }),
+    // Combine/uncombine tables — floor-layout operation. Blocked only by current
+    // physical occupancy (a live SEATED party), never by future reservations.
+    combine: (id: string, combinedTableIds: string[]) =>
+      request<Reservation>(`/reservations/${id}/combine`, {
+        method: 'POST',
+        body: JSON.stringify({ combinedTableIds }),
+      }),
     swap: (aId: string, bId: string) =>
       request<{ reservationA: Reservation; reservationB: Reservation }>('/reservations/swap', {
         method: 'POST',

@@ -1577,9 +1577,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       async (ids) => {
         if (!ids) return;
         try {
-          const updated = res.status === 'SEATED'
-            ? await api.reservations.move(res.id, res.tableId!, undefined, ids)
-            : await api.reservations.update(res.id, { tableId: res.tableId, combinedTableIds: ids });
+          // Combine is a floor-layout operation — dedicated endpoint, blocked only
+          // by current physical occupancy, not by future reservations.
+          const updated = await api.reservations.combine(res.id, ids);
           setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
           showToast(T.floorBoard.toastResCombineDone);
         } catch (err) {
@@ -2107,7 +2107,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const handleContextMenuAttachTable = useCallback(async (res: Reservation, tableId: string) => {
     const newCombined = [...(res.combinedTableIds ?? []), tableId];
     try {
-      const updated = await api.reservations.update(res.id, { tableId: res.tableId, combinedTableIds: newCombined });
+      // Attach = combine (floor-layout). Dedicated endpoint blocked only by
+      // current physical occupancy, never by future reservations.
+      const updated = await api.reservations.combine(res.id, newCombined);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       if (selectedRes?.id === res.id) setSelectedRes({ ...res, combinedTableIds: newCombined });
       const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
@@ -2120,7 +2122,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const handleContextMenuDetachTable = useCallback(async (res: Reservation, tableId: string) => {
     const newCombined = (res.combinedTableIds ?? []).filter(id => id !== tableId);
     try {
-      const updated = await api.reservations.update(res.id, { tableId: res.tableId, combinedTableIds: newCombined });
+      // Detach = uncombine (floor-layout). Dedicated endpoint blocked only by
+      // current physical occupancy, never by future reservations.
+      const updated = await api.reservations.combine(res.id, newCombined);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       if (selectedRes?.id === res.id) setSelectedRes({ ...res, combinedTableIds: newCombined });
       const tName = floorTables.find(t => t.id === tableId)?.name ?? tableId;

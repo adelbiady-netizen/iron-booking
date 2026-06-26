@@ -967,11 +967,18 @@ export default function FloorBoard({
         setTimeout(() => setPickCurrentWarn(false), 2000);
         return;
       }
-      // Combine / reallocate: tables with any reservation (current or future) are blocked when ADDING.
+      // Reallocate: tables with any reservation (current or future) are blocked when ADDING.
       // Already-selected tables (pre-existing secondaries) can always be deselected.
-      if ((pickAction === 'combine' || pickAction === 'reallocate') && !pickSelection.includes(t.id)) {
+      if (pickAction === 'reallocate' && !pickSelection.includes(t.id)) {
         const hasOtherRes = !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId));
         if (hasOtherRes || t.locked) return;
+      }
+      // Combine is a floor-layout operation — block ADDING only on current physical
+      // occupancy (a live SEATED party, surfaced as currentReservation) or an admin
+      // lock. Future reservations must NOT block selection, mirroring the backend
+      // combine validator (canCombineTablesNow).
+      if (pickAction === 'combine' && !pickSelection.includes(t.id)) {
+        if (t.currentReservation || t.locked) return;
       }
       // Assign is planning — only hard-block tables that are physically occupied now,
       // admin-locked, or carry a true time-overlap conflict from the backend.
@@ -1453,10 +1460,15 @@ export default function FloorBoard({
                 !_canvasSwapRes.tableId ||
                 !!_canvasSwapRes.reorganizeAt
               );
-              const combineDimmed = pickMode && (pickAction === 'combine' || pickAction === 'reallocate') &&
+              const combineDimmed = pickMode &&
                 !pickLockIds.includes(t.id) &&
                 !pickSelection.includes(t.id) &&
-                (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
+                (
+                  // Reallocate: dim tables with any reservation (current or future).
+                  (pickAction === 'reallocate' && (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)))) ||
+                  // Combine: dim only physically-occupied-now or admin-locked tables.
+                  (pickAction === 'combine' && (t.locked || !!t.currentReservation))
+                );
               // Assign (planning): only dim when physically occupied, locked, or backend-unavailable.
               const assignDimmed = pickMode && pickAction === 'assign' &&
                 !pickSelection.includes(t.id) &&
@@ -1579,10 +1591,15 @@ export default function FloorBoard({
                     (_gridSwapRes.combinedTableIds ?? []).length > 0 ||
                     !!_gridSwapRes.reorganizeAt
                   );
-                  const gridCombineDimmed = pickMode && (pickAction === 'combine' || pickAction === 'reallocate') &&
+                  const gridCombineDimmed = pickMode &&
                     !pickLockIds.includes(t.id) &&
                     !pickSelection.includes(t.id) &&
-                    (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)));
+                    (
+                      // Reallocate: dim tables with any reservation (current or future).
+                      (pickAction === 'reallocate' && (t.locked || !!(t.currentReservation ?? t.upcomingReservations.find(r => !!r.tableId)))) ||
+                      // Combine: dim only physically-occupied-now or admin-locked tables.
+                      (pickAction === 'combine' && (t.locked || !!t.currentReservation))
+                    );
                   const gridAssignDimmed = pickMode && pickAction === 'assign' &&
                     !pickSelection.includes(t.id) &&
                     (t.locked || !!t.currentReservation);
