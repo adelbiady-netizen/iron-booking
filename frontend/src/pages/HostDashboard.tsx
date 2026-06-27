@@ -29,7 +29,6 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import MobileBottomNav, { type MobileTab } from '../components/MobileBottomNav';
 import MobileMorePanel from '../components/MobileMorePanel';
 import PwaInstallBanner from '../components/PwaInstallBanner';
-import PwaDebugBadge from '../components/PwaDebugBadge';
 import CallDrawer from '../components/CallDrawer';
 import IncomingCallCard from '../components/IncomingCallCard';
 import { DrawerErrorBoundary, BoardErrorBoundary } from '../components/ErrorBoundary';
@@ -271,8 +270,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickMode,        setTablePickMode]        = useState(false);
   const [tablePickIds,         setTablePickIds]         = useState<string[]>([]);
   const [tablePickSuggestions, setTablePickSuggestions] = useState<BackendTableSuggestion[]>([]);
-  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | undefined>(undefined);
-  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | undefined>(undefined);
+  const [tablePickAction,      setTablePickAction]      = useState<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | 'seat-from-map' | undefined>(undefined);
+  const tablePickActionRef = useRef<'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | 'seat-from-map' | undefined>(undefined);
   const [tablePickLockIds,     setTablePickLockIds]     = useState<string[]>([]);
   const [tablePickGuestName,   setTablePickGuestName]   = useState<string | undefined>(undefined);
   const [tablePickWalkIn,      setTablePickWalkIn]      = useState(false);
@@ -282,6 +281,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const tablePickRestoreRef    = useRef<{ date: string; time: string; liveMode: boolean } | null>(null);
   // Optimistic reservation to apply instantly when "שייך" is confirmed in change-table mode
   const tablePickOptimisticRef = useRef<{ resId: string; tableId: string; combinedTableIds: string[]; table: { id: string; name: string; section: null } | null } | null>(null);
+
+  // Seat-from-map override flow: confirmation before seating on an occupied/reserved table
+  const [seatFromMapConfirm, setSeatFromMapConfirm] = useState<{
+    type: 'occupied' | 'reserved';
+    tableId: string;
+    guestRes: Reservation;
+    tableFloor: FloorTable;
+  } | null>(null);
 
   const sseStatus = useServerEvents({
     incoming_call: (data) => {
@@ -1466,7 +1473,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | 'seat-from-map',
     guestName?: string,
     _walkIn?: boolean,
     pickTime?: string,
@@ -1557,7 +1564,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     currentIds: string[],
     suggestions: BackendTableSuggestion[],
     callback: (ids: string[] | null) => void,
-    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign',
+    action?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | 'seat-from-map',
     guestName?: string,
     walkIn?: boolean,
     pickTime?: string,
@@ -1839,6 +1846,64 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       res.guestName,
     );
   }, [handlePickTables, floorTables, reservations, showToast]);
+
+  // Seat-from-map: core seat execution used by the override confirmation modal.
+  // Handles three cases via API params: available (default), occupied (forceOverrideOccupied),
+  // and reserved (reorganizeIds displace future reservations to no-table).
+  const executeSeatFromMap = useCallback(async (
+    res: Reservation,
+    tableId: string,
+    opts: { forceOverrideOccupied?: boolean; reorganizeIds?: string[] } = {},
+  ) => {
+    if (inFlightRef.current.has(res.id)) return;
+    inFlightRef.current.add(res.id);
+    setInFlightIds(new Set(inFlightRef.current));
+    try {
+      const updated = await api.reservations.seat(
+        res.id,
+        tableId,
+        (opts.reorganizeIds?.length ?? 0) > 0,
+        [],
+        opts.reorganizeIds ?? [],
+        opts.forceOverrideOccupied ?? false,
+      );
+      const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
+      setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+      setRefreshKey(k => k + 1);
+      setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== res.id));
+      showToast(T.hostDashboard.toastQuickSeated(tableName), 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
+    } finally {
+      inFlightRef.current.delete(res.id);
+      setInFlightIds(new Set(inFlightRef.current));
+    }
+  }, [inFlightRef, floorTables, showToast, T]);
+
+  // Seat-from-map: arms pick mode for a reservation regardless of its current table.
+  // ALL tables are selectable. HostDashboard intercepts the selection and shows a
+  // confirmation modal if the target is occupied or reserved before executing.
+  const handleSeatFromMap = useCallback((res: Reservation) => {
+    handlePickTables(
+      [],
+      [],
+      (ids) => {
+        if (!ids || ids.length === 0) return;
+        const [tableId] = ids;
+        const tableFloor = floorTables.find(t => t.id === tableId);
+        const status = tableFloor?.liveStatus;
+        if (status === 'OCCUPIED' || status === 'STALE_OCCUPIED') {
+          setSeatFromMapConfirm({ type: 'occupied', tableId, guestRes: res, tableFloor: tableFloor! });
+        } else if (status === 'RESERVED' || status === 'RESERVED_SOON') {
+          setSeatFromMapConfirm({ type: 'reserved', tableId, guestRes: res, tableFloor: tableFloor! });
+        } else {
+          void executeSeatFromMap(res, tableId);
+        }
+      },
+      'seat-from-map',
+      res.guestName,
+    );
+  }, [handlePickTables, floorTables, executeSeatFromMap]);
 
   // Table-first seating: host right-clicks an available table and picks a guest.
   // Reservation path reuses handleContextMenuSeat with tableId pre-injected (skips pick mode).
@@ -2725,9 +2790,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       />
 
       {isMobile && <PwaInstallBanner />}
-      {import.meta.env.DEV && <PwaDebugBadge slug={auth.user.restaurant?.slug} />}
 
-      <ActionBar insights={allInsights} onItemClick={handleActionBarClick} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
+<ActionBar insights={allInsights} onItemClick={handleActionBarClick} sectionSignal={sectionSignal} pacingSignal={pacingSignal} />
 
       <BoardErrorBoundary>
       <div className="flex-1 flex overflow-hidden">
@@ -2913,6 +2977,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               nowTime={time}
               operationalNow={operationalNow}
               onContextMenuSeat={handleContextMenuSeat}
+              onSeatFromMap={handleSeatFromMap}
               date={date}
               reorganizeQueue={reorganizeQueue}
               onReorganizeSelect={handleReorganizeSelect}
@@ -3286,6 +3351,47 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 transition-colors"
               >
                 {T.guestDrawer.occupiedModalConfirm}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Seat-from-map confirmation modal — shown before seating on an occupied or reserved table */}
+      {seatFromMapConfirm && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSeatFromMapConfirm(null)} />
+          <div className="relative z-10 bg-iron-card border border-iron-border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 text-right" dir="rtl">
+            <h2 className="text-iron-text font-bold text-base mb-2">
+              {seatFromMapConfirm.type === 'occupied' ? 'שולחן תפוס' : 'שולחן שמור'}
+            </h2>
+            <p className="text-iron-muted text-sm leading-relaxed mb-5">
+              {seatFromMapConfirm.type === 'occupied'
+                ? 'שולחן זה מאוכלס כרגע. אישור יסיים את הישיבה הנוכחית ויושיב את האורח הנבחר.'
+                : 'לשולחן זה שויכה הזמנה אחרת. אישור יעביר אותה ל"ללא שולחן" ויושיב את האורח הנבחר.'}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setSeatFromMapConfirm(null)}
+                className="px-4 py-2 rounded-lg border border-iron-border text-iron-muted text-sm hover:bg-iron-elevated transition-colors"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={async () => {
+                  const { type, tableId, guestRes, tableFloor } = seatFromMapConfirm;
+                  setSeatFromMapConfirm(null);
+                  if (type === 'occupied') {
+                    await executeSeatFromMap(guestRes, tableId, { forceOverrideOccupied: true });
+                  } else {
+                    const reorganizeIds = (tableFloor.upcomingReservations ?? []).map(r => r.id);
+                    await executeSeatFromMap(guestRes, tableId, { reorganizeIds });
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 transition-colors"
+              >
+                אשר והושב
               </button>
             </div>
           </div>

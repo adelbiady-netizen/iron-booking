@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { BackendTableSuggestion, Reservation, ReservationStatus, Table } from '../types';
 import { api, ApiError } from '../api';
@@ -11,6 +11,15 @@ import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { fmtHostTime, normalizeTime } from '../utils/time';
+
+function fmtDateLong(dateStr: string, intlLocale: string): string {
+  if (!dateStr) return '';
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  if (!y || !mo || !d) return dateStr;
+  return new Intl.DateTimeFormat(intlLocale, {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  }).format(new Date(y, mo - 1, d));
+}
 
 // ─── Time slot constants ──────────────────────────────────────────────────────
 
@@ -268,7 +277,7 @@ interface Props {
 
 export default function GuestDrawer({ reservation: init, tables, allReservations, restaurantId, onClose, onUpdated, onSuccess, onTableLockChange, nowTime, isLiveView, onPickTables, onPickTablesCancel, mapPickActive, tablePickSelectedIds, onPickConfirm, onDateTimeChange, onOptimisticSeat, onOptimisticSeatRollback, onMarkArrived, onSwap, initialMode: _initialMode, mobileSheet = false }: Props) {
   const T = useT();
-  const { locale, dir } = useLocale();
+  const { locale, dir, intlLocale } = useLocale();
   const STATUS_LABEL: Record<ReservationStatus, string> = {
     PENDING:   T.reservationStatus.PENDING,
     CONFIRMED: T.reservationStatus.CONFIRMED,
@@ -322,6 +331,10 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const [editName,       setEditName]       = useState(init.guestName);
   const [editPhone,      setEditPhone]      = useState(init.guestPhone ?? '');
   const [editDate,       setEditDate]       = useState(init.date.slice(0, 10));
+  const [gdCalOpen,      setGdCalOpen]      = useState(false);
+  const [gdCalPos,       setGdCalPos]       = useState<{ top: number; left: number } | null>(null);
+  const gdCalTriggerRef = useRef<HTMLButtonElement>(null);
+  const gdCalPopoverRef = useRef<HTMLDivElement>(null);
   const [_editDateDisplay, setEditDateDisplay] = useState(isoToDDMMYYYY(init.date.slice(0, 10)));
   const [editTime,       setEditTime]       = useState(init.time.slice(0, 5));
   const [editParty,      setEditParty]      = useState(String(init.partySize));
@@ -409,6 +422,33 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     prevIsArrivedRef.current = res.isArrived;
   }, [res.isArrived]);
 
+
+  useEffect(() => {
+    if (!gdCalOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setGdCalOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [gdCalOpen]);
+
+  useEffect(() => {
+    if (!gdCalOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!gdCalTriggerRef.current?.contains(t) && !gdCalPopoverRef.current?.contains(t)) {
+        setGdCalOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointer);
+    return () => document.removeEventListener('mousedown', onPointer);
+  }, [gdCalOpen]);
+
+  const openGdCalendar = useCallback(() => {
+    if (gdCalTriggerRef.current) {
+      const r = gdCalTriggerRef.current.getBoundingClientRect();
+      setGdCalPos({ top: r.bottom + 6, left: r.left });
+    }
+    setGdCalOpen(true);
+  }, []);
 
   async function openActionMapPicker(action: 'seat' | 'move' | 'change-table' | 'combine' | 'assign') {
     // For combine: currentIds = secondary tables only (primary is locked; passing it here would double-render it).
@@ -1378,19 +1418,37 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
               />
             </div>
 
-            {/* Date — MiniCalendar, only for non-SEATED */}
+            {/* Date — collapsed by default, opens as floating popover */}
             {res.status !== 'SEATED' && (
               <div>
                 <GDLabel>{T.guestDrawer.fieldDate ?? 'תאריך'}</GDLabel>
-                <MiniCalendar
-                  value={editDate}
-                  onValueChange={d => {
-                    setEditDate(d);
-                    const parts = d.split('-');
-                    setEditDateDisplay(`${parts[2]}/${parts[1]}/${parts[0]}`);
-                    onDateTimeChange?.(d, editTime);
-                  }}
-                />
+                <button
+                  ref={gdCalTriggerRef}
+                  type="button"
+                  onClick={openGdCalendar}
+                  className="w-full flex items-center justify-between bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm hover:border-iron-green/50 focus:outline-none focus:border-iron-green transition-colors"
+                >
+                  <span>{fmtDateLong(editDate, intlLocale)}</span>
+                  <span className="text-iron-muted text-xs ml-2">▼</span>
+                </button>
+                {gdCalOpen && gdCalPos && createPortal(
+                  <div
+                    ref={gdCalPopoverRef}
+                    style={{ position: 'fixed', top: gdCalPos.top, left: gdCalPos.left, zIndex: 9999 }}
+                  >
+                    <MiniCalendar
+                      value={editDate}
+                      onValueChange={d => {
+                        setEditDate(d);
+                        const parts = d.split('-');
+                        setEditDateDisplay(`${parts[2]}/${parts[1]}/${parts[0]}`);
+                        onDateTimeChange?.(d, editTime);
+                        setGdCalOpen(false);
+                      }}
+                    />
+                  </div>,
+                  document.body
+                )}
               </div>
             )}
 

@@ -350,9 +350,9 @@ const STATUS_BG_DARK: Record<string, string> = {
   BLOCKED:       'rgba(220,38,38,0.14)',
 };
 const STATUS_BG_LIGHT: Record<string, string> = {
-  AVAILABLE:     '#8E9D7F',
-  OCCUPIED:      'rgba(253,224,195,0.97)',
-  RESERVED_SOON: 'rgba(214,232,253,0.97)',  // same blue as RESERVED — glow is the signal
+  AVAILABLE:     '#FFFFFF',                    // clean white — empty table (Stitch model)
+  OCCUPIED:      'rgba(67, 155, 82, 0.90)',   // hospitality green — seated/active
+  RESERVED_SOON: 'rgba(214,232,253,0.97)',    // same blue as RESERVED — glow is the signal
   RESERVED:      'rgba(214,232,253,0.97)',
   BLOCKED:       'rgba(254,226,226,0.92)',
 };
@@ -389,7 +389,7 @@ interface Props {
   onPickDone?: (ids: string[]) => void;
   onPickCancel?: () => void;
   onPickSelectionChange?: (ids: string[]) => void;
-  pickAction?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign';
+  pickAction?: 'seat' | 'move' | 'change-table' | 'combine' | 'new-reservation' | 'reallocate' | 'assign' | 'seat-from-map';
   pickLockIds?: string[];  // tables fixed in selection — cannot be toggled off
   pickInitialSelection?: string[];  // tables pre-selected when pick mode activates
   pickGuestName?: string;
@@ -961,6 +961,15 @@ export default function FloorBoard({
         onPickDone?.([t.id]);
         return;
       }
+      // seat-from-map: override pick — all tables clickable, auto-confirm on single click.
+      // Occupied/reserved tables are intentionally allowed; HostDashboard shows a
+      // confirmation modal before executing.
+      if (pickAction === 'seat-from-map') {
+        setPickSelection([t.id]);
+        onPickSelectionChange?.([t.id]);
+        onPickDone?.([t.id]);
+        return;
+      }
       // Lock check: primary table in combine mode cannot be deselected
       if (pickLockIds.includes(t.id)) {
         setPickCurrentWarn(true);
@@ -1147,7 +1156,9 @@ export default function FloorBoard({
         <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-blue-900/20 border-b border-status-reserved/20">
           <span className="w-1.5 h-1.5 rounded-full bg-status-reserved animate-pulse shrink-0" />
           <span className="text-status-reserved text-xs font-medium">
-            {pickAction === 'move' && pickGuestName
+            {pickAction === 'seat-from-map' && pickGuestName
+              ? T.floorBoard.pickModeSeatFromMapHint(pickGuestName)
+              : pickAction === 'move' && pickGuestName
               ? T.floorBoard.pickModeMoveHint(pickGuestName)
               : pickAction === 'combine'
               ? T.floorBoard.pickModeCombineHint
@@ -3256,10 +3267,18 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
     bg = STATUS_BG['RESERVED'];
   }
 
+  // Light-mode text: white on the green OCCUPIED background, dark elsewhere.
+  const isOnGreenBg = !isDark && displayStatus === 'OCCUPIED' && !isOverdue && !isStaleOccupied;
+  const textColor    = isOnGreenBg ? 'rgba(255,255,255,0.95)' : '#435B2A';
+  const textColorSub = isOnGreenBg ? 'rgba(255,255,255,0.68)' : '#435B2A';
+
   // Fixed iron-green border on every table — status is communicated through background
   // color, badge text, and reservation labels, not through border color changes.
+  // Light mode: softer border on empty/white tables so white-on-white isn't invisible.
   const IRON_BORDER = '#435B2A';
-  let borderColor = IRON_BORDER;
+  let borderColor = (!isDark && displayStatus === 'AVAILABLE' && !softHold)
+    ? '#B8C9AD'   // lighter sage for white AVAILABLE tables in light mode
+    : IRON_BORDER;
   let borderWidth = 1.5;
   // Selection: blue ring for selected/combined-selected, no other status-driven border.
   let boxShadow: string | undefined = selected
@@ -3414,7 +3433,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       <span style={{
         fontSize: guestName ? 9 : 16,
         fontWeight: guestName ? 500 : 800,
-        color: '#435B2A',
+        color: textColor,
         opacity: guestName ? 0.65 : 1,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         lineHeight: 1.1,
@@ -3427,7 +3446,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       {resTime && (
         <span style={{
           fontSize: 16, fontWeight: 900,
-          color: '#435B2A',
+          color: textColor,
           lineHeight: 1.1, letterSpacing: '-0.03em',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -3439,7 +3458,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       {guestName && (
         <span style={{
           fontSize: 12, fontWeight: 700,
-          color: '#435B2A',
+          color: textColor,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           width: '100%', lineHeight: 1.2, letterSpacing: '-0.01em',
         }}>
@@ -3450,7 +3469,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       {/* Party size — secondary label */}
       <span style={{
         fontSize: 10, fontWeight: 500,
-        color: '#435B2A', opacity: guestName ? 0.6 : 0.8,
+        color: textColorSub, opacity: guestName ? 0.6 : 0.8,
         lineHeight: 1.1,
       }}>
         {partySize != null ? `${partySize}p` : `${table.maxCovers}p`}

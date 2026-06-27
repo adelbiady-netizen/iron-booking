@@ -63,6 +63,7 @@ interface Props {
   nowTime?: string;
   operationalNow?: number;
   onContextMenuSeat?: (res: Reservation) => void;
+  onSeatFromMap?: (res: Reservation) => void;
   date?: string;
   reorganizeQueue?: Reservation[];
   onReorganizeSelect?: (r: Reservation) => void;
@@ -89,7 +90,7 @@ export default function ReservationPanel({
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
   nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
-  onContextMenuSeat, date, reorganizeQueue, onReorganizeSelect, allTables,
+  onContextMenuSeat, onSeatFromMap, date, reorganizeQueue, onReorganizeSelect, allTables,
   onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable, onNoTableMode,
   compact = false,
   standbyReservations = [], standbyLoading = false, onSelectStandby,
@@ -837,8 +838,9 @@ export default function ReservationPanel({
   {ctxMenu && createPortal(
     (() => {
       const hasSeat = ['PENDING', 'CONFIRMED'].includes(ctxMenu.res.status);
+      const hasSeatFromMap = hasSeat && isLiveView && !!onSeatFromMap;
       const menuW = 184;
-      const menuH = hasSeat ? 108 : 56;
+      const menuH = hasSeatFromMap ? 152 : hasSeat ? 108 : 56;
       let left = ctxMenu.x + 4;
       let top  = ctxMenu.y + 4;
       const flipX = left + menuW > window.innerWidth  - 8;
@@ -869,6 +871,17 @@ export default function ReservationPanel({
             >
               <span className="text-base leading-none shrink-0">🍽️</span>
               <span>{ctxMenu.res.tableId ? T.reservationPanel.ctxSeat : T.reservationPanel.ctxQuickSeat}</span>
+            </button>
+          )}
+
+          {hasSeatFromMap && (
+            <button
+              type="button"
+              className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm text-iron-green-light font-medium hover:bg-iron-green/15 active:bg-iron-green/25 transition-colors cursor-pointer"
+              onClick={() => { onSeatFromMap?.(ctxMenu.res); setCtxMenu(null); }}
+            >
+              <span className="text-base leading-none shrink-0">🗺️</span>
+              <span>{T.reservationPanel.ctxSeatFromMap}</span>
             </button>
           )}
 

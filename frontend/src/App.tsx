@@ -47,7 +47,7 @@ export default function App() {
   );
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('iron_theme') as Theme | null;
-    const t = stored === 'light' ? 'light' : 'dark';
+    const t = stored === 'dark' ? 'dark' : 'light';
     applyTheme(t);
     return t;
   });

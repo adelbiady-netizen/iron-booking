@@ -108,20 +108,6 @@ function PwaDiagnostic() {
 const EATALIANO = '/eataliano-dalla-costa';
 
 export default function RootPage() {
-  const auth = getStoredAuth();
-  const isStandalone =
-    typeof window !== 'undefined' &&
-    (window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as { standalone?: boolean }).standalone === true);
-
-  console.warn('[RootPage] rendered', {
-    href: window.location.href,
-    isStandalone,
-    hasAuth: !!auth,
-    role: auth?.user?.role ?? null,
-    restaurant: auth?.user?.restaurant ?? null,
-  });
-
   // Auto-redirect after 1 s — single restaurant configured for this deployment.
   useEffect(() => {
     const id = setTimeout(() => { window.location.replace(EATALIANO); }, 1000);

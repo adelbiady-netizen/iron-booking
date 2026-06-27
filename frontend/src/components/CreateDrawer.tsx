@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, Table } from '../types';
@@ -6,6 +6,15 @@ import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeConflictModal';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
+
+function fmtDateLong(dateStr: string, intlLocale: string): string {
+  if (!dateStr) return '';
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  if (!y || !mo || !d) return dateStr;
+  return new Intl.DateTimeFormat(intlLocale, {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  }).format(new Date(y, mo - 1, d));
+}
 import FloorTablePicker from './FloorTablePicker';
 import { getDefaultDuration } from '../utils/duration';
 import { isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
@@ -139,6 +148,10 @@ export default function CreateDrawer({
   const [resPhone,     setResPhone]     = useState(sb?.guestPhone ?? initialData?.guestPhone ?? '');
   const [resParty,     setResParty]     = useState(sb?.partySize ?? 2);
   const [resDate,      setResDate]      = useState(sb ? sb.date.slice(0, 10) : defaultDate);
+  const [calOpen,      setCalOpen]      = useState(false);
+  const [calPos,       setCalPos]       = useState<{ top: number; left: number } | null>(null);
+  const calTriggerRef = useRef<HTMLButtonElement>(null);
+  const calPopoverRef = useRef<HTMLDivElement>(null);
   const [resTime,      setResTime]      = useState(sb ? sb.time.slice(0, 5) : snapToSlot(gapHint?.startTime ?? defaultTime));
   const [resDuration,  setResDuration]  = useState(
     sb ? String(sb.duration) : gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
@@ -285,6 +298,33 @@ export default function CreateDrawer({
     dateTimeSyncMountedRef.current = true;
     onDateTimeChangeRef.current?.(resDate, resTime);
   }, [resDate, resTime]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!calOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setCalOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [calOpen]);
+
+  useEffect(() => {
+    if (!calOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!calTriggerRef.current?.contains(t) && !calPopoverRef.current?.contains(t)) {
+        setCalOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointer);
+    return () => document.removeEventListener('mousedown', onPointer);
+  }, [calOpen]);
+
+  const openCalendar = useCallback(() => {
+    if (calTriggerRef.current) {
+      const r = calTriggerRef.current.getBoundingClientRect();
+      setCalPos({ top: r.bottom + 6, left: r.left });
+    }
+    setCalOpen(true);
+  }, []);
 
   // In newResPickMode: clear the selected table whenever booking params change
   // so the user must re-select after changing time/date/duration/party size.
@@ -939,13 +979,31 @@ export default function CreateDrawer({
                 {/* Date */}
                 <div className="col-span-2">
                   <Label>{T.createDrawer.fieldDate}</Label>
-                  <MiniCalendar
-                    value={resDate}
-                    onValueChange={d => {
-                      setResDate(d);
-                      onDateTimeChange?.(d, resTime);
-                    }}
-                  />
+                  <button
+                    ref={calTriggerRef}
+                    type="button"
+                    onClick={openCalendar}
+                    className="w-full flex items-center justify-between bg-iron-bg border border-iron-border rounded-lg px-3 py-2 text-iron-text text-sm hover:border-iron-green/50 focus:outline-none focus:border-iron-green transition-colors"
+                  >
+                    <span>{fmtDateLong(resDate, intlLocale)}</span>
+                    <span className="text-iron-muted text-xs ml-2">▼</span>
+                  </button>
+                  {calOpen && calPos && createPortal(
+                    <div
+                      ref={calPopoverRef}
+                      style={{ position: 'fixed', top: calPos.top, left: calPos.left, zIndex: 9999 }}
+                    >
+                      <MiniCalendar
+                        value={resDate}
+                        onValueChange={d => {
+                          setResDate(d);
+                          onDateTimeChange?.(d, resTime);
+                          setCalOpen(false);
+                        }}
+                      />
+                    </div>,
+                    document.body
+                  )}
                 </div>
 
                 {/* Time */}

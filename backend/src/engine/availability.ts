@@ -112,6 +112,16 @@ export async function getTableAvailability(
       };
     }
 
+    // Check operational lock (table.locked field, separate from time-based BlockedPeriod)
+    const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotStart);
+    if (effectiveLocked) {
+      return {
+        tableId: table.id,
+        isAvailable: false,
+        blockedBy: table.lockReason ?? 'Table is locked',
+      };
+    }
+
     // Check reservation conflicts — skip any reservations being mutually displaced (e.g. swap)
     const eligibleReservations = excludeReservationIds.length
       ? reservations.filter(r => !excludeReservationIds.includes(r.id))
