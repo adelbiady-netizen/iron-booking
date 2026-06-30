@@ -436,13 +436,25 @@ router.get('/pos/admin/diagnose', async (req, res) => {
       ORDER BY received_at DESC
       LIMIT 3
     `;
-        // Parse payload so mapping keys are visible (truncate to first 10 entries to avoid huge response)
+        // Parse payload — show first 10 mapping keys alongside first 10 IB Table.id values for direct comparison
+        const ibTables = await prisma_1.prisma.table.findMany({
+            where: { restaurantId }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 10,
+        });
         const entries = rows.map(r => {
             try {
                 const p = JSON.parse(r.payload_text);
                 const mapping = p.mapping ?? {};
                 const keys = Object.keys(mapping);
-                return { event_id: r.event_id, received_at: r.received_at, mapping_entry_count: keys.length, mapping_sample: Object.fromEntries(keys.slice(0, 10).map(k => [k, mapping[k]])) };
+                const matchCount = keys.filter(k => ibTables.some(t => t.id === k)).length;
+                return {
+                    event_id: r.event_id,
+                    received_at: r.received_at,
+                    mapping_entry_count: keys.length,
+                    mapping_keys_sample: keys.slice(0, 10),
+                    mapping_values_sample: keys.slice(0, 10).map(k => mapping[k]),
+                    ib_table_ids_sample: ibTables.map(t => ({ id: t.id, name: t.name })),
+                    keys_matching_ib_table_ids: matchCount,
+                };
             }
             catch {
                 return { event_id: r.event_id, received_at: r.received_at, payload_text: r.payload_text.slice(0, 200) };
@@ -592,5 +604,61 @@ router.post('/pos/admin/resync-visits', async (req, res) => {
         }
     }
     res.json({ date: dateStr, restaurantId, total: reservations.length, results });
+});
+// POST /api/v1/pos/admin/populate-atlas-table-ids?restaurantId=<uuid>
+// Directly fetches the ATLAS table directory and writes atlasTableId into each IB Table row
+// by name-matching (same logic as the /attach endpoint).  Bypasses the pos.table_directory_ack
+// flow entirely — use when the ack mapping keys don't match IB Table.id values.
+router.post('/pos/admin/populate-atlas-table-ids', async (req, res) => {
+    const adminSecret = process.env.POS_ADMIN_SECRET;
+    if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+        res.status(401).json({ error: 'UNAUTHORIZED' });
+        return;
+    }
+    const restaurantId = req.query.restaurantId;
+    if (!restaurantId) {
+        res.status(400).json({ error: 'restaurantId query param required' });
+        return;
+    }
+    const config = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId } });
+    if (!config?.atlasLocationId || !config.posApiBase || !config.hospitalitySecret) {
+        res.status(404).json({ error: 'NO_POS_CONFIG', message: 'PosConfig missing atlasLocationId, posApiBase, or hospitalitySecret.' });
+        return;
+    }
+    const dirRes = await fetch(`${config.posApiBase}/api/v1/hospitality/table-directory?location_id=${config.atlasLocationId}`, { headers: { Authorization: `Bearer ${config.hospitalitySecret}` } });
+    if (!dirRes.ok) {
+        res.status(502).json({ error: 'ATLAS_ERROR', status: dirRes.status, body: await dirRes.text() });
+        return;
+    }
+    const dir = await dirRes.json();
+    const atlasTables = ('data' in dir ? dir.data.tables : dir.tables) ?? [];
+    const ironTables = await prisma_1.prisma.table.findMany({ where: { restaurantId } });
+    const matched = [];
+    const skipped = [];
+    for (const at of atlasTables) {
+        if (!at.active) {
+            skipped.push({ atlasName: at.name ?? at.number, atlasId: at.table_id, reason: 'inactive' });
+            continue;
+        }
+        const label = at.name ?? at.number;
+        const iron = ironTables.find(t => t.name === label ||
+            t.name === at.number ||
+            t.name === `T${at.number}` ||
+            t.name.replace(/\s+/g, '') === label.replace(/\s+/g, ''));
+        if (!iron) {
+            skipped.push({ atlasName: label, atlasId: at.table_id, reason: 'no_ib_name_match' });
+            continue;
+        }
+        await prisma_1.prisma.table.update({ where: { id: iron.id }, data: { atlasTableId: at.table_id } });
+        matched.push({ ibName: iron.name, ibId: iron.id, atlasId: at.table_id });
+    }
+    res.json({
+        ok: true,
+        atlas_tables_received: atlasTables.length,
+        matched: matched.length,
+        skipped: skipped.length,
+        matched_sample: matched.slice(0, 10),
+        skipped_sample: skipped.slice(0, 10),
+    });
 });
 exports.default = router;
