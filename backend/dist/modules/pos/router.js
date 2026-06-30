@@ -440,45 +440,40 @@ router.get('/pos/admin/diagnose', async (req, res) => {
     catch (e) {
         result['step1_ack_received'] = { error: String(e) };
     }
+    // steps 2 & 3: use Prisma model methods — Table.restaurantId has no @map so the
+    // raw column name is "restaurantId" (camelCase), not restaurant_id.
     try {
-        const rows = await prisma_1.prisma.$queryRaw `
-      SELECT
-        COUNT(*)::int                                            AS total,
-        COUNT(*) FILTER (WHERE atlas_table_id IS NOT NULL)::int AS with_atlas_id,
-        COUNT(*) FILTER (WHERE atlas_table_id IS NULL)::int     AS without_atlas_id
-      FROM tables
-      WHERE restaurant_id = ${restaurantId}::uuid
-    `;
-        const c = rows[0];
+        const total = await prisma_1.prisma.table.count({ where: { restaurantId } });
+        const withAtlasId = await prisma_1.prisma.table.count({ where: { restaurantId, atlasTableId: { not: null } } });
         result['step2_table_population'] = {
-            total: c?.total ?? 0,
-            with_atlas_id: c?.with_atlas_id ?? 0,
-            without_atlas_id: c?.without_atlas_id ?? 0,
+            total,
+            with_atlas_id: withAtlasId,
+            without_atlas_id: total - withAtlasId,
         };
     }
     catch (e) {
         result['step2_table_population'] = { error: String(e) };
     }
     try {
-        const rows = await prisma_1.prisma.$queryRaw `
-      SELECT id::text, name, atlas_table_id::text
-      FROM tables
-      WHERE restaurant_id = ${restaurantId}::uuid
-      ORDER BY name
-      LIMIT 10
-    `;
+        const rows = await prisma_1.prisma.table.findMany({
+            where: { restaurantId },
+            select: { id: true, name: true, atlasTableId: true },
+            orderBy: { name: 'asc' },
+            take: 10,
+        });
         result['step3_sample_tables'] = rows;
     }
     catch (e) {
         result['step3_sample_tables'] = { error: String(e) };
     }
+    // step 4: cast column side to text so Prisma's text parameter binds without type mismatch.
     try {
         const rows = await prisma_1.prisma.$queryRaw `
       SELECT id::text, visit_id::text, event_type, status, attempts, last_error,
              payload::text AS payload_text,
              created_at, delivered_at
       FROM pos_outbox
-      WHERE restaurant_id = ${restaurantId}::uuid
+      WHERE restaurant_id::text = ${restaurantId}
         AND event_type LIKE 'visit.%'
       ORDER BY created_at DESC
       LIMIT 5
@@ -488,20 +483,9 @@ router.get('/pos/admin/diagnose', async (req, res) => {
     catch (e) {
         result['step4_recent_visit_events'] = { error: String(e) };
     }
-    try {
-        const config = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId } });
-        if (config?.posApiBase && config?.atlasLocationId) {
-            const r = await fetch(`${config.posApiBase}/api/v1/hospitality/visits/incoming?location_id=${config.atlasLocationId}`, { headers: { Authorization: `Bearer ${config.hospitalitySecret}` } });
-            const body = r.ok ? await r.json() : null;
-            result['step5_atlas_incoming'] = { status: r.status, body };
-        }
-        else {
-            result['step5_atlas_incoming'] = { error: 'NO_CONFIG' };
-        }
-    }
-    catch (e) {
-        result['step5_atlas_incoming'] = { error: String(e) };
-    }
+    // step 5: ATLAS /hospitality/visits/incoming uses Flutter/POS app auth, not hospitalitySecret.
+    // Skipped — the data we need is already in steps 1–4.
+    result['step5_atlas_incoming'] = { skipped: 'ATLAS incoming endpoint uses different auth from event ingestion' };
     res.json(result);
 });
 exports.default = router;
