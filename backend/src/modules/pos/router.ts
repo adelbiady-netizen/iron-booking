@@ -498,14 +498,25 @@ router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
   // The error message is embedded in the step key so the caller sees exactly which query broke.
 
   try {
-    const rows = await prisma.$queryRaw<Array<{ event_id: string; received_at: Date }>>`
-      SELECT event_id::text, received_at
+    const rows = await prisma.$queryRaw<Array<{ event_id: string; received_at: Date; payload_text: string }>>`
+      SELECT event_id::text, received_at, payload::text AS payload_text
       FROM pos_event_log
       WHERE event_type = 'pos.table_directory_ack'
       ORDER BY received_at DESC
-      LIMIT 5
+      LIMIT 3
     `;
-    result['step1_ack_received'] = { count: rows.length, entries: rows };
+    // Parse payload so mapping keys are visible (truncate to first 10 entries to avoid huge response)
+    const entries = rows.map(r => {
+      try {
+        const p = JSON.parse(r.payload_text) as { mapping?: Record<string, string> };
+        const mapping = p.mapping ?? {};
+        const keys = Object.keys(mapping);
+        return { event_id: r.event_id, received_at: r.received_at, mapping_entry_count: keys.length, mapping_sample: Object.fromEntries(keys.slice(0, 10).map(k => [k, mapping[k]])) };
+      } catch {
+        return { event_id: r.event_id, received_at: r.received_at, payload_text: r.payload_text.slice(0, 200) };
+      }
+    });
+    result['step1_ack_received'] = { count: rows.length, entries };
   } catch (e) {
     result['step1_ack_received'] = { error: String(e) };
   }
