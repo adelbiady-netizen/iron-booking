@@ -172,34 +172,54 @@ router.patch('/pos/admin/patch-config', async (req, res) => {
     }
     const body = zod_1.z.object({
         restaurantId: zod_1.z.string().uuid(),
-        atlasLocationId: zod_1.z.string().uuid(),
+        atlasLocationId: zod_1.z.string().uuid().optional(),
+        hospitalitySecret: zod_1.z.string().min(1).optional(),
+        posApiBase: zod_1.z.string().url().optional(),
     }).safeParse(req.body);
     if (!body.success) {
         res.status(400).json({ error: 'INVALID_BODY', issues: body.error.issues });
         return;
     }
-    const { restaurantId, atlasLocationId } = body.data;
+    const { restaurantId, atlasLocationId, hospitalitySecret, posApiBase } = body.data;
+    if (!atlasLocationId && !hospitalitySecret && !posApiBase) {
+        res.status(400).json({ error: 'INVALID_BODY', message: 'Provide at least one of: atlasLocationId, hospitalitySecret, posApiBase.' });
+        return;
+    }
     const config = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId } });
     if (!config) {
         res.status(404).json({ error: 'NO_POS_CONFIG', message: 'No PosConfig found for this restaurant. Run /attach first.' });
         return;
     }
-    // Guard: reject if another restaurant already owns this atlasLocationId.
-    const conflict = await prisma_1.prisma.posConfig.findFirst({
-        where: { atlasLocationId, NOT: { restaurantId } },
-    });
-    if (conflict) {
-        res.status(409).json({
-            error: 'ATLAS_LOCATION_CONFLICT',
-            message: `atlasLocationId is already owned by restaurantId=${conflict.restaurantId}. Release it there first.`,
+    if (atlasLocationId) {
+        // Guard: reject if another restaurant already owns this atlasLocationId.
+        const conflict = await prisma_1.prisma.posConfig.findFirst({
+            where: { atlasLocationId, NOT: { restaurantId } },
         });
-        return;
+        if (conflict) {
+            res.status(409).json({
+                error: 'ATLAS_LOCATION_CONFLICT',
+                message: `atlasLocationId is already owned by restaurantId=${conflict.restaurantId}. Release it there first.`,
+            });
+            return;
+        }
     }
     await prisma_1.prisma.posConfig.update({
         where: { restaurantId },
-        data: { atlasLocationId, atlasBrandId: atlasLocationId },
+        data: {
+            ...(atlasLocationId ? { atlasLocationId, atlasBrandId: atlasLocationId } : {}),
+            ...(hospitalitySecret ? { hospitalitySecret } : {}),
+            ...(posApiBase ? { posApiBase } : {}),
+        },
     });
-    res.json({ ok: true, restaurantId, atlasLocationId });
+    res.json({
+        ok: true,
+        restaurantId,
+        updated: {
+            ...(atlasLocationId ? { atlasLocationId } : {}),
+            ...(hospitalitySecret ? { hospitalitySecret: hospitalitySecret.slice(0, 6) + '...' } : {}),
+            ...(posApiBase ? { posApiBase } : {}),
+        },
+    });
 });
 // POST /api/v1/pos/admin/release-config
 // Clears atlasLocationId (and atlasBrandId) on a PosConfig row so the ATLAS location
@@ -320,7 +340,9 @@ router.get('/pos/admin/status', async (req, res) => {
     }
     const rows = await prisma_1.prisma.$queryRaw `
     SELECT pc.id::text, pc.restaurant_id::text, r.name AS restaurant_name, r.slug,
-           pc.atlas_location_id::text, pc.pos_api_base, pc.attached_at
+           pc.atlas_location_id::text, pc.pos_api_base, pc.attached_at,
+           LEFT(pc.hospitality_secret, 6) || '...' AS hospitality_secret_hint,
+           LEFT(pc.pos_secret, 6) || '...' AS pos_secret_hint
     FROM pos_config pc
     LEFT JOIN restaurants r ON r.id = pc.restaurant_id
     ORDER BY pc.created_at
