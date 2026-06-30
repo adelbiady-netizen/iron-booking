@@ -1588,6 +1588,10 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 </div>
               ))}
             </dl>
+            <div className="mt-4 pt-3 border-t border-iron-border/50">
+              <p className="text-xs text-iron-muted mb-1.5">מזהה מסעדה (UUID) — לשימוש באינטגרציות</p>
+              <CopyUrlRow label="Restaurant UUID" url={detail.id} />
+            </div>
           </div>
         )}
 
