@@ -160,6 +160,47 @@ router.post('/pos/admin/attach', async (req, res) => {
         ...(displaced ? { displaced: { previousAtlasLocationId: displaced } } : {}),
     });
 });
+// PATCH /api/v1/pos/admin/patch-config
+// Restores a null atlasLocationId on an existing PosConfig without re-triggering
+// the full attach flow or displacing other restaurants.
+// Use when the displace logic orphaned a restaurant's atlasLocationId.
+router.patch('/pos/admin/patch-config', async (req, res) => {
+    const adminSecret = process.env.POS_ADMIN_SECRET;
+    if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+        res.status(401).json({ error: 'UNAUTHORIZED' });
+        return;
+    }
+    const body = zod_1.z.object({
+        restaurantId: zod_1.z.string().uuid(),
+        atlasLocationId: zod_1.z.string().uuid(),
+    }).safeParse(req.body);
+    if (!body.success) {
+        res.status(400).json({ error: 'INVALID_BODY', issues: body.error.issues });
+        return;
+    }
+    const { restaurantId, atlasLocationId } = body.data;
+    const config = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId } });
+    if (!config) {
+        res.status(404).json({ error: 'NO_POS_CONFIG', message: 'No PosConfig found for this restaurant. Run /attach first.' });
+        return;
+    }
+    // Guard: reject if another restaurant already owns this atlasLocationId.
+    const conflict = await prisma_1.prisma.posConfig.findFirst({
+        where: { atlasLocationId, NOT: { restaurantId } },
+    });
+    if (conflict) {
+        res.status(409).json({
+            error: 'ATLAS_LOCATION_CONFLICT',
+            message: `atlasLocationId is already owned by restaurantId=${conflict.restaurantId}. Release it there first.`,
+        });
+        return;
+    }
+    await prisma_1.prisma.posConfig.update({
+        where: { restaurantId },
+        data: { atlasLocationId, atlasBrandId: atlasLocationId },
+    });
+    res.json({ ok: true, restaurantId, atlasLocationId });
+});
 // POST /api/v1/pos/admin/resync-tables
 // Sends system.table_directory_sync to ATLAS for a given restaurant.
 // ATLAS processes the table list and queues a pos.table_directory_ack event containing
