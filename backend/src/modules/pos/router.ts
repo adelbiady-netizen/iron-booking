@@ -157,11 +157,12 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
     );
 
     if (dirRes.ok) {
-      const dir = await dirRes.json() as { tables: AtlasTable[] };
-      tableSync.tables = dir.tables;
+      const dir = await dirRes.json() as { data: { tables: AtlasTable[] } } | { tables: AtlasTable[] };
+      const tables = ('data' in dir ? dir.data.tables : dir.tables) ?? [];
+      tableSync.tables = tables;
       const ironTables = await prisma.table.findMany({ where: { restaurantId } });
 
-      for (const at of dir.tables) {
+      for (const at of tables) {
         if (!at.active) continue;
         const label = at.name ?? at.number;
         const iron = ironTables.find(t =>
