@@ -256,6 +256,47 @@ router.post('/pos/admin/release-config', async (req, res) => {
 // the authoritative ibTableId → atlasTableUUID mapping. The iron-booking ingest handler
 // picks it up and updates Table.atlasTableId for every matched table.
 // Run this once after deploy to repopulate any null/stale atlasTableId values.
+// POST /api/v1/pos/admin/copy-hospitality-secret
+// Copies hospitalitySecret from one PosConfig row to another without exposing the value.
+// Use when the donor row's secret is what ATLAS currently expects for a given location
+// (i.e. the last attach event for that location used the donor's secret).
+router.post('/pos/admin/copy-hospitality-secret', async (req, res) => {
+    const adminSecret = process.env.POS_ADMIN_SECRET;
+    if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+        res.status(401).json({ error: 'UNAUTHORIZED' });
+        return;
+    }
+    const body = zod_1.z.object({
+        fromRestaurantId: zod_1.z.string().uuid(),
+        toRestaurantId: zod_1.z.string().uuid(),
+    }).safeParse(req.body);
+    if (!body.success) {
+        res.status(400).json({ error: 'INVALID_BODY', issues: body.error.issues });
+        return;
+    }
+    const { fromRestaurantId, toRestaurantId } = body.data;
+    const donor = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId: fromRestaurantId } });
+    if (!donor) {
+        res.status(404).json({ error: 'DONOR_NOT_FOUND' });
+        return;
+    }
+    const target = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId: toRestaurantId } });
+    if (!target) {
+        res.status(404).json({ error: 'TARGET_NOT_FOUND' });
+        return;
+    }
+    await prisma_1.prisma.posConfig.update({
+        where: { restaurantId: toRestaurantId },
+        data: { hospitalitySecret: donor.hospitalitySecret },
+    });
+    res.json({
+        ok: true,
+        fromRestaurantId,
+        toRestaurantId,
+        hospitalitySecretHint: donor.hospitalitySecret.slice(0, 6) + '...',
+    });
+});
+// POST /api/v1/pos/admin/resync-tables
 router.post('/pos/admin/resync-tables', async (req, res) => {
     const adminSecret = process.env.POS_ADMIN_SECRET;
     if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
