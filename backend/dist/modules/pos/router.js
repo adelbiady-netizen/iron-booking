@@ -426,18 +426,18 @@ router.get('/pos/admin/diagnose', async (req, res) => {
     }
     // 1. pos.table_directory_ack received?
     const ackLogs = await prisma_1.prisma.$queryRaw `
-    SELECT event_id::text, created_at
+    SELECT event_id::text, received_at
     FROM pos_event_log
     WHERE event_type = 'pos.table_directory_ack'
-    ORDER BY created_at DESC
+    ORDER BY received_at DESC
     LIMIT 5
   `;
-    // 2. Table atlasTableId population
+    // 2. Table atlasTableId population — ::int avoids BigInt serialization issues
     const tableCounts = await prisma_1.prisma.$queryRaw `
     SELECT
-      COUNT(*)::bigint                                         AS total,
-      COUNT(*) FILTER (WHERE atlas_table_id IS NOT NULL)::bigint AS with_atlas_id,
-      COUNT(*) FILTER (WHERE atlas_table_id IS NULL)::bigint     AS without_atlas_id
+      COUNT(*)::int                                         AS total,
+      COUNT(*) FILTER (WHERE atlas_table_id IS NOT NULL)::int AS with_atlas_id,
+      COUNT(*) FILTER (WHERE atlas_table_id IS NULL)::int     AS without_atlas_id
     FROM tables
     WHERE restaurant_id = ${restaurantId}::uuid
   `;
@@ -482,9 +482,9 @@ router.get('/pos/admin/diagnose', async (req, res) => {
             entries: ackLogs,
         },
         step2_table_population: {
-            total: Number(counts?.total ?? 0),
-            with_atlas_id: Number(counts?.with_atlas_id ?? 0),
-            without_atlas_id: Number(counts?.without_atlas_id ?? 0),
+            total: counts?.total ?? 0,
+            with_atlas_id: counts?.with_atlas_id ?? 0,
+            without_atlas_id: counts?.without_atlas_id ?? 0,
         },
         step3_sample_tables: sampleTables,
         step4_recent_visit_events: recentVisitEvents,
