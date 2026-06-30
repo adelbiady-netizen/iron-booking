@@ -81,8 +81,8 @@ export async function queueVisitEvent(
   await prisma.posOutbox.upsert({
     where:  { eventId },
     create: { restaurantId, visitId, eventType, eventId, payload: envelopeJson, status: 'pending' },
-    // On conflict: reset to pending so a re-trigger causes a re-send.
-    update: { status: 'pending', nextRetryAt: new Date(), lastError: null },
+    // On conflict: reset to pending AND update payload so re-triggers carry the latest atlas_table_id.
+    update: { status: 'pending', nextRetryAt: new Date(), lastError: null, payload: envelopeJson, attempts: 0 },
   });
 }
 

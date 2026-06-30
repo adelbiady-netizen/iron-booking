@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { PosIngestBodySchema } from './schema';
 import { ingestEvents } from './service';
+import { queueVisitEvent } from './dispatcher';
 
 const router = Router();
 
@@ -557,6 +558,72 @@ router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
   result['step5_atlas_incoming'] = { skipped: 'ATLAS incoming endpoint uses different auth from event ingestion' };
 
   res.json(result);
+});
+
+// POST /v1/pos/admin/resync-visits?restaurantId=<uuid>&date=<YYYY-MM-DD>
+// Re-queues all reservations for the given date (defaults to today UTC) with the
+// current atlasTableId values.  Fixes the case where reservations were emitted
+// before the table-directory sync populated atlasTableId.
+// The upsert in queueVisitEvent now also updates the payload, so re-sending
+// picks up the correct atlas_table_id for each reservation.
+router.post('/pos/admin/resync-visits', async (req: Request, res: Response) => {
+  const adminSecret = process.env.POS_ADMIN_SECRET;
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : null;
+  if (!adminSecret || token !== adminSecret) {
+    res.status(401).json({ error: 'UNAUTHORIZED' });
+    return;
+  }
+
+  const restaurantId = req.query.restaurantId as string | undefined;
+  if (!restaurantId) {
+    res.status(400).json({ error: 'restaurantId query param required' });
+    return;
+  }
+
+  const dateStr = (req.query.date as string | undefined) ?? new Date().toISOString().slice(0, 10);
+  const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
+  const dayEnd   = new Date(`${dateStr}T23:59:59.999Z`);
+
+  // Fetch all reservations for this restaurant on the given date that have a tableId.
+  const reservations = await prisma.reservation.findMany({
+    where: {
+      restaurantId,
+      date: { gte: dayStart, lte: dayEnd },
+      tableId: { not: null },
+      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+    },
+    select: { id: true, tableId: true, guestName: true, partySize: true, date: true, time: true, guestNotes: true, source: true },
+  });
+
+  const results: Array<{ reservationId: string; atlasTableId: string | null; queued: boolean; error?: string }> = [];
+
+  for (const r of reservations) {
+    try {
+      const t = r.tableId
+        ? await prisma.table.findUnique({ where: { id: r.tableId }, select: { atlasTableId: true } })
+        : null;
+      const atlasTableId = t?.atlasTableId ?? null;
+
+      const dateIso = r.date instanceof Date ? r.date.toISOString() : String(r.date);
+      await queueVisitEvent(restaurantId, 'visit.reservation_created', r.id, {
+        visit_id:       r.id,
+        guest_name:     r.guestName,
+        guest_count:    r.partySize,
+        atlas_table_id: atlasTableId,
+        reserved_at:    dateIso.slice(0, 10) + 'T' + r.time + ':00.000Z',
+        notes:          r.guestNotes ?? undefined,
+        walk_in:        r.source === 'WALK_IN',
+      });
+
+      results.push({ reservationId: r.id, atlasTableId, queued: true });
+    } catch (e) {
+      results.push({ reservationId: r.id, atlasTableId: null, queued: false, error: String(e) });
+    }
+  }
+
+  res.json({ date: dateStr, restaurantId, total: reservations.length, results });
 });
 
 export default router;
