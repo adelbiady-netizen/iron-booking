@@ -1654,6 +1654,27 @@ model PosEventLog {
   @@map("pos_event_log")
 }
 
+// Outbound event queue: IB → ATLAS POS visit lifecycle notifications.
+// Dispatcher polls every 5 s, retries up to 5 times with exponential back-off.
+model PosOutbox {
+  id            String    @id @default(uuid())
+  restaurantId  String    @map("restaurant_id")
+  visitId       String    @map("visit_id")         // IB reservation.id used as ATLAS visit_id
+  eventType     String    @map("event_type")        // e.g. visit.reservation_created
+  eventId       String    @unique @map("event_id")  // stable deterministic UUID sent to ATLAS
+  payload       Json                                // full event envelope JSON
+  status        String    @default("pending")       // pending | delivered | failed
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime? @map("last_attempt_at")  @db.Timestamptz
+  nextRetryAt   DateTime  @default(now()) @map("next_retry_at") @db.Timestamptz
+  deliveredAt   DateTime? @map("delivered_at")      @db.Timestamptz
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now())           @map("created_at") @db.Timestamptz
+
+  @@index([status, nextRetryAt])
+  @@map("pos_outbox")
+}
+
 // Walk-in POS orders with no matching reservation at order.opened time.
 model PosVisit {
   visitId      String    @id @map("visit_id")      // = ATLAS order.id

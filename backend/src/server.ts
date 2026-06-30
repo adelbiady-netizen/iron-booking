@@ -2,6 +2,7 @@ import app from './app';
 import { config } from './config';
 import { prisma } from './lib/prisma';
 import { startScheduler, stopScheduler } from './lib/scheduler';
+import { startDispatcher, stopDispatcher } from './modules/pos/dispatcher';
 import * as bcrypt from 'bcryptjs';
 
 // ─── Global crash guards ──────────────────────────────────────────────────────
@@ -98,12 +99,14 @@ async function main() {
     console.log(`[Iron Booking] Server running on port ${config.port} (${config.nodeEnv})`);
     console.log('🔥 SERVER LISTENING');
     startScheduler(); // no-op unless REMINDER_SCHEDULER_ENABLED=true
+    startDispatcher();
   });
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`[${signal}] Shutting down...`);
-    stopScheduler(); // prevent new ticks from being scheduled during shutdown
+    stopScheduler();
+    stopDispatcher();
     server.close(async () => {
       await prisma.$disconnect();
       console.log('[DB] Disconnected');

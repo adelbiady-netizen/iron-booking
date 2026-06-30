@@ -23,12 +23,29 @@ import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
 import { NotFoundError, BusinessRuleError } from '../../lib/errors';
 import { eventBus } from '../../lib/eventBus';
+import { queueVisitEvent } from '../pos/dispatcher';
 
 // Notify all SSE-connected hosts in this restaurant that floor state changed.
 // Called after every mutation that creates, updates, or removes a reservation.
 // Fire-and-forget — never awaited, never allowed to throw.
 function notifyFloorUpdated(restaurantId: string): void {
   eventBus.emit('floor_updated', { restaurantId });
+}
+
+// Resolve IB tableId → ATLAS table UUID (null if unmapped or no tableId).
+async function resolveAtlasTableId(tableId: string | null | undefined): Promise<string | null> {
+  if (!tableId) return null;
+  const t = await prisma.table.findUnique({ where: { id: tableId }, select: { atlasTableId: true } });
+  return t?.atlasTableId ?? null;
+}
+
+// Queue a POS visit event — fire-and-forget, never throws into the request path.
+function emitVisitEvent(
+  ...args: Parameters<typeof queueVisitEvent>
+): void {
+  queueVisitEvent(...args).catch((err: unknown) =>
+    console.error('[POS dispatcher] queueVisitEvent error:', err),
+  );
 }
 
 function buildConfirmationSmsText(
@@ -104,6 +121,17 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
     const r = await service.createReservation(req.auth.restaurantId, req.body, actorName(req));
     res.status(201).json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+      emitVisitEvent(req.auth.restaurantId, 'visit.reservation_created', r.id, {
+        visit_id:        r.id,
+        guest_name:      r.guestName,
+        guest_count:     r.partySize,
+        atlas_table_id:  atlasTableId,
+        reserved_at:     r.date instanceof Date ? r.date.toISOString() : String(r.date) + 'T' + r.time + ':00.000Z',
+        notes:           r.guestNotes ?? undefined,
+        walk_in:         r.source === 'WALK_IN',
+      }),
+    );
 
     // Fire-and-forget: send "reservation received" SMS via InforU.
     // Skip walk-ins (guest is physically present) and missing phone numbers.
@@ -255,6 +283,17 @@ router.post('/:id/confirm', async (req: Request, res: Response, next: NextFuncti
   try {
     const r = await service.confirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     notifyFloorUpdated(req.auth.restaurantId);
+    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+      emitVisitEvent(req.auth.restaurantId, 'visit.reservation_created', r.id, {
+        visit_id:        r.id,
+        guest_name:      r.guestName,
+        guest_count:     r.partySize,
+        atlas_table_id:  atlasTableId,
+        reserved_at:     r.date instanceof Date ? r.date.toISOString() : String(r.date) + 'T' + r.time + ':00.000Z',
+        notes:           r.guestNotes ?? undefined,
+        walk_in:         false,
+      }),
+    );
 
     let smsFailed = false;
     if (r.guestPhone) {
@@ -305,6 +344,15 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
     console.log(`[perf:seat] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+      emitVisitEvent(req.auth.restaurantId, 'visit.table_assigned', r.id, {
+        visit_id:       r.id,
+        guest_name:     r.guestName,
+        guest_count:    r.partySize,
+        atlas_table_id: atlasTableId,
+        assigned_at:    new Date().toISOString(),
+      }),
+    );
   } catch (err) { next(err); }
 });
 
@@ -316,6 +364,13 @@ router.post('/:id/move', validate(MoveTableSchema), async (req: Request, res: Re
     console.log(`[perf:move] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+      emitVisitEvent(req.auth.restaurantId, 'visit.table_assigned', r.id, {
+        visit_id:       r.id,
+        atlas_table_id: atlasTableId,
+        assigned_at:    new Date().toISOString(),
+      }),
+    );
   } catch (err) { next(err); }
 });
 
@@ -350,6 +405,7 @@ router.post('/:id/no-show', async (req: Request, res: Response, next: NextFuncti
     const r = await service.markNoShow(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitEvent(req.auth.restaurantId, 'visit.no_show', r.id, { visit_id: r.id });
   } catch (err) { next(err); }
 });
 
@@ -360,6 +416,10 @@ router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunctio
     const r = await service.cancelReservation(req.auth.restaurantId, p(req, 'id'), reason, actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitEvent(req.auth.restaurantId, 'visit.reservation_cancelled', r.id, {
+      visit_id: r.id,
+      reason:   reason,
+    });
   } catch (err) { next(err); }
 });
 
@@ -526,6 +586,10 @@ router.post('/:id/mark-arrived', async (req: Request, res: Response, next: NextF
     const r = await service.markArrived(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitEvent(req.auth.restaurantId, 'visit.guest_arrived', r.id, {
+      visit_id:   r.id,
+      arrived_at: new Date().toISOString(),
+    });
   } catch (err) { next(err); }
 });
 
