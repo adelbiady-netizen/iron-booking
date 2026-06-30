@@ -70,6 +70,7 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
 
   const body = z.object({
     restaurantId:      z.string().uuid(),
+    atlasLocationId:   z.string().uuid(), // ATLAS's UUID for this restaurant (location_id in their events)
     posApiBase:        z.string().url(),
     hospitalityApiBase:z.string().url(),
     hospitalitySecret: z.string().min(1),
@@ -81,7 +82,7 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
     return;
   }
 
-  const { restaurantId, posApiBase, hospitalityApiBase, hospitalitySecret, posSecret } = body.data;
+  const { restaurantId, atlasLocationId, posApiBase, hospitalityApiBase, hospitalitySecret, posSecret } = body.data;
 
   const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) {
@@ -91,11 +92,12 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
 
   await prisma.posConfig.upsert({
     where:  { restaurantId },
-    create: { restaurantId, posApiBase, posSecret, hospitalitySecret },
-    update: { posApiBase, posSecret, hospitalitySecret },
+    create: { restaurantId, atlasLocationId, posApiBase, posSecret, hospitalitySecret },
+    update: { atlasLocationId, posApiBase, posSecret, hospitalitySecret },
   });
 
-  // Send system.hospitality_attached to ATLAS
+  // Send system.hospitality_attached to ATLAS.
+  // brand_id and location_id MUST be ATLAS's own UUID for this restaurant.
   const attachEvent = {
     events: [{
       envelope_version: 1,
@@ -104,8 +106,8 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
       version:   1,
       occurred_at:  new Date().toISOString(),
       source:    'hospitality',
-      brand_id:  restaurantId,
-      location_id: restaurantId,
+      brand_id:  atlasLocationId,
+      location_id: atlasLocationId,
       visit_id:  null,
       sequence:  1,
       causation_id: null,
@@ -138,7 +140,7 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
 
   try {
     const dirRes = await fetch(
-      `${posApiBase}/api/v1/hospitality/table-directory?location_id=${restaurantId}`,
+      `${posApiBase}/api/v1/hospitality/table-directory?location_id=${atlasLocationId}`,
       { headers: { Authorization: `Bearer ${hospitalitySecret}` } }
     );
 
