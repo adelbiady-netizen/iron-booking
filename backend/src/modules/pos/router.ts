@@ -491,82 +491,89 @@ router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
     return;
   }
 
-  // 1. pos.table_directory_ack received?
-  const ackLogs = await prisma.$queryRaw<Array<{ event_id: string; received_at: Date }>>`
-    SELECT event_id::text, received_at
-    FROM pos_event_log
-    WHERE event_type = 'pos.table_directory_ack'
-    ORDER BY received_at DESC
-    LIMIT 5
-  `;
+  const result: Record<string, unknown> = { restaurantId };
 
-  // 2. Table atlasTableId population — ::int avoids BigInt serialization issues
-  const tableCounts = await prisma.$queryRaw<Array<{ total: number; with_atlas_id: number; without_atlas_id: number }>>`
-    SELECT
-      COUNT(*)::int                                         AS total,
-      COUNT(*) FILTER (WHERE atlas_table_id IS NOT NULL)::int AS with_atlas_id,
-      COUNT(*) FILTER (WHERE atlas_table_id IS NULL)::int     AS without_atlas_id
-    FROM tables
-    WHERE restaurant_id = ${restaurantId}::uuid
-  `;
+  // Each step is isolated — a failure in one does not block the others.
+  // The error message is embedded in the step key so the caller sees exactly which query broke.
 
-  // 3. Sample tables (first 10, show id, name, atlasTableId)
-  const sampleTables = await prisma.$queryRaw<Array<{ id: string; name: string; atlas_table_id: string | null }>>`
-    SELECT id::text, name, atlas_table_id::text
-    FROM tables
-    WHERE restaurant_id = ${restaurantId}::uuid
-    ORDER BY name
-    LIMIT 10
-  `;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ event_id: string; received_at: Date }>>`
+      SELECT event_id::text, received_at
+      FROM pos_event_log
+      WHERE event_type = 'pos.table_directory_ack'
+      ORDER BY received_at DESC
+      LIMIT 5
+    `;
+    result['step1_ack_received'] = { count: rows.length, entries: rows };
+  } catch (e) {
+    result['step1_ack_received'] = { error: String(e) };
+  }
 
-  // 4. Last 5 visit events sent to ATLAS (from pos_outbox, visit.* types)
-  const recentVisitEvents = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT id::text, visit_id::text, event_type, status, attempts, last_error,
-           payload,
-           created_at, delivered_at
-    FROM pos_outbox
-    WHERE restaurant_id = ${restaurantId}::uuid
-      AND event_type LIKE 'visit.%'
-    ORDER BY created_at DESC
-    LIMIT 5
-  `;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ total: number; with_atlas_id: number; without_atlas_id: number }>>`
+      SELECT
+        COUNT(*)::int                                            AS total,
+        COUNT(*) FILTER (WHERE atlas_table_id IS NOT NULL)::int AS with_atlas_id,
+        COUNT(*) FILTER (WHERE atlas_table_id IS NULL)::int     AS without_atlas_id
+      FROM tables
+      WHERE restaurant_id = ${restaurantId}::uuid
+    `;
+    const c = rows[0];
+    result['step2_table_population'] = {
+      total:            c?.total ?? 0,
+      with_atlas_id:    c?.with_atlas_id ?? 0,
+      without_atlas_id: c?.without_atlas_id ?? 0,
+    };
+  } catch (e) {
+    result['step2_table_population'] = { error: String(e) };
+  }
 
-  // 5. Live incoming visits from ATLAS (to confirm ATLAS side)
-  const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
-  let atlasIncoming: unknown = null;
-  let atlasIncomingStatus: number | null = null;
-  if (config?.posApiBase && config?.atlasLocationId) {
-    try {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ id: string; name: string; atlas_table_id: string | null }>>`
+      SELECT id::text, name, atlas_table_id::text
+      FROM tables
+      WHERE restaurant_id = ${restaurantId}::uuid
+      ORDER BY name
+      LIMIT 10
+    `;
+    result['step3_sample_tables'] = rows;
+  } catch (e) {
+    result['step3_sample_tables'] = { error: String(e) };
+  }
+
+  try {
+    const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT id::text, visit_id::text, event_type, status, attempts, last_error,
+             payload::text AS payload_text,
+             created_at, delivered_at
+      FROM pos_outbox
+      WHERE restaurant_id = ${restaurantId}::uuid
+        AND event_type LIKE 'visit.%'
+      ORDER BY created_at DESC
+      LIMIT 5
+    `;
+    result['step4_recent_visit_events'] = rows;
+  } catch (e) {
+    result['step4_recent_visit_events'] = { error: String(e) };
+  }
+
+  try {
+    const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
+    if (config?.posApiBase && config?.atlasLocationId) {
       const r = await fetch(
         `${config.posApiBase}/api/v1/hospitality/visits/incoming?location_id=${config.atlasLocationId}`,
         { headers: { Authorization: `Bearer ${config.hospitalitySecret}` } }
       );
-      atlasIncomingStatus = r.status;
-      atlasIncoming = r.ok ? await r.json() : null;
-    } catch (_e) {
-      atlasIncoming = 'FETCH_FAILED';
+      const body = r.ok ? await r.json() : null;
+      result['step5_atlas_incoming'] = { status: r.status, body };
+    } else {
+      result['step5_atlas_incoming'] = { error: 'NO_CONFIG' };
     }
+  } catch (e) {
+    result['step5_atlas_incoming'] = { error: String(e) };
   }
 
-  const counts = tableCounts[0];
-  res.json({
-    restaurantId,
-    step1_ack_received: {
-      count: ackLogs.length,
-      entries: ackLogs,
-    },
-    step2_table_population: {
-      total:            counts?.total ?? 0,
-      with_atlas_id:    counts?.with_atlas_id ?? 0,
-      without_atlas_id: counts?.without_atlas_id ?? 0,
-    },
-    step3_sample_tables: sampleTables,
-    step4_recent_visit_events: recentVisitEvents,
-    step5_atlas_incoming: {
-      status: atlasIncomingStatus,
-      body:   atlasIncoming,
-    },
-  });
+  res.json(result);
 });
 
 export default router;
