@@ -472,4 +472,101 @@ router.get('/pos/admin/outbox', async (req: Request, res: Response) => {
   res.json({ rows });
 });
 
+// GET /api/v1/pos/admin/diagnose?restaurantId=<uuid>
+// End-to-end integration diagnostic for a single restaurant. Returns:
+//   - Whether pos.table_directory_ack was ever received (posEventLog)
+//   - Table.atlasTableId population counts
+//   - Last 5 visit events emitted to ATLAS (pos_outbox), with payload excerpt
+//   - Sample table showing atlasTableId state
+router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
+  const adminSecret = process.env.POS_ADMIN_SECRET;
+  if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+    res.status(401).json({ error: 'UNAUTHORIZED' });
+    return;
+  }
+
+  const restaurantId = req.query.restaurantId as string | undefined;
+  if (!restaurantId || !/^[0-9a-f-]{36}$/.test(restaurantId)) {
+    res.status(400).json({ error: 'INVALID_QUERY', message: 'restaurantId query param required (UUID)' });
+    return;
+  }
+
+  // 1. pos.table_directory_ack received?
+  const ackLogs = await prisma.$queryRaw<Array<{ event_id: string; created_at: Date }>>`
+    SELECT event_id::text, created_at
+    FROM pos_event_log
+    WHERE event_type = 'pos.table_directory_ack'
+    ORDER BY created_at DESC
+    LIMIT 5
+  `;
+
+  // 2. Table atlasTableId population
+  const tableCounts = await prisma.$queryRaw<Array<{ total: bigint; with_atlas_id: bigint; without_atlas_id: bigint }>>`
+    SELECT
+      COUNT(*)::bigint                                         AS total,
+      COUNT(*) FILTER (WHERE atlas_table_id IS NOT NULL)::bigint AS with_atlas_id,
+      COUNT(*) FILTER (WHERE atlas_table_id IS NULL)::bigint     AS without_atlas_id
+    FROM tables
+    WHERE restaurant_id = ${restaurantId}::uuid
+  `;
+
+  // 3. Sample tables (first 10, show id, name, atlasTableId)
+  const sampleTables = await prisma.$queryRaw<Array<{ id: string; name: string; atlas_table_id: string | null }>>`
+    SELECT id::text, name, atlas_table_id::text
+    FROM tables
+    WHERE restaurant_id = ${restaurantId}::uuid
+    ORDER BY name
+    LIMIT 10
+  `;
+
+  // 4. Last 5 visit events sent to ATLAS (from pos_outbox, visit.* types)
+  const recentVisitEvents = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+    SELECT id::text, visit_id::text, event_type, status, attempts, last_error,
+           payload,
+           created_at, delivered_at
+    FROM pos_outbox
+    WHERE restaurant_id = ${restaurantId}::uuid
+      AND event_type LIKE 'visit.%'
+    ORDER BY created_at DESC
+    LIMIT 5
+  `;
+
+  // 5. Live incoming visits from ATLAS (to confirm ATLAS side)
+  const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
+  let atlasIncoming: unknown = null;
+  let atlasIncomingStatus: number | null = null;
+  if (config?.posApiBase && config?.atlasLocationId) {
+    try {
+      const r = await fetch(
+        `${config.posApiBase}/api/v1/hospitality/visits/incoming?location_id=${config.atlasLocationId}`,
+        { headers: { Authorization: `Bearer ${config.hospitalitySecret}` } }
+      );
+      atlasIncomingStatus = r.status;
+      atlasIncoming = r.ok ? await r.json() : null;
+    } catch (_e) {
+      atlasIncoming = 'FETCH_FAILED';
+    }
+  }
+
+  const counts = tableCounts[0];
+  res.json({
+    restaurantId,
+    step1_ack_received: {
+      count: ackLogs.length,
+      entries: ackLogs,
+    },
+    step2_table_population: {
+      total:           Number(counts?.total ?? 0),
+      with_atlas_id:   Number(counts?.with_atlas_id ?? 0),
+      without_atlas_id: Number(counts?.without_atlas_id ?? 0),
+    },
+    step3_sample_tables: sampleTables,
+    step4_recent_visit_events: recentVisitEvents,
+    step5_atlas_incoming: {
+      status: atlasIncomingStatus,
+      body:   atlasIncoming,
+    },
+  });
+});
+
 export default router;
