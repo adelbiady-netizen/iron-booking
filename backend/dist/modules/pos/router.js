@@ -496,9 +496,46 @@ router.get('/pos/admin/diagnose', async (req, res) => {
     catch (e) {
         result['step4_recent_visit_events'] = { error: String(e) };
     }
-    // step 5: ATLAS /hospitality/visits/incoming uses Flutter/POS app auth, not hospitalitySecret.
-    // Skipped — the data we need is already in steps 1–4.
-    result['step5_atlas_incoming'] = { skipped: 'ATLAS incoming endpoint uses different auth from event ingestion' };
+    // step 5: table mapping check — mirrors the exact resolveAtlasTableId() logic
+    try {
+        const totalTables = await prisma_1.prisma.table.count({ where: { restaurantId } });
+        const withAtlasId = await prisma_1.prisma.table.count({ where: { restaurantId, atlasTableId: { not: null } } });
+        const sampleTable = await prisma_1.prisma.table.findFirst({
+            where: { restaurantId },
+            select: { id: true, name: true, atlasTableId: true },
+            orderBy: { name: 'asc' },
+        });
+        // Pick any reservation that has a tableId set
+        const sampleResWithTable = await prisma_1.prisma.reservation.findFirst({
+            where: { restaurantId, tableId: { not: null } },
+            select: { id: true, tableId: true, status: true, date: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        // Run the exact resolveAtlasTableId lookup for that reservation's tableId
+        let resolveResult = null;
+        if (sampleResWithTable?.tableId) {
+            const t = await prisma_1.prisma.table.findUnique({
+                where: { id: sampleResWithTable.tableId },
+                select: { atlasTableId: true },
+            });
+            resolveResult = {
+                tableId: sampleResWithTable.tableId,
+                tableFound: t !== null,
+                atlasTableId: t?.atlasTableId ?? null,
+            };
+        }
+        result['step5_table_mapping_check'] = {
+            total_tables: totalTables,
+            tables_with_atlas_id: withAtlasId,
+            tables_without_atlas_id: totalTables - withAtlasId,
+            sample_table: sampleTable,
+            sample_reservation: sampleResWithTable,
+            resolve_atlas_table_id: resolveResult,
+        };
+    }
+    catch (e) {
+        result['step5_table_mapping_check'] = { error: String(e) };
+    }
     res.json(result);
 });
 // POST /v1/pos/admin/resync-visits?restaurantId=<uuid>&date=<YYYY-MM-DD>
