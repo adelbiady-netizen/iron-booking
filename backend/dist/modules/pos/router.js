@@ -497,10 +497,7 @@ router.get('/pos/admin/diagnose', async (req, res) => {
 // picks up the correct atlas_table_id for each reservation.
 router.post('/pos/admin/resync-visits', async (req, res) => {
     const adminSecret = process.env.POS_ADMIN_SECRET;
-    const token = req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.slice(7)
-        : null;
-    if (!adminSecret || token !== adminSecret) {
+    if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
         res.status(401).json({ error: 'UNAUTHORIZED' });
         return;
     }
