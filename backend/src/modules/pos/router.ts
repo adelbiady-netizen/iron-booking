@@ -90,11 +90,23 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
     return;
   }
 
+  // If another restaurant already owns this atlasLocationId, release it first.
+  // This handles re-attachment to a different IB restaurant without a P2002 conflict.
+  await prisma.posConfig.updateMany({
+    where:  { atlasLocationId, NOT: { restaurantId } },
+    data:   { atlasLocationId: null },
+  });
+
+  const existing = await prisma.posConfig.findUnique({ where: { restaurantId } });
+
   await prisma.posConfig.upsert({
     where:  { restaurantId },
     create: { restaurantId, atlasLocationId, posApiBase, posSecret, hospitalitySecret },
     update: { atlasLocationId, posApiBase, posSecret, hospitalitySecret },
   });
+
+  const displaced = existing?.atlasLocationId && existing.atlasLocationId !== atlasLocationId
+    ? existing.atlasLocationId : null;
 
   // Send system.hospitality_attached to ATLAS.
   // brand_id and location_id MUST be ATLAS's own UUID for this restaurant.
@@ -172,7 +184,30 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
     restaurant: restaurant.name,
     atlas: { status: atlasRes.status, body: atlasBody },
     tableSync: { matched: tableSync.matched, skipped: tableSync.skipped, total: tableSync.tables?.length ?? 0 },
+    ...(displaced ? { displaced: { previousAtlasLocationId: displaced } } : {}),
   });
+});
+
+// GET /api/v1/pos/admin/status — returns current pos_config rows. Protected by POS_ADMIN_SECRET.
+router.get('/pos/admin/status', async (req: Request, res: Response) => {
+  const adminSecret = process.env.POS_ADMIN_SECRET;
+  if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+    res.status(401).json({ error: 'UNAUTHORIZED' });
+    return;
+  }
+
+  const rows = await prisma.$queryRaw<Array<{
+    id: string; restaurant_id: string; restaurant_name: string; slug: string;
+    atlas_location_id: string | null; pos_api_base: string; attached_at: Date | null;
+  }>>`
+    SELECT pc.id::text, pc.restaurant_id::text, r.name AS restaurant_name, r.slug,
+           pc.atlas_location_id::text, pc.pos_api_base, pc.attached_at
+    FROM pos_config pc
+    LEFT JOIN restaurants r ON r.id = pc.restaurant_id
+    ORDER BY pc.created_at
+  `;
+
+  res.json({ rows });
 });
 
 export default router;
