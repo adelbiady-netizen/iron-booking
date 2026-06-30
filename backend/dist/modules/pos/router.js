@@ -201,6 +201,35 @@ router.patch('/pos/admin/patch-config', async (req, res) => {
     });
     res.json({ ok: true, restaurantId, atlasLocationId });
 });
+// POST /api/v1/pos/admin/release-config
+// Clears atlasLocationId (and atlasBrandId) on a PosConfig row so the ATLAS location
+// can be re-assigned to another restaurant via patch-config. No ATLAS events fired.
+router.post('/pos/admin/release-config', async (req, res) => {
+    const adminSecret = process.env.POS_ADMIN_SECRET;
+    if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+        res.status(401).json({ error: 'UNAUTHORIZED' });
+        return;
+    }
+    const body = zod_1.z.object({
+        restaurantId: zod_1.z.string().uuid(),
+    }).safeParse(req.body);
+    if (!body.success) {
+        res.status(400).json({ error: 'INVALID_BODY', issues: body.error.issues });
+        return;
+    }
+    const { restaurantId } = body.data;
+    const config = await prisma_1.prisma.posConfig.findUnique({ where: { restaurantId } });
+    if (!config) {
+        res.status(404).json({ error: 'NO_POS_CONFIG' });
+        return;
+    }
+    const prev = config.atlasLocationId;
+    await prisma_1.prisma.posConfig.update({
+        where: { restaurantId },
+        data: { atlasLocationId: null, atlasBrandId: null },
+    });
+    res.json({ ok: true, restaurantId, released: prev });
+});
 // POST /api/v1/pos/admin/resync-tables
 // Sends system.table_directory_sync to ATLAS for a given restaurant.
 // ATLAS processes the table list and queues a pos.table_directory_ack event containing
