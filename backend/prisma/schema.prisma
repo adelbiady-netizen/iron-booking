@@ -267,6 +267,9 @@ model Table {
   lockReason  String?
   lockedUntil DateTime?
 
+  // ATLAS POS integration — populated during table-directory import
+  atlasTableId String? @unique @map("atlas_table_id")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -458,6 +461,9 @@ model Reservation {
   cancelledByName   String?
   movedByName       String?
   reorganizedByName String?
+
+  // ATLAS POS integration — order.opened binds the POS order.id to this reservation
+  posVisitId String? @unique @map("pos_visit_id")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1633,4 +1639,47 @@ model UnsubscribeToken {
   @@index([restaurantId, guestId])
   @@index([expiresAt])
   @@map("unsubscribe_tokens")
+}
+
+// ─── ATLAS POS Integration ────────────────────────────────────────────────────
+
+// Idempotency log — every event_id stored here on first receipt.
+// INSERT ON CONFLICT DO NOTHING; 0 rows inserted = already processed.
+model PosEventLog {
+  eventId    String   @id @map("event_id")
+  eventType  String   @map("event_type")
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz
+  payload    Json
+
+  @@map("pos_event_log")
+}
+
+// Walk-in POS orders with no matching reservation at order.opened time.
+model PosVisit {
+  visitId      String    @id @map("visit_id")      // = ATLAS order.id
+  restaurantId String    @map("restaurant_id")
+  atlasTableId String    @map("atlas_table_id")    // ATLAS table_id UUID
+  coverCount   Int?      @map("cover_count")
+  openedAt     DateTime  @map("opened_at") @db.Timestamptz
+  paidAmount   Decimal?  @map("paid_amount") @db.Decimal(10, 2)
+  closedAt     DateTime? @map("closed_at") @db.Timestamptz
+  status       String    @default("open")
+
+  @@map("pos_visits")
+}
+
+// Per-restaurant connection config for the ATLAS POS dispatcher.
+model PosConfig {
+  id                String    @id @default(uuid())
+  restaurantId      String    @unique @map("restaurant_id")
+  atlasLocationId   String?   @unique @map("atlas_location_id")  // maps ATLAS location_id → restaurantId
+  atlasBrandId      String?   @map("atlas_brand_id")
+  posApiBase        String    @map("pos_api_base")               // ATLAS endpoint we POST to
+  posSecret         String    @map("pos_secret")                 // POS uses this Bearer token to call us
+  hospitalitySecret String    @map("hospitality_secret")         // we use this Bearer token to call POS
+  attachedAt        DateTime? @map("attached_at") @db.Timestamptz
+  ackReceivedAt     DateTime? @map("ack_received_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("pos_config")
 }

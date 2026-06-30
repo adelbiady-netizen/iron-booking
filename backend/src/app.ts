@@ -29,6 +29,7 @@ import alertsRouter        from './modules/alerts/router';
 import messagingAnalytics  from './modules/messaging/analyticsRouter';
 import telemetryRouter     from './modules/telemetry/router';
 import unsubscribeRouter  from './modules/public/unsubscribe.router';
+import posRouter          from './modules/pos/router';
 
 const app = express();
 
@@ -125,6 +126,7 @@ app.use('/api/restaurants/:restaurantId/alerts',           alertsRouter);
 app.use('/api/messaging/analytics',                        messagingAnalytics);
 app.use('/api/telemetry',                                  telemetryRouter);
 app.use('/api/public/unsubscribe',                         unsubscribeRouter);
+app.use('/api/v1',                                         posRouter);
 
 app.use((_req, res) => {
   res.status(404).json({
