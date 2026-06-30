@@ -189,6 +189,95 @@ router.post('/pos/admin/attach', async (req: Request, res: Response) => {
   });
 });
 
+// POST /api/v1/pos/admin/resync-tables
+// Sends system.table_directory_sync to ATLAS for a given restaurant.
+// ATLAS processes the table list and queues a pos.table_directory_ack event containing
+// the authoritative ibTableId → atlasTableUUID mapping. The iron-booking ingest handler
+// picks it up and updates Table.atlasTableId for every matched table.
+// Run this once after deploy to repopulate any null/stale atlasTableId values.
+router.post('/pos/admin/resync-tables', async (req: Request, res: Response) => {
+  const adminSecret = process.env.POS_ADMIN_SECRET;
+  if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+    res.status(401).json({ error: 'UNAUTHORIZED' });
+    return;
+  }
+
+  const body = z.object({ restaurantId: z.string().uuid() }).safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: 'INVALID_BODY', issues: body.error.issues });
+    return;
+  }
+
+  const { restaurantId } = body.data;
+
+  const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
+  if (!config?.atlasLocationId) {
+    res.status(404).json({ error: 'NO_POS_CONFIG', message: 'No ATLAS connection configured for this restaurant.' });
+    return;
+  }
+
+  const tables = await prisma.table.findMany({
+    where:   { restaurantId },
+    include: { section: true },
+    orderBy: { name: 'asc' },
+  });
+
+  const directoryVersion = Math.floor(Date.now() / 1000);
+
+  const syncEvent = {
+    events: [{
+      envelope_version: 1,
+      event_id:    randomUUID(),
+      type:        'system.table_directory_sync',
+      version:     1,
+      occurred_at: new Date().toISOString(),
+      source:      'hospitality',
+      brand_id:    config.atlasLocationId,
+      location_id: config.atlasLocationId,
+      visit_id:    null,
+      sequence:    1,
+      causation_id: null,
+      payload: {
+        directory_version: directoryVersion,
+        published_at:      new Date().toISOString(),
+        tables: tables.map(t => ({
+          table_id:           t.id,
+          number:             t.name,
+          name:               t.name,
+          zone:               t.section?.name ?? 'Main',
+          section:            t.section?.name ?? '',
+          capacity:           t.maxCovers,
+          active:             t.isActive,
+          combined_table_ids: [] as string[],
+        })),
+      },
+    }],
+  };
+
+  let atlasStatus: number;
+  let atlasBody: unknown;
+  try {
+    const atlasRes = await fetch(`${config.posApiBase}/api/v1/events/ingest`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.hospitalitySecret}` },
+      body:    JSON.stringify(syncEvent),
+    });
+    atlasStatus = atlasRes.status;
+    atlasBody   = atlasRes.ok ? await atlasRes.json() : null;
+  } catch (err) {
+    res.status(502).json({ error: 'ATLAS_UNREACHABLE', message: String(err) });
+    return;
+  }
+
+  res.json({
+    ok:               atlasStatus >= 200 && atlasStatus < 300,
+    directoryVersion,
+    tablesSent:       tables.length,
+    atlas:            { status: atlasStatus, body: atlasBody },
+    note:             'ATLAS will queue pos.table_directory_ack and deliver it to /api/v1/events/ingest within ~5 s. Table.atlasTableId values will be updated automatically on receipt.',
+  });
+});
+
 // GET /api/v1/pos/admin/status — returns current pos_config rows. Protected by POS_ADMIN_SECRET.
 router.get('/pos/admin/status', async (req: Request, res: Response) => {
   const adminSecret = process.env.POS_ADMIN_SECRET;
@@ -208,6 +297,23 @@ router.get('/pos/admin/status', async (req: Request, res: Response) => {
     ORDER BY pc.created_at
   `;
 
+  res.json({ rows });
+});
+
+// GET /api/v1/pos/admin/outbox — recent outbox rows. Protected by POS_ADMIN_SECRET.
+router.get('/pos/admin/outbox', async (req: Request, res: Response) => {
+  const adminSecret = process.env.POS_ADMIN_SECRET;
+  if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
+    res.status(401).json({ error: 'UNAUTHORIZED' }); return;
+  }
+  const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+    SELECT id::text, restaurant_id::text, visit_id::text, event_type,
+           status, attempts, last_error,
+           created_at, last_attempt_at, delivered_at
+    FROM pos_outbox
+    ORDER BY created_at DESC
+    LIMIT 20
+  `;
   res.json({ rows });
 });
 

@@ -40,6 +40,9 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
         case 'order.closed':
           await handleOrderClosed(restaurantId, event);
           break;
+        case 'pos.table_directory_ack':
+          await handleTableDirectoryAck(restaurantId, event);
+          break;
         default:
           rejected.push({ event_id: event.event_id, reason: 'unknown_event_type' });
           continue;
@@ -124,6 +127,45 @@ async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope):
     where: { restaurantId, posVisitId: event.visit_id },
     data:  { posOrderActive: false },
   });
+}
+
+// Applies the ibTableId → atlasTableUUID mapping from ATLAS's pos.table_directory_ack.
+// This is the authoritative source for Table.atlasTableId — it supersedes the name-based
+// matching done during initial attach (which can fail on renamed or newly-added tables).
+async function handleTableDirectoryAck(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  const mapping = (event.payload as { mapping?: Record<string, string> }).mapping;
+
+  if (!mapping || typeof mapping !== 'object') {
+    console.warn(`[pos] pos.table_directory_ack: missing or invalid mapping — event_id=${event.event_id}`);
+    return;
+  }
+
+  const entries = Object.entries(mapping);
+  if (entries.length === 0) {
+    console.warn(`[pos] pos.table_directory_ack: empty mapping — event_id=${event.event_id}`);
+    return;
+  }
+
+  let updated = 0;
+  let missing = 0;
+
+  for (const [ibTableId, atlasTableId] of entries) {
+    if (!ibTableId || !atlasTableId) continue;
+    const result = await prisma.table.updateMany({
+      where: { id: ibTableId, restaurantId },
+      data:  { atlasTableId },
+    });
+    if (result.count === 0) {
+      console.warn(`[pos] pos.table_directory_ack: no table matched ibTableId=${ibTableId} restaurantId=${restaurantId}`);
+      missing++;
+    } else {
+      updated++;
+    }
+  }
+
+  console.log(
+    `[pos] pos.table_directory_ack applied — received=${entries.length} updated=${updated} missing=${missing} event_id=${event.event_id}`,
+  );
 }
 
 // Find the best-matching CONFIRMED/SEATED reservation for a table at a given UTC instant.
