@@ -21,7 +21,7 @@ import { MessageType, MessageStatus } from '@prisma/client';
 import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
 import { config } from '../../config';
-import { NotFoundError, BusinessRuleError } from '../../lib/errors';
+import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { eventBus } from '../../lib/eventBus';
 import { queueVisitEvent } from '../pos/dispatcher';
 
@@ -390,9 +390,24 @@ router.post('/:id/combine', validate(CombineTablesSchema), async (req: Request, 
   } catch (err) { next(err); }
 });
 
+// Throws 409 if the reservation has an active POS order that hasn't been closed yet.
+async function guardNoPosOrder(restaurantId: string, reservationId: string): Promise<void> {
+  const r = await prisma.reservation.findFirst({
+    where: { id: reservationId, restaurantId },
+    select: { posOrderActive: true },
+  });
+  if (r?.posOrderActive) {
+    throw new ConflictError(
+      'לשולחן זה יש הזמנה פתוחה בקופה. יש לסגור את ההזמנה בקופה לפני שניתן לשחרר את השולחן מ-Iron Booking.',
+      { code: 'POS_ORDER_ACTIVE' },
+    );
+  }
+}
+
 // POST /reservations/:id/complete
 router.post('/:id/complete', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    await guardNoPosOrder(req.auth.restaurantId, p(req, 'id'));
     const r = await service.completeReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
@@ -426,6 +441,7 @@ router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunctio
 // POST /reservations/:id/unseat
 router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    await guardNoPosOrder(req.auth.restaurantId, p(req, 'id'));
     const r = await service.unseatReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
@@ -435,6 +451,7 @@ router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunctio
 // POST /reservations/:id/unseat-keep-table — revert SEATED → CONFIRMED, keeps tableId
 router.post('/:id/unseat-keep-table', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    await guardNoPosOrder(req.auth.restaurantId, p(req, 'id'));
     const r = await service.unseatKeepTable(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
@@ -447,6 +464,7 @@ router.post('/:id/unseat-keep-table', async (req: Request, res: Response, next: 
 // Safe to call on any PENDING/CONFIRMED reservation that holds a table.
 router.post('/:id/release-table', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    await guardNoPosOrder(req.auth.restaurantId, p(req, 'id'));
     const r = await service.releaseTableOwnership(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);

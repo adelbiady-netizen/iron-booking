@@ -463,7 +463,10 @@ model Reservation {
   reorganizedByName String?
 
   // ATLAS POS integration — order.opened binds the POS order.id to this reservation
-  posVisitId String? @unique @map("pos_visit_id")
+  posVisitId     String?  @unique @map("pos_visit_id")
+  // True while the linked POS order is open. Cleared by order.closed event.
+  // Blocks complete/unseat/release-table from IB while the cashier still has an active order.
+  posOrderActive Boolean  @default(false) @map("pos_order_active")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

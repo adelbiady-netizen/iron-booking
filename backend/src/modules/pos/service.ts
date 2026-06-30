@@ -35,8 +35,10 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
           break;
         case 'order.items_sent':
         case 'order.item_voided':
-        case 'order.closed':
           // Priority 2 — logged, no further action yet
+          break;
+        case 'order.closed':
+          await handleOrderClosed(restaurantId, event);
           break;
         default:
           rejected.push({ event_id: event.event_id, reason: 'unknown_event_type' });
@@ -93,7 +95,7 @@ async function handleOrderOpened(restaurantId: string, event: PosEventEnvelope):
   if (reservation) {
     await prisma.reservation.update({
       where: { id: reservation.id },
-      data:  { posVisitId: event.visit_id },
+      data:  { posVisitId: event.visit_id, posOrderActive: true },
     });
   } else {
     await prisma.posVisit.upsert({
@@ -112,6 +114,15 @@ async function handlePaymentCompleted(restaurantId: string, event: PosEventEnvel
   await prisma.posVisit.updateMany({
     where: { visitId: event.visit_id, restaurantId },
     data:  { paidAmount: amount },
+  });
+}
+
+async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  if (!event.visit_id) return;
+  // Clear the active-order flag so IB can complete/release the table.
+  await prisma.reservation.updateMany({
+    where: { restaurantId, posVisitId: event.visit_id },
+    data:  { posOrderActive: false },
   });
 }
 
