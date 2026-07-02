@@ -457,7 +457,9 @@ export default function CreateDrawer({
     setWiSuggestBusy(true);
     const t = setTimeout(async () => {
       const now = new Date();
-      const date = now.toISOString().slice(0, 10);
+      // Local calendar date (see todayStr note) — keep the suggest/best query on the
+      // same service day the walk-in will actually be created and seated on.
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       try {
         const dur = wiDuration ? parseInt(wiDuration, 10) : undefined;
@@ -511,7 +513,12 @@ export default function CreateDrawer({
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    // Local calendar date — must match HostDashboard.todayStr() (the board's date).
+    // Using toISOString() here would yield the UTC date, so a walk-in created after
+    // local midnight in a UTC+ restaurant (e.g. 00:00–03:00 Asia/Jerusalem) would be
+    // stored under the previous day and vanish from both the drawer and the floor.
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
   function resolveTableName(id: string): string {
     return tables.find(t => t.id === id)?.name ?? '';
