@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import type React from 'react';
 import type { BackendTableSuggestion, FloorInsight, FloorObjectData, FloorTable, Reservation, TableFirstGuest, WaitlistEntry } from '../types';
 import type { PressureInfo } from '../utils/flowControl';
@@ -1045,25 +1045,6 @@ export default function FloorBoard({
     setCtxMenu({ x, y, table: t, drawerRes: activeDrawerRes });
   }
 
-  // Stable identities for the per-table handlers. handleClick/handleContextMenu are
-  // recreated every render (they close over live mode state), which would defeat the
-  // MapTable memo and could hand a memoized cell a stale closure. Route through refs
-  // so the callback identity passed to MapTable never changes, while always invoking
-  // the latest handler (reads current mode/state). Lets the comparator ignore callbacks.
-  const handleClickRef = useRef(handleClick);
-  handleClickRef.current = handleClick;
-  const handleContextMenuRef = useRef(handleContextMenu);
-  handleContextMenuRef.current = handleContextMenu;
-  const pickModeRef = useRef(pickMode);
-  pickModeRef.current = pickMode;
-  const swapModeRef = useRef(swapMode);
-  swapModeRef.current = swapMode;
-  const stableTableClick = useCallback((t: FloorTable) => handleClickRef.current(t), []);
-  const stableTableCtx = useCallback((e: React.MouseEvent, t: FloorTable) => {
-    if (pickModeRef.current || swapModeRef.current) return;
-    handleContextMenuRef.current(e, t);
-  }, []);
-
   // ── Turn data ─────────────────────────────────────────────────────────────────
   // Only show turns within the operational horizon — far-future reservations
   // (e.g. 19:30 when board time is 13:00) must not appear in the stack.
@@ -1513,8 +1494,8 @@ export default function FloorBoard({
                   bestSuggestion={!pickMode && !isSelected(t) && !!waitlistAssignEntry && t.id === bestSuggestionTableId}
                   waitlistAssignTarget={isWLCanvasTarget}
                   softHold={!pickMode && !!waitlistAssignEntry ? softHoldMap[t.id] : undefined}
-                  onClick={stableTableClick}
-                  onContextMenu={stableTableCtx}
+                  onClick={() => handleClick(t)}
+                  onContextMenu={e => !pickMode && !swapMode && handleContextMenu(e, t)}
                   insight={!pickMode ? insight : undefined}
                   onInsightAction={
                     !pickMode && insight?.reservationId
@@ -2680,21 +2661,7 @@ function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-const spatialEnergyEqual = (
-  a: { tables: FloorTable[]; pressureScore: number; timeWarmth: number; serviceEnergy: number },
-  b: { tables: FloorTable[]; pressureScore: number; timeWarmth: number; serviceEnergy: number },
-): boolean => {
-  if (typeof window !== 'undefined' && (window as unknown as { __mapMemoOff?: boolean }).__mapMemoOff) return false;
-  if (a.pressureScore !== b.pressureScore || a.serviceEnergy !== b.serviceEnergy || a.timeWarmth !== b.timeWarmth) return false;
-  const A = a.tables, B = b.tables;
-  if (A.length !== B.length) return false;
-  for (let i = 0; i < A.length; i++) {
-    const x = A[i], y = B[i];
-    if (x.id !== y.id || x.liveStatus !== y.liveStatus || x.posX !== y.posX || x.posY !== y.posY || x.width !== y.width || x.height !== y.height) return false;
-  }
-  return true;
-};
-const SpatialEnergyField = memo(function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }: {
+function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }: {
   tables: FloorTable[];
   pressureScore: number;
   timeWarmth: number;
@@ -2890,7 +2857,7 @@ const SpatialEnergyField = memo(function SpatialEnergyField({ tables, pressureSc
       })}
     </svg>
   );
-}, spatialEnergyEqual);
+}
 
 // Deterministic per-chair pseudorandom — stable across renders, seeded by
 // table ID + chair index + slot so each chair has a consistent personality.
@@ -3141,15 +3108,15 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-type MapTableProps = {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId, inNewResPick = false, inPlanningMode = false }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
   dimmed: boolean;
   bestSuggestion?: boolean;
   softHold?: WaitlistEntry;
-  onClick: (t: FloorTable) => void;
-  onContextMenu: (e: React.MouseEvent, t: FloorTable) => void;
+  onClick: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
   insight?: FloorInsight;
   onInsightAction?: () => void;
   waitlistMatch?: WaitlistEntry;
@@ -3170,65 +3137,7 @@ type MapTableProps = {
   hoveredResId?: string | null;
   inNewResPick?: boolean;
   inPlanningMode?: boolean;
-};
-
-// -- MapTable memo comparator --------------------------------------------------
-// Re-render a table cell only when a field that affects its VISUAL output changed.
-// Root-cause fix for occupancy not repainting on secondary devices: without memo,
-// every FloorBoard re-render (hover / zoom / pick, and every SSE floor refetch that
-// replaces the tables array with fresh object refs) re-rendered all ~46 cells,
-// saturating the main thread so the browser never painted the status change.
-// Callback props are intentionally NOT compared (stabilised via refs in FloorBoard).
-// Unused props (insight/waitlistMatch/bestSuggestion/operationalNow/extraTurns/
-// quietFade) are not compared. window.__mapMemoOff forces re-render (profiling).
-function _crSig(cr: { id: string; status: string; time: string; duration: number; expectedEndTime?: string; isOverdue?: boolean; minutesOverdue?: number; minutesRemaining?: number; guestName?: string; partySize?: number } | null | undefined): string {
-  return cr ? `${cr.id}|${cr.status}|${cr.time}|${cr.duration}|${cr.expectedEndTime}|${cr.isOverdue}|${cr.minutesOverdue}|${cr.minutesRemaining}|${cr.guestName}|${cr.partySize}` : '';
-}
-function _upSig(list: Array<{ id: string; time: string; duration?: number; minutesUntil?: number }> | undefined): string {
-  if (!list || !list.length) return '';
-  const r = list[0];
-  return `${list.length}|${r.id}|${r.time}|${r.minutesUntil ?? ''}|${r.duration ?? ''}`;
-}
-function _turnsSig(list: Array<{ id: string; time: string; duration?: number }> | undefined): string {
-  if (!list || !list.length) return '';
-  let acc = '';
-  for (const r of list) acc += `${r.id}:${r.time}:${r.duration ?? ''},`;
-  return acc;
-}
-function _hoverMatch(t: FloorTable, hoveredResId: string | null | undefined): boolean {
-  if (!hoveredResId) return false;
-  if (t.currentReservation?.id === hoveredResId) return true;
-  return (t.upcomingReservations || []).some(r => r.id === hoveredResId);
-}
-function mapTableEqual(a: MapTableProps, b: MapTableProps): boolean {
-  if (typeof window !== 'undefined' && (window as unknown as { __mapMemoOff?: boolean }).__mapMemoOff) return false;
-  const ta = a.table, tb = b.table;
-  return (
-    ta.id === tb.id && ta.name === tb.name &&
-    ta.posX === tb.posX && ta.posY === tb.posY && ta.width === tb.width && ta.height === tb.height &&
-    ta.shape === tb.shape && ta.maxCovers === tb.maxCovers &&
-    ta.locked === tb.locked && ta.liveStatus === tb.liveStatus &&
-    _crSig(ta.currentReservation) === _crSig(tb.currentReservation) &&
-    _upSig(ta.upcomingReservations) === _upSig(tb.upcomingReservations) &&
-    a.selected === b.selected && a.combinedSelected === b.combinedSelected && a.dimmed === b.dimmed &&
-    (a.softHold?.id ?? null) === (b.softHold?.id ?? null) &&
-    a.nowTime === b.nowTime && a.date === b.date &&
-    a.pickMode === b.pickMode && a.pickSelected === b.pickSelected && a.pickStatus === b.pickStatus &&
-    a.swapSource === b.swapSource && a.waitlistAssignTarget === b.waitlistAssignTarget && a.wlPickWarn === b.wlPickWarn &&
-    a.inNewResPick === b.inNewResPick && a.inPlanningMode === b.inPlanningMode &&
-    a.turnTooltip === b.turnTooltip &&
-    _turnsSig(a.turns) === _turnsSig(b.turns) &&
-    _hoverMatch(ta, a.hoveredResId) === _hoverMatch(tb, b.hoveredResId)
-  );
-}
-const MapTable = memo(function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId, inNewResPick = false, inPlanningMode = false }: MapTableProps) {
-  // Render counter (profiling only; gated on window.__mtCount so it is a no-op in prod).
-  if (typeof window !== 'undefined' && (window as unknown as { __mtCount?: boolean }).__mtCount) {
-    const w = window as unknown as { __mtRenders?: number; __mtByTable?: Record<string, number> };
-    w.__mtRenders = (w.__mtRenders || 0) + 1;
-    if (!w.__mtByTable) w.__mtByTable = {};
-    w.__mtByTable[table.name] = (w.__mtByTable[table.name] || 0) + 1;
-  }
+}) {
   const T = useT();
   const { locale } = useLocale();
   const _isRTL = locale === 'he'; void _isRTL;
@@ -3497,8 +3406,8 @@ const MapTable = memo(function MapTable({ table, selected, combinedSelected, dim
   return (
   <>
     <button
-      onClick={() => onClick(table)}
-      onContextMenu={(e) => onContextMenu(e, table)}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
       title={turnTooltip}
       className={`active:scale-[0.965] touch-manipulation${pickStatus === 'recommended' ? ' animate-pick-pulse' : ''}`}
       style={{
@@ -3660,4 +3569,4 @@ const MapTable = memo(function MapTable({ table, selected, combinedSelected, dim
     )}
   </>
   );
-}, mapTableEqual);
+}
