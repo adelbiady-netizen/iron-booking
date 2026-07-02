@@ -538,19 +538,41 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Keep ref in sync so interval callbacks can read liveMode without stale closure
   useEffect(() => { liveModeRef.current = liveMode; }, [liveMode]);
 
-  // Auto-refresh floor every 60s, waitlist every 30s — only when in live mode
+  // Auto-refresh floor every 30s, waitlist every 30s — only when in live mode.
+  // The floor poll is the fallback that reconciles SECONDARY screens (a station
+  // that did not perform the mutation): SSE floor_updated is the fast path but is
+  // dropped when the mutating request and this tab's SSE stream land on different
+  // backend instances (in-process eventBus, no cross-instance fan-out), so a short
+  // poll bounds how stale another screen can get. The acting screen updates
+  // instantly via the per-seat refreshKey bump; this only covers watchers.
   useEffect(() => {
     const floorId = setInterval(() => {
       if (!liveModeRef.current) return;
       setDate(todayStr());
       setTime(nowTime());
       setRefreshKey(k => k + 1);
-    }, 60_000);
+    }, 30_000);
     const waitlistId = setInterval(() => {
       if (!liveModeRef.current) return;
       setWaitlistRefreshKey(k => k + 1);
     }, 30_000);
     return () => { clearInterval(floorId); clearInterval(waitlistId); };
+  }, []);
+
+  // Refetch the moment a host returns focus to / reveals this screen, so a
+  // secondary station shows current floor state on look rather than after the
+  // periodic poll. Data-only (bumps refreshKey) — does NOT touch the board's
+  // date/time, so a time-travel view is refreshed in place, never reset to now.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') setRefreshKey(k => k + 1);
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, []);
 
   // Midnight date guard — independent of liveMode.
