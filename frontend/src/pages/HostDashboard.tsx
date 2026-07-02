@@ -2310,6 +2310,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           upcomingReservations: t.upcomingReservations.filter(r => r.id !== created.id),
         };
       }));
+      // Force one authoritative floor refetch so the just-seated walk-in is
+      // reconciled from the backend. This cancels any stale in-flight
+      // api.tables.floor response (which queried before the walk-in existed and
+      // would otherwise clobber the optimistic patch above) and repaints the
+      // table as OCCUPIED. Without it, the reservation shows in the list but the
+      // floor board can revert to empty. getFloorState already returns a seated
+      // walk-in as OCCUPIED, so no backend change is needed.
+      setRefreshKey(k => k + 1);
     }
     setHighlightId(created.id);
     showToast(created.status === 'SEATED' ? T.hostDashboard.toastSeated : T.hostDashboard.toastCreated);
