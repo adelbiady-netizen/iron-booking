@@ -711,6 +711,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         };
       }));
       setInsights(prev => prev.filter(i => i.reservationId !== updated.id));
+      // Force an authoritative floor refetch instead of relying on SSE floor_updated
+      // (the in-process eventBus does not fan out across backend instances, so the
+      // event can be dropped). This cancels any stale in-flight floor response that
+      // would otherwise clobber the optimistic OCCUPIED patch above and leave the
+      // table AVAILABLE until the 60s poll or a manual refresh.
+      setRefreshKey(k => k + 1);
     }
   }, []);
 
@@ -805,6 +811,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       const updated = await api.reservations.seat(reservationId, tableId, false, combinedTableIds);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== reservationId));
+      // Force one authoritative floor refetch. Do NOT rely on the SSE floor_updated
+      // event for the reconcile: the backend eventBus is an in-process EventEmitter
+      // that does not fan out across Render instances, so the event is dropped when
+      // the seat POST and this tab's SSE stream land on different processes. Without
+      // this, a stale in-flight /tables/floor response can clobber the optimistic
+      // OCCUPIED patch above and the table stays AVAILABLE until the 60s poll or a
+      // manual refresh (same-screen "walk-in seated but floor not updating" bug).
+      // Bumping refreshKey also cancels that stale in-flight response via the load
+      // effect's cleanup, matching handleCreated / handleGapWaitlistSeat.
+      setRefreshKey(k => k + 1);
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
       const advisory = updated._advisory;
       const toastMsg = advisory?.shortWindow
@@ -1762,6 +1778,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         trackEvent('guest.seated', { reservationId: res.id, partySize: res.partySize, tableId: primaryId, source: res.source });
         setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
         setInsights(prev => prev.filter(i => i.tableId !== primaryId && i.reservationId !== res.id));
+        // Authoritative floor refetch — do not rely on SSE floor_updated (unreliable
+        // across backend instances). Cancels any stale in-flight floor response that
+        // would clobber the optimistic OCCUPIED patch above.
+        setRefreshKey(k => k + 1);
         const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
         const advisory = updated._advisory;
         const toastMsg = advisory?.shortWindow
@@ -2226,6 +2246,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     });
     await api.reservations.seat(newRes.id, table.id, false);
     setReservations(prev => [...prev, { ...newRes, status: 'SEATED' as const, tableId: table.id }]);
+    // Force an authoritative floor refetch. This path has no optimistic floor patch,
+    // so without it the table only turns OCCUPIED via the (unreliable, cross-instance)
+    // SSE floor_updated event or the 60s poll — the "walk-in seated but floor not
+    // updating until refresh" bug. See handleInsightAction for the SSE caveat.
+    setRefreshKey(k => k + 1);
     showToast(T.hostDashboard.toastQuickSeatDone);
   }, [quickSeatData, quickSeatParty, showToast]);
 
