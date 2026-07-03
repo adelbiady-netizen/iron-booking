@@ -762,6 +762,12 @@ export const T = {
     addSectionBtn:      'Add',
     cancelSection:      'Cancel',
     sectionPh:          'e.g. Bar, Terrace',
+    sectionRenameTitle: 'Rename section',
+    sectionColorTitle:  'Change color',
+    sectionDeleteTitle: 'Delete section',
+    confirmDeleteSection: (name: string) => `Delete section "${name}"? This cannot be undone.`,
+    sectionHasTables:   'This section still contains tables. Move or delete the tables first.',
+    sectionCannotDeleteLast: 'This is the only section — it cannot be deleted.',
     addTable:           '+ Add table',
     tagNew:             'new',
     tagOff:             'off',
@@ -806,6 +812,8 @@ export const T = {
     // Errors
     errorLoad:          'Failed to load map',
     errorSection:       'Failed to save section',
+    errorSectionDelete: 'Failed to delete section',
+    errorSectionRename: 'Failed to rename section',
     errorSave:          'Save failed',
     // Floor object type labels
     objWall:           'Wall',

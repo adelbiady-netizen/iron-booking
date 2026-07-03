@@ -469,6 +469,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     suggestion?: string;
     onConfirm: (() => void) | null;
     onCancel?: () => void;
+    confirmLabel?: string;
   } | null>(null);
   const [loading,          setLoading]          = useState(true);
   const [saving,           setSaving]           = useState(false);
@@ -478,6 +479,9 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
   const [showAddSec,       setShowAddSec]       = useState(false);
   const [newSecName,       setNewSecName]       = useState('');
   const [secBusy,          setSecBusy]          = useState(false);
+  const [editingSecId,     setEditingSecId]     = useState<string | null>(null);
+  const [editSecName,      setEditSecName]      = useState('');
+  const [colorSecId,       setColorSecId]       = useState<string | null>(null);
   // cursor state only — marquee geometry lives in refs to avoid per-frame React renders
   const [isDraggingMarquee, setIsDraggingMarquee] = useState(false);
 
@@ -1005,6 +1009,88 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
     finally { setSecBusy(false); }
   }
 
+  // Active (non-deleted) tables assigned to a section in the current draft.
+  function sectionActiveTableCount(sectionId: string): number {
+    return tables.filter(t => t.sectionId === sectionId && !t.deleted && t.isActive).length;
+  }
+
+  function requestDeleteSection(sec: Section) {
+    setColorSecId(null);
+    // Guards mirror the backend rules and give instant feedback.
+    if (sections.length <= 1) {
+      setConfirmState({ message: T.layoutEditor.sectionCannotDeleteLast, onConfirm: null });
+      return;
+    }
+    if (sectionActiveTableCount(sec.id) > 0) {
+      setConfirmState({ message: T.layoutEditor.sectionHasTables, onConfirm: null });
+      return;
+    }
+    setConfirmState({
+      message: T.layoutEditor.confirmDeleteSection(formatSectionName(sec.name, locale)),
+      onConfirm: () => { void doDeleteSection(sec); },
+      confirmLabel: T.layoutEditor.deleteField,
+    });
+  }
+
+  async function doDeleteSection(sec: Section) {
+    setSecBusy(true); setSaveErr(null);
+    try {
+      await api.tables.deleteSection(sec.id);
+      // Remove from the sidebar + both section selectors (they read `sections`).
+      setSections(prev => prev.filter(s => s.id !== sec.id));
+      // Clear any lingering reference in the draft so no orphan sectionId remains.
+      setTables(prev => prev.map(t =>
+        t.sectionId === sec.id ? { ...t, sectionId: null, section: null } : t));
+      if (hoveredSectionId === sec.id) setHoveredSectionId(null);
+      if (editingSecId === sec.id) setEditingSecId(null);
+    } catch (err) {
+      // Backend rejected (e.g. tables exist in the DB from another session, or it is
+      // now the last section). Surface the matching reason.
+      const m = err instanceof Error ? err.message : '';
+      const message = /only section/i.test(m)          ? T.layoutEditor.sectionCannotDeleteLast
+                    : /still contains tables/i.test(m)  ? T.layoutEditor.sectionHasTables
+                    : T.layoutEditor.errorSectionDelete;
+      setConfirmState({ message, onConfirm: null });
+    } finally { setSecBusy(false); }
+  }
+
+  function startRenameSection(sec: Section) {
+    setColorSecId(null);
+    setEditingSecId(sec.id);
+    setEditSecName(sec.name);
+  }
+
+  async function commitRenameSection(sec: Section) {
+    if (editingSecId !== sec.id) return;   // already committed/cancelled (e.g. blur after Enter)
+    const name = editSecName.trim();
+    setEditingSecId(null);                  // close editor now — prevents a double submit from onBlur
+    if (!name || name === sec.name) return;
+    setSecBusy(true); setSaveErr(null);
+    try {
+      const updated = await api.tables.updateSection(sec.id, { name });
+      setSections(prev => prev.map(s => s.id === sec.id ? { ...s, ...updated } : s));
+      setTables(prev => prev.map(t =>
+        t.sectionId === sec.id && t.section ? { ...t, section: { ...t.section, name: updated.name } } : t));
+    } catch { setSaveErr(T.layoutEditor.errorSectionRename); }
+    finally { setSecBusy(false); }
+  }
+
+  async function changeSectionColor(sec: Section, color: string) {
+    setColorSecId(null);
+    if (color === sec.color) return;
+    const snapshot = sections;
+    // Optimistic — update the dot in the sidebar and every table sharing this section.
+    setSections(prev => prev.map(s => s.id === sec.id ? { ...s, color } : s));
+    setTables(prev => prev.map(t =>
+      t.sectionId === sec.id && t.section ? { ...t, section: { ...t.section, color } } : t));
+    try {
+      await api.tables.updateSection(sec.id, { color });
+    } catch {
+      setSections(snapshot);
+      setSaveErr(T.layoutEditor.errorSection);
+    }
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────────
 
   async function save() {
@@ -1155,18 +1241,83 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
             {sections.length === 0 && !showAddSec && (
               <p className="text-iron-muted text-xs italic mb-1">{T.layoutEditor.noSectionsYet}</p>
             )}
-            {sections.map(sec => (
-              <div
-                key={sec.id}
-                className="flex items-center gap-2 py-0.5 px-1 -mx-1 rounded cursor-default transition-colors"
-                style={{ backgroundColor: hoveredSectionId === sec.id ? `${sec.color}22` : undefined }}
-                onMouseEnter={() => setHoveredSectionId(sec.id)}
-                onMouseLeave={() => setHoveredSectionId(null)}
-              >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                <span className="text-iron-text text-xs truncate">{formatSectionName(sec.name, locale)}</span>
-              </div>
-            ))}
+            {sections.map(sec => {
+              const isEditing   = editingSecId === sec.id;
+              const showPalette = colorSecId === sec.id;
+              const tableCount  = sectionActiveTableCount(sec.id);
+              return (
+                <div key={sec.id} className="group">
+                  <div
+                    className="flex items-center gap-2 py-0.5 px-1 -mx-1 rounded cursor-default transition-colors"
+                    style={{ backgroundColor: hoveredSectionId === sec.id ? `${sec.color}22` : undefined }}
+                    onMouseEnter={() => setHoveredSectionId(sec.id)}
+                    onMouseLeave={() => setHoveredSectionId(null)}
+                  >
+                    <button
+                      type="button"
+                      title={T.layoutEditor.sectionColorTitle}
+                      onClick={() => setColorSecId(showPalette ? null : sec.id)}
+                      className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10 hover:scale-125 transition-transform"
+                      style={{ backgroundColor: sec.color }}
+                    />
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={editSecName}
+                        onChange={e => setEditSecName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter')  commitRenameSection(sec);
+                          if (e.key === 'Escape') setEditingSecId(null);
+                        }}
+                        onBlur={() => commitRenameSection(sec)}
+                        className={inputCls + ' flex-1 min-w-0 py-0.5'}
+                      />
+                    ) : (
+                      <>
+                        <span
+                          className="flex-1 min-w-0 flex items-baseline gap-1 cursor-default"
+                          title={T.layoutEditor.sectionRenameTitle}
+                          onDoubleClick={() => startRenameSection(sec)}
+                        >
+                          <span className="text-iron-text text-xs truncate">{formatSectionName(sec.name, locale)}</span>
+                          <span className="text-iron-muted text-[10px] shrink-0">({tableCount})</span>
+                        </span>
+                        <button
+                          type="button"
+                          title={T.layoutEditor.sectionRenameTitle}
+                          onClick={() => startRenameSection(sec)}
+                          className="opacity-0 group-hover:opacity-100 text-iron-muted hover:text-iron-green-light transition-all shrink-0 text-[11px] leading-none px-0.5"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          type="button"
+                          title={T.layoutEditor.sectionDeleteTitle}
+                          onClick={() => requestDeleteSection(sec)}
+                          disabled={secBusy}
+                          className="opacity-0 group-hover:opacity-100 text-iron-muted hover:text-status-danger transition-all shrink-0 text-sm leading-none px-0.5 disabled:opacity-30"
+                        >
+                          ×
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {showPalette && (
+                    <div className="flex flex-wrap gap-1 mt-1 mb-1.5 pl-4">
+                      {SECTION_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => changeSectionColor(sec, c)}
+                          className={`w-4 h-4 rounded-full transition-transform hover:scale-110 ${c === sec.color ? 'ring-2 ring-iron-green' : 'ring-1 ring-black/10'}`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {showAddSec ? (
               <div className="mt-2 space-y-1.5">
                 <input
@@ -1672,7 +1823,7 @@ export default function LayoutEditor({ onClose, onSaved }: Props) {
                   onClick={() => { const c = confirmState; setConfirmState(null); c.onConfirm!(); }}
                   className="text-xs px-3 py-1.5 rounded-md bg-status-warning/15 border border-status-warning/30 text-status-warning hover:bg-status-warning/25 transition-colors"
                 >
-                  {T.layoutEditor.confirmContinue}
+                  {confirmState.confirmLabel ?? T.layoutEditor.confirmContinue}
                 </button>
               )}
             </div>

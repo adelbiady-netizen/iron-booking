@@ -377,6 +377,10 @@ export const api = {
     listSections: () => request<Section[]>('/tables/sections'),
     upsertSection: (body: { name: string; color?: string; sortOrder?: number }) =>
       request<Section>('/tables/sections', { method: 'POST', body: JSON.stringify(body) }),
+    updateSection: (id: string, body: { name?: string; color?: string; sortOrder?: number }) =>
+      request<Section>(`/tables/sections/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteSection: (id: string) =>
+      request<void>(`/tables/sections/${id}`, { method: 'DELETE' }),
     listFloorObjects: () =>
       request<FloorObjectData[]>('/tables/floor-objects'),
     batchSaveFloorObjects: (objects: FloorObjectData[]) =>

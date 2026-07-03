@@ -222,6 +222,26 @@ router.post('/sections', async (req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 });
 
+// PATCH /tables/sections/:id — rename / change color / reorder
+router.patch('/sections/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const section = await service.updateSection(req.auth.restaurantId, p(req, 'id'), req.body);
+    await bumpLayoutVersion(req.auth.restaurantId);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
+    res.json(section);
+  } catch (err) { next(err); }
+});
+
+// DELETE /tables/sections/:id — permanent delete (blocked if it still holds tables)
+router.delete('/sections/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await service.deleteSection(req.auth.restaurantId, p(req, 'id'));
+    await bumpLayoutVersion(req.auth.restaurantId);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
+    res.status(204).send();
+  } catch (err) { next(err); }
+});
+
 // GET /tables
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {

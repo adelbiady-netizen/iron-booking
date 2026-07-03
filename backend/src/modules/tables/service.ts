@@ -936,6 +936,67 @@ export async function upsertSection(restaurantId: string, data: {
   });
 }
 
+// Rename / recolor / reorder an existing section by id. Rename is guarded against
+// colliding with another section's name (the (restaurantId, name) unique key).
+export async function updateSection(restaurantId: string, sectionId: string, data: {
+  name?: string;
+  color?: string;
+  sortOrder?: number;
+}) {
+  const section = await prisma.section.findUnique({ where: { id: sectionId } });
+  if (!section || section.restaurantId !== restaurantId) throw new NotFoundError('Section', sectionId);
+
+  const name = data.name?.trim();
+  if (name !== undefined && name.length === 0) {
+    throw new BusinessRuleError('Section name cannot be empty');
+  }
+  if (name && name !== section.name) {
+    const clash = await prisma.section.findUnique({
+      where: { restaurantId_name: { restaurantId, name } },
+    });
+    if (clash && clash.id !== sectionId) {
+      throw new BusinessRuleError('A section with this name already exists');
+    }
+  }
+
+  return prisma.section.update({
+    where: { id: sectionId },
+    data: {
+      ...(name ? { name } : {}),
+      ...(data.color !== undefined ? { color: data.color } : {}),
+      ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
+    },
+  });
+}
+
+// Permanently delete a section. Blocked while it still holds active tables — the
+// host must move or delete those first. On delete we defensively clear any lingering
+// references (inactive tables, booking-group configs) so no orphan sectionId remains.
+export async function deleteSection(restaurantId: string, sectionId: string) {
+  const section = await prisma.section.findUnique({ where: { id: sectionId } });
+  if (!section || section.restaurantId !== restaurantId) throw new NotFoundError('Section', sectionId);
+
+  // Never leave a restaurant with zero sections. (There is no dedicated "default
+  // section" flag in the schema, so the last remaining section is the protected one.)
+  const sectionCount = await prisma.section.count({ where: { restaurantId } });
+  if (sectionCount <= 1) {
+    throw new BusinessRuleError('This is the only section and cannot be deleted.');
+  }
+
+  const activeTables = await prisma.table.count({
+    where: { restaurantId, sectionId, isActive: true },
+  });
+  if (activeTables > 0) {
+    throw new BusinessRuleError('This section still contains tables. Move or delete the tables first.');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.table.updateMany({ where: { restaurantId, sectionId }, data: { sectionId: null } });
+    await tx.bookingGroupConfig.updateMany({ where: { targetSectionId: sectionId }, data: { targetSectionId: null } });
+    await tx.section.delete({ where: { id: sectionId } });
+  });
+}
+
 // ─── Floor Objects ────────────────────────────────────────────────────────────
 
 export async function listFloorObjects(restaurantId: string) {
