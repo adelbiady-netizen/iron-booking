@@ -1194,6 +1194,8 @@ const UpdateSettingsSchema = z.object({
   linkGroupIds:              z.array(z.string().trim().regex(/^\d+$/, 'Link group IDs must be numeric')).max(50).optional(),
   // Feature flags
   guestsPageEnabled:          z.boolean().optional(),
+  // Floor map: future-reservation display preference (presentation only, stored in settings JSON)
+  futureReservationDisplay:   z.enum(['DETAILED', 'TIMELINE', 'COMPACT']).optional(),
   // IRON CLUB
   ironClubEnabled:            z.boolean().optional(),
   ironClubTier:               z.enum(['NONE', 'STARTER', 'MEMBER', 'INTELLIGENCE', 'LUXURY']).optional(),

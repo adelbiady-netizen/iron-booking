@@ -2892,6 +2892,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         <FloorBoard
           tables={floorTables}
           floorObjs={floorObjs}
+          futureResDisplay={auth.user.restaurant?.settings?.futureReservationDisplay}
           selectedId={selectedRes?.id ?? null}
           onSelect={handleSelect}
           onAvailableClick={handleAvailableClick}

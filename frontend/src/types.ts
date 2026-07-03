@@ -431,6 +431,8 @@ export interface AuthUser {
       ironClubEnabled?: boolean;
       ironClubTier?: IronClubTier;
       feedbackApprovalRequired?: boolean;
+      // Floor map: how a table's future reservations render (presentation only).
+      futureReservationDisplay?: 'DETAILED' | 'TIMELINE' | 'COMPACT';
       [key: string]: unknown;
     };
     operatingHours?: OperatingHourRecord[];

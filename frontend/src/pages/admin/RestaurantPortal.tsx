@@ -229,6 +229,11 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   const [opSettingsBusy, setOpSettingsBusy] = useState(false);
   const [opSettingsError,setOpSettingsError]= useState<string | null>(null);
 
+  // ── Floor Map: future reservation display (presentation preference) ────────
+  type FutureResDisplay = 'DETAILED' | 'TIMELINE' | 'COMPACT';
+  const [futureResDisplay, setFutureResDisplay] = useState<FutureResDisplay>('DETAILED');
+  const [futureResDisplayBusy, setFutureResDisplayBusy] = useState(false);
+
   // ── Turn Time Rules (Phase 2) ─────────────────────────────────────────────
   const DEFAULT_TTR_FORM: TurnTimeRuleBody = { name: '', partySizeMin: 1, partySizeMax: 2, durationMinutes: 90, isActive: true };
   const [turnRules,    setTurnRules]    = useState<TurnTimeRule[]>([]);
@@ -385,6 +390,8 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
         reminderEnabled:           (s['reminderEnabled']            as boolean) ?? true,
         reminderLeadMinutes:       (s['reminderLeadMinutes']        as number) ?? 60,
       });
+      const frd = s['futureReservationDisplay'];
+      setFutureResDisplay(frd === 'TIMELINE' || frd === 'COMPACT' ? frd : 'DETAILED');
       if (detail.operatingHours?.length === 7) {
         setScheduleRows(detail.operatingHours.map(h => ({
           dayOfWeek: h.dayOfWeek, isOpen: h.isOpen,
@@ -667,6 +674,21 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     } finally { setOpSettingsBusy(false); }
   }
 
+  // Floor map future-reservation display — persists immediately on choice via the
+  // existing settings endpoint (presentation preference only).
+  async function handleSaveFutureResDisplay(next: FutureResDisplay) {
+    const prev = futureResDisplay;
+    setFutureResDisplay(next);
+    setFutureResDisplayBusy(true);
+    try {
+      await api.admin.restaurants.settings(restaurantId, { futureReservationDisplay: next });
+      showToast('ההגדרה נשמרה');
+    } catch (err) {
+      setFutureResDisplay(prev);
+      showToast(err instanceof Error ? err.message : 'שגיאה בשמירה');
+    } finally { setFutureResDisplayBusy(false); }
+  }
+
   // ── Turn Time Rule handlers (Phase 2) ────────────────────────────────────
   async function handleSaveTurnRule() {
     if (!ttrForm.name.trim() || ttrForm.partySizeMin > ttrForm.partySizeMax) return;
@@ -928,8 +950,40 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       );
     }
 
+    const FUTURE_RES_OPTIONS: { id: FutureResDisplay; label: string; hint: string }[] = [
+      { id: 'DETAILED', label: 'מפורט',   hint: 'ברירת מחדל' },
+      { id: 'TIMELINE', label: 'ציר זמן', hint: 'ניסיוני' },
+      { id: 'COMPACT',  label: 'מצומצם',  hint: 'הבאה + כמות' },
+    ];
+
     return (
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6" dir="rtl">
+
+        {/* ── Future reservation display (floor map presentation preference) ── */}
+        <div className="bg-iron-surface border border-iron-border rounded-lg p-5">
+          <h3 className="text-sm font-semibold text-iron-text">תצוגת הזמנות עתידיות</h3>
+          <p className="text-xs text-iron-muted mt-1 mb-3">כיצד יוצגו הזמנות עתידיות על שולחנות במפת הרצפה. אינו משפיע על זמינות או על ההזמנה הנוכחית.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {FUTURE_RES_OPTIONS.map(opt => {
+              const active = futureResDisplay === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => !futureResDisplayBusy && !active && handleSaveFutureResDisplay(opt.id)}
+                  disabled={futureResDisplayBusy}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg border text-sm transition-colors disabled:opacity-50 ${
+                    active
+                      ? 'bg-iron-green/15 border-iron-green text-iron-green-light'
+                      : 'bg-iron-bg/40 border-iron-border text-iron-muted hover:text-iron-text'
+                  }`}
+                >
+                  <span className="font-medium">{opt.label}</span>
+                  <span className="text-[10px] opacity-70">{opt.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── Seed banner ─────────────────────────────────────────────── */}
         {!hasFloor && isSuperAdmin && (

@@ -443,6 +443,10 @@ interface Props {
   onSwapCancel?: () => void;
   onContextMenuCombineRes?: (res: Reservation) => void;
   mobileMode?: boolean;
+  // Per-restaurant preference for how a table's FUTURE reservations render on the
+  // visual floor map. Presentation only — never affects availability or booking.
+  // Defaults to 'DETAILED' (existing stacked pills) when the setting is absent.
+  futureResDisplay?: FutureResDisplay;
 }
 
 const CANVAS_W = 1500;
@@ -465,6 +469,9 @@ function hasPositions(tables: FloorTable[]): boolean {
 }
 
 type View = 'floor' | 'timeline';
+
+// Floor-map future-reservation display mode (restaurant preference, presentation only).
+export type FutureResDisplay = 'DETAILED' | 'TIMELINE' | 'COMPACT';
 
 type PickStatus = 'recommended' | 'possible' | 'tight' | 'unavailable' | 'current' | null;
 
@@ -508,6 +515,7 @@ export default function FloorBoard({
   onContextMenuCombineRes,
   inPlanningMode = false,
   mobileMode: _mobileMode = false,
+  futureResDisplay = 'DETAILED',
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -1519,6 +1527,8 @@ export default function FloorBoard({
                   wlPickWarn={wlPickWarn === t.id}
                   quietFade={quietFade}
                   hoveredResId={hoveredResId}
+                  futureResDisplay={futureResDisplay}
+                  onFutureResSelect={onSelect}
                 />
               );
             })}
@@ -3108,7 +3118,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId, inNewResPick = false, inPlanningMode = false }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId, inNewResPick = false, inPlanningMode = false, futureResDisplay = 'DETAILED', onFutureResSelect }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -3137,6 +3147,8 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   hoveredResId?: string | null;
   inNewResPick?: boolean;
   inPlanningMode?: boolean;
+  futureResDisplay?: FutureResDisplay;
+  onFutureResSelect?: (res: Reservation) => void;
 }) {
   const T = useT();
   const { locale } = useLocale();
@@ -3380,8 +3392,11 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       })()
     : null;
 
-  // Future reservation pills — upcoming turns for this table, excluding the active one.
-  const turnsToShow = (!wlPickWarn && !dimmed)
+  // Future reservations — upcoming turns for this table, excluding the active one.
+  // Uncapped list feeds the Timeline (all dots) and Compact (accurate count) modes;
+  // the Detailed pill strip below caps it to 4. Pure presentation of already-computed
+  // turns — no availability or booking logic here.
+  const futureTurns = (!wlPickWarn && !dimmed)
     ? turns
         .filter(r => !hasGuest || !displayRes || r.id !== displayRes.id)
         .filter(r => {
@@ -3400,8 +3415,13 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
           const [h, m] = r.time.split(':').map(Number);
           return (h * 60 + m + (r.duration ?? 90)) > boardMinutes;
         })
-        .slice(0, 4)
     : [];
+  // Detailed mode keeps the historical 4-pill cap.
+  const turnsToShow = futureTurns.slice(0, 4);
+  // Timeline/Compact are experimental restaurant preferences; Detailed is the default.
+  // In new-reservation / planning pick flows the Hebrew "הזמנה ב-" pills carry conflict
+  // context, so those flows always fall back to the Detailed pills regardless of setting.
+  const futureMode: FutureResDisplay = (inNewResPick || inPlanningMode) ? 'DETAILED' : futureResDisplay;
 
   return (
   <>
@@ -3527,8 +3547,12 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       )}
     </button>
 
-    {/* Future reservation pills — anchored below the table card */}
-    {turnsToShow.length > 0 && (
+    {/* Future reservations below the table card. How they render is a per-restaurant
+        presentation preference (Detailed default); the current reservation shown inside
+        the card above is never affected. No availability/booking logic here. */}
+
+    {/* DETAILED (default) — the historical stacked pill strip, unchanged. */}
+    {futureMode === 'DETAILED' && turnsToShow.length > 0 && (
       <div style={{
         position: 'absolute',
         left: table.posX,
@@ -3567,6 +3591,110 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
         ))}
       </div>
     )}
+
+    {/* COMPACT — next reservation time plus a count of the remaining future turns. */}
+    {futureMode === 'COMPACT' && futureTurns.length > 0 && (
+      <div style={{
+        position: 'absolute',
+        left: table.posX,
+        top: table.posY + table.height + 4,
+        width: Math.max(table.width, 72),
+        zIndex: 6,
+        pointerEvents: 'none',
+        display: 'flex', justifyContent: 'center',
+        opacity,
+      }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '2px 6px',
+          backgroundColor: 'rgba(67,91,42,0.10)',
+          borderRadius: 4,
+          border: '1px solid rgba(67,91,42,0.28)',
+          borderLeft: '2px solid #435B2A',
+          maxWidth: '100%',
+        }}>
+          <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 700, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            {locale === 'he' ? 'הבא' : 'Next'} {normalizeTime(futureTurns[0].time)}
+          </span>
+          {futureTurns.length > 1 && (
+            <span style={{ fontSize: 10, color: '#435B2A', fontWeight: 500, opacity: 0.8, whiteSpace: 'nowrap' }}>
+              +{futureTurns.length - 1}{locale === 'he' ? '' : ' more'}
+            </span>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* TIMELINE (experimental) — compact horizontal axis with a dot per future turn,
+        hour labels below. Hover shows details; click opens the reservation. */}
+    {futureMode === 'TIMELINE' && (() => {
+      const dots = futureTurns
+        .filter(r => !!r.time)
+        .map(r => {
+          const [h, m] = r.time.split(':').map(Number);
+          let mins = h * 60 + m;
+          if (mins < 360) mins += 1440;  // keep post-midnight turns after evening ones
+          return { res: r, mins };
+        })
+        .sort((a, b) => a.mins - b.mins);
+      if (dots.length === 0) return null;
+      const axisStart = Math.floor(dots[0].mins / 60) * 60;
+      const axisEnd   = Math.max(Math.ceil(dots[dots.length - 1].mins / 60) * 60, axisStart + 60);
+      const span      = axisEnd - axisStart;
+      const width     = Math.max(table.width, 132);
+      const posX      = (mins: number) => ((mins - axisStart) / span) * width;
+      const hours: number[] = [];
+      for (let t = axisStart; t <= axisEnd; t += 60) hours.push(t);
+      const dotColor = (status: string) =>
+        status === 'PENDING' ? '#d97706'
+        : status === 'SEATED' ? '#16a34a'
+        : status === 'NO_SHOW' || status === 'CANCELLED' ? '#71717a'
+        : '#3b82f6';
+      return (
+        <div style={{
+          position: 'absolute',
+          left: table.posX,
+          top: table.posY + table.height + 5,
+          width,
+          zIndex: 6,
+          pointerEvents: 'none',
+          opacity,
+        }}>
+          <div style={{ position: 'relative', height: 12 }}>
+            <div style={{ position: 'absolute', left: 0, right: 0, top: 5, height: 2, backgroundColor: 'rgba(67,91,42,0.35)' }} />
+            {dots.map(({ res, mins }, i) => (
+              <button
+                key={res.id ?? i}
+                title={`${normalizeTime(res.time)} · ${res.guestName} · ${res.partySize}`}
+                onClick={(e) => { e.stopPropagation(); onFutureResSelect?.(res); }}
+                style={{
+                  position: 'absolute',
+                  left: posX(mins) - 5, top: 0,
+                  width: 10, height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: dotColor(res.status),
+                  border: '1.5px solid rgba(255,255,255,0.85)',
+                  padding: 0, cursor: 'pointer',
+                  pointerEvents: 'auto',
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ position: 'relative', height: 11, marginTop: 1 }}>
+            {hours.map(t => (
+              <span key={t} style={{
+                position: 'absolute',
+                left: posX(t), transform: 'translateX(-50%)',
+                fontSize: 8, color: '#435B2A', opacity: 0.6,
+                fontVariantNumeric: 'tabular-nums', userSelect: 'none',
+              }}>
+                {String(Math.floor((t % 1440) / 60)).padStart(2, '0')}
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+    })()}
   </>
   );
 }
