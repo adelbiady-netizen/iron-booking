@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { PosIngestBodySchema } from './schema';
 import { ingestEvents } from './service';
 import { queueVisitEvent } from './dispatcher';
+import { buildLayoutPayload, buildVersionPayload } from './layout';
 
 const router = Router();
 
@@ -57,6 +58,25 @@ router.post('/events/ingest', authenticatePos, async (req: Request, res: Respons
   } catch (err) {
     next(err);
   }
+});
+
+// GET /api/v1/pos/layout/version — cheap version check for ATLAS's reconcile.
+// Auth: same shared-secret as /events/ingest (Bearer = ATLAS's posSecret).
+router.get('/pos/layout/version', authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
+    if (!restaurantId) { res.status(400).json({ error: 'NO_RESTAURANT', message: 'restaurant not resolved from token' }); return; }
+    res.json(await buildVersionPayload(restaurantId));
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/pos/layout — full versioned layout asset (floors, zones, tables).
+router.get('/pos/layout', authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
+    if (!restaurantId) { res.status(400).json({ error: 'NO_RESTAURANT', message: 'restaurant not resolved from token' }); return; }
+    res.json(await buildLayoutPayload(restaurantId));
+  } catch (err) { next(err); }
 });
 
 // POST /api/v1/pos/admin/attach — one-shot setup. Protected by POS_ADMIN_SECRET env var.

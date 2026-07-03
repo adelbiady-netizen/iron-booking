@@ -110,6 +110,12 @@ model Restaurant {
   backgroundColorHex    String? // custom bg base color, e.g. "#1a0f05"; overrides mood preset
   backgroundGradientHex String? // optional gradient end color, e.g. "#0a0603"
 
+  // Table-map layout as a versioned asset (ATLAS POS sync contract).
+  // layoutVersion bumps on every STRUCTURAL layout change (tables/zones); it is
+  // never bumped by reservations/occupancy. layoutUpdatedAt tracks the last bump.
+  layoutVersion   Int      @default(0)
+  layoutUpdatedAt DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
