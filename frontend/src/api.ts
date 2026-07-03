@@ -1,4 +1,4 @@
-import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestIntelligence, GuestListItem, GuestLookupResult, GuestMemoryRecord, GuestSearchResult, HostUser, LocationTonightStats, MorningBriefRecord, MomentRecord, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, RecoveryCaseRecord, Reservation, Section, SmsUsageDetail, SmsUsageReport, Table, WaitlistEntry } from './types';
+import type { ActivityLogEntry, AdminGroup, AdminGroupDetail, AdminRestaurant, AdminRestaurantDetail, AdminUser, AuthUser, AvailabilityResponse, BackendTableSuggestion, BestTableResult, BookingAlternative, BookingResult, CreateReservationBody, FloorInsight, FloorObjectData, FloorSuggestion, FloorTable, GuestDetail, GuestIntelligence, GuestListItem, GuestLookupResult, GuestMemoryRecord, GuestSearchResult, HostUser, LocationTonightStats, ManagementContext, MorningBriefRecord, MomentRecord, PublicReservation, PublicRestaurantProfile, PublicWaitlistResult, RecoveryCaseRecord, Reservation, Section, SmsUsageDetail, SmsUsageReport, Table, WaitlistEntry } from './types';
 
 export const BASE = import.meta.env.VITE_API_URL || "https://iron-booking.onrender.com/api";
 
@@ -321,6 +321,11 @@ export interface AdminCombinationPatchBody {
 }
 
 export const api = {
+  // Management Workspace (Product Architecture v1). Boot context = who am I, what
+  // can I do, which restaurant. Business endpoints arrive with their modules.
+  management: {
+    context: () => request<ManagementContext>('/management/context'),
+  },
   auth: {
     login: (email: string, password: string) =>
       request<{ token: string; user: AuthUser }>('/auth/login', {

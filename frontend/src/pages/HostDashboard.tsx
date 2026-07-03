@@ -11,6 +11,8 @@ import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import { trackEvent } from '../utils/telemetry';
 import TopBar from '../components/TopBar';
+import { MANAGEMENT_WORKSPACE_ENABLED } from '../features';
+import { canSeeManagementEntry } from '../lib/managementAccess';
 import FloorBoard from '../components/FloorBoard';
 import ReservationPanel from '../components/ReservationPanel';
 import GuestDrawer from '../components/GuestDrawer';
@@ -2458,6 +2460,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     auth.user.restaurant?.settings?.guestsPageEnabled !== false &&
     !(['HOST', 'SERVER'] as const).includes(auth.user.role as 'HOST' | 'SERVER');
 
+  // Management Center entry (Product Architecture v1). Shown to permissioned users
+  // only; navigates to /{slug}/manage in the same session. Backend is authoritative.
+  const manageSlug = auth.user.restaurant?.slug ?? null;
+  const onManagementCenter =
+    MANAGEMENT_WORKSPACE_ENABLED && manageSlug && canSeeManagementEntry(auth.user.role)
+      ? () => window.location.assign(`/${manageSlug}/manage`)
+      : undefined;
+
   if (activePage === 'guests' && canAccessGuests) {
     return (
       <>
@@ -2835,6 +2845,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         theme={theme}
         onThemeChange={onThemeChange}
         onAdminPortal={onAdminPortal}
+        onManagementCenter={onManagementCenter}
         onGuestsPage={handleGuestsPage}
         guestsPageEnabled={canAccessGuests}
         onIntelligencePage={handleIntelligencePage}

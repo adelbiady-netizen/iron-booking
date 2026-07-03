@@ -35,6 +35,8 @@ interface Props {
   theme: Theme;
   onThemeChange: () => void;
   onAdminPortal?: () => void;
+  /** Management Center entry (Product Architecture v1). Shown only when provided. */
+  onManagementCenter?: () => void;
   onGuestsPage?: () => void;
   guestsPageEnabled?: boolean;
   onIntelligencePage?: () => void;
@@ -98,6 +100,7 @@ export default function TopBar({
   restaurantName, userName, onLogout,
   theme, onThemeChange,
   onAdminPortal,
+  onManagementCenter,
   onGuestsPage,
   guestsPageEnabled = true,
   onIntelligencePage,
@@ -395,6 +398,16 @@ export default function TopBar({
 
       {/* User / session — hidden on mobile (lives in More tab) */}
       {!isMobile && <div className="flex items-center gap-1">
+        {/* Management Center — Product Architecture v1 entry (permission-gated by the parent) */}
+        {onManagementCenter && (
+          <button
+            onClick={onManagementCenter}
+            title="מרכז הניהול"
+            className="flex items-center gap-1.5 text-iron-green-light/90 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-iron-green/12 border border-iron-green/30 hover:bg-iron-green/20 transition-colors duration-100"
+          >
+            <GearIcon /> מרכז הניהול
+          </button>
+        )}
         {/* Guests / Intelligence / Admin — desktop only */}
         {!isMobile && onGuestsPage && (
           guestsPageEnabled ? (

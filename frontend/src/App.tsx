@@ -10,6 +10,8 @@ import WaitlistKioskPage from './pages/WaitlistKioskPage';
 import RootPage from './pages/RootPage';
 import PwaDiagnosticsOverlay from './components/PwaDiagnosticsOverlay';
 import RestaurantEntryPage from './pages/RestaurantEntryPage';
+import ManagementWorkspace from './pages/manage/ManagementWorkspace';
+import { MANAGEMENT_WORKSPACE_ENABLED } from './features';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import AccessibilityPage from './pages/legal/AccessibilityPage';
@@ -317,6 +319,38 @@ export default function App() {
             forceLoginPage={forceLoginPage}
             onForceLoginPage={() => setForceLoginPage(true)}
             onClearForceLoginPage={() => setForceLoginPage(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── /{slug}/manage — Management Workspace (Product Architecture v1) ──────────
+  // Same domain · same slug · same session (iron_auth) · same branding. The
+  // ManagementWorkspace component fails closed (redirects to Host) when the user
+  // is unauthenticated or lacks management access.
+  if (
+    MANAGEMENT_WORKSPACE_ENABLED &&
+    pathParts.length >= 2 &&
+    pathParts[1] === 'manage' &&
+    !RESERVED_SEGMENTS.has(pathParts[0])
+  ) {
+    const manageSlug = pathParts[0];
+    const manageModule = pathParts[2] ?? null; // /{slug}/manage/{module}
+    return (
+      <div dir="ltr" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <div style={{
+          transform: `scale(${scale})`,
+          transformOrigin: '0 0',
+          width:  `${100 / scale}%`,
+          height: `${100 / scale}%`,
+        }}>
+          <ManagementWorkspace
+            slug={manageSlug}
+            initialModule={manageModule}
+            auth={auth}
+            ready={ready}
+            onExitToHost={() => window.location.assign(`/${manageSlug}`)}
           />
         </div>
       </div>

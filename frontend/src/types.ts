@@ -391,6 +391,35 @@ export type UserRole =
   | 'HOST'
   | 'SERVER';
 
+// ─── Management Workspace (Product Architecture v1) ─────────────────────────────
+
+export type ManagementCapability =
+  | 'management.access'
+  | 'dashboard.view'
+  | 'operations.manage'
+  | 'floor.manage'
+  | 'guests.manage'
+  | 'marketing.manage'
+  | 'analytics.view'
+  | 'admin.manage';
+
+export type ManagementProductRole = 'IRON_ADMIN' | 'HQ_ADMIN' | 'OWNER' | 'MANAGER' | 'HOST' | 'STAFF';
+
+// Boot context returned by GET /management/context — powers the workspace shell.
+export interface ManagementContext {
+  role: UserRole;
+  productRole: ManagementProductRole;
+  restaurantId: string;
+  restaurant: {
+    id: string;
+    name: string;
+    slug: string;
+    timezone: string;
+    settings?: Record<string, unknown> | null;
+  };
+  capabilities: ManagementCapability[];
+}
+
 export interface OperatingHourRecord {
   dayOfWeek:   number;   // 0 = Sunday … 6 = Saturday
   isOpen:      boolean;
