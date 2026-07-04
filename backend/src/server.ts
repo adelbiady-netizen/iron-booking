@@ -99,7 +99,7 @@ async function main() {
     console.log(`[Iron Booking] Server running on port ${config.port} (${config.nodeEnv})`);
     console.log('🔥 SERVER LISTENING');
     startScheduler(); // no-op unless REMINDER_SCHEDULER_ENABLED=true
-    startDispatcher();
+    startDispatcher(); // no-op unless ATLAS_SYNC_ENABLED=true
   });
 
   // Graceful shutdown
