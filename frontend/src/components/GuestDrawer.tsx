@@ -11,6 +11,7 @@ import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
 import { statusPill } from '../theme/statusTokens';
+import { ActionButton as ActionBtn, BTN } from './host/DrawerActions';
 import { fmtHostTime, normalizeTime } from '../utils/time';
 
 function fmtDateLong(dateStr: string, intlLocale: string): string {
@@ -143,31 +144,8 @@ function TablePicker({ tables, excludeId, label, busy, onPick, onBack }: TablePi
 }
 
 // ─── Action button ────────────────────────────────────────────────────────────
-
-interface ActionBtnProps {
-  label: string;
-  cls: string;
-  onClick: () => void;
-  disabled: boolean;
-  title?: string;
-  primary?: boolean;
-}
-
-function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`rounded-xl border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-4 min-h-[52px] flex-1' : 'text-xs font-semibold px-3 py-3'
-      } ${cls}`}
-      style={primary ? { boxShadow: '0 3px 12px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.10)' } : undefined}
-    >
-      {label}
-    </button>
-  );
-}
+// ActionBtn + variant classes now come from the shared host/DrawerActions
+// primitive so every Host drawer renders actions identically.
 
 const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green-light/80 focus:ring-1 focus:ring-iron-green/20 transition-colors';
 
@@ -757,11 +735,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
   // ─── Action buttons per status ──────────────────────────────────────────────
 
-  const btnGreen  = 'bg-iron-green-light border-iron-green-light text-white hover:bg-iron-green hover:border-iron-green';
-  const btnBlue   = 'bg-status-reserved/15 border-status-reserved/30 text-status-reserved hover:bg-status-reserved/25';
-  const btnAmber  = 'bg-status-warning/15 border-status-warning/30 text-status-warning hover:bg-status-warning/25';
-  const btnRed    = 'bg-red-900/15 border-red-900/25 text-status-danger hover:bg-red-900/25';
-  const btnNeutral= 'bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30';
+  const { green: btnGreen, blue: btnBlue, amber: btnAmber, red: btnRed, neutral: btnNeutral } = BTN;
 
   const assignedTable   = res.tableId ? tables.find(t => t.id === res.tableId) ?? null : null;
   const tableIsLocked   = assignedTable?.locked ?? false;
