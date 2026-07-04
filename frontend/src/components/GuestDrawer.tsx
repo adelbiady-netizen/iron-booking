@@ -10,6 +10,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
+import { statusPill } from '../theme/statusTokens';
 import { fmtHostTime, normalizeTime } from '../utils/time';
 
 function fmtDateLong(dateStr: string, intlLocale: string): string {
@@ -72,16 +73,6 @@ function GDTextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 }
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
-
-const STATUS_PILL: Record<ReservationStatus, string> = {
-  PENDING:   'bg-status-warning/15 text-status-warning border border-status-warning/30',
-  CONFIRMED: 'bg-status-reserved/12 text-status-reserved/90 border border-status-reserved/25',
-  SEATED:    'bg-iron-green/22 text-iron-green-light border border-iron-green/35',
-  COMPLETED: 'bg-iron-border/18 text-iron-muted/75 border border-iron-border/25',
-  CANCELLED: 'bg-red-900/15 text-status-danger border border-red-900/25',
-  NO_SHOW:   'bg-orange-900/15 text-orange-400 border border-orange-900/25',
-  STANDBY:   'bg-amber-900/15 text-amber-400 border border-amber-900/25',
-};
 
 interface RowProps { label: string; value: string; accent?: boolean; warn?: boolean }
 function Row({ label, value, accent, warn }: RowProps) {
@@ -1242,7 +1233,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 {res.guest?.isVip && (
                   <span className="text-status-warning text-xs font-semibold bg-status-warning/14 px-2 py-0.5 rounded-full border border-status-warning/28 shrink-0">{T.common.vip}</span>
                 )}
-                <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${STATUS_PILL[res.status]}`}>
+                <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${statusPill(res.status)}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
               </div>

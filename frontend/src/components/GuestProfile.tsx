@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { GuestDetail, GuestIntelligence, GuestMemoryRecord, GuestAlertRecord, RecoveryCaseRecord, ReservationStatus, ConsentAuditRow } from '../types';
 import { api, getStoredAuth } from '../api';
 import { operationalTags, guestOriginLabel, isImportNote, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
+import { statusPill } from '../theme/statusTokens';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,13 +20,13 @@ function fmtDateHe(iso: string | null | undefined): string {
 }
 
 const STATUS_LABEL: Record<ReservationStatus, { text: string; cls: string }> = {
-  PENDING:   { text: 'ממתין',   cls: 'bg-status-warning/15 text-status-warning border-status-warning/30' },
-  CONFIRMED: { text: 'מאושר',   cls: 'bg-status-reserved/12 text-status-reserved/90 border-status-reserved/25' },
-  SEATED:    { text: 'יושב',    cls: 'bg-iron-green/22 text-iron-green-light border-iron-green/35' },
-  COMPLETED: { text: 'הסתיים',  cls: 'bg-iron-border/18 text-iron-muted/75 border-iron-border/25' },
-  CANCELLED: { text: 'בוטל',    cls: 'bg-red-900/15 text-status-danger border-red-900/25' },
-  NO_SHOW:   { text: 'לא הגיע', cls: 'bg-orange-900/15 text-orange-400 border-orange-900/25' },
-  STANDBY:   { text: 'סטנדביי',  cls: 'bg-amber-900/15 text-amber-400 border-amber-900/25' },
+  PENDING:   { text: 'ממתין',   cls: statusPill('PENDING') },
+  CONFIRMED: { text: 'מאושר',   cls: statusPill('CONFIRMED') },
+  SEATED:    { text: 'יושב',    cls: statusPill('SEATED') },
+  COMPLETED: { text: 'הסתיים',  cls: statusPill('COMPLETED') },
+  CANCELLED: { text: 'בוטל',    cls: statusPill('CANCELLED') },
+  NO_SHOW:   { text: 'לא הגיע', cls: statusPill('NO_SHOW') },
+  STANDBY:   { text: 'סטנדביי',  cls: statusPill('STANDBY') },
 };
 
 const MEMORY_ICON: Record<string, string> = {

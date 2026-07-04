@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { Reservation, ReservationStatus, WaitlistEntry } from '../types';
+import type { Reservation, WaitlistEntry } from '../types';
+import { statusPill } from '../theme/statusTokens';
 import WaitlistPanel, { type NextInLineItem } from './WaitlistPanel';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
@@ -25,16 +26,6 @@ function matchesSearch(name: string, phone: string | null | undefined, q: string
   }
   return false;
 }
-
-const STATUS_BADGE: Record<ReservationStatus, string> = {
-  PENDING:   'bg-status-warning/14 text-status-warning border-status-warning/35',
-  CONFIRMED: 'bg-status-reserved/12 text-status-reserved/90 border-status-reserved/28',
-  SEATED:    'bg-iron-green/18 text-iron-green-light border-iron-green/35',
-  COMPLETED: 'bg-iron-border/15 text-iron-muted/65 border-iron-border/18',
-  CANCELLED: 'bg-red-900/12 text-status-danger/80 border-red-900/20',
-  NO_SHOW:   'bg-orange-900/12 text-orange-400/80 border-orange-900/20',
-  STANDBY:   'bg-amber-900/12 text-amber-400/80 border-amber-900/20',
-};
 
 type FilterValue = 'ACTIVE' | 'SEATED' | 'DONE' | 'NO_TABLE';
 type Tab = 'reservations' | 'waitlist' | 'standby';
@@ -574,7 +565,7 @@ export default function ReservationPanel({
               const statusBadge = staleBadge ?? arrivalBadge ?? (needsReminder
                 ? { cls: 'bg-status-warning/15 text-status-warning border-status-warning/25', label: T.reservationPanel.needsReminder }
                 : r.status === 'PENDING' ? null
-                : { cls: STATUS_BADGE[r.status], label: STATUS_LABEL[r.status] });
+                : { cls: statusPill(r.status), label: STATUS_LABEL[r.status] });
 
               const rowBg = selectedId === r.id
                 ? 'bg-iron-green/[0.18]'
