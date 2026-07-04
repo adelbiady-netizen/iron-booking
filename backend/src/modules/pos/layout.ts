@@ -1,30 +1,21 @@
 /**
- * Table-map layout as a versioned asset for the ATLAS POS sync contract.
+ * Table-map layout export for the (legacy) ATLAS POS pull endpoints.
  *
- * - bumpLayoutVersion()  — called after every STRUCTURAL table/zone change;
- *                          increments Restaurant.layoutVersion and queues a
- *                          layout.changed signal to ATLAS.
  * - buildLayoutPayload()  — full layout served by GET /api/v1/pos/layout.
  * - buildVersionPayload() — cheap version served by GET /api/v1/pos/layout/version.
  *
- * ATLAS is the consumer; it maps this payload into its own canonical model.
+ * Layout-ownership reset (IB-1): Iron Booking no longer PUSHES layout to ATLAS.
+ * bumpLayoutVersion()/queueLayoutChanged() have been removed — structural table/zone
+ * edits no longer bump Restaurant.layoutVersion or emit layout.changed. These read-only
+ * pull builders remain until IB-2 removes the /pos/layout* endpoints; ATLAS already
+ * stopped pulling (ATLAS C1), so the versions they report simply go stale.
  */
 
 import { prisma } from '../../lib/prisma';
-import { queueLayoutChanged } from './dispatcher';
 
 // Iron Booking has no explicit floor entity; sections are the zones. We expose a
 // single synthetic floor so the contract's floors[] is always present.
 const DEFAULT_FLOOR_ID = 'default';
-
-export async function bumpLayoutVersion(restaurantId: string): Promise<void> {
-  const updated = await prisma.restaurant.update({
-    where:  { id: restaurantId },
-    data:   { layoutVersion: { increment: 1 }, layoutUpdatedAt: new Date() },
-    select: { layoutVersion: true },
-  });
-  await queueLayoutChanged(restaurantId, updated.layoutVersion);
-}
 
 export async function buildVersionPayload(restaurantId: string): Promise<{
   layout_id: string;

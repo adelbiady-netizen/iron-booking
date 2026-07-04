@@ -5,7 +5,6 @@ import { z } from 'zod';
 import * as service from './service';
 import { eventBus } from '../../lib/eventBus';
 import { prisma } from '../../lib/prisma';
-import { bumpLayoutVersion } from '../pos/layout';
 
 const router = Router();
 router.use(authenticate);
@@ -217,7 +216,6 @@ router.get('/sections', async (req: Request, res: Response, next: NextFunction) 
 router.post('/sections', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const section = await service.upsertSection(req.auth.restaurantId, req.body);
-    await bumpLayoutVersion(req.auth.restaurantId);
     res.status(201).json(section);
   } catch (err) { next(err); }
 });
@@ -226,7 +224,6 @@ router.post('/sections', async (req: Request, res: Response, next: NextFunction)
 router.patch('/sections/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const section = await service.updateSection(req.auth.restaurantId, p(req, 'id'), req.body);
-    await bumpLayoutVersion(req.auth.restaurantId);
     eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
     res.json(section);
   } catch (err) { next(err); }
@@ -236,7 +233,6 @@ router.patch('/sections/:id', async (req: Request, res: Response, next: NextFunc
 router.delete('/sections/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await service.deleteSection(req.auth.restaurantId, p(req, 'id'));
-    await bumpLayoutVersion(req.auth.restaurantId);
     eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
     res.status(204).send();
   } catch (err) { next(err); }
@@ -254,7 +250,6 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', validate(TableSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const table = await service.createTable(req.auth.restaurantId, req.body);
-    await bumpLayoutVersion(req.auth.restaurantId);
     res.status(201).json(table);
   } catch (err) { next(err); }
 });
@@ -314,7 +309,6 @@ router.post('/:id/rebuild-day', validate(RebuildDaySchema), async (req: Request,
 router.patch('/:id', validate(TableSchema.partial()), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const table = await service.updateTable(req.auth.restaurantId, p(req, 'id'), req.body);
-    await bumpLayoutVersion(req.auth.restaurantId);
     res.json(table);
   } catch (err) { next(err); }
 });
@@ -323,7 +317,6 @@ router.patch('/:id', validate(TableSchema.partial()), async (req: Request, res: 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await service.deleteTable(req.auth.restaurantId, p(req, 'id'));
-    await bumpLayoutVersion(req.auth.restaurantId);
     res.status(204).send();
   } catch (err) { next(err); }
 });

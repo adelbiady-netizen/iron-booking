@@ -86,48 +86,9 @@ export async function queueVisitEvent(
   });
 }
 
-/**
- * Queue a layout.changed signal for delivery to ATLAS POS. Carries only the new
- * version (no geometry) — ATLAS pulls the full layout via GET /api/v1/pos/layout.
- * The event_id is deterministic per version, so retries of the same version are
- * idempotent while each new version is a fresh event. No-ops silently when the
- * restaurant is not attached to ATLAS.
- */
-export async function queueLayoutChanged(
-  restaurantId: string,
-  layoutVersion: number,
-): Promise<void> {
-  const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
-  if (!config?.atlasLocationId) return;
-
-  const hash    = createHash('sha256').update(`${restaurantId}:layout.changed:${layoutVersion}`).digest('hex');
-  const eventId = `${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
-
-  const envelope = {
-    envelope_version: 1,
-    event_id:         eventId,
-    type:             'layout.changed',
-    version:          1,
-    occurred_at:      new Date().toISOString(),
-    source:           'hospitality',
-    brand_id:         config.atlasLocationId,
-    location_id:      config.atlasLocationId,
-    visit_id:         null,
-    sequence:         1,
-    causation_id:     null,
-    payload:          { layout_id: restaurantId, layout_version: layoutVersion },
-  };
-
-  const envelopeJson = envelope as unknown as Parameters<typeof prisma.posOutbox.create>[0]['data']['payload'];
-
-  await prisma.posOutbox.upsert({
-    where:  { eventId },
-    // visit_id is a non-null column; layout events have no visit, so we store the
-    // restaurant id as a stable placeholder (the envelope's visit_id is null).
-    create: { restaurantId, visitId: restaurantId, eventType: 'layout.changed', eventId, payload: envelopeJson, status: 'pending' },
-    update: { status: 'pending', nextRetryAt: new Date(), lastError: null, payload: envelopeJson, attempts: 0 },
-  });
-}
+// Layout-ownership reset (IB-1): queueLayoutChanged() has been removed. Iron Booking no
+// longer emits layout.changed to ATLAS — IRON POS owns the restaurant layout. Only
+// hospitality visit events (queueVisitEvent, above) are queued for delivery to ATLAS.
 
 // ── Worker ────────────────────────────────────────────────────────────────────
 
