@@ -539,6 +539,7 @@ export const THe = {
     toastArrived:         'האורח סומן כהגיע',
     toastCompleted:       'ההזמנה הסתיימה',
     toastUnseated:        'האורח הוחזר לרשימה',
+    toastCancelled:       'ההזמנה בוטלה',
     toastUndone:          'הפעולה בוטלה',
     toastTableAssigned:   (table: string) => `שולחן ${table} שויך`,
     toastSeated:          (guest: string, table: string) => `${guest} הושב לשולחן ${table}`,

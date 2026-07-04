@@ -552,6 +552,7 @@ export const T = {
     toastArrived:         'Guest marked as arrived',
     toastCompleted:       'Reservation completed',
     toastUnseated:        'Guest returned to list',
+    toastCancelled:       'Reservation cancelled',
     toastUndone:          'Action undone',
     toastTableAssigned:   (table: string) => `Table ${table} assigned`,
     toastSeated:          (guest: string, table: string) => `${guest} seated at ${table}`,
