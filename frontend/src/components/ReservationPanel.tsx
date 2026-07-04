@@ -98,6 +98,7 @@ export default function ReservationPanel({
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -117,6 +118,15 @@ export default function ReservationPanel({
     document.addEventListener('click', onOutside);
     return () => document.removeEventListener('click', onOutside);
   }, [openActionsId]);
+
+  // Auto-focus the search field when the reservations list becomes active, so the
+  // host can type a name immediately without reaching for the mouse. Desktop only —
+  // avoid popping the on-screen keyboard on touch devices.
+  useEffect(() => {
+    if (tab !== 'reservations') return;
+    if (typeof window === 'undefined' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    searchRef.current?.focus();
+  }, [tab]);
 
   // Live clock for waiting-time labels on arrived guests — ticks every minute.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -249,6 +259,7 @@ export default function ReservationPanel({
         {/* Search — shared across reservations and waitlist tabs */}
         <div className={tab === 'reservations' ? 'space-y-1.5 pb-2.5' : 'pb-2.5'}>
           <input
+            ref={searchRef}
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
