@@ -13,6 +13,7 @@
 
 import { createHash, randomUUID } from 'crypto';
 import { prisma } from '../../lib/prisma';
+import { atlasSyncEnabled } from './flag';
 
 const MAX_ATTEMPTS   = 5;
 const POLL_INTERVAL  = 5_000;   // ms
@@ -51,6 +52,7 @@ export async function queueVisitEvent(
   visitId:      string,          // IB reservation.id
   payload:      VisitEventPayload,
 ): Promise<void> {
+  if (!atlasSyncEnabled()) return;        // integration disabled — never queue outbound events
   const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
   if (!config?.atlasLocationId) return;   // not attached to ATLAS — skip silently
 
@@ -97,6 +99,7 @@ export async function queueLayoutChanged(
   restaurantId: string,
   layoutVersion: number,
 ): Promise<void> {
+  if (!atlasSyncEnabled()) return;        // integration disabled — never queue outbound events
   const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
   if (!config?.atlasLocationId) return;
 
@@ -134,6 +137,10 @@ export async function queueLayoutChanged(
 let _timer: ReturnType<typeof setInterval> | null = null;
 
 export function startDispatcher(): void {
+  if (!atlasSyncEnabled()) {
+    console.log('[POS dispatcher] ATLAS_SYNC_ENABLED is not "true" — dispatcher disabled, no outbound delivery');
+    return;
+  }
   if (_timer) return;
   console.log('[POS dispatcher] started — polling every 5 s');
   void dispatchPending();                         // immediate first pass

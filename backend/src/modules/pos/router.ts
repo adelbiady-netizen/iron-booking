@@ -6,6 +6,7 @@ import { PosIngestBodySchema } from './schema';
 import { ingestEvents } from './service';
 import { queueVisitEvent } from './dispatcher';
 import { buildLayoutPayload, buildVersionPayload } from './layout';
+import { requireAtlasSync } from './flag';
 
 const router = Router();
 
@@ -39,7 +40,7 @@ async function authenticatePos(req: Request, res: Response, next: NextFunction):
 
 // POST /api/v1/events/ingest
 // Called by ATLAS POS dispatcher on every state change.
-router.post('/events/ingest', authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events/ingest', requireAtlasSync, authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
 
@@ -62,7 +63,7 @@ router.post('/events/ingest', authenticatePos, async (req: Request, res: Respons
 
 // GET /api/v1/pos/layout/version — cheap version check for ATLAS's reconcile.
 // Auth: same shared-secret as /events/ingest (Bearer = ATLAS's posSecret).
-router.get('/pos/layout/version', authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/pos/layout/version', requireAtlasSync, authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
     if (!restaurantId) { res.status(400).json({ error: 'NO_RESTAURANT', message: 'restaurant not resolved from token' }); return; }
@@ -71,7 +72,7 @@ router.get('/pos/layout/version', authenticatePos, async (req: Request, res: Res
 });
 
 // GET /api/v1/pos/layout — full versioned layout asset (floors, zones, tables).
-router.get('/pos/layout', authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/pos/layout', requireAtlasSync, authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
     if (!restaurantId) { res.status(400).json({ error: 'NO_RESTAURANT', message: 'restaurant not resolved from token' }); return; }
@@ -82,7 +83,7 @@ router.get('/pos/layout', authenticatePos, async (req: Request, res: Response, n
 // POST /api/v1/pos/admin/attach — one-shot setup. Protected by POS_ADMIN_SECRET env var.
 // Creates PosConfig, sends system.hospitality_attached to ATLAS, imports table directory.
 // Can be removed after initial setup.
-router.post('/pos/admin/attach', async (req: Request, res: Response) => {
+router.post('/pos/admin/attach', requireAtlasSync, async (req: Request, res: Response) => {
   const adminSecret = process.env.POS_ADMIN_SECRET;
   if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
     res.status(401).json({ error: 'UNAUTHORIZED' });
@@ -368,7 +369,7 @@ router.post('/pos/admin/copy-hospitality-secret', async (req: Request, res: Resp
 });
 
 // POST /api/v1/pos/admin/resync-tables
-router.post('/pos/admin/resync-tables', async (req: Request, res: Response) => {
+router.post('/pos/admin/resync-tables', requireAtlasSync, async (req: Request, res: Response) => {
   const adminSecret = process.env.POS_ADMIN_SECRET;
   if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
     res.status(401).json({ error: 'UNAUTHORIZED' });
@@ -706,7 +707,7 @@ router.post('/pos/admin/resync-visits', async (req: Request, res: Response) => {
 // Directly fetches the ATLAS table directory and writes atlasTableId into each IB Table row
 // by name-matching (same logic as the /attach endpoint).  Bypasses the pos.table_directory_ack
 // flow entirely — use when the ack mapping keys don't match IB Table.id values.
-router.post('/pos/admin/populate-atlas-table-ids', async (req: Request, res: Response) => {
+router.post('/pos/admin/populate-atlas-table-ids', requireAtlasSync, async (req: Request, res: Response) => {
   const adminSecret = process.env.POS_ADMIN_SECRET;
   if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
     res.status(401).json({ error: 'UNAUTHORIZED' });
