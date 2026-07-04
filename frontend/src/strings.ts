@@ -88,7 +88,7 @@ export const T = {
     lockTable:        'Lock table…',
     ctxSeat:          'Seat',
     ctxReassign:      'Reassign',
-    ctxComplete:      'Complete table',
+    ctxComplete:      'Complete',
     ctxMove:          'Move table',
     ctxChangeTable:   'Change table',
     ctxOpenDetails:   'Open details',
@@ -306,6 +306,7 @@ export const T = {
     typeFuture:          'Future request',
     sourceOnline:        'Online',
     sourcePhone:         'Phone',
+    sourceWalkIn:        'Walk-in',
     drawerSaveError:     'Failed to save',
   },
 

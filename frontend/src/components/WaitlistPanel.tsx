@@ -429,7 +429,7 @@ export default function WaitlistPanel({
                 onChange={e => setSource(e.target.value as typeof source)}
                 className="w-24 bg-iron-bg border border-iron-border rounded-md px-2 py-1.5 text-iron-text text-xs focus:outline-none focus:border-iron-green transition-colors"
               >
-                <option value="WALK_IN">Walk-in</option>
+                <option value="WALK_IN">{T.waitlistPanel.sourceWalkIn}</option>
                 <option value="PHONE">{T.waitlistPanel.sourcePhone}</option>
                 <option value="ONLINE">{T.waitlistPanel.sourceOnline}</option>
               </select>

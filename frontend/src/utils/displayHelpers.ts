@@ -10,7 +10,7 @@ const SOURCE_LABELS_EN: Record<string, string> = {
 const SOURCE_LABELS_HE: Record<string, string> = {
   PHONE:     'טלפוני',
   INTERNAL:  'פנימי',
-  WALK_IN:   'הגעה ללא הזמנה',
+  WALK_IN:   'אורח מזדמן',
   ONLINE:    'אונליין',
   OPENTABLE: 'OpenTable',
   RESY:      'Resy',
