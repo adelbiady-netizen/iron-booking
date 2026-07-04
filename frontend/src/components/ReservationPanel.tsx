@@ -128,6 +128,26 @@ export default function ReservationPanel({
     searchRef.current?.focus();
   }, [tab]);
 
+  // Global "/" focuses the search from anywhere, unless the host is already
+  // typing in a field (so a literal "/" still types normally). Esc clears the
+  // query and blurs. Lets the host jump to search without the mouse.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (e.key === 'Escape' && el === searchRef.current) {
+        setSearch('');
+        searchRef.current?.blur();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   // Live clock for waiting-time labels on arrived guests — ticks every minute.
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
