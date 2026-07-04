@@ -367,7 +367,7 @@ router.post('/pos/admin/copy-hospitality-secret', async (req: Request, res: Resp
   });
 });
 
-// POST /api/v1/pos/admin/resync-tables
+// POST /api/v1/pos/admin/resync-tables — DEPRECATED (IB-1): no-op, pushes nothing.
 router.post('/pos/admin/resync-tables', async (req: Request, res: Response) => {
   const adminSecret = process.env.POS_ADMIN_SECRET;
   if (!adminSecret || req.headers['x-admin-secret'] !== adminSecret) {
@@ -375,79 +375,16 @@ router.post('/pos/admin/resync-tables', async (req: Request, res: Response) => {
     return;
   }
 
-  const body = z.object({ restaurantId: z.string().uuid() }).safeParse(req.body);
-  if (!body.success) {
-    res.status(400).json({ error: 'INVALID_BODY', issues: body.error.issues });
-    return;
-  }
-
-  const { restaurantId } = body.data;
-
-  const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
-  if (!config?.atlasLocationId) {
-    res.status(404).json({ error: 'NO_POS_CONFIG', message: 'No ATLAS connection configured for this restaurant.' });
-    return;
-  }
-
-  const tables = await prisma.table.findMany({
-    where:   { restaurantId },
-    include: { section: true },
-    orderBy: { name: 'asc' },
-  });
-
-  const directoryVersion = Math.floor(Date.now() / 1000);
-
-  const syncEvent = {
-    events: [{
-      envelope_version: 1,
-      event_id:    randomUUID(),
-      type:        'system.table_directory_sync',
-      version:     1,
-      occurred_at: new Date().toISOString(),
-      source:      'hospitality',
-      brand_id:    config.atlasLocationId,
-      location_id: config.atlasLocationId,
-      visit_id:    null,
-      sequence:    1,
-      causation_id: null,
-      payload: {
-        directory_version: directoryVersion,
-        published_at:      new Date().toISOString(),
-        tables: tables.map(t => ({
-          table_id:           t.id,
-          number:             t.name,
-          name:               t.name,
-          zone:               t.section?.name ?? 'Main',
-          section:            t.section?.name ?? '',
-          capacity:           t.maxCovers,
-          active:             t.isActive,
-          combined_table_ids: [] as string[],
-        })),
-      },
-    }],
-  };
-
-  let atlasStatus: number;
-  let atlasBody: unknown;
-  try {
-    const atlasRes = await fetch(`${config.posApiBase}/api/v1/events/ingest`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.hospitalitySecret}` },
-      body:    JSON.stringify(syncEvent),
-    });
-    atlasStatus = atlasRes.status;
-    atlasBody   = atlasRes.ok ? await atlasRes.json() : null;
-  } catch (err) {
-    res.status(502).json({ error: 'ATLAS_UNREACHABLE', message: String(err) });
-    return;
-  }
-
-  res.json({
-    ok:               atlasStatus >= 200 && atlasStatus < 300,
-    directoryVersion,
-    tablesSent:       tables.length,
-    atlas:            { status: atlasStatus, body: atlasBody },
-    note:             'ATLAS will queue pos.table_directory_ack and deliver it to /api/v1/events/ingest within ~5 s. Table.atlasTableId values will be updated automatically on receipt.',
+  // Layout-ownership reset (IB-1): DEPRECATED / no-op. IRON POS / ATLAS is the sole
+  // owner of the restaurant layout, so Iron Booking no longer pushes the table
+  // directory. This endpoint emits NO system.table_directory_sync; it is removed
+  // entirely in IB-2. Table identity (atlasTableId) is still provisioned via
+  // POST /pos/admin/populate-atlas-table-ids, which is unaffected.
+  res.status(410).json({
+    deprecated: true,
+    ok:         false,
+    reason:     'IRON POS owns the restaurant layout; table-directory push is disabled.',
+    note:       'No system.table_directory_sync was emitted. Use POST /pos/admin/populate-atlas-table-ids for table identity (atlasTableId).',
   });
 });
 
