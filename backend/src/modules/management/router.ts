@@ -7,7 +7,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate } from '../../middleware/auth';
-import { requireCapability } from '../../middleware/capability';
+import { requireManagementAccess } from '../../middleware/capability';
 import { buildManagementContext } from './service';
 
 const router = Router();
@@ -16,10 +16,11 @@ const router = Router();
 router.get(
   '/context',
   authenticate,
-  requireCapability('management.access'),
+  requireManagementAccess,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const ctx = await buildManagementContext({
+        userId: req.auth.userId,
         role: req.auth.role,
         restaurantId: req.auth.restaurantId,
       });

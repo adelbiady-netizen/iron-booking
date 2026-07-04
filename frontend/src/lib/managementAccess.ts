@@ -1,20 +1,19 @@
 import type { UserRole } from '../types';
 
-// UX-only mirror of the backend management.access capability. Decides whether to
-// SHOW the "Management Center / מרכז הניהול" entry in the Host Workspace. The
-// backend /management/context endpoint is the authoritative gate — this only
-// avoids rendering an entry the user can't use.
+// UX mirror of the backend Management Center gate. Decides whether to SHOW the
+// "מרכז הניהול" entry in the Host Workspace. The /management/context endpoint is
+// the authoritative gate — this only avoids rendering an entry the user can't use.
 //
-// P0.1: owner tier only (RESTAURANT_ADMIN/OWNER/ADMIN, plus HQ tiers which bypass).
-// MANAGER gains access via a per-user grant in Mission P0.9 (Admin › Roles).
-const ENTRY_ROLES: UserRole[] = [
-  'OWNER',
-  'ADMIN',
-  'RESTAURANT_ADMIN',
-  'SUPER_ADMIN',
-  'HQ_ADMIN',
+// Rules (match backend canAccessManagement):
+// - HQ + owner tier (SUPER_ADMIN/HQ_ADMIN/GROUP_MANAGER/RESTAURANT_ADMIN/OWNER/ADMIN) → always
+// - MANAGER → only when granted (User.managementAccess === true)
+// - HOST/SERVER → never
+const ALWAYS_ACCESS: UserRole[] = [
+  'SUPER_ADMIN', 'HQ_ADMIN', 'GROUP_MANAGER', 'RESTAURANT_ADMIN', 'OWNER', 'ADMIN',
 ];
 
-export function canSeeManagementEntry(role: UserRole): boolean {
-  return ENTRY_ROLES.includes(role);
+export function canSeeManagementEntry(user: { role: UserRole; managementAccess?: boolean }): boolean {
+  if (ALWAYS_ACCESS.includes(user.role)) return true;
+  if (user.role === 'MANAGER') return user.managementAccess === true;
+  return false;
 }

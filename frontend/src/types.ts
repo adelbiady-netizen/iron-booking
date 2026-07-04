@@ -410,6 +410,7 @@ export interface ManagementContext {
   role: UserRole;
   productRole: ManagementProductRole;
   restaurantId: string;
+  managementAccess: boolean;
   restaurant: {
     id: string;
     name: string;
@@ -446,6 +447,9 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   role: UserRole;
+  // Per-user Management Center grant (Product Architecture v1). Absent on older
+  // sessions → treated as false (owner-tier still gets access by role).
+  managementAccess?: boolean;
   groupId?: string; // present for HQ_ADMIN / GROUP_MANAGER users
   restaurant: {
     id: string;
@@ -585,11 +589,12 @@ export interface SmsUsageDetail {
 
 export interface AdminUser {
   id: string;
-  email: string;
+  email: string | null;
   firstName: string;
   lastName: string;
   role: Exclude<UserRole, 'SUPER_ADMIN'>;
   isActive: boolean;
+  managementAccess: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 }

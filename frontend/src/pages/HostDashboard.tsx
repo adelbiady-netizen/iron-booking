@@ -2464,7 +2464,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // only; navigates to /{slug}/manage in the same session. Backend is authoritative.
   const manageSlug = auth.user.restaurant?.slug ?? null;
   const onManagementCenter =
-    MANAGEMENT_WORKSPACE_ENABLED && manageSlug && canSeeManagementEntry(auth.user.role)
+    MANAGEMENT_WORKSPACE_ENABLED && manageSlug && canSeeManagementEntry(auth.user)
       ? () => window.location.assign(`/${manageSlug}/manage`)
       : undefined;
 

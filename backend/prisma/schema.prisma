@@ -177,6 +177,9 @@ model User {
   lastName     String
   role         UserRole  @default(HOST)
   isActive     Boolean   @default(true)
+  // Per-user Management Center grant (Product Architecture v1). Set by HQ.
+  // Belongs to the employee/User record — works for PIN employees too.
+  managementAccess Boolean @default(false)
   lastLoginAt  DateTime?
 
   // Group membership — set for HQ_ADMIN / GROUP_MANAGER users who span branches.

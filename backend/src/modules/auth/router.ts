@@ -71,6 +71,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        managementAccess: user.managementAccess,
         ...(user.groupId ? { groupId: user.groupId } : {}),
         // SUPER_ADMIN belongs to the system restaurant — hide it from callers
         restaurant: user.role === 'SUPER_ADMIN' ? null : {
@@ -250,6 +251,7 @@ router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Re
         firstName: user.firstName,
         lastName:  user.lastName,
         role:      user.role,
+        managementAccess: user.managementAccess,
         ...(user.groupId ? { groupId: user.groupId } : {}),
         restaurant: {
           id:             user.restaurant.id,

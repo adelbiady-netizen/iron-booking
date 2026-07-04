@@ -8,7 +8,7 @@ import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors';
 import { sendSms } from '../../lib/messaging';
-import { MessageType, MessageProvider, MessageStatus, MessageChannel } from '@prisma/client';
+import { MessageType, MessageProvider, MessageStatus, MessageChannel, UserRole } from '@prisma/client';
 
 const router = Router();
 
@@ -1470,7 +1470,7 @@ router.get('/restaurants/:id/users', async (req: Request, res: Response, next: N
       where: { restaurantId: p(req, 'id') },
       select: {
         id: true, email: true, firstName: true, lastName: true,
-        role: true, isActive: true, lastLoginAt: true, createdAt: true,
+        role: true, isActive: true, managementAccess: true, lastLoginAt: true, createdAt: true,
       },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
     });
@@ -1506,7 +1506,7 @@ router.post('/restaurants/:id/users', superAdminOnly, validate(CreateUserSchema)
       data: { restaurantId, email, passwordHash: await bcrypt.hash(password, 12), firstName, lastName, role },
       select: {
         id: true, email: true, firstName: true, lastName: true,
-        role: true, isActive: true, createdAt: true,
+        role: true, isActive: true, managementAccess: true, lastLoginAt: true, createdAt: true,
       },
     });
     res.status(201).json(user);
@@ -1518,8 +1518,13 @@ const UpdateUserSchema = z.object({
   lastName:  z.string().min(1).optional(),
   role:      z.enum(['ADMIN', 'MANAGER', 'HOST', 'SERVER']).optional(),
   isActive:  z.boolean().optional(),
+  managementAccess: z.boolean().optional(),
   password:  z.string().min(8).optional(),
 });
+
+// Owner-tier roles — a restaurant must always keep at least one active one so it
+// can never be locked out of its own administration.
+const OWNER_TIER_ROLES = ['OWNER', 'ADMIN', 'RESTAURANT_ADMIN'] as const;
 
 // PATCH /admin/users/:id
 router.patch('/users/:id', superAdminOnly, validate(UpdateUserSchema), async (req: Request, res: Response, next: NextFunction) => {
@@ -1530,12 +1535,27 @@ router.patch('/users/:id', superAdminOnly, validate(UpdateUserSchema), async (re
     if (!user) throw new NotFoundError('User', p(req, 'id'));
     if (user.role === 'SUPER_ADMIN') throw new ForbiddenError('Cannot modify a SUPER_ADMIN via this endpoint');
 
+    // Safe soft-delete guards — only relevant when deactivating (isActive: false).
+    if (rest.isActive === false && user.isActive) {
+      if (user.id === req.auth.userId) {
+        throw new ForbiddenError('לא ניתן להשבית את החשבון שלך');
+      }
+      if ((OWNER_TIER_ROLES as readonly string[]).includes(user.role)) {
+        const activeOwnerTier = await prisma.user.count({
+          where: { restaurantId: user.restaurantId, isActive: true, role: { in: OWNER_TIER_ROLES as unknown as UserRole[] } },
+        });
+        if (activeOwnerTier <= 1) {
+          throw new BusinessRuleError('לא ניתן להשבית את הבעלים/מנהל האחרון של המסעדה');
+        }
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id: p(req, 'id') },
       data: { ...rest, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
       select: {
         id: true, email: true, firstName: true, lastName: true,
-        role: true, isActive: true, lastLoginAt: true, createdAt: true,
+        role: true, isActive: true, managementAccess: true, lastLoginAt: true, createdAt: true,
       },
     });
     res.json(updated);

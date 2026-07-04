@@ -390,6 +390,9 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail,     setDetail]     = useState<AdminRestaurantDetail | null>(null);
   const [users,      setUsers]      = useState<AdminUser[]>([]);
+  // Soft-delete (deactivate) confirmation target for the Users tab.
+  const [removeTarget, setRemoveTarget] = useState<AdminUser | null>(null);
+  const [removeBusy,   setRemoveBusy]   = useState(false);
   const [detailBusy, setDetailBusy] = useState(false);
   const [activeTab,  setActiveTab]  = useState<'info' | 'settings' | 'users' | 'guest-hub'>('info');
 
@@ -1199,6 +1202,42 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       setUsers(us => us.map(x => x.id === u.id ? updated : x));
       showToast(T.admin.userUpdated);
     } catch { /* ignore */ }
+  }
+
+  // ── Management Center access grant (per-user) ──────────────────────────────────
+  async function handleToggleManagementAccess(u: AdminUser) {
+    try {
+      const updated = await api.admin.users.update(u.id, { managementAccess: !u.managementAccess });
+      setUsers(us => us.map(x => x.id === u.id ? updated : x));
+      showToast('ההרשאה עודכנה');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'שגיאה בעדכון ההרשאה');
+    }
+  }
+
+  // ── Soft-delete (deactivate) with confirmation. Backend also enforces guards. ──
+  const OWNER_TIER: readonly string[] = ['OWNER', 'ADMIN', 'RESTAURANT_ADMIN'];
+  function activeOwnerTierCount() {
+    return users.filter(u => u.isActive && OWNER_TIER.includes(u.role)).length;
+  }
+  function removeBlockedReason(u: AdminUser): string | null {
+    if (u.id === auth.user.id) return 'לא ניתן להסיר את החשבון שלך';
+    if (OWNER_TIER.includes(u.role) && activeOwnerTierCount() <= 1) return 'לא ניתן להסיר את הבעלים/מנהל האחרון של המסעדה';
+    return null;
+  }
+  async function confirmRemoveUser() {
+    if (!removeTarget) return;
+    setRemoveBusy(true);
+    try {
+      const updated = await api.admin.users.update(removeTarget.id, { isActive: false });
+      setUsers(us => us.map(x => x.id === updated.id ? updated : x));
+      showToast('המשתמש הושבת');
+      setRemoveTarget(null);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'שגיאה בהסרת המשתמש');
+    } finally {
+      setRemoveBusy(false);
+    }
   }
 
   // ── Sample layout ──────────────────────────────────────────────────────────────
@@ -2934,40 +2973,78 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-iron-border">
-                {[T.admin.colName, T.admin.colEmail, T.admin.colRole, T.admin.colActive, T.admin.colLastLogin, ''].map(h => (
+                {[T.admin.colName, T.admin.colEmail, T.admin.colRole, T.admin.colActive, 'מרכז ניהול', T.admin.colLastLogin, ''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs text-iron-muted font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {users.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-iron-muted text-sm">אין משתמשים עדיין</td></tr>
-              ) : users.map(u => (
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-iron-muted text-sm">אין משתמשים עדיין</td></tr>
+              ) : users.map(u => {
+                const removeReason = removeBlockedReason(u);
+                return (
                 <tr key={u.id} className="border-b border-iron-border last:border-0 hover:bg-iron-bg">
                   <td className="px-4 py-3 font-medium">{u.firstName} {u.lastName}</td>
-                  <td className="px-4 py-3 text-iron-muted">{u.email}</td>
+                  <td className="px-4 py-3 text-iron-muted">{u.email ?? <span className="italic text-iron-muted/70">כניסת PIN</span>}</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 bg-iron-bg border border-iron-border rounded text-xs">{u.role}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`w-2 h-2 rounded-full inline-block ${u.isActive ? 'bg-iron-green' : 'bg-iron-muted'}`} />
                   </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleToggleManagementAccess(u)}
+                      title="הרשאת גישה למרכז הניהול"
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${u.managementAccess ? 'bg-iron-green/15 border-iron-green/40 text-iron-green' : 'bg-iron-bg border-iron-border text-iron-muted hover:text-iron-text'}`}
+                    >
+                      {u.managementAccess ? 'מופעל' : 'כבוי'}
+                    </button>
+                  </td>
                   <td className="px-4 py-3 text-iron-muted">
                     {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : T.admin.neverLoggedIn}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleToggleUser(u)}
-                      className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-surface"
-                    >
-                      {u.isActive ? T.admin.deactivateBtn : T.admin.activateBtn}
-                    </button>
+                    {u.isActive ? (
+                      <button
+                        onClick={() => { if (!removeReason) setRemoveTarget(u); }}
+                        disabled={!!removeReason}
+                        title={removeReason ?? 'הסר (השבת) משתמש'}
+                        className={`text-xs px-2 py-1 rounded ${removeReason ? 'text-iron-muted/40 cursor-not-allowed' : 'text-status-danger hover:bg-status-danger/10'}`}
+                      >
+                        הסר
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleUser(u)}
+                        className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-surface"
+                      >
+                        הפעל מחדש
+                      </button>
+                    )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
+
+        {removeTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" dir="rtl">
+            <div className="bg-iron-surface border border-iron-border rounded-xl p-6 max-w-sm w-full">
+              <h3 className="text-iron-text font-semibold text-base mb-1">להסיר את {removeTarget.firstName} {removeTarget.lastName}?</h3>
+              <p className="text-iron-muted text-sm mb-5">המשתמש יושבת ולא יוכל להתחבר. הנתונים נשמרים, וניתן להחזירו בהמשך דרך "הפעל מחדש". כניסת PIN של שאר הצוות לא מושפעת.</p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setRemoveTarget(null)} disabled={removeBusy} className="text-sm text-iron-muted hover:text-iron-text px-4 py-2 rounded-lg disabled:opacity-50">ביטול</button>
+                <button onClick={confirmRemoveUser} disabled={removeBusy} className="text-sm font-semibold text-white bg-status-danger hover:opacity-90 px-4 py-2 rounded-lg disabled:opacity-50">
+                  {removeBusy ? 'מסיר…' : 'הסר'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showAddUser ? (
           <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-4">

@@ -925,7 +925,7 @@ export const api = {
         email: string; password: string; firstName: string; lastName: string; role?: string;
       }) => request<AdminUser>(`/admin/restaurants/${restaurantId}/users`, { method: 'POST', body: JSON.stringify(body) }),
       update: (id: string, body: {
-        firstName?: string; lastName?: string; role?: string; isActive?: boolean; password?: string;
+        firstName?: string; lastName?: string; role?: string; isActive?: boolean; managementAccess?: boolean; password?: string;
       }) => request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     },
     guestHub: {

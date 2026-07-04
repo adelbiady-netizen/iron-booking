@@ -75,3 +75,30 @@ export function capabilitiesFor(role: UserRole): Capability[] {
 export function hasCapability(role: UserRole, cap: Capability): boolean {
   return capabilitiesFor(role).includes(cap);
 }
+
+// ── Per-user grant resolution (Management Center access) ────────────────────────
+// Roles that always have Management Center access (HQ tiers + owner tier). MANAGER
+// is grant-gated; HOST/SERVER are never allowed, even if a grant flag is set.
+const ALWAYS_ACCESS: ReadonlySet<UserRole> = new Set<UserRole>([
+  'SUPER_ADMIN', 'HQ_ADMIN', 'GROUP_MANAGER', 'RESTAURANT_ADMIN', 'OWNER', 'ADMIN',
+]);
+
+// A granted MANAGER gets the operational modules — never Admin (Staff/Settings).
+const GRANTED_MANAGER_CAPS: Capability[] = [
+  'management.access', 'dashboard.view', 'operations.manage',
+  'floor.manage', 'guests.manage', 'marketing.manage', 'analytics.view',
+];
+
+/** Whether this employee may open the Management Center. HOST/SERVER never can. */
+export function canAccessManagement(role: UserRole, managementAccess: boolean): boolean {
+  if (ALWAYS_ACCESS.has(role)) return true;
+  if (role === 'MANAGER') return managementAccess === true;
+  return false;
+}
+
+/** Capabilities for a specific employee, honoring their per-user grant. */
+export function capabilitiesForUser(role: UserRole, managementAccess: boolean): Capability[] {
+  if (ALWAYS_ACCESS.has(role)) return ROLE_CAPABILITIES[role];
+  if (role === 'MANAGER' && managementAccess) return GRANTED_MANAGER_CAPS;
+  return [];
+}

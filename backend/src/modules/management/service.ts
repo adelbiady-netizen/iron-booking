@@ -9,12 +9,13 @@
 import type { UserRole } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../lib/errors';
-import { capabilitiesFor, toProductRole, type Capability, type ProductRole } from '../../lib/capabilities';
+import { capabilitiesForUser, toProductRole, type Capability, type ProductRole } from '../../lib/capabilities';
 
 export interface ManagementContext {
   role: UserRole;
   productRole: ProductRole;
   restaurantId: string;
+  managementAccess: boolean;
   restaurant: {
     id: string;
     name: string;
@@ -26,20 +27,26 @@ export interface ManagementContext {
 }
 
 export async function buildManagementContext(auth: {
+  userId: string;
   role: UserRole;
   restaurantId: string;
 }): Promise<ManagementContext> {
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { id: auth.restaurantId },
-    select: { id: true, name: true, slug: true, timezone: true, settings: true },
-  });
+  const [restaurant, user] = await Promise.all([
+    prisma.restaurant.findUnique({
+      where: { id: auth.restaurantId },
+      select: { id: true, name: true, slug: true, timezone: true, settings: true },
+    }),
+    prisma.user.findUnique({ where: { id: auth.userId }, select: { managementAccess: true } }),
+  ]);
   if (!restaurant) throw new NotFoundError('Restaurant', auth.restaurantId);
 
+  const managementAccess = user?.managementAccess ?? false;
   return {
     role: auth.role,
     productRole: toProductRole(auth.role),
     restaurantId: auth.restaurantId,
+    managementAccess,
     restaurant,
-    capabilities: capabilitiesFor(auth.role),
+    capabilities: capabilitiesForUser(auth.role, managementAccess),
   };
 }
