@@ -180,6 +180,9 @@ model User {
   // Per-user Management Center grant (Product Architecture v1). Set by HQ.
   // Belongs to the employee/User record — works for PIN employees too.
   managementAccess Boolean @default(false)
+  // Set true when a SUPER_ADMIN issues a temporary password via the reset endpoint.
+  // Cleared when the user chooses their own password at the next login.
+  mustChangePassword Boolean @default(false)
   lastLoginAt  DateTime?
 
   // Group membership — set for HQ_ADMIN / GROUP_MANAGER users who span branches.

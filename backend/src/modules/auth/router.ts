@@ -72,6 +72,7 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response,
         lastName: user.lastName,
         role: user.role,
         managementAccess: user.managementAccess,
+        mustChangePassword: user.mustChangePassword,
         ...(user.groupId ? { groupId: user.groupId } : {}),
         // SUPER_ADMIN belongs to the system restaurant — hide it from callers
         restaurant: user.role === 'SUPER_ADMIN' ? null : {
@@ -252,6 +253,7 @@ router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Re
         lastName:  user.lastName,
         role:      user.role,
         managementAccess: user.managementAccess,
+        mustChangePassword: user.mustChangePassword,
         ...(user.groupId ? { groupId: user.groupId } : {}),
         restaurant: {
           id:             user.restaurant.id,
@@ -510,6 +512,25 @@ router.post('/refresh', authenticate, (req: Request, res: Response) => {
     { expiresIn: config.jwtExpiresIn as any }
   );
   res.json({ token });
+});
+
+// POST /auth/change-password — the authenticated user sets their own new password.
+// Used to satisfy the mustChangePassword flag after a temporary password was issued.
+const ChangePasswordSchema = z.object({
+  newPassword: z.string().min(8, 'הסיסמה חייבת להכיל לפחות 8 תווים'),
+});
+
+router.post('/change-password', authenticate, validate(ChangePasswordSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { newPassword } = req.body;
+    await prisma.user.update({
+      where: { id: req.auth.userId },
+      data: { passwordHash: await bcrypt.hash(newPassword, 12), mustChangePassword: false },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

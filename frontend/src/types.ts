@@ -450,6 +450,8 @@ export interface AuthUser {
   // Per-user Management Center grant (Product Architecture v1). Absent on older
   // sessions → treated as false (owner-tier still gets access by role).
   managementAccess?: boolean;
+  // Set when a temporary password was issued — the login flow forces a change.
+  mustChangePassword?: boolean;
   groupId?: string; // present for HQ_ADMIN / GROUP_MANAGER users
   restaurant: {
     id: string;
@@ -595,6 +597,7 @@ export interface AdminUser {
   role: Exclude<UserRole, 'SUPER_ADMIN'>;
   isActive: boolean;
   managementAccess: boolean;
+  mustChangePassword?: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 }

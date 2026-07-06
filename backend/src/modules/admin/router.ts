@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { randomInt } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -1559,6 +1560,66 @@ router.patch('/users/:id', superAdminOnly, validate(UpdateUserSchema), async (re
       },
     });
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// Generate a readable temporary password, e.g. "Iron-4827KTP".
+// Ambiguous characters (I/L/O/0/1) are excluded so it can be dictated over the phone.
+function generateTempPassword(): string {
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const letters = Array.from({ length: 3 }, () => alphabet[randomInt(0, alphabet.length)]).join('');
+  return `Iron-${randomInt(1000, 10000)}${letters}`;
+}
+
+// POST /admin/users/:id/reset-password — issue a one-time temporary password.
+// SUPER_ADMIN only. Returns the plaintext password ONCE so the admin can hand it
+// to the employee; the user is forced to choose a new password at next login.
+router.post('/users/:id/reset-password', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: p(req, 'id') } });
+    if (!user) throw new NotFoundError('User', p(req, 'id'));
+    if (user.role === 'SUPER_ADMIN') throw new ForbiddenError('Cannot reset a SUPER_ADMIN password via this endpoint');
+    if (!user.email) throw new BusinessRuleError('משתמש ללא אימייל מתחבר עם PIN — אין סיסמה לאיפוס');
+
+    const tempPassword = generateTempPassword();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await bcrypt.hash(tempPassword, 12), mustChangePassword: true },
+    });
+    res.json({ tempPassword });
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/users/:id — permanent hard delete. SUPER_ADMIN only.
+// Guards mirror the deactivate flow: cannot delete yourself, a SUPER_ADMIN, or the
+// last active owner-tier user (which would lock the restaurant out of its own admin).
+router.delete('/users/:id', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: p(req, 'id') } });
+    if (!user) throw new NotFoundError('User', p(req, 'id'));
+    if (user.role === 'SUPER_ADMIN') throw new ForbiddenError('Cannot delete a SUPER_ADMIN via this endpoint');
+    if (user.id === req.auth.userId) throw new ForbiddenError('לא ניתן למחוק את החשבון שלך');
+
+    if (user.isActive && (OWNER_TIER_ROLES as readonly string[]).includes(user.role)) {
+      const activeOwnerTier = await prisma.user.count({
+        where: { restaurantId: user.restaurantId, isActive: true, role: { in: OWNER_TIER_ROLES as unknown as UserRole[] } },
+      });
+      if (activeOwnerTier <= 1) {
+        throw new BusinessRuleError('לא ניתן למחוק את הבעלים/מנהל האחרון של המסעדה');
+      }
+    }
+
+    try {
+      await prisma.user.delete({ where: { id: user.id } });
+    } catch (delErr: any) {
+      // P2003: foreign-key constraint — the user is still referenced by historical
+      // records. Deactivate instead of hard-deleting so the audit trail is preserved.
+      if (delErr?.code === 'P2003') {
+        throw new BusinessRuleError('לא ניתן למחוק — למשתמש יש היסטוריה מקושרת. השתמשו ב"הסר" (השבתה) במקום.');
+      }
+      throw delErr;
+    }
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

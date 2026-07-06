@@ -349,6 +349,11 @@ export const api = {
       }),
     refresh: () =>
       request<{ token: string }>('/auth/refresh', { method: 'POST' }),
+    changePassword: (newPassword: string) =>
+      request<{ ok: true }>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ newPassword }),
+      }),
   },
 
   tables: {
@@ -927,6 +932,10 @@ export const api = {
       update: (id: string, body: {
         firstName?: string; lastName?: string; role?: string; isActive?: boolean; managementAccess?: boolean; password?: string;
       }) => request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      resetPassword: (id: string) =>
+        request<{ tempPassword: string }>(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({}) }),
+      remove: (id: string) =>
+        request<{ ok: true }>(`/admin/users/${id}`, { method: 'DELETE' }),
     },
     guestHub: {
       get: (restaurantId: string) =>

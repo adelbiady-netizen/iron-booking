@@ -393,6 +393,13 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
   // Soft-delete (deactivate) confirmation target for the Users tab.
   const [removeTarget, setRemoveTarget] = useState<AdminUser | null>(null);
   const [removeBusy,   setRemoveBusy]   = useState(false);
+  // Permanent (hard) delete confirmation target for the Users tab.
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleteBusy,   setDeleteBusy]   = useState(false);
+  // Password reset — per-row busy id + one-time temp-password result modal.
+  const [resetBusyId,  setResetBusyId]  = useState<string | null>(null);
+  const [resetResult,  setResetResult]  = useState<{ user: AdminUser; tempPassword: string } | null>(null);
+  const [resetCopied,  setResetCopied]  = useState(false);
   const [detailBusy, setDetailBusy] = useState(false);
   const [activeTab,  setActiveTab]  = useState<'info' | 'settings' | 'users' | 'guest-hub'>('info');
 
@@ -1237,6 +1244,37 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
       showToast(e instanceof Error ? e.message : 'שגיאה בהסרת המשתמש');
     } finally {
       setRemoveBusy(false);
+    }
+  }
+
+  // ── Reset password — issue a one-time temporary password (SUPER_ADMIN only) ────
+  async function handleResetPassword(u: AdminUser) {
+    setResetBusyId(u.id);
+    try {
+      const { tempPassword } = await api.admin.users.resetPassword(u.id);
+      setResetCopied(false);
+      setResetResult({ user: u, tempPassword });
+      setUsers(us => us.map(x => x.id === u.id ? { ...x, mustChangePassword: true } : x));
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'שגיאה באיפוס הסיסמה');
+    } finally {
+      setResetBusyId(null);
+    }
+  }
+
+  // ── Permanent (hard) delete with confirmation. Backend also enforces guards. ───
+  async function confirmDeleteUser() {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    try {
+      await api.admin.users.remove(deleteTarget.id);
+      setUsers(us => us.filter(x => x.id !== deleteTarget.id));
+      showToast('המשתמש נמחק לצמיתות');
+      setDeleteTarget(null);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'שגיאה במחיקת המשתמש');
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -3006,23 +3044,45 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                     {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : T.admin.neverLoggedIn}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {u.isActive ? (
-                      <button
-                        onClick={() => { if (!removeReason) setRemoveTarget(u); }}
-                        disabled={!!removeReason}
-                        title={removeReason ?? 'הסר (השבת) משתמש'}
-                        className={`text-xs px-2 py-1 rounded ${removeReason ? 'text-iron-muted/40 cursor-not-allowed' : 'text-status-danger hover:bg-status-danger/10'}`}
-                      >
-                        הסר
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleToggleUser(u)}
-                        className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-surface"
-                      >
-                        הפעל מחדש
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      {isSuperAdmin && u.email && u.isActive && (
+                        <button
+                          onClick={() => handleResetPassword(u)}
+                          disabled={resetBusyId === u.id}
+                          title="אפס סיסמה — יצירת סיסמה זמנית חד-פעמית"
+                          className="text-xs px-2 py-1 rounded text-iron-muted hover:text-iron-text hover:bg-iron-surface disabled:opacity-50"
+                        >
+                          {resetBusyId === u.id ? 'מאפס…' : 'אפס סיסמה'}
+                        </button>
+                      )}
+                      {u.isActive ? (
+                        <button
+                          onClick={() => { if (!removeReason) setRemoveTarget(u); }}
+                          disabled={!!removeReason}
+                          title={removeReason ?? 'הסר (השבת) משתמש'}
+                          className={`text-xs px-2 py-1 rounded ${removeReason ? 'text-iron-muted/40 cursor-not-allowed' : 'text-status-danger hover:bg-status-danger/10'}`}
+                        >
+                          הסר
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleUser(u)}
+                          className="text-xs text-iron-muted hover:text-iron-text px-2 py-1 rounded hover:bg-iron-surface"
+                        >
+                          הפעל מחדש
+                        </button>
+                      )}
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => { if (!removeReason) setDeleteTarget(u); }}
+                          disabled={!!removeReason}
+                          title={removeReason ?? 'מחיקה לצמיתות'}
+                          className={`text-xs px-2 py-1 rounded ${removeReason ? 'text-iron-muted/40 cursor-not-allowed' : 'text-status-danger hover:bg-status-danger/10'}`}
+                        >
+                          מחק
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 );
@@ -3040,6 +3100,42 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
                 <button onClick={() => setRemoveTarget(null)} disabled={removeBusy} className="text-sm text-iron-muted hover:text-iron-text px-4 py-2 rounded-lg disabled:opacity-50">ביטול</button>
                 <button onClick={confirmRemoveUser} disabled={removeBusy} className="text-sm font-semibold text-white bg-status-danger hover:opacity-90 px-4 py-2 rounded-lg disabled:opacity-50">
                   {removeBusy ? 'מסיר…' : 'הסר'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {resetResult && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" dir="rtl">
+            <div className="bg-iron-surface border border-iron-border rounded-xl p-6 max-w-sm w-full">
+              <h3 className="text-iron-text font-semibold text-base mb-1">סיסמה זמנית ל{resetResult.user.firstName} {resetResult.user.lastName}</h3>
+              <p className="text-iron-muted text-sm mb-4">מסרו את הסיסמה לעובד. היא מוצגת <b>פעם אחת בלבד</b> ולא ניתן לשחזר אותה. בכניסה הבאה העובד יתבקש לבחור סיסמה חדשה משלו.</p>
+              <div className="flex items-center gap-2 mb-5">
+                <code className="flex-1 text-center text-lg font-mono tracking-wider bg-iron-bg border border-iron-border rounded-lg py-3 text-iron-text select-all">{resetResult.tempPassword}</code>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(resetResult.tempPassword); setResetCopied(true); }}
+                  className="text-xs px-3 py-3 rounded-lg border border-iron-border text-iron-muted hover:text-iron-text shrink-0"
+                >
+                  {resetCopied ? 'הועתק' : 'העתק'}
+                </button>
+              </div>
+              <div className="flex justify-end">
+                <button onClick={() => setResetResult(null)} className="text-sm font-semibold text-white bg-iron-green hover:opacity-90 px-4 py-2 rounded-lg">סיום</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" dir="rtl">
+            <div className="bg-iron-surface border border-iron-border rounded-xl p-6 max-w-sm w-full">
+              <h3 className="text-iron-text font-semibold text-base mb-1">למחוק לצמיתות את {deleteTarget.firstName} {deleteTarget.lastName}?</h3>
+              <p className="text-iron-muted text-sm mb-5">פעולה <b>בלתי הפיכה</b> — המשתמש והרשאותיו יימחקו לצמיתות. אם ברצונכם רק למנוע כניסה, השתמשו ב"הסר" (השבתה) שנשמר וניתן להחזרה.</p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteTarget(null)} disabled={deleteBusy} className="text-sm text-iron-muted hover:text-iron-text px-4 py-2 rounded-lg disabled:opacity-50">ביטול</button>
+                <button onClick={confirmDeleteUser} disabled={deleteBusy} className="text-sm font-semibold text-white bg-status-danger hover:opacity-90 px-4 py-2 rounded-lg disabled:opacity-50">
+                  {deleteBusy ? 'מוחק…' : 'מחק לצמיתות'}
                 </button>
               </div>
             </div>

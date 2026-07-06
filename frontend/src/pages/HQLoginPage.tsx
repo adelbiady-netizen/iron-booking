@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { api } from '../api';
 import type { AuthUser } from '../types';
+import ForcePasswordChange from './ForcePasswordChange';
 
 interface Props {
   onLogin: (token: string, user: AuthUser) => void;
@@ -11,6 +12,8 @@ export default function HQLoginPage({ onLogin }: Props) {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
+  // Set when the account signed in with a temporary password — forces a change.
+  const [pending,  setPending]  = useState<{ token: string; user: AuthUser } | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   async function submit(e: React.FormEvent) {
@@ -26,6 +29,10 @@ export default function HQLoginPage({ onLogin }: Props) {
         passwordRef.current?.focus();
         return;
       }
+      if (r.user.mustChangePassword) {
+        setPending({ token: r.token, user: r.user });
+        return;
+      }
       onLogin(r.token, r.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
@@ -38,6 +45,10 @@ export default function HQLoginPage({ onLogin }: Props) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (pending) {
+    return <ForcePasswordChange token={pending.token} user={pending.user} onDone={onLogin} dir="rtl" />;
   }
 
   return (
