@@ -882,6 +882,7 @@ export interface PublicRestaurantProfile {
   maxOnlinePartySize: number;
   slotIntervalMinutes: number;
   maxAdvanceBookingDays: number;
+  guestClubSignupEnabled?: boolean;
   operatingHours: Array<{
     dayOfWeek: number;
     isOpen: boolean;

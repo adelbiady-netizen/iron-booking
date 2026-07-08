@@ -75,6 +75,9 @@ function parseSettings(settings: unknown) {
     minAdvanceBookingHours:    (s['minAdvanceBookingHours']     as number) ?? 2,
     maxOnlinePartySize:        (s['maxOnlinePartySize']         as number) ?? 5,
     maxOnlineCoversPerWindow:  (s['maxOnlineCoversPerWindow']   as number) ?? 40,
+    // Show the "join our guest club" opt-in on the public booking form.
+    // Off by default — HQ enables it per restaurant.
+    guestClubSignupEnabled:    (s['guestClubSignupEnabled']     as boolean) ?? false,
   };
 }
 
@@ -674,6 +677,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
       maxOnlinePartySize:   Math.min(s.maxOnlinePartySize, s.maxPartySize, config.maxPartySizeAbsolute),
       slotIntervalMinutes:  s.slotIntervalMinutes,
       maxAdvanceBookingDays: s.maxAdvanceBookingDays,
+      guestClubSignupEnabled: s.guestClubSignupEnabled,
       operatingHours: restaurant.operatingHours.map(h => ({
         dayOfWeek:  h.dayOfWeek,
         isOpen:     h.isOpen,

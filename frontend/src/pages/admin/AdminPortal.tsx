@@ -1812,6 +1812,24 @@ export default function AdminPortal({ auth, onLogout, onDashboard }: Props) {
               </label>
             </div>
 
+            {/* Guest-club signup on the public booking form — independent per-restaurant flag,
+                default off. Does NOT depend on the master switch above. */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-iron-text">הצטרפות למועדון בטופס ההזמנה</p>
+                <p className="text-xs text-iron-muted mt-0.5">הצגת סקציית "הצטרפו למועדון שלנו" בעמוד ההזמנה הציבורי</p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 cursor-pointer accent-iron-green"
+                  checked={!!s.guestClubSignupEnabled}
+                  onChange={async (e) => {
+                    try { await api.admin.restaurants.settings(selectedId!, { guestClubSignupEnabled: e.target.checked }); await loadDetail(selectedId!); } catch { /* ignore */ }
+                  }}
+                />
+                <span className="text-sm text-iron-text">{s.guestClubSignupEnabled ? 'פעיל' : 'כבוי'}</span>
+              </label>
+            </div>
+
             {/* Tier selector */}
             {!!s.ironClubEnabled && (
               <>

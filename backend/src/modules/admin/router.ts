@@ -1229,6 +1229,8 @@ const UpdateSettingsSchema = z.object({
   ironClubEnabled:            z.boolean().optional(),
   ironClubTier:               z.enum(['NONE', 'STARTER', 'MEMBER', 'INTELLIGENCE', 'LUXURY']).optional(),
   feedbackApprovalRequired:   z.boolean().optional(),
+  // Guest-club signup section on the public booking form (default off, per-restaurant).
+  guestClubSignupEnabled:     z.boolean().optional(),
   // Online booking limits
   maxOnlinePartySize:         z.number().int().min(1).max(100).optional(),
   maxOnlineCoversPerWindow:   z.number().int().min(1).max(500).optional(),

@@ -508,6 +508,7 @@ export default function BookingPage({ slug }: Props) {
               form={form}
               onChange={setForm}
               onSubmit={handleSubmit}
+              showGuestClub={!!profile?.guestClubSignupEnabled}
             />
           </GlassCard>
         )}
@@ -1037,10 +1038,11 @@ function BookingSummaryBar({
 
 // ─── Guest form ────────────────────────────────────────────────────────────────
 
-function GuestForm({ form, onChange, onSubmit }: {
+function GuestForm({ form, onChange, onSubmit, showGuestClub }: {
   form: FormState;
   onChange: (f: FormState) => void;
   onSubmit: (e: React.FormEvent) => void;
+  showGuestClub: boolean;
 }) {
   const { t } = useTranslation();
   const [formTouched, setFormTouched] = useState(false);
@@ -1100,7 +1102,8 @@ function GuestForm({ form, onChange, onSubmit }: {
         />
       </div>
 
-      {/* Guest Club — optional marketing opt-in */}
+      {/* Guest Club — optional marketing opt-in (per-restaurant, HQ-gated) */}
+      {showGuestClub && (
       <div
         className="rounded-xl p-4 space-y-3"
         style={{
@@ -1180,6 +1183,7 @@ function GuestForm({ form, onChange, onSubmit }: {
           </div>
         )}
       </div>
+      )}
 
       {/* Occasion — single select, optional */}
       <div>
