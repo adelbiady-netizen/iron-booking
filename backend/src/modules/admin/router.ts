@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { randomInt } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -131,7 +132,7 @@ async function assertRestaurantAccess(req: Request, restaurantId: string): Promi
 async function assertPortalPermission(
   req: Request,
   restaurantId: string,
-  permission: 'canManageOperatingHours' | 'canManageOnlineRestrictions',
+  permission: 'canManageOperatingHours' | 'canManageOnlineRestrictions' | 'canManageSmsTemplates',
 ): Promise<void> {
   if (req.auth.role === 'SUPER_ADMIN' || req.auth.role === 'HQ_ADMIN') return;
   const perms = await prisma.restaurantPortalPermissions.findUnique({
@@ -297,6 +298,32 @@ router.delete('/restaurants/:id/online-restrictions/:rid', authenticate, require
     if (!row) throw new NotFoundError('OnlineBookingRestriction', p(req, 'rid'));
     await prisma.onlineBookingRestriction.delete({ where: { id: p(req, 'rid') } });
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// PATCH /admin/restaurants/:id/sms-templates — restaurant-portal SMS wording editor.
+// RESTAURANT_ADMIN self-service, gated by the canManageSmsTemplates portal permission
+// (HQ grants it). SUPER_ADMIN/HQ_ADMIN bypass the permission check. Merges only the
+// smsTemplates key into settings; never touches other settings.
+router.patch('/restaurants/:id/sms-templates', authenticate, requireRole('RESTAURANT_ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await assertRestaurantAccess(req, p(req, 'id'));
+    await assertPortalPermission(req, p(req, 'id'), 'canManageSmsTemplates');
+    const restaurant = await prisma.restaurant.findFirst({ where: { id: p(req, 'id'), isSystem: false } });
+    if (!restaurant) throw new NotFoundError('Restaurant', p(req, 'id'));
+
+    // SmsTemplatesSchema is defined further down; referenced at request time (module loaded).
+    const parsed = z.object({ smsTemplates: SmsTemplatesSchema }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid SMS templates', details: { fieldErrors: parsed.error.flatten().fieldErrors } } });
+    }
+    const merged = { ...(restaurant.settings as object), smsTemplates: parsed.data.smsTemplates };
+    const updated = await prisma.restaurant.update({
+      where:  { id: p(req, 'id') },
+      data:   { settings: merged },
+      select: { settings: true },
+    });
+    res.json({ settings: updated.settings });
   } catch (err) { next(err); }
 });
 
@@ -1130,6 +1157,7 @@ router.patch('/restaurants/:id', superAdminOnly, validate(UpdateRestaurantSchema
 const PortalPermissionsSchema = z.object({
   canManageOperatingHours:     z.boolean().optional(),
   canManageOnlineRestrictions: z.boolean().optional(),
+  canManageSmsTemplates:       z.boolean().optional(),
 });
 
 // PATCH /admin/restaurants/:id/portal-permissions — HQ_ADMIN/SUPER_ADMIN only
@@ -1148,6 +1176,7 @@ router.patch('/restaurants/:id/portal-permissions', validate(PortalPermissionsSc
         restaurantId:                p(req, 'id'),
         canManageOperatingHours:     body.canManageOperatingHours     ?? false,
         canManageOnlineRestrictions: body.canManageOnlineRestrictions ?? false,
+        canManageSmsTemplates:       body.canManageSmsTemplates       ?? false,
       },
     });
     res.json(perms);
@@ -1559,6 +1588,66 @@ router.patch('/users/:id', superAdminOnly, validate(UpdateUserSchema), async (re
       },
     });
     res.json(updated);
+  } catch (err) { next(err); }
+});
+
+// Generate a readable temporary password, e.g. "Iron-4827KTP".
+// Ambiguous characters (I/L/O/0/1) are excluded so it can be dictated over the phone.
+function generateTempPassword(): string {
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const letters = Array.from({ length: 3 }, () => alphabet[randomInt(0, alphabet.length)]).join('');
+  return `Iron-${randomInt(1000, 10000)}${letters}`;
+}
+
+// POST /admin/users/:id/reset-password — issue a one-time temporary password.
+// SUPER_ADMIN only. Returns the plaintext password ONCE so the admin can hand it
+// to the employee; the user is forced to choose a new password at next login.
+router.post('/users/:id/reset-password', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: p(req, 'id') } });
+    if (!user) throw new NotFoundError('User', p(req, 'id'));
+    if (user.role === 'SUPER_ADMIN') throw new ForbiddenError('Cannot reset a SUPER_ADMIN password via this endpoint');
+    if (!user.email) throw new BusinessRuleError('משתמש ללא אימייל מתחבר עם PIN — אין סיסמה לאיפוס');
+
+    const tempPassword = generateTempPassword();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await bcrypt.hash(tempPassword, 12), mustChangePassword: true },
+    });
+    res.json({ tempPassword });
+  } catch (err) { next(err); }
+});
+
+// DELETE /admin/users/:id — permanent hard delete. SUPER_ADMIN only.
+// Guards mirror the deactivate flow: cannot delete yourself, a SUPER_ADMIN, or the
+// last active owner-tier user (which would lock the restaurant out of its own admin).
+router.delete('/users/:id', superAdminOnly, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: p(req, 'id') } });
+    if (!user) throw new NotFoundError('User', p(req, 'id'));
+    if (user.role === 'SUPER_ADMIN') throw new ForbiddenError('Cannot delete a SUPER_ADMIN via this endpoint');
+    if (user.id === req.auth.userId) throw new ForbiddenError('לא ניתן למחוק את החשבון שלך');
+
+    if (user.isActive && (OWNER_TIER_ROLES as readonly string[]).includes(user.role)) {
+      const activeOwnerTier = await prisma.user.count({
+        where: { restaurantId: user.restaurantId, isActive: true, role: { in: OWNER_TIER_ROLES as unknown as UserRole[] } },
+      });
+      if (activeOwnerTier <= 1) {
+        throw new BusinessRuleError('לא ניתן למחוק את הבעלים/מנהל האחרון של המסעדה');
+      }
+    }
+
+    try {
+      await prisma.user.delete({ where: { id: user.id } });
+    } catch (delErr: any) {
+      // P2003: foreign-key constraint — the user is still referenced by historical
+      // records. Deactivate instead of hard-deleting so the audit trail is preserved.
+      if (delErr?.code === 'P2003') {
+        throw new BusinessRuleError('לא ניתן למחוק — למשתמש יש היסטוריה מקושרת. השתמשו ב"הסר" (השבתה) במקום.');
+      }
+      throw delErr;
+    }
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

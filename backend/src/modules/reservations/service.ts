@@ -9,7 +9,7 @@ import {
   ValidationError,
 } from '../../lib/errors';
 import { getTableAvailability } from '../../engine/availability';
-import { resolveTurnTime } from '../../engine/opProfile';
+import { resolveTurnTime, baselineTurnMinutes } from '../../engine/opProfile';
 import {
   CreateReservationInput,
   UpdateReservationInput,
@@ -83,6 +83,9 @@ export async function listReservations(restaurantId: string, query: ListReservat
 
   const where: Prisma.ReservationWhereInput = { restaurantId };
 
+  // The client sends the business-day date (computed from operating hours; it does
+  // not flip at calendar midnight). An exact-date match returns all of that business
+  // day's reservations, which are stored under this date.
   if (date) where.date = parseDateArg(date);
   if (dateFrom || dateTo) {
     where.date = {
@@ -119,6 +122,35 @@ export async function listReservations(restaurantId: string, query: ListReservat
       take: limit,
     }),
   ]);
+
+  // ── Telemetry (P0 "disappearing reservations" diagnostics) ──────────────────
+  // Only for single-date board queries. Logs the queried business day + counts so a
+  // low rendered count vs DB total is diagnosable, and warns when a SEATED party
+  // (live physical occupancy) sits on a DIFFERENT date than the board — the exact
+  // signature of a reservation that "vanished" from the board while still in the DB.
+  if (date && !dateFrom && !dateTo) {
+    try {
+      const seatedOutside = await prisma.reservation.count({
+        where: { restaurantId, status: 'SEATED', date: { not: parseDateArg(date) } },
+      });
+      console.log('[reservations:telemetry]', JSON.stringify({
+        restaurantId,
+        boardDate: date,
+        matchedTotal: total,
+        returned: reservations.length,
+        page,
+        limit,
+      }));
+      if (seatedOutside > 0) {
+        console.warn('[reservations:telemetry] SEATED reservations exist OUTSIDE the queried board date', JSON.stringify({
+          restaurantId, boardDate: date, seatedOutsideCount: seatedOutside,
+        }));
+      }
+    } catch (telemetryErr) {
+      // Telemetry must never break the list response.
+      console.error('[reservations:telemetry] failed:', telemetryErr instanceof Error ? telemetryErr.message : telemetryErr);
+    }
+  }
 
   return {
     data: reservations,
@@ -173,8 +205,7 @@ export async function createReservation(
   actorName: string
 ) {
   const settings = await getRestaurantSettings(restaurantId);
-  const heuristicCreate = input.partySize >= 3 ? 120 : 90;
-  const duration = input.duration ?? await resolveTurnTime(restaurantId, input.partySize, heuristicCreate);
+  const duration = input.duration ?? await resolveTurnTime(restaurantId, input.partySize, baselineTurnMinutes(input.partySize));
   const date = parseDateArg(input.date);
 
   // STANDBY: skip all conflict/availability checks — no table assignment, no blocking
@@ -356,7 +387,7 @@ export async function updateReservation(
   const newPartySize = input.partySize ?? existing.partySize;
   const duration = input.duration ?? (
     input.partySize && input.partySize !== existing.partySize
-      ? await resolveTurnTime(restaurantId, newPartySize, newPartySize >= 3 ? 120 : 90)
+      ? await resolveTurnTime(restaurantId, newPartySize, baselineTurnMinutes(newPartySize))
       : existing.duration
   );
   const tableId = input.tableId !== undefined ? input.tableId : existing.tableId;
@@ -1586,9 +1617,55 @@ export async function undoReservation(
 
 // ─── Table Assignment Validation ─────────────────────────────────────────────
 //
-export async function deleteReservation(restaurantId: string, id: string) {
-  await assertReservationBelongsToRestaurant(id, restaurantId);
-  await prisma.reservation.delete({ where: { id } });
+// Hard delete — permanent and irreversible. Admin-only (enforced at the router).
+// A durable audit snapshot is written BEFORE the row is removed so the deletion is
+// always attributable and manually recoverable, even though the cascade also
+// destroys the reservation's activity log. actor/reason come from the request.
+export async function deleteReservation(
+  restaurantId: string,
+  id: string,
+  actor: { userId?: string | null; name: string; role?: string | null },
+  reason?: string,
+) {
+  const existing = await assertReservationBelongsToRestaurant(id, restaurantId);
+
+  await prisma.$transaction(async (tx) => {
+    // Best-effort in-timeline breadcrumb (cascaded away with the row, but captured
+    // in any streaming/replication before the delete lands).
+    await logActivity(tx, id, 'DELETED', actor.name, {
+      reason: reason ?? null,
+      deletedByUserId: actor.userId ?? null,
+      deletedByRole: actor.role ?? null,
+      status: existing.status,
+    });
+
+    // Durable audit — survives the delete (no FK to Reservation). Two-step write
+    // mirrors logActivity: create then raw ::jsonb update for the snapshot.
+    const auditRow = await tx.reservationDeletionAudit.create({
+      data: {
+        restaurantId,
+        reservationId:   id,
+        deletedByUserId: actor.userId ?? null,
+        deletedByName:   actor.name,
+        deletedByRole:   actor.role ?? null,
+        reason:          reason ?? null,
+      },
+      select: { id: true },
+    });
+    await tx.$executeRaw`
+      UPDATE reservation_deletion_audit
+      SET snapshot = ${JSON.stringify(existing)}::jsonb
+      WHERE id = ${auditRow.id}
+    `;
+
+    await tx.reservation.delete({ where: { id } });
+  });
+
+  console.warn('[reservation:deleted]', JSON.stringify({
+    restaurantId, reservationId: id, deletedByName: actor.name,
+    deletedByUserId: actor.userId ?? null, deletedByRole: actor.role ?? null,
+    reason: reason ?? null,
+  }));
 }
 
 // combinedTableIds: when non-empty, the booking spans multiple tables.

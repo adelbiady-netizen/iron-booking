@@ -349,6 +349,11 @@ export const api = {
       }),
     refresh: () =>
       request<{ token: string }>('/auth/refresh', { method: 'POST' }),
+    changePassword: (newPassword: string) =>
+      request<{ ok: true }>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ newPassword }),
+      }),
   },
 
   tables: {
@@ -800,8 +805,10 @@ export const api = {
         request<{ ok: boolean; to: string }>(`/admin/restaurants/${id}/whatsapp/test`, { method: 'POST', body: JSON.stringify({}) }),
       updateBranding: (id: string, body: { cuisine?: string | null; primaryColor?: string | null; accentColor?: string | null; publicThemePreset?: string | null; logoUrl?: string | null; coverImageUrl?: string | null; heroVideoUrl?: string | null; buttonStyle?: string | null; cardStyle?: string | null; backgroundMood?: string | null; backgroundColorHex?: string | null; backgroundGradientHex?: string | null; websiteUrl?: string | null; instagramUrl?: string | null; googleMapsUrl?: string | null; wazeUrl?: string | null }) =>
         request<{ id: string; cuisine: string | null; primaryColor: string | null; accentColor: string | null; publicThemePreset: string | null; logoUrl: string | null; coverImageUrl: string | null; heroVideoUrl: string | null; buttonStyle: string | null; cardStyle: string | null; backgroundMood: string | null; backgroundColorHex: string | null; backgroundGradientHex: string | null; websiteUrl: string | null; instagramUrl: string | null; googleMapsUrl: string | null; wazeUrl: string | null }>(`/admin/restaurants/${id}/branding`, { method: 'PATCH', body: JSON.stringify(body) }),
-      updatePortalPermissions: (id: string, body: { canManageOperatingHours?: boolean; canManageOnlineRestrictions?: boolean }) =>
-        request<{ canManageOperatingHours: boolean; canManageOnlineRestrictions: boolean }>(`/admin/restaurants/${id}/portal-permissions`, { method: 'PATCH', body: JSON.stringify(body) }),
+      updatePortalPermissions: (id: string, body: { canManageOperatingHours?: boolean; canManageOnlineRestrictions?: boolean; canManageSmsTemplates?: boolean }) =>
+        request<{ canManageOperatingHours: boolean; canManageOnlineRestrictions: boolean; canManageSmsTemplates: boolean }>(`/admin/restaurants/${id}/portal-permissions`, { method: 'PATCH', body: JSON.stringify(body) }),
+      smsTemplates: (id: string, smsTemplates: Record<string, { main: string | null; addon: string | null }>) =>
+        request<{ settings: Record<string, unknown> }>(`/admin/restaurants/${id}/sms-templates`, { method: 'PATCH', body: JSON.stringify({ smsTemplates }) }),
       updateOperatingHours: (id: string, hours: Array<{ dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string }>) =>
         request<Array<{ dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string; lastSeating: string }>>(`/admin/restaurants/${id}/operating-hours`, { method: 'PUT', body: JSON.stringify({ hours }) }),
       onlineRestrictions: {
@@ -927,6 +934,10 @@ export const api = {
       update: (id: string, body: {
         firstName?: string; lastName?: string; role?: string; isActive?: boolean; managementAccess?: boolean; password?: string;
       }) => request<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      resetPassword: (id: string) =>
+        request<{ tempPassword: string }>(`/admin/users/${id}/reset-password`, { method: 'POST', body: JSON.stringify({}) }),
+      remove: (id: string) =>
+        request<{ ok: true }>(`/admin/users/${id}`, { method: 'DELETE' }),
     },
     guestHub: {
       get: (restaurantId: string) =>
