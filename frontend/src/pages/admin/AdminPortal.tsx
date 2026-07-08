@@ -44,9 +44,9 @@ const SMS_TPL_VARS = ['{guestName}', '{restaurantName}', '{date}', '{time}', '{p
 // is set. The real send still uses the backend bilingual default — this is only for
 // the editor. The actual default adapts to the guest's language (he/en).
 const SMS_DEFAULT_TEMPLATES: Record<SmsTplType, string> = {
-  RESERVATION_RECEIVED: 'היי {guestName}, ההזמנה שלך ב-{restaurantName} התקבלה ל-{date} בשעה {time} עבור {partySize} סועדים. השולחן יעמוד לרשותכם למשך {reservationDuration}. מחכים לארח אותך.',
-  CONFIRMATION_REQUEST: 'שלום {guestName}, אנא אשר/י את הגעתך ל{restaurantName} בתאריך {date} בשעה {time} ל-{partySize} אנשים. השולחן יעמוד לרשותכם למשך {reservationDuration}. לאישור: {confirmationLink}',
-  REMINDER:             'היי {guestName}, תזכורת להזמנה שלך ב{restaurantName} היום בשעה {time}. השולחן יעמוד לרשותכם למשך {reservationDuration}. לאישור: {confirmationLink}',
+  RESERVATION_RECEIVED: 'היי {guestName}, קיבלנו את הזמנתך ל{restaurantName} בתאריך {date} בשעה {time} ל-{partySize} סועדים. השולחן שמור לכם למשך {reservationDuration}. נשמח לארח אתכם!',
+  CONFIRMATION_REQUEST: 'שלום {guestName}, נשמח לאישור הגעתך ל{restaurantName} בתאריך {date} בשעה {time} ל-{partySize} סועדים. השולחן שמור למשך {reservationDuration}. לאישור: {confirmationLink}',
+  REMINDER:             'היי {guestName}, מזכירים את הזמנתך ל{restaurantName} היום בשעה {time}. השולחן שמור למשך {reservationDuration}. לאישור ההגעה: {confirmationLink}',
 };
 
 const emptySmsTplForm = (): Record<SmsTplType, { main: string; addon: string }> => ({

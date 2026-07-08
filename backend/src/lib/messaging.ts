@@ -1,26 +1,10 @@
 import { prisma } from './prisma';
 import { MessageChannel, MessageProvider, MessageStatus, MessageType } from '@prisma/client';
-import { formatDurationHe, formatDurationEn, formatDurationByLang } from './duration';
+import { formatDurationByLang } from './duration';
 import { composeSms } from './smsTemplates';
+import { buildReservationReceivedText } from './smsDefaults';
 
 // ─── Reservation received ─────────────────────────────────────────────────────
-
-function buildReservationReceivedText(p: {
-  guestName: string;
-  restaurantName: string;
-  date: string;
-  time: string;
-  partySize: number;
-  lang: 'en' | 'he';
-  duration?: number;
-}): string {
-  if (p.lang === 'he') {
-    const durationLine = p.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(p.duration)}.` : '';
-    return `היי ${p.guestName}, ההזמנה שלך ב-${p.restaurantName} התקבלה ל-${p.date} בשעה ${p.time} עבור ${p.partySize} סועדים.${durationLine} מחכים לארח אותך.`;
-  }
-  const durationLine = p.duration ? ` Your table will be held for ${formatDurationEn(p.duration)}.` : '';
-  return `Hi ${p.guestName}, your reservation at ${p.restaurantName} was received for ${p.date} at ${p.time} for ${p.partySize} guests.${durationLine} We look forward to hosting you.`;
-}
 
 // Fire-and-forget safe: caller should void + .catch(). Dedup prevents duplicates.
 export async function sendReservationReceivedSms(params: {

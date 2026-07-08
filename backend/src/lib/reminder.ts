@@ -2,8 +2,9 @@ import { prisma } from './prisma';
 import { sendSms } from './messaging';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { config } from '../config';
-import { formatDurationHe, formatDurationEn, formatDurationByLang } from './duration';
+import { formatDurationByLang } from './duration';
 import { composeSms } from './smsTemplates';
+import { buildReminderSmsText } from './smsDefaults';
 
 export interface ReminderResult {
   sent: number;
@@ -41,20 +42,6 @@ function localDateYMD(timezone: string, now: Date): string {
     month: '2-digit',
     day: '2-digit',
   }).format(now);
-}
-
-function buildReminderSmsText(
-  r: { guestName: string; time: string; guestLang?: string | null; duration?: number | null },
-  restaurantName: string,
-  confirmUrl: string,
-): string {
-  const lang = r.guestLang ?? 'he';
-  if (lang === 'he') {
-    const durationLine = r.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(r.duration)}.` : '';
-    return `היי ${r.guestName}, תזכורת להזמנה שלך ב${restaurantName} היום בשעה ${r.time}.${durationLine} לאישור: ${confirmUrl}`;
-  }
-  const durationLine = r.duration ? ` Your table is held for ${formatDurationEn(r.duration)}.` : '';
-  return `Hi ${r.guestName}, reminder for your reservation at ${restaurantName} today at ${r.time}.${durationLine} Confirm: ${confirmUrl}`;
 }
 
 export async function sendReservationReminders(

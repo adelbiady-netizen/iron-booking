@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { formatDurationHe, formatDurationEn, formatDurationByLang } from '../../lib/duration';
 import {
@@ -17,6 +17,7 @@ import * as service from './service';
 import { sendConfirmationSms } from '../../lib/sms';
 import { sendSms, sendReservationReceivedSms } from '../../lib/messaging';
 import { composeSms } from '../../lib/smsTemplates';
+import { buildConfirmationRequestSmsText, buildReminderSmsText } from '../../lib/smsDefaults';
 import { MessageType, MessageStatus } from '@prisma/client';
 import { sendReservationReminders } from '../../lib/reminder';
 import { prisma } from '../../lib/prisma';
@@ -60,35 +61,6 @@ function buildConfirmationSmsText(
   }
   const durationLine = r.duration ? ` Your table will be held for ${formatDurationEn(r.duration)}.` : '';
   return `Hi ${r.guestName}, your reservation at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests has been confirmed.${durationLine} Thank you!`;
-}
-
-function buildReminderSmsText(
-  r: { guestName: string; time: string; guestLang?: string | null; duration?: number | null },
-  restaurantName: string,
-  confirmUrl: string,
-): string {
-  const lang = r.guestLang ?? 'he';
-  if (lang === 'he') {
-    const durationLine = r.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(r.duration)}.` : '';
-    return `היי ${r.guestName}, תזכורת להזמנה שלך ב${restaurantName} היום בשעה ${r.time}.${durationLine} לאישור: ${confirmUrl}`;
-  }
-  const durationLine = r.duration ? ` Your table is held for ${formatDurationEn(r.duration)}.` : '';
-  return `Hi ${r.guestName}, reminder for your reservation at ${restaurantName} today at ${r.time}.${durationLine} Confirm: ${confirmUrl}`;
-}
-
-function buildConfirmationRequestSmsText(
-  r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null; duration?: number | null },
-  restaurantName: string,
-  confirmUrl: string,
-): string {
-  const lang = r.guestLang ?? 'he';
-  const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
-  if (lang === 'he') {
-    const durationLine = r.duration ? ` השולחן יעמוד לרשותכם למשך ${formatDurationHe(r.duration)}.` : '';
-    return `שלום ${r.guestName}, אנא אשר/י את הגעתך ל${restaurantName} בתאריך ${dateStr} בשעה ${r.time} ל-${r.partySize} אנשים.${durationLine} לאישור: ${confirmUrl}`;
-  }
-  const durationLine = r.duration ? ` Your table will be held for ${formatDurationEn(r.duration)}.` : '';
-  return `Hi ${r.guestName}, please confirm your arrival at ${restaurantName} on ${dateStr} at ${r.time} for ${r.partySize} guests.${durationLine} Confirm here: ${confirmUrl}`;
 }
 
 const router = Router();
@@ -479,10 +451,18 @@ router.post('/:id/unconfirm', async (req: Request, res: Response, next: NextFunc
   } catch (err) { next(err); }
 });
 
-// DELETE /reservations/:id
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /reservations/:id — PERMANENT hard delete. Admin-only (requireRole('ADMIN')
+// blocks HOST/SERVER/MANAGER; OWNER/ADMIN/RESTAURANT_ADMIN/HQ_ADMIN/SUPER_ADMIN pass).
+// The service writes a durable ReservationDeletionAudit snapshot before removing the row.
+router.delete('/:id', requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await service.deleteReservation(req.auth.restaurantId, p(req, 'id'));
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+    await service.deleteReservation(
+      req.auth.restaurantId,
+      p(req, 'id'),
+      { userId: req.auth.userId, name: actorName(req), role: req.auth.role },
+      reason,
+    );
     res.status(204).send();
     notifyFloorUpdated(req.auth.restaurantId);
   } catch (err) { next(err); }
