@@ -292,6 +292,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     tableFloor: FloorTable;
   } | null>(null);
 
+  // Host-controlled assign onto an occupied table: confirm before lifting the
+  // current seated guest(s) to "no table" and assigning the picked reservation.
+  const [assignOccupiedConfirm, setAssignOccupiedConfirm] = useState<{
+    occupants: { occupantId: string; tableName: string; guestName: string }[];
+    guestName?: string;
+    run: () => Promise<void>;
+  } | null>(null);
+
   const sseStatus = useServerEvents({
     incoming_call: (data) => {
       const raw = data as Record<string, unknown>;
@@ -1696,39 +1704,69 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         const [primaryId, ...secondaryIds] = ids;
         const primaryTable = floorTables.find(t => t.id === primaryId) ?? allTables.find(t => t.id === primaryId);
         const name = primaryTable?.name ?? primaryId;
-        // handlePickDone already applied optimistic update — just persist to server
-        const prevReservations = reservations;
-        try {
-          const updated = await api.reservations.update(r.id, {
-            tableId: primaryId,
-            combinedTableIds: secondaryIds,
-          });
-          // Reconcile with server truth and force an immediate floor refresh so
-          // floorTables reflects the new assignment without waiting for SSE.
-          setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
-          setRefreshKey(k => k + 1);
-          showToast(T.guestDrawer.toastTableAssigned(name));
-        } catch (err) {
-          // Roll back optimistic update
-          setReservations(prevReservations);
-          if (err instanceof ApiError && err.code === 'CONFLICT') {
-            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
-            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
-              setReorganizeConflict({
-                conflicts: det.conflicts,
-                pendingReservationId: r.id,
-                pendingTableId: primaryId,
-                pendingCombinedIds: secondaryIds,
-                tableName: name,
-                busy: false,
-                _key: ++reorganizeKeyRef.current,
-                pendingAssignResId: r.id,
-              });
-              return;
+
+        // Host-controlled override: any picked table that is physically occupied by a
+        // SEATED guest gets that guest lifted to "no table" (unseat) before we assign.
+        // Future-reservation conflicts are handled separately by the reorganize modal.
+        const occupants = ids
+          .map(tid => floorTables.find(t => t.id === tid))
+          .filter((t): t is FloorTable => !!t?.currentReservation
+            && (t.liveStatus === 'OCCUPIED' || t.liveStatus === 'STALE_OCCUPIED'))
+          .map(t => ({ occupantId: t.currentReservation!.id, tableName: t.name, guestName: t.currentReservation!.guestName }));
+
+        const persistAssign = async () => {
+          const prevReservations = reservations;
+          try {
+            // Lift any seated occupant(s) to "no table" first so the target frees up
+            // server-side, then assign. Both are existing, audited operations.
+            for (const occ of occupants) {
+              const lifted = await api.reservations.unseat(occ.occupantId);
+              setReservations(prev => prev.map(x => x.id === lifted.id ? { ...x, ...lifted } : x));
             }
+            const updated = await api.reservations.update(r.id, {
+              tableId: primaryId,
+              combinedTableIds: secondaryIds,
+            });
+            // Reconcile with server truth and force an immediate floor refresh so
+            // floorTables reflects the new assignment without waiting for SSE.
+            setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+            setRefreshKey(k => k + 1);
+            showToast(T.guestDrawer.toastTableAssigned(name));
+          } catch (err) {
+            // Roll back optimistic update and re-sync the floor (occupants may have
+            // already been lifted before the failure).
+            setReservations(prevReservations);
+            setRefreshKey(k => k + 1);
+            if (err instanceof ApiError && err.code === 'CONFLICT') {
+              const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+              if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+                setReorganizeConflict({
+                  conflicts: det.conflicts,
+                  pendingReservationId: r.id,
+                  pendingTableId: primaryId,
+                  pendingCombinedIds: secondaryIds,
+                  tableName: name,
+                  busy: false,
+                  _key: ++reorganizeKeyRef.current,
+                  pendingAssignResId: r.id,
+                });
+                return;
+              }
+            }
+            showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
           }
-          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+        };
+
+        if (occupants.length > 0) {
+          // Undo the optimistic assignment applied in handlePickDone until the host
+          // confirms displacing the seated guest(s).
+          setReservations(prev => prev.map(x => x.id === r.id
+            ? { ...x, tableId: null, combinedTableIds: [], table: null }
+            : x));
+          setAssignOccupiedConfirm({ occupants, guestName: r.guestName, run: persistAssign });
+          return;
         }
+        await persistAssign();
       },
       pickAction,
       r.guestName,
@@ -3459,6 +3497,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 transition-colors"
               >
                 אשר והושב
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Host-controlled assign onto an occupied table — lift the seated guest(s) to "no table" */}
+      {assignOccupiedConfirm && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setAssignOccupiedConfirm(null)} />
+          <div className="relative z-10 bg-iron-card border border-iron-border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 text-right" dir="rtl">
+            <h2 className="text-iron-text font-bold text-base mb-2">שולחן תפוס</h2>
+            <p className="text-iron-muted text-sm leading-relaxed mb-4">
+              {assignOccupiedConfirm.occupants.length === 1
+                ? `${assignOccupiedConfirm.occupants[0].guestName} יושב כרגע ב${assignOccupiedConfirm.occupants[0].tableName}. אישור יעביר אותו ל"ללא שולחן" וישבץ ${assignOccupiedConfirm.guestName ?? 'את ההזמנה'} במקומו.`
+                : `אישור יעביר את האורחים הבאים ל"ללא שולחן" וישבץ ${assignOccupiedConfirm.guestName ?? 'את ההזמנה'} במקומם: ${assignOccupiedConfirm.occupants.map(o => `${o.guestName} (${o.tableName})`).join(', ')}.`}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setAssignOccupiedConfirm(null)}
+                className="px-4 py-2 rounded-lg border border-iron-border text-iron-muted text-sm hover:bg-iron-elevated transition-colors"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={async () => {
+                  const run = assignOccupiedConfirm.run;
+                  setAssignOccupiedConfirm(null);
+                  await run();
+                }}
+                className="px-4 py-2 rounded-lg bg-iron-green/20 border border-iron-green/40 text-iron-green-light text-sm font-semibold hover:bg-iron-green/30 transition-colors"
+              >
+                אשר ושבץ
               </button>
             </div>
           </div>
