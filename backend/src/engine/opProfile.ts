@@ -42,6 +42,17 @@ export async function resolveTurnTime(
   }
 }
 
+// ─── baselineTurnMinutes ─────────────────────────────────────────────────────
+// The product-default turn time when no TurnTimeRule matches: parties of 3+
+// hold the table for 2h (120min), parties of 1–2 for 1.5h (90min). This is the
+// single source of truth for that rule — used as the resolveTurnTime() fallback
+// on every creation channel (host, phone, online link) so they cannot drift.
+// Note: intentionally NOT gated on settings.defaultTurnMinutes; a restaurant
+// that wants a different turn time configures an (overriding) TurnTimeRule.
+export function baselineTurnMinutes(partySize: number): number {
+  return partySize >= 3 ? 120 : 90;
+}
+
 // ─── resolveTimeWindows ──────────────────────────────────────────────────────
 // Returns all active online-scoped windows for a date as a sorted array, or
 // null when no window rule applies (use full operating hours).

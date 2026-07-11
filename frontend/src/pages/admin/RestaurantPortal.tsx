@@ -7,6 +7,41 @@ import type { AuthState } from '../../types';
 
 type Section = 'dashboard' | 'guest-experience' | 'operations' | 'floor-plan' | 'marketing' | 'settings';
 
+// ── SMS wording templates ──────────────────────────────────────────────────
+// Mirrors backend SmsTemplatesSchema: three message types, each with an
+// optional `main` override (uses {variables}) and an appended free-text `addon`.
+type SmsTplType = 'RESERVATION_RECEIVED' | 'CONFIRMATION_REQUEST' | 'REMINDER';
+type SmsTplState = Record<SmsTplType, { main: string; addon: string }>;
+
+const EMPTY_SMS_TPL: SmsTplState = {
+  RESERVATION_RECEIVED: { main: '', addon: '' },
+  CONFIRMATION_REQUEST: { main: '', addon: '' },
+  REMINDER:             { main: '', addon: '' },
+};
+
+// Per-type editor metadata: Hebrew label, description, and the variables that
+// carry a real value for that message (unknown vars render as empty text).
+const SMS_TPL_META: { type: SmsTplType; label: string; desc: string; vars: string[] }[] = [
+  {
+    type: 'RESERVATION_RECEIVED',
+    label: 'הזמנה התקבלה',
+    desc: 'נשלחת מיד עם קליטת הזמנה חדשה (כולל הזמנות טלפוניות ואונליין).',
+    vars: ['{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{reservationDuration}'],
+  },
+  {
+    type: 'CONFIRMATION_REQUEST',
+    label: 'בקשת אישור הגעה',
+    desc: 'נשלחת כשמבקשים מהאורח לאשר את הגעתו, עם קישור אישור.',
+    vars: ['{guestName}', '{restaurantName}', '{date}', '{time}', '{partySize}', '{confirmationLink}', '{reservationDuration}'],
+  },
+  {
+    type: 'REMINDER',
+    label: 'תזכורת',
+    desc: 'תזכורת ביום ההזמנה.',
+    vars: ['{guestName}', '{restaurantName}', '{time}', '{confirmationLink}', '{reservationDuration}'],
+  },
+];
+
 interface ScheduleRow {
   dayOfWeek: number; isOpen: boolean;
   openTime: string; closeTime: string; lastSeating: string;
@@ -195,7 +230,13 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
   const [permissions, setPermissions] = useState<{
     canManageOperatingHours: boolean;
     canManageOnlineRestrictions: boolean;
+    canManageSmsTemplates?: boolean;
   } | null>(null);
+
+  // ── SMS wording templates (restaurant self-service) ───────────────────────
+  const [smsTpl,      setSmsTpl]      = useState<SmsTplState>(EMPTY_SMS_TPL);
+  const [smsTplBusy,  setSmsTplBusy]  = useState(false);
+  const [smsTplError, setSmsTplError] = useState<string | null>(null);
 
   // ── Group Allocation Rules state ──────────────────────────────────────────
   const isSuperAdmin = auth.user.role === 'SUPER_ADMIN';
@@ -389,6 +430,12 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
         minAdvanceBookingHours:    (s['minAdvanceBookingHours']     as number) ?? 2,
         reminderEnabled:           (s['reminderEnabled']            as boolean) ?? true,
         reminderLeadMinutes:       (s['reminderLeadMinutes']        as number) ?? 60,
+      });
+      const rawTpl = (s['smsTemplates'] ?? {}) as Partial<Record<SmsTplType, { main?: string | null; addon?: string | null }>>;
+      setSmsTpl({
+        RESERVATION_RECEIVED: { main: rawTpl.RESERVATION_RECEIVED?.main ?? '', addon: rawTpl.RESERVATION_RECEIVED?.addon ?? '' },
+        CONFIRMATION_REQUEST: { main: rawTpl.CONFIRMATION_REQUEST?.main ?? '', addon: rawTpl.CONFIRMATION_REQUEST?.addon ?? '' },
+        REMINDER:             { main: rawTpl.REMINDER?.main             ?? '', addon: rawTpl.REMINDER?.addon             ?? '' },
       });
       const frd = s['futureReservationDisplay'];
       setFutureResDisplay(frd === 'TIMELINE' || frd === 'COMPACT' ? frd : 'DETAILED');
@@ -764,6 +811,26 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
       const updated = await api.admin.restaurants.timeWindows.update(restaurantId, w.id, { isActive: !w.isActive });
       setTimeWindows(ws => ws.map(x => x.id === w.id ? updated : x));
     } catch { showToast('שגיאה בעדכון'); }
+  }
+
+  async function handleSaveSmsTemplates() {
+    if (!restaurantId) return;
+    setSmsTplBusy(true);
+    setSmsTplError(null);
+    try {
+      // Empty → null so an unset override falls back to the built-in default text.
+      const payload: Record<SmsTplType, { main: string | null; addon: string | null }> = {
+        RESERVATION_RECEIVED: { main: smsTpl.RESERVATION_RECEIVED.main.trim() || null, addon: smsTpl.RESERVATION_RECEIVED.addon.trim() || null },
+        CONFIRMATION_REQUEST: { main: smsTpl.CONFIRMATION_REQUEST.main.trim() || null, addon: smsTpl.CONFIRMATION_REQUEST.addon.trim() || null },
+        REMINDER:             { main: smsTpl.REMINDER.main.trim() || null,             addon: smsTpl.REMINDER.addon.trim() || null },
+      };
+      await api.admin.restaurants.smsTemplates(restaurantId, payload);
+      showToast('נוסח ההודעות נשמר');
+    } catch {
+      setSmsTplError('שמירת הנוסח נכשלה');
+    } finally {
+      setSmsTplBusy(false);
+    }
   }
 
   // ── Button styles ─────────────────────────────────────────────────────────
@@ -2030,10 +2097,59 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
     );
   }
 
+  function renderSmsTemplates() {
+    return (
+      <div className="bg-iron-surface rounded-lg p-5 border border-iron-border space-y-5" dir="rtl">
+        <div>
+          <h3 className="font-medium text-iron-text">נוסח הודעות SMS</h3>
+          <p className="text-[11px] text-iron-muted mt-1">
+            התאמת נוסח ההודעות הנשלחות לאורחים. השאירו את שדה הנוסח ריק כדי להשתמש בברירת המחדל של המערכת.
+            אפשר להשתמש במשתנים המוצגים לכל הודעה — הם יוחלפו בפרטי ההזמנה בפועל.
+          </p>
+        </div>
+
+        {SMS_TPL_META.map(({ type, label, desc, vars }) => (
+          <div key={type} className="border-t border-iron-border/40 pt-4 first:border-t-0 first:pt-0 space-y-2">
+            <div>
+              <span className="text-iron-text text-sm font-medium">{label}</span>
+              <p className="text-[11px] text-iron-muted mt-0.5">{desc}</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5" dir="ltr">
+              {vars.map(v => (
+                <code key={v} className="text-[11px] text-iron-green bg-iron-bg border border-iron-border rounded px-1.5 py-0.5">{v}</code>
+              ))}
+            </div>
+            <textarea
+              value={smsTpl[type].main}
+              onChange={e => setSmsTpl(t => ({ ...t, [type]: { ...t[type], main: e.target.value } }))}
+              rows={3}
+              placeholder="נוסח מותאם (ריק = ברירת מחדל של המערכת)"
+              className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-sm text-iron-text focus:outline-none focus:border-iron-green resize-y"
+            />
+            <input
+              value={smsTpl[type].addon}
+              onChange={e => setSmsTpl(t => ({ ...t, [type]: { ...t[type], addon: e.target.value } }))}
+              placeholder="שורת הערה שתתווסף בסוף ההודעה (אופציונלי)"
+              className="w-full bg-iron-bg border border-iron-border rounded px-3 py-2 text-sm text-iron-text focus:outline-none focus:border-iron-green"
+            />
+          </div>
+        ))}
+
+        {smsTplError && <p className="text-xs text-status-danger">{smsTplError}</p>}
+        <div className="flex pt-1">
+          <button onClick={handleSaveSmsTemplates} disabled={smsTplBusy} className={btnPrimary}>
+            {smsTplBusy ? 'שומר…' : 'שמור נוסח'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   function renderOperations() {
     const canHours        = permissions?.canManageOperatingHours     ?? false;
     const canRestrictions = permissions?.canManageOnlineRestrictions ?? false;
-    const hasAnyTool      = canHours || canRestrictions || isSuperAdmin || !!restaurantId;
+    const canSms          = permissions?.canManageSmsTemplates        ?? false;
+    const hasAnyTool      = canHours || canRestrictions || canSms || isSuperAdmin || !!restaurantId;
 
     return (
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6" dir="rtl">
@@ -2233,6 +2349,7 @@ export default function RestaurantPortal({ auth, onLogout, managedRestaurantId }
               )}
             </div>
           )}
+          {canSms && renderSmsTemplates()}
           {renderTimeWindows()}
           {isSuperAdmin && renderOpSettings()}
           {isSuperAdmin && renderTurnTimeRules()}

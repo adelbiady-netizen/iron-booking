@@ -912,12 +912,11 @@ export default function FloorBoard({
     // pass through — the backend returns TABLE_HAS_FUTURE_RESERVATIONS and the
     // reorganize modal handles the decision.
     if (waitlistAssignEntry) {
-      const isHardBlocked =
-        t.liveStatus === 'OCCUPIED' ||
-        t.liveStatus === 'STALE_OCCUPIED' ||
-        t.liveStatus === 'BLOCKED' ||
-        t.locked;
-      if (isHardBlocked) {
+      // Host-controlled: occupied (SEATED) and future-reserved tables are pickable —
+      // on confirm HostDashboard lifts the current occupant to "no table" (unseat) or
+      // displaces future bookings (reorganize). Only admin-locked / blocked-period
+      // tables stay protected (reopening those is an admin action, not a seating one).
+      if (t.locked || t.liveStatus === 'BLOCKED') {
         const wid = t.id;
         setWlPickWarn(wid);
         setTimeout(() => setWlPickWarn(w => (w === wid ? null : w)), 2500);
@@ -997,13 +996,18 @@ export default function FloorBoard({
       if (pickAction === 'combine' && !pickSelection.includes(t.id)) {
         if (t.currentReservation || t.locked) return;
       }
-      // Assign is planning — only hard-block tables that are physically occupied now,
-      // admin-locked, or carry a true time-overlap conflict from the backend.
-      // Tables with non-overlapping future reservations are selectable (planning rule).
+      // Assign is host-controlled: occupied (SEATED) and future-reserved tables are
+      // selectable. On confirm, HostDashboard lifts the current occupant to "no table"
+      // (unseat) or displaces future bookings (reorganize) before assigning — the host
+      // decides. Only admin-locked or blocked-period tables stay protected, because
+      // reopening those is an admin action, not a host seating decision.
       if (pickAction === 'assign' && !pickSelection.includes(t.id)) {
-        const isSeatedNow = !!t.currentReservation;
-        const isTrulyBlocked = t.locked || getPickStatus(t) === 'unavailable';
-        if (isSeatedNow || isTrulyBlocked) return;
+        if (t.locked || t.liveStatus === 'BLOCKED') {
+          const wid = t.id;
+          setPickWarn(wid);
+          setTimeout(() => setPickWarn(w => (w === wid ? null : w)), 2500);
+          return;
+        }
       }
       // Toggle multi-select for seat and move: first click selects, second deselects.
       // First selected table = tableId (primary), rest = combinedTableIds.

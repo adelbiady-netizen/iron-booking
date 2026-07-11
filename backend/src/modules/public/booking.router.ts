@@ -5,7 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { Prisma, ClubJoinSource, ClubMemberStatus } from '@prisma/client';
 import { addMinutes, areIntervalsOverlapping } from 'date-fns';
 import { parseTimeOnDate, formatTime } from '../../engine/availability';
-import { resolveTurnTime, resolveTimeWindows, resolveGroupConfig, type GroupConfig, type TimeWindowRange } from '../../engine/opProfile';
+import { resolveTurnTime, baselineTurnMinutes, resolveTimeWindows, resolveGroupConfig, type GroupConfig, type TimeWindowRange } from '../../engine/opProfile';
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { sendReservationReceivedSms } from '../../lib/messaging';
 import { writeConsentAudit, ConsentType, ConsentAction, ConsentSource } from '../../lib/consentAudit';
@@ -75,6 +75,9 @@ function parseSettings(settings: unknown) {
     minAdvanceBookingHours:    (s['minAdvanceBookingHours']     as number) ?? 2,
     maxOnlinePartySize:        (s['maxOnlinePartySize']         as number) ?? 5,
     maxOnlineCoversPerWindow:  (s['maxOnlineCoversPerWindow']   as number) ?? 40,
+    // Show the "join our guest club" opt-in on the public booking form.
+    // Off by default — HQ enables it per restaurant.
+    guestClubSignupEnabled:    (s['guestClubSignupEnabled']     as boolean) ?? false,
   };
 }
 
@@ -674,6 +677,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
       maxOnlinePartySize:   Math.min(s.maxOnlinePartySize, s.maxPartySize, config.maxPartySizeAbsolute),
       slotIntervalMinutes:  s.slotIntervalMinutes,
       maxAdvanceBookingDays: s.maxAdvanceBookingDays,
+      guestClubSignupEnabled: s.guestClubSignupEnabled,
       operatingHours: restaurant.operatingHours.map(h => ({
         dayOfWeek:  h.dayOfWeek,
         isOpen:     h.isOpen,
@@ -732,7 +736,7 @@ router.get('/:slug/availability', async (req: Request, res: Response, next: Next
       return res.json({ date, partySize, slots: [], isFullyBooked: false, isClosed: true, isPast: false, alternatives: [] });
     }
 
-    const heuristicTurn = s.defaultTurnMinutes || (partySize >= 3 ? 120 : 90);
+    const heuristicTurn = baselineTurnMinutes(partySize);
     const [resolvedTurnMinutes, timeWindows] = await Promise.all([
       resolveTurnTime(restaurant.id, partySize, heuristicTurn),
       resolveTimeWindows(restaurant.id, date, dateObj.getUTCDay()),
@@ -866,7 +870,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     const token = crypto.randomUUID();
     let reservation: { id: string; tableId: string | null };
 
-    const heuristicTurnReserve = s.defaultTurnMinutes || (body.partySize >= 3 ? 120 : 90);
+    const heuristicTurnReserve = baselineTurnMinutes(body.partySize);
     const [effectiveTurnMinutes, groupConfig] = await Promise.all([
       resolveTurnTime(restaurant.id, body.partySize, heuristicTurnReserve),
       resolveGroupConfig(restaurant.id, body.partySize),
@@ -986,7 +990,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
       time:          body.time,
       partySize:     body.partySize,
       lang:          body.lang === 'he' ? 'he' : 'en',
-      duration:      s.defaultTurnMinutes,
+      duration:      effectiveTurnMinutes,
     }).catch((e: unknown) => {
       console.error('[booking] Reservation received SMS failed:', e instanceof Error ? e.message : e);
     });
@@ -1007,7 +1011,7 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
           body.partySize,
           confirmUrl,
           lang,
-          s.defaultTurnMinutes,
+          effectiveTurnMinutes,
         );
         await prisma.reservation.update({
           where: { id: reservation.id },
