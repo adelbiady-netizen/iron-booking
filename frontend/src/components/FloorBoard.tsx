@@ -912,12 +912,11 @@ export default function FloorBoard({
     // pass through — the backend returns TABLE_HAS_FUTURE_RESERVATIONS and the
     // reorganize modal handles the decision.
     if (waitlistAssignEntry) {
-      const isHardBlocked =
-        t.liveStatus === 'OCCUPIED' ||
-        t.liveStatus === 'STALE_OCCUPIED' ||
-        t.liveStatus === 'BLOCKED' ||
-        t.locked;
-      if (isHardBlocked) {
+      // Host-controlled: occupied (SEATED) and future-reserved tables are pickable —
+      // on confirm HostDashboard lifts the current occupant to "no table" (unseat) or
+      // displaces future bookings (reorganize). Only admin-locked / blocked-period
+      // tables stay protected (reopening those is an admin action, not a seating one).
+      if (t.locked || t.liveStatus === 'BLOCKED') {
         const wid = t.id;
         setWlPickWarn(wid);
         setTimeout(() => setWlPickWarn(w => (w === wid ? null : w)), 2500);

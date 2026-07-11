@@ -1425,12 +1425,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (!waitlistAssignEntry) return;
     const entry   = waitlistAssignEntry;
     const tableId = waitlistAssignTableId ?? undefined;
-    const ok = await executeWaitlistSeat(entry, tableId);
-    if (ok) {
-      setWaitlistAssignEntry(null);
-      setWaitlistAssignTableId(null);
+
+    const finish = async () => {
+      const ok = await executeWaitlistSeat(entry, tableId);
+      if (ok) {
+        setWaitlistAssignEntry(null);
+        setWaitlistAssignTableId(null);
+      }
+    };
+
+    // Host-controlled override: if the picked table is physically occupied by a SEATED
+    // guest, confirm and lift that guest to "no table" (unseat) before seating the
+    // waitlist party. Future-reservation conflicts are handled inside executeWaitlistSeat.
+    const tbl = tableId ? floorTables.find(t => t.id === tableId) : undefined;
+    if (tbl?.currentReservation && (tbl.liveStatus === 'OCCUPIED' || tbl.liveStatus === 'STALE_OCCUPIED')) {
+      const occ = { occupantId: tbl.currentReservation.id, tableName: tbl.name, guestName: tbl.currentReservation.guestName };
+      setAssignOccupiedConfirm({
+        occupants: [occ],
+        guestName: entry.guestName,
+        run: async () => {
+          try {
+            const lifted = await api.reservations.unseat(occ.occupantId);
+            setReservations(prev => prev.map(x => x.id === lifted.id ? { ...x, ...lifted } : x));
+          } catch (err) {
+            setRefreshKey(k => k + 1);
+            showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+            return;
+          }
+          await finish();
+        },
+      });
+      return;
     }
-  }, [waitlistAssignEntry, waitlistAssignTableId, executeWaitlistSeat]);
+    await finish();
+  }, [waitlistAssignEntry, waitlistAssignTableId, executeWaitlistSeat, floorTables, showToast]);
 
   // Bidirectional date sync: called by CreateDrawer and GuestDrawer (edit mode)
   // whenever the host changes the reservation date or time inside the drawer.
