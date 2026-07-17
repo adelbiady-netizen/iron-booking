@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { api } from '../api';
 import type { AuthUser } from '../types';
+import ForcePasswordChange from './ForcePasswordChange';
 
 interface Props {
   onLogin: (token: string, user: AuthUser) => void;
@@ -11,7 +12,16 @@ export default function LoginPage({ onLogin }: Props) {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
+  // Set when the account signed in with a temporary password — forces a change.
+  const [pending,  setPending]  = useState<{ token: string; user: AuthUser } | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+
+  function finishLogin(token: string, user: AuthUser) {
+    if (user.restaurant?.id) {
+      localStorage.setItem('iron_restaurant_id', user.restaurant.id);
+    }
+    onLogin(token, user);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,10 +29,11 @@ export default function LoginPage({ onLogin }: Props) {
     setLoading(true);
     try {
       const r = await api.auth.login(email, password);
-      if (r.user.restaurant?.id) {
-        localStorage.setItem('iron_restaurant_id', r.user.restaurant.id);
+      if (r.user.mustChangePassword) {
+        setPending({ token: r.token, user: r.user });
+        return;
       }
-      onLogin(r.token, r.user);
+      finishLogin(r.token, r.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       const isWrongPassword = msg.toLowerCase().includes('invalid') ||
@@ -33,6 +44,10 @@ export default function LoginPage({ onLogin }: Props) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (pending) {
+    return <ForcePasswordChange token={pending.token} user={pending.user} onDone={finishLogin} dir="ltr" />;
   }
 
   return (

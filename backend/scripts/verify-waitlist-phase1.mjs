@@ -33,8 +33,9 @@ P('migration method: prisma db push', true, 'no migration names; schema applied 
 console.log('\n=== 2. ADD WAITLIST ENTRY ===');
 // ════════════════════════════════════════════════════════════════
 // Clean up stale test entries from prior runs
-const existing = await GET(`/waitlist?date=${DATE}`);
-const stale = (existing.entries ?? existing ?? []).filter(e => ['+972-VERIFY-001','+972-VERIFY-002','+972-VERIFY-003'].includes(e.guestPhone));
+const existingRaw = await GET(`/waitlist?date=${DATE}`);
+const existing = Array.isArray(existingRaw) ? existingRaw : (existingRaw.entries ?? []);
+const stale = existing.filter(e => ['+972-VERIFY-001','+972-VERIFY-002','+972-VERIFY-003'].includes(e.guestPhone));
 for (const e of stale) {
   await POST(`/waitlist/${e.id}/remove`, { reason: 'REMOVED' });
 }
@@ -148,8 +149,8 @@ console.log('\n=== 7. TENANT ISOLATION ===');
 // The auth token scopes all queries to req.auth.restaurantId — there's no
 // way to supply a different restaurantId via the body or URL for GET /waitlist.
 // Verify by confirming the list only contains entries for our restaurant.
-const listCheck = await GET(`/waitlist?date=${DATE}`);
-const listEntries = listCheck.entries ?? listCheck ?? [];
+const listCheckRaw = await GET(`/waitlist?date=${DATE}`);
+const listEntries = Array.isArray(listCheckRaw) ? listCheckRaw : (listCheckRaw.entries ?? []);
 const allSameRestaurant = listEntries.every(e => e.restaurantId === (listEntries[0]?.restaurantId));
 P('all list entries share same restaurantId', allSameRestaurant || listEntries.length === 0,
   listEntries.length === 0 ? 'empty list' : `restaurantId=${listEntries[0]?.restaurantId}`);
@@ -165,8 +166,8 @@ if (entryId) {
 // ════════════════════════════════════════════════════════════════
 console.log('\n=== 8. ACTIVE LIST STATE ===');
 // ════════════════════════════════════════════════════════════════
-const finalList = await GET(`/waitlist?date=${DATE}`);
-const finalEntries = finalList.entries ?? finalList ?? [];
+const finalListRaw = await GET(`/waitlist?date=${DATE}`);
+const finalEntries = Array.isArray(finalListRaw) ? finalListRaw : (finalListRaw.entries ?? []);
 const activeEntries = finalEntries.filter(e => ['WAITING','NOTIFIED'].includes(e.status));
 
 // entry1 = NOTIFIED → still in active list

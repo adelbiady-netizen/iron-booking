@@ -20,12 +20,12 @@ function fmtVirtualLocal(d: Date): string {
 }
 
 export async function getFloorState(restaurantId: string, date: Date, time: string) {
-  // Hoist slotTime so the blocks query can use the correct interval window.
-  // Using a conservative lookahead (max turn 120 min + buffer 15 min = 135 min)
-  // ensures we capture any blocked period that a new assignment would overlap,
-  // matching getTableAvailability() semantics.  Per-table filtering below uses
-  // the real settings to avoid false positives.
+  // The board `date` is the restaurant's BUSINESS DAY, computed on the client from
+  // operating hours (it does not flip at calendar midnight). The backend simply
+  // queries that exact date — all of a business day's reservations (seated, active,
+  // pending, no-table, walk-ins) are stored under it, so an exact match returns them.
   const slotTime = parseTimeOnDate(date, time);
+  const boardDateStr = date.toISOString().slice(0, 10);
 
   const [tables, reservations, blocks, restaurantRow] = await Promise.all([
     prisma.table.findMany({
@@ -95,8 +95,30 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
   // Stale-board detection: is the board date strictly before today in the restaurant's timezone?
   // Used below to surface forgotten SEATED reservations as STALE_OCCUPIED rather than emergency red.
   const todayLocal     = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
-  const boardDateStr   = (date instanceof Date ? date : new Date(String(date))).toISOString().slice(0, 10);
   const isStaleBoardDate = boardDateStr < todayLocal;
+
+  // ── Telemetry (P0 "disappearing reservations" diagnostics) ──────────────────
+  // The client sends the business-day date; log it + timezone + fetched count, and
+  // warn when a SEATED party (live physical occupancy) exists on a DIFFERENT date
+  // than the board — the signature of a guest seated but not shown on this board.
+  console.log('[floor:telemetry]', JSON.stringify({
+    restaurantId,
+    boardDate: boardDateStr,
+    timezone,
+    fetched: reservations.length,
+  }));
+  try {
+    const seatedOutside = await prisma.reservation.count({
+      where: { restaurantId, status: 'SEATED', date: { not: date } },
+    });
+    if (seatedOutside > 0) {
+      console.warn('[floor:telemetry] SEATED reservations exist OUTSIDE the board date', JSON.stringify({
+        restaurantId, boardDate: boardDateStr, seatedOutsideCount: seatedOutside,
+      }));
+    }
+  } catch (telemetryErr) {
+    console.error('[floor:telemetry] failed:', telemetryErr instanceof Error ? telemetryErr.message : telemetryErr);
+  }
 
   // A table is "placed" only when BOTH axes are meaningfully positioned (> 5 px).
   // Using AND (not OR) prevents a table dragged along one axis only — e.g. (100, 0)
@@ -129,13 +151,13 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     // Gap analysis: next non-SEATED reservation starting strictly after slotTime.
     // Used by the frontend scoring layer to gate "Best fit" on canFitIncomingTurn.
     const nextFutureRes = tableReservations
-      .filter(r => r.status !== 'SEATED' && parseTimeOnDate(date, r.time) > slotTime)
+      .filter(r => r.status !== 'SEATED' && parseTimeOnDate(date,r.time) > slotTime)
       .sort((a, b) => a.time.localeCompare(b.time))[0] ?? null;
     const nextReservationStart = nextFutureRes
-      ? parseTimeOnDate(date, nextFutureRes.time).toISOString()
+      ? parseTimeOnDate(date,nextFutureRes.time).toISOString()
       : null;
     const effectiveGapMinutes = nextFutureRes
-      ? Math.round((parseTimeOnDate(date, nextFutureRes.time).getTime() - slotTime.getTime()) / 60_000)
+      ? Math.round((parseTimeOnDate(date,nextFutureRes.time).getTime() - slotTime.getTime()) / 60_000)
       : null;
     const canFitIncomingTurn = effectiveGapMinutes === null || effectiveGapMinutes >= requiredGapMinutes;
 
@@ -171,7 +193,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     // from releasing a SEATED table during live service (ghost-SEATED bug).
     const seated = tableReservations.find(r => r.status === 'SEATED');
     if (seated) {
-      const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
+      const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date,seated.time), seated.duration);
 
       // Operational end = min(max(scheduledEnd, seatedAt + minWindow), scheduledEnd + minWindow).
       //
@@ -249,14 +271,14 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     const upcoming = tableReservations
       .filter(r => {
         if (r.status === 'SEATED') return false;
-        const resEnd = addMinutes(parseTimeOnDate(date, r.time), r.duration);
+        const resEnd = addMinutes(parseTimeOnDate(date,r.time), r.duration);
         return resEnd > addMinutes(statusNow, -bufferMinutes);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
 
     const nextRes = upcoming[0];
     if (nextRes) {
-      const nextTime = parseTimeOnDate(date, nextRes.time);
+      const nextTime = parseTimeOnDate(date,nextRes.time);
       const minutesUntil = Math.round(
         (nextTime.getTime() - statusNow.getTime()) / 60000
       );
@@ -268,7 +290,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         upcomingReservations: upcoming.slice(0, 3).map((r) => ({
           ...r,
           minutesUntil: Math.round(
-            (parseTimeOnDate(date, r.time).getTime() - statusNow.getTime()) / 60000
+            (parseTimeOnDate(date,r.time).getTime() - statusNow.getTime()) / 60000
           ),
         })),
         nextReservationStart,
@@ -983,13 +1005,9 @@ export async function deleteSection(restaurantId: string, sectionId: string) {
     throw new BusinessRuleError('This is the only section and cannot be deleted.');
   }
 
-  const activeTables = await prisma.table.count({
-    where: { restaurantId, sectionId, isActive: true },
-  });
-  if (activeTables > 0) {
-    throw new BusinessRuleError('This section still contains tables. Move or delete the tables first.');
-  }
-
+  // Deleting a zone must NOT delete its tables — they are unassigned (sectionId
+  // → null) in the transaction below. ATLAS relies on the same contract when it
+  // syncs a synced layout, so the two editors behave identically.
   return prisma.$transaction(async (tx) => {
     await tx.table.updateMany({ where: { restaurantId, sectionId }, data: { sectionId: null } });
     await tx.bookingGroupConfig.updateMany({ where: { targetSectionId: sectionId }, data: { targetSectionId: null } });

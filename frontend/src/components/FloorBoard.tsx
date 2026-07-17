@@ -9,8 +9,7 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
 import { minutesUntilEnd, normalizeTime } from '../utils/time';
-import { useAtmosphere } from '../hooks/useTimeWarmth';
-import { OBJECT_REGISTRY, resolveObjectVariant } from '../mapEngine';
+import { OBJECT_REGISTRY } from '../mapEngine';
 
 interface SectionGroup {
   id: string;
@@ -137,7 +136,7 @@ interface ObjAppearance {
   labelTransform: React.CSSProperties['textTransform'];
 }
 
-function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: number, light: boolean): ObjAppearance {
+function getObjAppearance(o: FloorObjectData, light: boolean): ObjAppearance {
   // Light theme — soften the architectural partitions (wall/divider/zone) so they
   // read as mid-grey surfaces on the daylight floor instead of heavy black bars.
   // Furniture (bar/entrance/host-stand) keeps its material identity.
@@ -190,7 +189,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
           'inset 0 10px 28px rgba(0,0,0,0.22)',
           '0 8px 44px rgba(0,0,0,0.94)',
           '0 4px 22px rgba(0,0,0,0.48)',
-          `0 0 60px rgba(175,170,162,${(0.038 + timeWarmth * 0.018).toFixed(3)})`,
+          '0 0 60px rgba(175,170,162,0.048)',
         ].join(', '),
         labelColor: 'rgba(218,214,206,0.88)',
         labelSize: 11, labelWeight: 600, labelOpacity: 1,
@@ -216,7 +215,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
           'inset 0 10px 28px rgba(0,0,0,0.28)',
           '0 8px 44px rgba(0,0,0,0.94)',
           '0 4px 22px rgba(64,24,4,0.72)',
-          `0 0 70px rgba(180,105,20,${(0.07 + timeWarmth * 0.04).toFixed(3)})`,
+          '0 0 70px rgba(180,105,20,0.090)',
         ].join(', '),
         labelColor: 'rgba(255,220,180,0.90)',
         labelSize: 11, labelWeight: 600, labelOpacity: 1,
@@ -248,17 +247,16 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
           'linear-gradient(145deg, rgba(255,255,255,0.044) 0%, transparent 42%)',
           `radial-gradient(ellipse 70% 55% at 50% 38%, ${tint}0.044) 0%, transparent 80%)`,
         ].join(', '),
-        border: `1.5px solid ${accent}${(0.50 + timeWarmth * 0.18).toFixed(2)})`,
+        border: `1.5px solid ${accent}0.59)`,
         borderRadius: 6,
         boxShadow: [
-          `inset 0 1px 0 ${tint}${(0.24 + timeWarmth * 0.10).toFixed(2)})`,
-          // Left-bevel catch — podium side edge catching ambient room light
-          `inset 1px 0 0 ${tint}${(0.08 + timeWarmth * 0.04).toFixed(2)})`,
+          `inset 0 1px 0 ${tint}0.29)`,
+          `inset 1px 0 0 ${tint}0.10)`,
           'inset 0 -2px 6px rgba(0,0,0,0.70)',
           '0 4px 28px rgba(0,0,0,0.80)',
-          `0 0 38px ${accent}${(0.05 + timeWarmth * 0.04).toFixed(3)})`,
+          `0 0 38px ${accent}0.070)`,
         ].join(', '),
-        labelColor: `${tint}${(0.70 + timeWarmth * 0.18).toFixed(2)})`,
+        labelColor: `${tint}0.79)`,
         labelSize: 10, labelWeight: 600, labelOpacity: 1,
         labelLetterSpacing: '0.08em', labelTransform: 'uppercase',
       };
@@ -266,7 +264,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
     case 'DIVIDER': {
       const variant = inferObjVariant(o);
       if (variant === 'LOW') return {
-        bg: `rgba(48,50,60,${(0.60 + (1 - brightness) * 0.10).toFixed(2)})`,
+        bg: 'rgba(48,50,60,0.65)',
         backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.034) 0%, rgba(0,0,0,0.14) 100%)',
         border: '1px solid rgba(68,70,84,0.66)',
         borderRadius: 2,
@@ -318,7 +316,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
     }
     case 'ZONE':
       return {
-        bg: `rgba(18,22,16,${(0.28 + (1 - brightness) * 0.10).toFixed(2)})`,
+        bg: 'rgba(18,22,16,0.33)',
         backgroundImage: 'radial-gradient(ellipse 75% 65% at 50% 42%, rgba(255,240,210,0.030) 0%, rgba(255,220,160,0.012) 58%, transparent 82%)',
         border: '1px solid rgba(44,54,40,0.28)',
         borderRadius: 12,
@@ -329,7 +327,7 @@ function getObjAppearance(o: FloorObjectData, timeWarmth: number, brightness: nu
       };
     default: // WALL + any unrecognised kind
       return {
-        bg: `rgba(58,60,68,${(0.66 + (1 - brightness) * 0.10).toFixed(2)})`,
+        bg: 'rgba(58,60,68,0.71)',
         backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.044) 0%, rgba(255,255,255,0.008) 28%, rgba(0,0,0,0.22) 100%)',
         border: '1.5px solid rgba(78,80,90,0.82)',
         borderRadius: 3,
@@ -379,6 +377,10 @@ interface Props {
   operationalNow?: number;
   reservations?: Reservation[];
   date?: string;
+  // Current service-day anchor (restaurant timezone). Used to decide "is this the
+  // live board?" — never the browser/UTC calendar date, so late-night service and
+  // action gating stay correct past midnight.
+  serviceToday?: string;
   onGapClick?: (tableId: string, startTime: string, endTime: string) => void;
   onGapWaitlistSeat?: (tableId: string, entry: WaitlistEntry, startTime: string, endTime: string) => void;
   onQuickAction?: (action: 'seat' | 'move' | 'cancel', res: Reservation) => void;
@@ -443,6 +445,9 @@ interface Props {
   onSwapCancel?: () => void;
   onContextMenuCombineRes?: (res: Reservation) => void;
   mobileMode?: boolean;
+  // Experiment: when true, suppresses the right-click context menu so the
+  // Table Operations Panel becomes the sole primary interaction surface.
+  disableContextMenu?: boolean;
   // Per-restaurant preference for how a table's FUTURE reservations render on the
   // visual floor map. Presentation only — never affects availability or booking.
   // Defaults to 'DETAILED' (existing stacked pills) when the setting is absent.
@@ -482,7 +487,7 @@ export default function FloorBoard({
   waitlist = [], waitlistMatches = {}, onWaitlistSuggestion, bestSuggestionTableId,
   softHoldMap = {}, pressureInfo,
   nowTime, operationalNow,
-  reservations = [], date,
+  reservations = [], date, serviceToday,
   onGapClick, onGapWaitlistSeat, onQuickAction,
   pickMode = false, pickIds = [], pickSuggestions = [], onPickDone, onPickCancel, onPickSelectionChange, pickAction, pickGuestName,
   pickLockIds = [], pickInitialSelection,
@@ -515,11 +520,11 @@ export default function FloorBoard({
   onContextMenuCombineRes,
   inPlanningMode = false,
   mobileMode: _mobileMode = false,
+  disableContextMenu = false,
   futureResDisplay = 'DETAILED',
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
-  const { warmth: timeWarmth, brightness } = useAtmosphere();
 
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [lockedWarning,    setLockedWarning]    = useState<FloorTable | null>(null);
@@ -1023,7 +1028,7 @@ export default function FloorBoard({
     if (res) {
       onSelect(res);
     } else if (t.liveStatus === 'AVAILABLE') {
-      if (t.locked) { setLockedWarning(t); return; }
+      if (t.locked && !disableContextMenu) { setLockedWarning(t); return; }
       const held = softHoldMap[t.id];
       if (held) { setSoftHoldWarning({ table: t, entry: held }); return; }
       if (onAvailableClick) onAvailableClick(t);
@@ -1032,6 +1037,7 @@ export default function FloorBoard({
 
   function handleContextMenu(e: React.MouseEvent, t: FloorTable) {
     e.preventDefault();
+    if (disableContextMenu) return;
     const x = Math.min(e.clientX, window.innerWidth - 168);
     const y = Math.min(e.clientY, window.innerHeight - 190);
     // Debug: log data driving canChangeTable visibility
@@ -1103,7 +1109,10 @@ export default function FloorBoard({
 
   // Tables that will free within 15 min — anticipation signal for upcoming capacity.
   // Only meaningful on today's view where timers are live.
-  const todayStr   = new Date().toISOString().slice(0, 10);
+  // "Today" = the restaurant's current SERVICE DAY (passed from the host board),
+  // never the browser/UTC calendar date — so action gating stays correct during
+  // late-night service. Falls back to UTC only if the prop is absent.
+  const todayStr   = serviceToday ?? new Date().toISOString().slice(0, 10);
   const isToday    = !date || date === todayStr;
   const freeingSoon = isToday ? dedupedTables.filter(t => {
     if (t.liveStatus !== 'OCCUPIED' || !t.currentReservation) return false;
@@ -1309,10 +1318,6 @@ export default function FloorBoard({
       {(view === 'floor' || pickMode) && (positioned ? (
         // ── Visual floor map ──────────────────────────────────────────────────
         (() => {
-          // ── Adaptive Day/Night canvas values ─────────────────────────────
-          // Pace: 14s at morning, slows to ~22s at peak dinner (room feels dense and full)
-          const ambDuration = (14 + timeWarmth * 4 + (1 - brightness) * 4).toFixed(1);
-
           return (
         <div className="flex-1 relative overflow-hidden">
         {/* Map-only zoom controls — floating, bottom-right of the floor */}
@@ -1361,32 +1366,6 @@ export default function FloorBoard({
               userSelect: pickMode ? 'none' : undefined,
             }}
           >
-            {/* Architectural environment — walls, floor materials, booth backings, VIP enclosures.
-                Suppressed for the flat-minimal floor look. */}
-            {false && positioned && (
-              <ArchLayer
-                tables={canvasTables}
-                floorObjs={floorObjs}
-                timeWarmth={timeWarmth}
-                brightness={brightness}
-              />
-            )}
-
-            {/* Ambient breathing — chandelier bloom.
-                Color drifts from neutral warm-white at morning to golden amber at dinner.
-                Ellipse widens to diffuse daylight at morning, focuses to candlelight at dinner.
-                Pace slows from 14s (morning clarity) to ~22s (dinner density). */}
-            <div
-              className="animate-ambient-breathe"
-              style={{
-                position: 'absolute', inset: 0,
-                background: 'none',
-                animationDuration: `${ambDuration}s`,
-                pointerEvents: 'none',
-                zIndex: 0,
-              }}
-            />
-
             {/* Section floor zones — faint tinted bounding boxes for spatial identity */}
             {positioned && sectionFloorZones.map(z => (
               <div
@@ -1406,9 +1385,9 @@ export default function FloorBoard({
             ))}
 
             {/* Floor objects — SVG-rendered kinds (PLANTER / SERVICE_LANE / LOUNGE_BOUNDARY / VIP_ENCLOSURE)
-                are handled inside ArchLayer. Only HTML-renderable kinds appear here. */}
+                are rendered in SpatialEnergyField's SVG layer. Only HTML-renderable kinds appear here. */}
             {floorObjs.filter(o => !SVG_RENDERED_KINDS.has(o.kind)).map(o => {
-              const a = getObjAppearance(o, timeWarmth, brightness, document.documentElement.getAttribute('data-theme') === 'light');
+              const a = getObjAppearance(o, document.documentElement.getAttribute('data-theme') === 'light');
               return (
                 <div
                   key={o.id}
@@ -1449,7 +1428,7 @@ export default function FloorBoard({
                 Suppressed during pick/assign modes: those modes trigger rapid re-renders on every
                 tap and SEF is the costliest component (N² density, 30+ SVG gradients). */}
             {!pickMode && !waitlistAssignEntry && (
-              <SpatialEnergyField tables={canvasTables} pressureScore={pressureScore} timeWarmth={timeWarmth} serviceEnergy={serviceEnergy} />
+              <SpatialEnergyField tables={canvasTables} pressureScore={pressureScore} serviceEnergy={serviceEnergy} />
             )}
 
 
@@ -1515,6 +1494,7 @@ export default function FloorBoard({
                   nowTime={nowTime}
                   operationalNow={operationalNow}
                   date={date}
+                  serviceToday={serviceToday}
                   extraTurns={extraTurns}
                   turns={turns}
                   turnTooltip={turnTooltip}
@@ -2124,557 +2104,13 @@ function Stat({ label, value, color, live = false }: { label: string; value: num
   );
 }
 
-// ── Architectural environment layer ──────────────────────────────────────────
-// Deepest visual layer: room walls, floor material zoning, booth backings,
-// VIP enclosures, and bar framing. Goes before all other SVG layers.
-function ArchLayer({ tables, floorObjs, timeWarmth, brightness }: {
-  tables: FloorTable[];
-  floorObjs: FloorObjectData[];
-  timeWarmth: number;
-  brightness: number;
-}) {
-  const sectionBoxes = (() => {
-    const map = new Map<string, {
-      name: string; color: string;
-      minX: number; minY: number; maxX: number; maxY: number; count: number;
-    }>();
-    for (const t of tables) {
-      if (!t.section) continue;
-      const sid = t.section.id;
-      const x2 = t.posX + t.width, y2 = t.posY + t.height;
-      if (!map.has(sid)) {
-        map.set(sid, { name: t.section.name, color: t.section.color,
-          minX: t.posX, minY: t.posY, maxX: x2, maxY: y2, count: 1 });
-      } else {
-        const z = map.get(sid)!;
-        z.minX = Math.min(z.minX, t.posX); z.minY = Math.min(z.minY, t.posY);
-        z.maxX = Math.max(z.maxX, x2);     z.maxY = Math.max(z.maxY, y2);
-        z.count++;
-      }
-    }
-    const PAD = 26;
-    return Array.from(map.entries())
-      .filter(([, z]) => z.count >= 2)
-      .map(([id, z]) => {
-        const n = z.name.toLowerCase();
-        const personality =
-          /vip|private|salon|exclusive|presidential/.test(n) ? 'vip' as const :
-          /terrace|garden|outdoor|patio|rooftop|pergola/.test(n) ? 'terrace' as const :
-          /lounge|cocktail|aperitif/.test(n) ? 'lounge' as const :
-          /bar|counter|pass/.test(n) ? 'bar' as const : 'main' as const;
-        return {
-          id, color: z.color, personality,
-          x: z.minX - PAD, y: z.minY - PAD,
-          w: (z.maxX - z.minX) + PAD * 2,
-          h: (z.maxY - z.minY) + PAD * 2,
-        };
-      });
-  })();
-
-  const bars               = floorObjs.filter(o => o.kind === 'BAR');
-  const planters           = floorObjs.filter(o => o.kind === 'PLANTER');
-  const lanes              = floorObjs.filter(o => o.kind === 'SERVICE_LANE');
-  const loungeBounds       = floorObjs.filter(o => o.kind === 'LOUNGE_BOUNDARY');
-  const curvedLoungeBounds = floorObjs.filter(o => o.kind === 'CURVED_LOUNGE_BOUNDARY');
-  const vipEnclosures      = floorObjs.filter(o => o.kind === 'VIP_ENCLOSURE');
-  const curvedBoothSegs    = floorObjs.filter(o => o.kind === 'CURVED_BOOTH_SEGMENT');
-  const booths        = tables.filter(t => t.shape === 'BOOTH' && t.height >= 38);
-
-  const woodOp1 = (0.013 + timeWarmth * 0.005).toFixed(3);
-  const woodOp2 = (0.007 + timeWarmth * 0.003).toFixed(3);
-  const wallT   = (0.70 + (1 - brightness) * 0.18).toFixed(2);
-  const wallS   = (0.60 + (1 - brightness) * 0.15).toFixed(2);
-  const wallB   = (0.54 + (1 - brightness) * 0.12).toFixed(2);
-
-  if (tables.length === 0) return null;
-
-  return (
-    <svg
-      width={CANVAS_W} height={CANVAS_H}
-      style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
-    >
-      <defs>
-        <pattern id="arch-wood" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(14)">
-          <line x1="0"  y1="0" x2="0"  y2="28" stroke={`rgba(210,165,90,${woodOp1})`} strokeWidth="1.2" />
-          <line x1="9"  y1="0" x2="9"  y2="28" stroke={`rgba(195,148,78,${woodOp2})`} strokeWidth="0.5" />
-          <line x1="19" y1="0" x2="19" y2="28" stroke={`rgba(200,152,80,${woodOp2})`} strokeWidth="0.5" />
-        </pattern>
-        <pattern id="arch-stone" x="0" y="0" width="44" height="44" patternUnits="userSpaceOnUse">
-          <line x1="0"  y1="0"  x2="44" y2="0"  stroke="rgba(155,148,138,0.020)" strokeWidth="0.5" />
-          <line x1="0"  y1="22" x2="44" y2="22" stroke="rgba(145,138,128,0.012)" strokeWidth="0.5" />
-          <line x1="0"  y1="0"  x2="0"  y2="44" stroke="rgba(155,148,138,0.018)" strokeWidth="0.5" />
-          <line x1="22" y1="0"  x2="22" y2="44" stroke="rgba(145,138,128,0.010)" strokeWidth="0.5" />
-        </pattern>
-        <pattern id="arch-intimate" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1="0"  y1="0" x2="0"  y2="22" stroke="rgba(130,105,75,0.024)" strokeWidth="0.8" />
-          <line x1="11" y1="0" x2="11" y2="22" stroke="rgba(110,88,62,0.014)"  strokeWidth="0.5" />
-        </pattern>
-        <linearGradient id="arch-wall-t" x1="0" y1="0" x2="0" y2="52" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallT})`} />
-          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
-        </linearGradient>
-        <linearGradient id="arch-wall-b" x1="0" y1={CANVAS_H} x2="0" y2={CANVAS_H - 40} gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallB})`} />
-          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
-        </linearGradient>
-        <linearGradient id="arch-wall-l" x1="0" y1="0" x2="44" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallS})`} />
-          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
-        </linearGradient>
-        <linearGradient id="arch-wall-r" x1={CANVAS_W} y1="0" x2={CANVAS_W - 44} y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stopColor={`rgba(6,4,2,${wallS})`} />
-          <stop offset="100%" stopColor="rgba(6,4,2,0)" />
-        </linearGradient>
-        {/* Shared blur for object grounding shadows — same soft-ellipse approach as table floor shadows */}
-        <filter id="arch-gnd-blur" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="5" />
-        </filter>
-      </defs>
-
-      {/* ── Object grounding shadows ─────────────────────────────────────────
-          Blurred ellipses beneath physical floor objects, using the same pattern
-          as table floor-plane shadows in SpatialEnergyField. Rendered first
-          (bottom of all SVG layers) so objects and tables sit on top.
-          Only physical, mass-carrying kinds: BAR, HOST_STAND, PLANTER,
-          DIVIDER, ENTRANCE. Zone markers and lane markings are excluded. */}
-      {floorObjs.filter(o =>
-        o.kind === 'BAR' || o.kind === 'HOST_STAND' ||
-        o.kind === 'PLANTER' || o.kind === 'DIVIDER' || o.kind === 'ENTRANCE'
-      ).map(o => {
-        const cx = o.posX + o.width  / 2;
-        const cy = o.posY + o.height * 0.82;
-        let rx: number, ry: number, op: number;
-        if (o.kind === 'BAR') {
-          rx = o.width * 0.72; ry = Math.max(6, o.height * 0.26); op = 0.055;
-        } else if (o.kind === 'HOST_STAND') {
-          rx = o.width * 0.70; ry = Math.max(5, o.height * 0.28); op = 0.048;
-        } else if (o.kind === 'PLANTER') {
-          rx = o.width * 0.68; ry = Math.max(5, o.height * 0.26); op = 0.042;
-        } else if (o.kind === 'DIVIDER') {
-          rx = o.width * 0.80; ry = Math.max(4, o.height * 0.24); op = 0.032;
-        } else {
-          // ENTRANCE
-          rx = o.width * 0.62; ry = Math.max(4, o.height * 0.20); op = 0.022;
-        }
-        return (
-          <ellipse
-            key={`arch-gnd-${o.id}`}
-            cx={cx} cy={cy} rx={rx} ry={ry}
-            fill="#000" fillOpacity={op}
-            filter="url(#arch-gnd-blur)"
-          />
-        );
-      })}
-
-      {/* Floor material zones — each section type has a distinct floor material */}
-      {sectionBoxes.map(sec => {
-        const pat =
-          sec.personality === 'terrace' || sec.personality === 'bar' ? 'arch-stone'
-          : sec.personality === 'lounge' || sec.personality === 'vip' ? 'arch-intimate'
-          : 'arch-wood';
-        return (
-          <g key={`arch-floor-${sec.id}`}>
-            <rect x={sec.x} y={sec.y} width={sec.w} height={sec.h} rx={10} fill={`url(#${pat})`} />
-            {(sec.personality === 'lounge' || sec.personality === 'vip') && (
-              <rect
-                x={sec.x - 10} y={sec.y - 10} width={sec.w + 20} height={sec.h + 20} rx={14}
-                fill={`rgba(8,5,2,${(0.036 + timeWarmth * 0.015).toFixed(3)})`}
-              />
-            )}
-          </g>
-        );
-      })}
-
-      {/* VIP enclosure — gold architectural ring, double-layered */}
-      {sectionBoxes.filter(s => s.personality === 'vip').map(sec => (
-        <g key={`arch-vip-${sec.id}`}>
-          <rect x={sec.x - 6}  y={sec.y - 6}  width={sec.w + 12} height={sec.h + 12} rx={14}
-            fill="none"
-            stroke={`rgba(195,162,88,${(0.058 + timeWarmth * 0.022).toFixed(3)})`}
-            strokeWidth={1.5}
-          />
-          <rect x={sec.x - 14} y={sec.y - 14} width={sec.w + 28} height={sec.h + 28} rx={18}
-            fill="none"
-            stroke={`rgba(165,135,70,${(0.025 + timeWarmth * 0.010).toFixed(3)})`}
-            strokeWidth={1}
-          />
-        </g>
-      ))}
-
-      {/* Lounge boundary — dashed gold rope enclosure, marks a premium zone perimeter */}
-      {loungeBounds.map(o => {
-        const cx   = o.posX + o.width  / 2;
-        const cy   = o.posY + o.height / 2;
-        const fillOp  = (0.032 + timeWarmth * 0.014).toFixed(3);
-        const ringOp  = (0.052 + timeWarmth * 0.022).toFixed(3);
-        const outerOp = (0.026 + timeWarmth * 0.010).toFixed(3);
-        return (
-          <g key={`arch-lb-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
-            <rect x={o.posX} y={o.posY} width={o.width} height={o.height} rx={16}
-              fill={`rgba(255,240,210,${fillOp})`} />
-            <rect x={o.posX + 4} y={o.posY + 4} width={o.width - 8} height={o.height - 8} rx={13}
-              fill="none" stroke={`rgba(195,162,88,${ringOp})`} strokeWidth={0.8} strokeDasharray="8 5" />
-            <rect x={o.posX - 3} y={o.posY - 3} width={o.width + 6} height={o.height + 6} rx={18}
-              fill="none" stroke={`rgba(165,135,70,${outerOp})`} strokeWidth={0.5} />
-          </g>
-        );
-      })}
-
-      {/* Curved lounge boundary — elliptical soft zone, gold dashed perimeter */}
-      {curvedLoungeBounds.map(o => {
-        const cx      = o.posX + o.width  / 2;
-        const cy      = o.posY + o.height / 2;
-        const rx      = o.width  / 2;
-        const ry      = o.height / 2;
-        const fillOp  = (0.030 + timeWarmth * 0.014).toFixed(3);
-        const ringOp  = (0.052 + timeWarmth * 0.022).toFixed(3);
-        const outerOp = (0.024 + timeWarmth * 0.010).toFixed(3);
-        return (
-          <g key={`arch-clb-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
-            <ellipse cx={cx} cy={cy} rx={rx} ry={ry}
-              fill={`rgba(255,240,210,${fillOp})`} />
-            <ellipse cx={cx} cy={cy} rx={Math.max(4, rx - 5)} ry={Math.max(4, ry - 5)}
-              fill="none"
-              stroke={`rgba(195,162,88,${ringOp})`}
-              strokeWidth={0.85}
-              strokeDasharray="8 5"
-            />
-            <ellipse cx={cx} cy={cy} rx={rx + 4} ry={ry + 4}
-              fill="none"
-              stroke={`rgba(165,135,70,${outerOp})`}
-              strokeWidth={0.5}
-            />
-          </g>
-        );
-      })}
-
-      {/* VIP enclosure — explicit gold ring placed as a floor object */}
-      {vipEnclosures.map(o => {
-        const cx       = o.posX + o.width  / 2;
-        const cy       = o.posY + o.height / 2;
-        const ambOp    = (0.048 + timeWarmth * 0.020).toFixed(3);
-        const innerOp  = (0.072 + timeWarmth * 0.028).toFixed(3);
-        const outerOp  = (0.030 + timeWarmth * 0.012).toFixed(3);
-        return (
-          <g key={`arch-vipe-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
-            <rect x={o.posX - 14} y={o.posY - 14} width={o.width + 28} height={o.height + 28} rx={22}
-              fill={`rgba(8,5,2,${ambOp})`} />
-            <rect x={o.posX - 6} y={o.posY - 6} width={o.width + 12} height={o.height + 12} rx={14}
-              fill="none" stroke={`rgba(195,162,88,${innerOp})`} strokeWidth={1.5} />
-            <rect x={o.posX - 14} y={o.posY - 14} width={o.width + 28} height={o.height + 28} rx={20}
-              fill="none" stroke={`rgba(165,135,70,${outerOp})`} strokeWidth={1} />
-          </g>
-        );
-      })}
-
-      {/* Curved booth segment — plan-view premium upholstered curved bench */}
-      {curvedBoothSegs.map(o => {
-        const x = o.posX, y = o.posY, w = o.width, h = o.height;
-        const cx = x + w / 2;
-        const cy = y + h / 2;
-        const variant = resolveObjectVariant(o);
-
-        // Geometry: generous back-corner radius; flat front corners for clean edge continuity
-        const rxB  = Math.min(w, h) * 0.18;
-        const rxF  = Math.min(w, h) * 0.06;
-        const fDip = h * 0.055;  // front face bows forward — signals open seating face
-        const backH = Math.round(h * 0.36);
-        const seatH = h - backH;
-        const seamY = y + backH;
-
-        // Variant-aware seam control point: ARC_LEFT/ARC_RIGHT shift the peak laterally
-        const sCtrlX = variant === 'ARC_LEFT'  ? cx - w * 0.14
-                     : variant === 'ARC_RIGHT' ? cx + w * 0.14
-                     : cx;
-        const sCtrlY = seamY + h * (variant === 'CURVED' ? 0.078 : 0.062);
-
-        // Front-face arc control: matches seam direction for arc-family variants
-        const fCtrlX = variant === 'ARC_LEFT'  ? cx - w * 0.10
-                     : variant === 'ARC_RIGHT' ? cx + w * 0.10
-                     : cx;
-
-        const tuftCount   = Math.max(2, Math.round(w / 36));
-        const tuftSpacing = (w - 24) / (tuftCount + 1);
-        // Tufting Y-cascade: creates a flowing row for directional arc variants
-        const tuftYStep   = variant === 'ARC_LEFT'  ? -1.2
-                          : variant === 'ARC_RIGHT' ?  1.2
-                          : 0;
-
-        // Outer silhouette: straight back, rounded back corners,
-        // flat front corners, convex forward-bowing open face
-        const bodyPath = [
-          `M ${x + rxB} ${y}`,
-          `L ${x + w - rxB} ${y}`,
-          `Q ${x + w} ${y} ${x + w} ${y + rxB}`,
-          `L ${x + w} ${y + h - rxF}`,
-          `Q ${x + w} ${y + h} ${x + w - rxF} ${y + h}`,
-          `Q ${fCtrlX} ${y + h + fDip} ${x + rxF} ${y + h}`,
-          `Q ${x} ${y + h} ${x} ${y + h - rxF}`,
-          `L ${x} ${y + rxB}`,
-          `Q ${x} ${y} ${x + rxB} ${y}`,
-          'Z',
-        ].join(' ');
-
-        // Back panel: shares top contour, straight cut at seamY
-        const backPath = [
-          `M ${x + rxB} ${y}`,
-          `L ${x + w - rxB} ${y}`,
-          `Q ${x + w} ${y} ${x + w} ${y + rxB}`,
-          `L ${x + w} ${y + backH}`,
-          `L ${x} ${y + backH}`,
-          `L ${x} ${y + rxB}`,
-          `Q ${x} ${y} ${x + rxB} ${y}`,
-          'Z',
-        ].join(' ');
-
-        const shadowOp  = (0.18 + timeWarmth * 0.04).toFixed(3);
-        const backOp    = (0.85 + timeWarmth * 0.08).toFixed(3);
-        const bodyOp    = (0.72 + timeWarmth * 0.10).toFixed(3);
-        const cushionOp = (0.52 + timeWarmth * 0.08).toFixed(3);
-        const seamOp    = (0.38 + timeWarmth * 0.08).toFixed(3);
-        const tuftOp    = (0.28 + timeWarmth * 0.06).toFixed(3);
-        const shineOp   = (0.055 + timeWarmth * 0.018).toFixed(3);
-
-        return (
-          <g key={`arch-cbs-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
-            {/* Drop shadow */}
-            <path d={bodyPath} fill={`rgba(3,2,1,${shadowOp})`} transform="translate(2,2)" />
-            {/* Seat surface — full booth body */}
-            <path d={bodyPath} fill={`rgba(104,70,40,${bodyOp})`} />
-            {/* Cushion band */}
-            <rect x={x + 4} y={y + backH} width={w - 8} height={seatH - 4} rx={rxF * 2}
-              fill={`rgba(138,96,58,${cushionOp})`} />
-            {/* Back panel */}
-            <path d={backPath} fill={`rgba(68,44,24,${backOp})`} />
-            {/* Variant-aware curved seam */}
-            <path
-              d={`M ${x + 8} ${seamY} Q ${sCtrlX} ${sCtrlY} ${x + w - 8} ${seamY}`}
-              fill="none"
-              stroke={`rgba(44,28,14,${seamOp})`}
-              strokeWidth={0.85}
-            />
-            {/* Tufting with directional cascade */}
-            {Array.from({ length: tuftCount }, (_, i) => (
-              <ellipse key={i}
-                cx={x + 12 + tuftSpacing * (i + 1)}
-                cy={y + backH + seatH * 0.44 + tuftYStep * (i - (tuftCount - 1) / 2)}
-                rx={1.5} ry={1.2}
-                fill={`rgba(50,32,16,${tuftOp})`}
-              />
-            ))}
-            {/* Top-edge highlight */}
-            <line
-              x1={x + rxB} y1={y + 1}
-              x2={x + w - rxB} y2={y + 1}
-              stroke={`rgba(215,175,128,${shineOp})`}
-              strokeWidth={0.6}
-            />
-          </g>
-        );
-      })}
-
-      {/* Service lanes — floor-level directional walkways with chevron flow markers */}
-      {lanes.map(o => {
-        const cx         = o.posX + o.width  / 2;
-        const cy         = o.posY + o.height / 2;
-        const laneOp     = (0.08 + brightness * 0.04).toFixed(3);
-        const chevronOp  = (0.10 + brightness * 0.04).toFixed(3);
-        const isVertical = o.height > o.width;
-        const span       = isVertical ? o.height : o.width;
-        const nChevrons  = Math.max(1, Math.floor(span / 40));
-        return (
-          <g key={`arch-lane-${o.id}`} transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}>
-            <rect x={o.posX} y={o.posY} width={o.width} height={o.height} rx={2}
-              fill={`rgba(120,120,140,${laneOp})`}
-              stroke={`rgba(140,140,160,${(parseFloat(laneOp) * 0.80).toFixed(3)})`}
-              strokeWidth={0.5} strokeDasharray="4 4"
-            />
-            {Array.from({ length: nChevrons }, (_, i) => {
-              const t = nChevrons > 1 ? i / (nChevrons - 1) : 0.5;
-              if (isVertical) {
-                const y = o.posY + 12 + (o.height - 24) * t;
-                return (
-                  <path key={i} d={`M ${cx - 6} ${y - 3} L ${cx} ${y + 3} L ${cx + 6} ${y - 3}`}
-                    fill="none" stroke={`rgba(160,160,180,${chevronOp})`} strokeWidth={0.8}
-                  />
-                );
-              }
-              const x = o.posX + 12 + (o.width - 24) * t;
-              return (
-                <path key={i} d={`M ${x - 3} ${cy - 6} L ${x + 3} ${cy} L ${x - 3} ${cy + 6}`}
-                  fill="none" stroke={`rgba(160,160,180,${chevronOp})`} strokeWidth={0.8}
-                />
-              );
-            })}
-          </g>
-        );
-      })}
-
-      {/* Planters — variant-aware foliage rendering (POT / ROW / PRIVACY) */}
-      {planters.map(o => {
-        const cx      = o.posX + o.width  / 2;
-        const cy      = o.posY + o.height / 2;
-        const rx      = o.width  / 2;
-        const ry      = o.height / 2;
-        const leafOp  = 0.36 + timeWarmth * 0.06;
-        const variant = inferObjVariant(o);
-        const gXform  = o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined;
-
-        if (variant === 'ROW') {
-          // Long planter trough — evenly spaced plant clusters
-          const n  = Math.min(8, Math.max(2, Math.floor(o.width / 30)));
-          const sp = o.width / (n + 1);
-          return (
-            <g key={`arch-pltr-${o.id}`} transform={gXform}>
-              <rect x={o.posX} y={o.posY + o.height * 0.46} width={o.width} height={o.height * 0.50}
-                rx={3} fill="rgba(50,34,20,0.56)" stroke="rgba(70,50,30,0.26)" strokeWidth={0.5} />
-              {/* Trough rim highlight — warm amber line where overhead light grazes the container edge */}
-              <line
-                x1={o.posX + 3}           y1={o.posY + o.height * 0.46}
-                x2={o.posX + o.width - 3} y2={o.posY + o.height * 0.46}
-                stroke={`rgba(245,198,138,${(leafOp * 0.16).toFixed(3)})`}
-                strokeWidth={0.65}
-              />
-              {Array.from({ length: n }, (_, i) => {
-                const px = o.posX + sp * (i + 1);
-                const pr = o.height * (0.35 + chairJitter(o.id, i, 0) * 0.12);
-                return (
-                  <g key={i}>
-                    <ellipse cx={px} cy={o.posY + o.height * 0.28} rx={pr} ry={pr * 0.88}
-                      fill={`rgba(20,52,18,${(leafOp * (0.88 + chairJitter(o.id, i, 1) * 0.12)).toFixed(2)})`} />
-                    <ellipse cx={px - pr * 0.26} cy={o.posY + o.height * 0.18} rx={pr * 0.54} ry={pr * 0.48}
-                      fill={`rgba(30,68,24,${(leafOp * 0.62).toFixed(2)})`} />
-                  </g>
-                );
-              })}
-            </g>
-          );
-        }
-
-        if (variant === 'PRIVACY') {
-          // Dense privacy planting — hedge / living wall
-          return (
-            <g key={`arch-pltr-${o.id}`} transform={gXform}>
-              <rect x={o.posX} y={o.posY + o.height * 0.70} width={o.width} height={o.height * 0.28}
-                rx={2} fill="rgba(26,18,10,0.60)" stroke="rgba(46,32,18,0.22)" strokeWidth={0.5} />
-              <ellipse cx={cx}              cy={o.posY + ry * 0.80} rx={rx * 0.96} ry={ry * 0.78}
-                fill={`rgba(16,44,14,${leafOp.toFixed(2)})`} />
-              <ellipse cx={cx - rx * 0.30} cy={o.posY + ry * 0.62} rx={rx * 0.68} ry={ry * 0.58}
-                fill={`rgba(22,58,18,${(leafOp * 0.82).toFixed(2)})`} />
-              <ellipse cx={cx + rx * 0.28} cy={o.posY + ry * 0.58} rx={rx * 0.60} ry={ry * 0.52}
-                fill={`rgba(18,52,14,${(leafOp * 0.76).toFixed(2)})`} />
-              <ellipse cx={cx}              cy={o.posY + ry * 0.42} rx={rx * 0.72} ry={ry * 0.44}
-                fill={`rgba(28,68,22,${(leafOp * 0.68).toFixed(2)})`} />
-              {/* Foliage light catch — overhead light reflecting off canopy crown */}
-              <ellipse cx={cx} cy={o.posY + ry * 0.26} rx={rx * 0.52} ry={ry * 0.13}
-                fill={`rgba(58,122,44,${(leafOp * 0.22).toFixed(3)})`} />
-              <ellipse cx={cx}              cy={o.posY + ry * 0.96} rx={rx * 0.86} ry={ry * 0.18}
-                fill="rgba(0,12,0,0.30)" />
-            </g>
-          );
-        }
-
-        // POT — single container planter
-        return (
-          <g key={`arch-pltr-${o.id}`} transform={gXform}>
-            <rect x={o.posX + 4} y={o.posY + o.height * 0.55} width={o.width - 8} height={o.height * 0.42}
-              rx={3} fill="rgba(58,40,28,0.54)" stroke="rgba(78,58,38,0.30)" strokeWidth={0.5} />
-            {/* Pot rim highlight — warm terracotta line at container lip */}
-            <line
-              x1={o.posX + 6}           y1={o.posY + o.height * 0.55}
-              x2={o.posX + o.width - 6} y2={o.posY + o.height * 0.55}
-              stroke={`rgba(208,162,112,${(leafOp * 0.17).toFixed(3)})`}
-              strokeWidth={0.65}
-            />
-            <ellipse cx={cx} cy={o.posY + ry * 0.80} rx={rx * 0.88} ry={ry * 0.68}
-              fill={`rgba(18,48,20,${leafOp.toFixed(2)})`} />
-            {/* Foliage light catch — overhead light catch on top-most leaf mass */}
-            <ellipse cx={cx} cy={o.posY + ry * 0.58} rx={rx * 0.48} ry={ry * 0.12}
-              fill={`rgba(50,112,40,${(leafOp * 0.20).toFixed(3)})`} />
-            <ellipse cx={cx - rx * 0.22} cy={o.posY + ry * 0.64} rx={rx * 0.52} ry={ry * 0.44}
-              fill={`rgba(28,68,26,${(leafOp * 0.70).toFixed(2)})`} />
-            <ellipse cx={cx + rx * 0.14} cy={o.posY + ry * 0.92} rx={rx * 0.60} ry={ry * 0.32}
-              fill="rgba(8,22,8,0.28)" />
-          </g>
-        );
-      })}
-
-      {/* Booth backing — banquette structural wall behind each booth */}
-      {booths.map(t => (
-        <g key={`arch-booth-${t.id}`}>
-          <rect
-            x={t.posX - 5} y={t.posY - 20}
-            width={t.width + 10} height={18}
-            rx={3}
-            fill={`rgba(16,10,5,${(0.60 + timeWarmth * 0.08).toFixed(2)})`}
-            stroke={`rgba(88,60,36,${(0.26 + timeWarmth * 0.07).toFixed(2)})`}
-            strokeWidth={1}
-          />
-          <line
-            x1={t.posX - 3} y1={t.posY - 20}
-            x2={t.posX + t.width + 3} y2={t.posY - 20}
-            stroke={`rgba(255,195,115,${(0.044 + timeWarmth * 0.020).toFixed(3)})`}
-            strokeWidth={1}
-          />
-        </g>
-      ))}
-
-      {/* Bar counter ring — brass architectural presence around bar objects */}
-      {bars.map(o => {
-        const cx = o.posX + o.width  / 2;
-        const cy = o.posY + o.height / 2;
-        const rx = o.width  / 2 + 28;
-        const ry = o.height / 2 + 28;
-        return (
-          <g key={`arch-bar-${o.id}`}>
-            <ellipse cx={cx} cy={cy} rx={rx * 1.55} ry={ry * 1.35} fill="url(#arch-stone)" />
-            <ellipse cx={cx} cy={cy} rx={rx} ry={ry}
-              fill="none"
-              stroke={`rgba(200,162,78,${(0.042 + timeWarmth * 0.018).toFixed(3)})`}
-              strokeWidth={1.5}
-            />
-            <ellipse cx={cx} cy={cy} rx={rx * 1.28} ry={ry * 1.28}
-              fill="none"
-              stroke={`rgba(175,140,62,${(0.020 + timeWarmth * 0.010).toFixed(3)})`}
-              strokeWidth={0.8}
-            />
-          </g>
-        );
-      })}
-
-      {/* Terrace vegetation — abstract planter strip as spatial boundary softener */}
-      {sectionBoxes.filter(s => s.personality === 'terrace').map(sec => (
-        <g key={`arch-veg-${sec.id}`}>
-          <rect x={sec.x + 10} y={sec.y - 9} width={sec.w - 20} height={13} rx={4}
-            fill="rgba(20,42,16,0.42)" stroke="rgba(36,60,28,0.20)" strokeWidth={0.5}
-          />
-          <ellipse cx={sec.x + sec.w / 2} cy={sec.y - 16} rx={sec.w * 0.42} ry={9}
-            fill="rgba(18,48,16,0.28)"
-          />
-        </g>
-      ))}
-
-      {/* Perimeter walls — room architectural edges, deepening at night */}
-      <rect x={0} y={0} width={CANVAS_W} height={52} fill="url(#arch-wall-t)" />
-      <rect x={0} y={CANVAS_H - 40} width={CANVAS_W} height={40} fill="url(#arch-wall-b)" />
-      <rect x={0} y={0} width={44} height={CANVAS_H} fill="url(#arch-wall-l)" />
-      <rect x={CANVAS_W - 44} y={0} width={44} height={CANVAS_H} fill="url(#arch-wall-r)" />
-      {/* Top wall ledge catch — warm overhead light on the back wall surface */}
-      <rect x={0} y={50} width={CANVAS_W} height={4}
-        fill={`rgba(255,195,110,${(0.032 + timeWarmth * 0.014).toFixed(3)})`}
-      />
-    </svg>
-  );
-}
-
 // ── Spatial energy field ──────────────────────────────────────────────────────
 // SVG layer: occupied glows, overdue tinge, incoming warmth, bar anchor, section ambients.
 // All radials use userSpaceOnUse so coordinates match the canvas pixel grid exactly.
 
-function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }: {
+function SpatialEnergyField({ tables, pressureScore, serviceEnergy }: {
   tables: FloorTable[];
   pressureScore: number;
-  timeWarmth: number;
   serviceEnergy: number;
 }) {
   const occupied = tables.filter(t => t.liveStatus === 'OCCUPIED' && !(t.currentReservation?.isOverdue));
@@ -2722,24 +2158,17 @@ function SpatialEnergyField({ tables, pressureScore, timeWarmth, serviceEnergy }
     }
     return Array.from(map.values())
       .filter(z => z.count >= 2)
-      .map((z, i) => {
-        const n = z.name.toLowerCase();
-        const personality =
-          /vip|private|salon|exclusive|presidential/.test(n) ? 'vip' as const :
-          /terrace|garden|outdoor|patio|rooftop|pergola/.test(n) ? 'terrace' as const :
-          /lounge|cocktail|aperitif/.test(n) ? 'lounge' as const : 'main' as const;
-        return {
-          id: i, color: z.color, personality,
-          cx: z.sumX / z.count, cy: z.sumY / z.count,
-          r: Math.max(130, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.60),
-        };
-      });
+      .map((z, i) => ({
+        id: i, color: z.color,
+        cx: z.sumX / z.count, cy: z.sumY / z.count,
+        r: Math.max(130, Math.max(z.maxX - z.minX, z.maxY - z.minY) * 0.60),
+      }));
   })();
 
   if (tables.length === 0) return null;
 
-  const occOuter    = 0.058 + pressureScore * 0.018 + timeWarmth * 0.008;
-  const occInner    = 0.042 + pressureScore * 0.012 + timeWarmth * 0.006;
+  const occOuter    = 0.058 + pressureScore * 0.018;
+  const occInner    = 0.042 + pressureScore * 0.012;
   const ovdStrength = 0.028 + pressureScore * 0.018;
   const readyGlow   = 0.020 + pressureScore * 0.010;
   const secOpacity  = 0.030 + pressureScore * 0.010 + serviceEnergy * 0.005;
@@ -2881,18 +2310,13 @@ function chairJitter(tableId: string, idx: number, slot: number): number {
 // ── Chair layer ───────────────────────────────────────────────────────────────
 // Decorative chair silhouettes for editor/layout mode — not used in operational view.
 // Exported so LayoutEditor can import and render it in the canvas overlay.
-export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWarmth, isLiveView }: {
+export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, isLiveView }: {
   tables: FloorTable[];
   floorObjs: FloorObjectData[];
   dimmedTableIds: Set<string>;
   pickMode: boolean;
-  timeWarmth: number;
   isLiveView: boolean;
 }) {
-  // At dinner service, unoccupied chair settings recede — social energy
-  // concentrates at active tables, empty settings become part of the shadow.
-  const quietLevel = 1 - timeWarmth * 0.22;
-
   return (
     <svg
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
@@ -2955,8 +2379,8 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
           : tableDisplayStatus === 'RESERVED_SOON'  ? 'rgba(217,119,6,0.35)'
           : isChairUpcoming                          ? 'rgba(37,99,235,0.20)'   // UPCOMING: subtle
           : 'rgba(37,99,235,0.32)';
-        const emptyFill   = `rgba(180,174,168,${(0.55 * quietLevel).toFixed(2)})`;
-        const emptyStroke = `rgba(160,155,150,${(0.30 * quietLevel).toFixed(2)})`;
+        const emptyFill   = 'rgba(180,174,168,0.55)';
+        const emptyStroke = 'rgba(160,155,150,0.30)';
 
         // Chair anatomy: a narrow backrest strip at the outer edge (away from table) +
         // seat pad body. Backrest is more opaque — it's the solid structural element.
@@ -2967,7 +2391,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
           ? 'rgba(180,83,9,0.82)'
           : isChairUpcoming ? 'rgba(37,99,235,0.50)'   // UPCOMING: subtle
           : 'rgba(29,78,216,0.78)';
-        const emptyBack  = `rgba(155,149,144,${(0.65 * quietLevel).toFixed(2)})`;
+        const emptyBack  = 'rgba(155,149,144,0.65)';
         const backH      = useDots || isBarSeating ? 0 : Math.round(cH * 0.35);
         const seatH      = cH - backH;
         // Seat rx: slightly less rounded than the backrest for a seat-pad feel.
@@ -3067,7 +2491,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
         const sGap     = 4;
         const ratio    = o.width / Math.max(o.height, 1);
         const isIsland = ratio < 1.4 && Math.min(o.width, o.height) > 70;
-        const sOpNum   = 0.30 * quietLevel;
+        const sOpNum   = 0.30;
         const sFill    = `rgba(88,72,52,${sOpNum.toFixed(2)})`;
         const sStroke  = `rgba(108,88,64,${(sOpNum * 0.68).toFixed(2)})`;
         const stools: { cx: number; cy: number }[] = [];
@@ -3118,7 +2542,7 @@ export function ChairLayer({ tables, floorObjs, dimmedTableIds, pickMode, timeWa
 
 // ── Canvas table card ─────────────────────────────────────────────────────────
 
-function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, hoveredResId, inNewResPick = false, inPlanningMode = false, futureResDisplay = 'DETAILED', onFutureResSelect }: {
+function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _bestSuggestion, softHold, onClick, onContextMenu, insight: _insight, onInsightAction: _onInsightAction, waitlistMatch: _waitlistMatch, onWaitlistAction: _onWaitlistAction, nowTime, operationalNow: _operationalNow, extraTurns: _extraTurns = 0, turns = [], turnTooltip, pickMode = false, pickSelected = false, pickStatus = null, swapSource = false, waitlistAssignTarget = false, wlPickWarn = false, quietFade: _quietFade = 0, date, serviceToday, hoveredResId, inNewResPick = false, inPlanningMode = false, futureResDisplay = 'DETAILED', onFutureResSelect }: {
   table: FloorTable;
   selected: boolean;
   combinedSelected: boolean;
@@ -3144,6 +2568,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
   wlPickWarn?: boolean;
   quietFade?: number;
   date?: string;
+  serviceToday?: string;
   hoveredResId?: string | null;
   inNewResPick?: boolean;
   inPlanningMode?: boolean;
@@ -3157,7 +2582,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
     ? document.documentElement.getAttribute('data-theme') !== 'light'
     : true;
   const STATUS_BG = isDark ? STATUS_BG_DARK : STATUS_BG_LIGHT;
-  const isToday = date === undefined || date === new Date().toISOString().slice(0, 10);
+  const isToday = date === undefined || date === (serviceToday ?? new Date().toISOString().slice(0, 10));
   // displayStatus = liveStatus anchored to wall-clock time on the backend.
   // No board-time override: RESERVED_SOON fires only when real time is within
   // RESERVED_SOON_MINUTES of the reservation, so suppression is never needed here.

@@ -234,13 +234,48 @@ router.post('/cancel', async (req: Request, res: Response, next: NextFunction) =
       return res.json({ status: 'CANCELLED', alreadyCancelled: true });
     }
 
-    await prisma.reservation.update({
-      where: { id: r.id },
-      data: {
-        status:      'CANCELLED',
-        cancelledAt: new Date(),
-      },
+    // A guest self-cancel must be fully traceable — otherwise the reservation just
+    // drops out of the active views with no record of who/why, reading to staff as
+    // "it vanished". Write status + attribution + a durable activity-log entry
+    // atomically, mirroring the host cancel path (cancelledByName, cancelCount).
+    const GUEST_ACTOR = 'Guest (public link)';
+    await prisma.$transaction(async (tx) => {
+      await tx.reservation.update({
+        where: { id: r.id },
+        data: {
+          status:           'CANCELLED',
+          cancelledAt:      new Date(),
+          cancelledByName:  GUEST_ACTOR,
+          returnedToListAt: null,
+        },
+      });
+      // Two-step write (create + raw ::jsonb) mirrors the host logActivity helper.
+      const act = await tx.reservationActivity.create({
+        data: { reservationId: r.id, action: 'CANCELLED', actor: GUEST_ACTOR },
+        select: { id: true },
+      });
+      await tx.$executeRaw`
+        UPDATE reservation_activity
+        SET details = ${JSON.stringify({
+          fromStatus: r.status,
+          toStatus:   'CANCELLED',
+          source:     'GUEST_PUBLIC_LINK',
+          reason:     'Cancelled by guest via confirmation link',
+          tableId:    r.tableId ?? null,
+        })}::jsonb
+        WHERE id = ${act.id}
+      `;
+      if (r.guestId) {
+        await tx.guest.update({
+          where: { id: r.guestId },
+          data:  { cancelCount: { increment: 1 } },
+        });
+      }
     });
+
+    console.log('[public:cancel]', JSON.stringify({
+      restaurantId: r.restaurantId, reservationId: r.id, source: 'GUEST_PUBLIC_LINK',
+    }));
 
     return res.json({ status: 'CANCELLED' });
   } catch (err) { next(err); }

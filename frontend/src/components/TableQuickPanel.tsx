@@ -36,6 +36,10 @@ interface Props {
   onUpdated: (res: Reservation) => void;
   onSuccess: (msg: string) => void;
   inFlightIds?: ReadonlySet<string>;
+  // Experiment: Table Operations Panel — additional actions migrated from floor right-click
+  onSwap?: (res: Reservation) => void;
+  onCombine?: (res: Reservation) => void;
+  onReturnToList?: (res: Reservation) => void;
 }
 
 export default function TableQuickPanel({
@@ -56,6 +60,9 @@ export default function TableQuickPanel({
   onUpdated,
   onSuccess,
   inFlightIds,
+  onSwap,
+  onCombine,
+  onReturnToList,
 }: Props) {
   const T = useT();
   const { locale, dir } = useLocale();
@@ -543,11 +550,27 @@ export default function TableQuickPanel({
                           onClick={handleSendSms}
                         />
                       )}
+                      <Btn label="עריכת הזמנה" cls={btnNeutral}
+                        onClick={() => { onViewFull(res); onClose(); }} />
                     </>)}
 
                     {res.status === 'SEATED' && (<>
                       <Btn label={T.tableQuickPanel.extend15} cls={btnNeutral} onClick={() => handleExtend(15)} />
                       <Btn label={T.tableQuickPanel.extend30} cls={btnNeutral} onClick={() => handleExtend(30)} />
+                      <Btn label={T.guestDrawer.actionChangeTable} cls={btnNeutral}
+                        onClick={() => { onChangeTable(res); onClose(); }} />
+                      {onSwap && (
+                        <Btn label="החלף שולחן" cls={btnNeutral}
+                          onClick={() => { onSwap(res); onClose(); }} />
+                      )}
+                      {onCombine && (
+                        <Btn label="שלב שולחנות" cls={btnNeutral}
+                          onClick={() => { onCombine(res); onClose(); }} />
+                      )}
+                      {onReturnToList && (
+                        <Btn label="החזר לרשימה" cls={btnAmber}
+                          onClick={() => { onReturnToList(res); onClose(); }} />
+                      )}
                     </>)}
                   </div>
 
