@@ -84,7 +84,7 @@ export function composeGmVoice(input: {
   const { phase, firstNameHe, pulse, noShowToday } = input;
   const hi = firstNameHe ? `${firstNameHe}, ` : '';
   const vip = pulse.flags.vip > 0 ? ` · ${pulse.flags.vip} VIP` : '';
-  const wait = pulse.waiting.count >= WAIT_ALERT_COUNT ? ' · רשימת ההמתנה מתמלאת' : '';
+  const wait = pulse.waiting.count >= WAIT_ALERT_COUNT ? ' · רשימת המזדמנים מתמלאת' : '';
   if (phase === 'pre') return `בוקר טוב ${firstNameHe}. ${pulse.coversToday} מוזמנים היום${vip}${wait}.`;
   if (phase === 'in')  return `${hi}באמצע השירות — ${pulse.seatedNow} יושבים כעת${pulse.waiting.count ? `, ${pulse.waiting.count} ממתינים` : ''}${vip}.`;
   if (phase === 'post') return `${hi}השירות הסתיים — ${pulse.coversToday} מוזמנים${noShowToday ? `, ${noShowToday} לא הגיעו` : ''}.`;
@@ -162,7 +162,7 @@ export function deriveDashboard(input: {
   }
 
   if (activeWaiting.length >= WAIT_ALERT_COUNT || (longestMin != null && longestMin >= WAIT_ALERT_MIN)) {
-    attention.push({ id: 'waitlist', tier: 'soon', title: `רשימת המתנה — ${activeWaiting.length} ממתינים${longestMin != null ? `, הארוך ${longestMin} דק׳` : ''}`, actionLabel: 'פתח תפעול', target: 'operations' });
+    attention.push({ id: 'waitlist', tier: 'soon', title: `מזדמנים — ${activeWaiting.length} ממתינים${longestMin != null ? `, הארוך ${longestMin} דק׳` : ''}`, actionLabel: 'פתח תפעול', target: 'operations' });
   }
 
   const vipSoon = upcoming.find(r => isVip(r) && toMin(r.time) - nowMin <= VIP_SOON_MIN);

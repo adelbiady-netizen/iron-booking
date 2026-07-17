@@ -358,7 +358,7 @@ export const api = {
 
   tables: {
     opSettings: () =>
-      request<{ lateThresholdMinutes: number; noShowThresholdMinutes: number }>('/tables/op-settings'),
+      request<{ lateThresholdMinutes: number; noShowThresholdMinutes: number; defaultTurnMinutes?: number | null; turnTimeRules?: import('./utils/duration').TurnTimeRuleLite[] }>('/tables/op-settings'),
     floor: (date: string, time: string) =>
       request<FloorTable[]>(`/tables/floor?date=${date}&time=${encodeURIComponent(time)}`),
     suggestions: (date: string, time: string) =>
@@ -517,18 +517,23 @@ export const api = {
   waitlist: {
     list: (date: string, time?: string) =>
       request<WaitlistEntry[]>(`/waitlist?date=${date}${time ? `&time=${encodeURIComponent(time)}` : ''}`),
-    add: (body: { guestName: string; partySize: number; guestPhone?: string; date: string; type?: 'LIVE' | 'FUTURE'; notes?: string; preferredTime?: string; requestedTime?: string; section?: string; source?: string }) =>
+    add: (body: { guestName: string; partySize: number; guestPhone?: string; date: string; type?: 'LIVE' | 'FUTURE'; notes?: string; preferredTime?: string; requestedTime?: string; section?: string; source?: string; durationMinutes?: number }) =>
       request<WaitlistEntry>('/waitlist', { method: 'POST', body: JSON.stringify(body) }),
     markOffered: (id: string) =>
       request<WaitlistEntry>(`/waitlist/${id}/mark-offered`, { method: 'POST' }),
-    seat: (id: string, tableId?: string, overrideConflicts = false) =>
+    seat: (id: string, tableId?: string, overrideConflicts = false, durationMinutes?: number) =>
       request<{ entry: WaitlistEntry; reservation: Reservation }>(`/waitlist/${id}/seat`, {
         method: 'POST',
-        body: JSON.stringify({ tableId, overrideConflicts }),
+        body: JSON.stringify({ tableId, overrideConflicts, ...(durationMinutes != null ? { durationMinutes } : {}) }),
       }),
     notify: (id: string) =>
       request<WaitlistEntry>(`/waitlist/${id}/notify`, { method: 'POST' }),
-    update: (id: string, data: { partySize?: number; guestName?: string; notes?: string }) =>
+    tableReady: (id: string, opts?: { force?: boolean; hostName?: string }) =>
+      request<{ entry: WaitlistEntry; channel: 'WHATSAPP' | 'SMS'; messageLogId: string }>(`/waitlist/${id}/table-ready`, {
+        method: 'POST',
+        body: JSON.stringify({ force: opts?.force === true, ...(opts?.hostName ? { hostName: opts.hostName } : {}) }),
+      }),
+    update: (id: string, data: { partySize?: number; guestName?: string; notes?: string; durationMinutes?: number | null }) =>
       request<WaitlistEntry>(`/waitlist/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     remove: (id: string, reason: 'LEFT' | 'REMOVED') =>
       request<WaitlistEntry>(`/waitlist/${id}/remove`, { method: 'POST', body: JSON.stringify({ reason }) }),
@@ -1169,5 +1174,27 @@ export const api = {
         `/call-logs${query ? `?${query}` : ''}`
       );
     },
+    callbacks: () =>
+      request<{ active: import('./types').CallbackItem[]; recentClosed: import('./types').CallbackItem[] }>(
+        '/call-logs/callbacks'
+      ),
+    callbackStart: (id: string, hostName?: string) =>
+      request<import('./types').CallbackItem>(`/call-logs/${id}/callback/start`, {
+        method: 'POST', body: JSON.stringify(hostName ? { hostName } : {}),
+      }),
+    callbackComplete: (id: string, opts?: { note?: string; hostName?: string }) =>
+      request<import('./types').CallbackItem>(`/call-logs/${id}/callback/complete`, {
+        method: 'POST', body: JSON.stringify({ ...(opts?.note != null ? { note: opts.note } : {}), ...(opts?.hostName ? { hostName: opts.hostName } : {}) }),
+      }),
+    callbackCancel: (id: string, opts?: { note?: string; hostName?: string }) =>
+      request<import('./types').CallbackItem>(`/call-logs/${id}/callback/cancel`, {
+        method: 'POST', body: JSON.stringify({ ...(opts?.note != null ? { note: opts.note } : {}), ...(opts?.hostName ? { hostName: opts.hostName } : {}) }),
+      }),
+    callbackRelease: (id: string) =>
+      request<import('./types').CallbackItem>(`/call-logs/${id}/callback/release`, { method: 'POST', body: '{}' }),
+    callbackNote: (id: string, note: string | null) =>
+      request<import('./types').CallbackItem>(`/call-logs/${id}/callback/note`, {
+        method: 'PATCH', body: JSON.stringify({ note }),
+      }),
   },
 };

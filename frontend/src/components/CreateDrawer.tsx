@@ -16,7 +16,7 @@ function fmtDateLong(dateStr: string, intlLocale: string): string {
   }).format(new Date(y, mo - 1, d));
 }
 import FloorTablePicker from './FloorTablePicker';
-import { getDefaultDuration } from '../utils/duration';
+import { resolveDefaultDuration, type TurnTimeRuleLite } from '../utils/duration';
 import { isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import MiniCalendar from './MiniCalendar';
 
@@ -43,6 +43,8 @@ interface Props {
   initialData?: { guestName?: string; partySize?: number; guestPhone?: string };
   gapHint?: GapHint;
   defaultTurnMinutes?: number;
+  /** Active turn-time rules from op-settings — restaurant-aware duration defaults. */
+  turnRules?: TurnTimeRuleLite[];
   /** When set, the drawer is in standby-edit mode: pre-fills from this reservation and PATCHes on save */
   standbyReservation?: Reservation;
   onClose: () => void;
@@ -68,7 +70,7 @@ interface Props {
    *  still call onDateTimeChange normally. */
   suppressInitialDateTimeSync?: boolean;
   /** Called when the host wants to add the current guest to the waitlist instead. */
-  onAddToWaitlist?: (data: { guestName: string; partySize: number; guestPhone?: string; date: string; time?: string }) => void;
+  onAddToWaitlist?: (data: { guestName: string; partySize: number; guestPhone?: string; date: string; time?: string; durationMinutes?: number }) => void;
 }
 
 // ─── Shared field components ──────────────────────────────────────────────────
@@ -135,6 +137,7 @@ export default function CreateDrawer({
   onDateTimeChange,
   suppressInitialDateTimeSync = false,
   onAddToWaitlist,
+  turnRules,
 }: Props) {
   const isEditingStandby = !!standbyReservation;
   const T = useT();
@@ -154,7 +157,7 @@ export default function CreateDrawer({
   const calPopoverRef = useRef<HTMLDivElement>(null);
   const [resTime,      setResTime]      = useState(sb ? sb.time.slice(0, 5) : snapToSlot(gapHint?.startTime ?? defaultTime));
   const [resDuration,  setResDuration]  = useState(
-    sb ? String(sb.duration) : gapHint ? String(gapHint.durationMins) : String(getDefaultDuration(2))
+    sb ? String(sb.duration) : gapHint ? String(gapHint.durationMins) : String(resolveDefaultDuration(2, turnRules))
   );
   // durationManual: host has explicitly chosen a duration → suppress auto-defaults.
   // Starts true when a gap hint pre-fills the slot duration; false otherwise so
@@ -170,7 +173,7 @@ export default function CreateDrawer({
   const [wiName,          setWiName]          = useState(initialData?.guestName  ?? '');
   const [wiPhone,         setWiPhone]         = useState(initialData?.guestPhone ?? '');
   const [wiParty,         setWiParty]         = useState(initialData?.partySize  ?? 2);
-  const [wiDuration,      setWiDuration]      = useState(String(getDefaultDuration(initialData?.partySize ?? 2)));
+  const [wiDuration,      setWiDuration]      = useState(String(resolveDefaultDuration(initialData?.partySize ?? 2, turnRules)));
   const [wiDurationManual, setWiDurationManual] = useState(false);
   const [wiNotes,         setWiNotes]         = useState('');
   const [wiTable,            setWiTable]            = useState(preselectedTableId ?? '');
@@ -490,14 +493,14 @@ export default function CreateDrawer({
   // a manual choice.
   useEffect(() => {
     if (durationManual) return;
-    setResDuration(String(getDefaultDuration(resParty)));
-  }, [resParty, durationManual]);
+    setResDuration(String(resolveDefaultDuration(resParty, turnRules)));
+  }, [resParty, durationManual, turnRules]);
 
   // Same logic for walk-in duration.
   useEffect(() => {
     if (wiDurationManual) return;
-    setWiDuration(String(getDefaultDuration(wiParty)));
-  }, [wiParty, wiDurationManual]);
+    setWiDuration(String(resolveDefaultDuration(wiParty, turnRules)));
+  }, [wiParty, wiDurationManual, turnRules]);
 
   // Board → drawer: when the host navigates to a different date on the top bar,
   // pull the new date into the reservation form so board and drawer stay on the
@@ -1265,7 +1268,7 @@ export default function CreateDrawer({
                     {onAddToWaitlist && (
                       <button
                         type="button"
-                        onClick={() => { onAddToWaitlist({ guestName: resName.trim(), partySize: resParty, guestPhone: resPhone.trim() || undefined, date: resDate, time: resTime || undefined }); onClose(); }}
+                        onClick={() => { const d = parseInt(resDuration, 10); onAddToWaitlist({ guestName: resName.trim(), partySize: resParty, guestPhone: resPhone.trim() || undefined, date: resDate, time: resTime || undefined, durationMinutes: !isNaN(d) && d >= 30 && d <= 480 ? d : undefined }); onClose(); }}
                         className="w-full text-xs px-3 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors font-medium"
                       >
                         {T.waitlistPanel.addToWaitlistButton}
@@ -1629,7 +1632,7 @@ export default function CreateDrawer({
                   {onAddToWaitlist && (
                     <button
                       type="button"
-                      onClick={() => { onAddToWaitlist({ guestName: wiName.trim(), partySize: wiParty, guestPhone: wiPhone.trim() || undefined, date: defaultDate }); onClose(); }}
+                      onClick={() => { const d = parseInt(wiDuration, 10); onAddToWaitlist({ guestName: wiName.trim(), partySize: wiParty, guestPhone: wiPhone.trim() || undefined, date: defaultDate, durationMinutes: !isNaN(d) && d >= 30 && d <= 480 ? d : undefined }); onClose(); }}
                       className="w-full text-xs px-3 py-2 rounded-lg border border-iron-green/40 text-iron-green-light hover:bg-iron-green/10 transition-colors font-medium"
                     >
                       {T.waitlistPanel.addToWaitlistButton}

@@ -695,8 +695,10 @@ export interface WaitlistEntry {
   source: string;
   quotedWaitMinutes: number | null;
   estimatedWaitMin: number | null;
+  durationMinutes: number | null; // host-chosen seating duration; null = restaurant default
   addedAt: string;
   notifiedAt: string | null;
+  tableReadySentAt: string | null; // last successful "table ready" message send
   seatedAt: string | null;
   leftAt: string | null;
   notes: string | null;
@@ -997,6 +999,29 @@ export interface CallLogItem {
   routingStatus: string | null;
   createdAt: string;
   guestName?: string | null;
+}
+
+// ─── Callback queue ───────────────────────────────────────────────────────────
+
+export type CallbackStatus =
+  | 'PENDING_CALLBACK'
+  | 'CALLBACK_IN_PROGRESS'
+  | 'CALLBACK_COMPLETED'
+  | 'CALLBACK_CANCELLED';
+
+export interface CallbackItem {
+  id: string;
+  phone: string;
+  status: string; // provider call status (answered/missed/…)
+  createdAt: string; // server timestamp — FIFO key
+  guestName?: string | null;
+  restaurantName?: string | null;
+  queueStatus: CallbackStatus | null;
+  callbackNote: string | null;
+  handledBy: string | null;
+  claimedAt: string | null;
+  callbackCompletedAt: string | null;
+  position?: number; // 1-based FIFO position (active queue only)
 }
 
 // ─── Guest Intelligence Center ────────────────────────────────────────────────

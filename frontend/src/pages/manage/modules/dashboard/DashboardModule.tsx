@@ -94,7 +94,7 @@ function Content({ data, onNavigate }: { data: DashboardData; onNavigate: (k: st
         <PulseCard label="תפוסה עכשיו" value={pct(pulse.occupancyPct)} bar={pulse.occupancyPct == null ? null : pulse.occupancyPct / 100} />
         <PulseCard label="שולחנות פנויים" value={pulse.freeTables == null ? '—' : String(pulse.freeTables)} />
         <PulseCard label="הגעה קרובה" value={pulse.nextArrival ? pulse.nextArrival.time : '—'} sub={pulse.nextArrival ? `${pulse.nextArrival.guestName} · ${pulse.nextArrival.partySize}` : undefined} />
-        <PulseCard label="בהמתנה" value={String(pulse.waiting.count)} sub={pulse.waiting.longestMin != null ? `· ${pulse.waiting.longestMin} דק׳` : undefined} />
+        <PulseCard label="מזדמנים" value={String(pulse.waiting.count)} sub={pulse.waiting.longestMin != null ? `· ${pulse.waiting.longestMin} דק׳` : undefined} />
       </div>
       {(pulse.flags.vip + pulse.flags.birthday + pulse.flags.large) > 0 && (
         <div className="flex flex-wrap gap-2 -mt-3">

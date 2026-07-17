@@ -55,6 +55,7 @@ export interface SendSmsInput {
   type:          MessageType;
   reservationId?: string;
   guestId?:      string;
+  waitlistEntryId?: string;
 }
 
 export interface SendSmsResult {
@@ -233,7 +234,7 @@ function resolveSenderName(settings: Record<string, unknown>): string | null {
 // ─── Core dispatch ────────────────────────────────────────────────────────────
 
 export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
-  const { restaurantId, to, message, type, reservationId, guestId } = input;
+  const { restaurantId, to, message, type, reservationId, guestId, waitlistEntryId } = input;
 
   const restaurant = await prisma.restaurant.findUnique({
     where:  { id: restaurantId },
@@ -248,6 +249,7 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
       data: {
         restaurantId,
         reservationId: reservationId ?? null,
+        waitlistEntryId: waitlistEntryId ?? null,
         guestId:       guestId ?? null,
         phone:         to,
         messageType:   type,
@@ -268,6 +270,7 @@ export async function sendSms(input: SendSmsInput): Promise<SendSmsResult> {
     data: {
       restaurantId,
       reservationId: reservationId ?? null,
+      waitlistEntryId: waitlistEntryId ?? null,
       guestId:       guestId ?? null,
       phone:         to,
       messageType:   type,

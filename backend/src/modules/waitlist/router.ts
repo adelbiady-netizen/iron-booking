@@ -22,17 +22,36 @@ function q(req: Request, key: string): string {
   return v as string;
 }
 
+// Host-chosen seating duration (minutes). Bounds mirror the reservation editor
+// (30–480, step-free) — rejects zero/negative/absurd values.
+const DurationField = z.number().int().min(30).max(480);
+
 const AddSchema = z.object({
-  guestName:     z.string().min(1),
-  guestPhone:    z.string().optional(),
-  partySize:     z.number().int().min(1),
-  date:          z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  type:          z.enum(['LIVE', 'FUTURE']).optional(),
-  source:        z.enum(['WALK_IN', 'HOST', 'PHONE', 'ONLINE']).optional(),
-  notes:         z.string().optional(),
-  preferredTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  requestedTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  section:       z.string().optional(),
+  guestName:       z.string().min(1),
+  guestPhone:      z.string().optional(),
+  partySize:       z.number().int().min(1),
+  date:            z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  type:            z.enum(['LIVE', 'FUTURE']).optional(),
+  source:          z.enum(['WALK_IN', 'HOST', 'PHONE', 'ONLINE']).optional(),
+  notes:           z.string().optional(),
+  preferredTime:   z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  requestedTime:   z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  section:         z.string().optional(),
+  durationMinutes: DurationField.optional(),
+});
+
+const UpdateSchema = z.object({
+  guestName:       z.string().min(1).optional(),
+  guestPhone:      z.string().optional(),
+  partySize:       z.number().int().min(1).optional(),
+  notes:           z.string().nullable().optional(),
+  durationMinutes: DurationField.nullable().optional(), // null = revert to restaurant default
+});
+
+const SeatSchema = z.object({
+  tableId:           z.string().optional(),
+  overrideConflicts: z.boolean().optional(),
+  durationMinutes:   DurationField.optional(),
 });
 
 const DateQuerySchema = z.object({
@@ -62,6 +81,7 @@ router.post('/', validate(AddSchema), async (req: Request, res: Response, next: 
   try {
     const entry = await service.addToWaitlist(req.auth.restaurantId, req.body);
     res.status(201).json(entry);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
   } catch (err) { next(err); }
 });
 
@@ -74,29 +94,52 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // PATCH /waitlist/:id
-router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/:id', validate(UpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const entry = await service.updateWaitlistEntry(req.auth.restaurantId, p(req, 'id'), req.body);
     res.json(entry);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
   } catch (err) { next(err); }
 });
 
-// POST /waitlist/:id/notify
+// POST /waitlist/:id/notify — legacy verbal-notify stamp (kept for compatibility)
 router.post('/:id/notify', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const entry = await service.notifyGuest(req.auth.restaurantId, p(req, 'id'));
     res.json(entry);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
+  } catch (err) { next(err); }
+});
+
+// POST /waitlist/:id/table-ready — send the branded "your table is ready"
+// message on the restaurant's messaging channel, with full MessageLog audit.
+// Repeat sends require force=true (the 409 payload carries the previous send time).
+// Never seats the guest.
+router.post('/:id/table-ready', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const hostName = typeof req.body?.hostName === 'string' && req.body.hostName.trim()
+      ? req.body.hostName.trim().slice(0, 80)
+      : `${req.auth.firstName ?? ''} ${req.auth.lastName ?? ''}`.trim() || 'Host';
+    const result = await service.sendTableReadyMessage(
+      req.auth.restaurantId,
+      p(req, 'id'),
+      hostName,
+      req.body?.force === true,
+    );
+    res.json(result);
+    eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
   } catch (err) { next(err); }
 });
 
 // POST /waitlist/:id/seat
-router.post('/:id/seat', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/seat', validate(SeatSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await service.seatWaitlistGuest(
       req.auth.restaurantId,
       p(req, 'id'),
       req.body.tableId,
-      req.body.overrideConflicts === true
+      req.body.overrideConflicts === true,
+      req.body.durationMinutes
     );
     res.json(result);
     eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });

@@ -5,6 +5,8 @@ import { getFloorState } from '../tables/service';
 import { sendWhatsApp } from '../../lib/sms';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { validateTableAssignment } from '../reservations/service';
+import { resolveTurnTime, baselineTurnMinutes } from '../../engine/opProfile';
+import { sendTableReady } from '../../lib/tableReady';
 
 function parseDateArg(dateStr: string): Date {
   const d = new Date(dateStr + 'T00:00:00.000Z');
@@ -176,6 +178,7 @@ export async function addToWaitlist(restaurantId: string, data: {
   preferredTime?: string;
   requestedTime?: string;
   section?: string;
+  durationMinutes?: number;
 }) {
   const date = parseDateArg(data.date);
 
@@ -227,6 +230,7 @@ export async function addToWaitlist(restaurantId: string, data: {
       preferredTime: data.preferredTime ?? null,
       requestedTime: data.requestedTime ?? null,
       section: data.section ?? null,
+      durationMinutes: data.durationMinutes ?? null,
     },
   });
 }
@@ -234,10 +238,21 @@ export async function addToWaitlist(restaurantId: string, data: {
 export async function updateWaitlistEntry(
   restaurantId: string,
   id: string,
-  data: { guestName?: string; guestPhone?: string; partySize?: number; notes?: string }
+  data: { guestName?: string; guestPhone?: string; partySize?: number; notes?: string | null; durationMinutes?: number | null }
 ) {
   await assertEntry(restaurantId, id);
-  return prisma.waitlistEntry.update({ where: { id }, data });
+  // Explicit pick — the router validates shape, this guards against extra keys.
+  const { guestName, guestPhone, partySize, notes, durationMinutes } = data;
+  return prisma.waitlistEntry.update({
+    where: { id },
+    data: {
+      ...(guestName !== undefined ? { guestName } : {}),
+      ...(guestPhone !== undefined ? { guestPhone } : {}),
+      ...(partySize !== undefined ? { partySize } : {}),
+      ...(notes !== undefined ? { notes } : {}),
+      ...(durationMinutes !== undefined ? { durationMinutes } : {}),
+    },
+  });
 }
 
 export async function notifyGuest(restaurantId: string, id: string) {
@@ -266,11 +281,73 @@ export async function notifyGuest(restaurantId: string, id: string) {
   });
 }
 
+// ─── "Table ready" message (שליחת הודעה — השולחן מוכן) ────────────────────────
+// Sends the branded table-ready message on the restaurant's channel and records
+// it in MessageLog. Duplicate-send protection: a second send returns 409 unless
+// force=true; the error payload carries the previous send time so the UI can
+// show "already sent at HH:MM" and ask for confirmation.
+// NEVER changes the guest to SEATED — seating stays a separate host action.
+export async function sendTableReadyMessage(
+  restaurantId: string,
+  id: string,
+  hostName: string,
+  force = false,
+) {
+  const entry = await assertEntry(restaurantId, id);
+
+  if (!['WAITING', 'NOTIFIED'].includes(entry.status)) {
+    throw new BusinessRuleError(`Cannot notify a guest with status ${entry.status}`);
+  }
+  if (!entry.guestPhone) {
+    throw new BusinessRuleError('Guest has no phone number on file');
+  }
+
+  if (entry.tableReadySentAt && !force) {
+    throw new ConflictError('Table-ready message already sent', {
+      code: 'TABLE_READY_ALREADY_SENT',
+      sentAt: entry.tableReadySentAt.toISOString(),
+    });
+  }
+
+  const result = await sendTableReady(restaurantId, {
+    id: entry.id,
+    guestName: entry.guestName,
+    guestPhone: entry.guestPhone,
+    guestId: entry.guestId,
+  });
+
+  if (!result.success) {
+    // Attempt is already recorded in MessageLog; surface the failure clearly.
+    throw new BusinessRuleError(
+      `Table-ready message failed (${result.channel}): ${result.errorMessage ?? 'unknown error'}`,
+    );
+  }
+
+  // Stamp NOTIFIED (guest was told their table is ready) + the send timestamp.
+  // Deliberately NOT SEATED — the host still performs the seating action.
+  const updated = await prisma.waitlistEntry.update({
+    where: { id },
+    data: {
+      status: entry.status === 'WAITING' ? 'NOTIFIED' : entry.status,
+      notifiedAt: entry.notifiedAt ?? new Date(),
+      tableReadySentAt: new Date(),
+    },
+  });
+
+  console.log('[waitlist:table-ready]', {
+    entryId: id, phone: entry.guestPhone, channel: result.channel,
+    messageLogId: result.messageLogId, by: hostName, forced: force,
+  });
+
+  return { entry: updated, channel: result.channel, messageLogId: result.messageLogId };
+}
+
 export async function seatWaitlistGuest(
   restaurantId: string,
   id: string,
   tableId?: string,
-  overrideConflicts = false
+  overrideConflicts = false,
+  durationMinutes?: number
 ): Promise<{ entry: Awaited<ReturnType<typeof prisma.waitlistEntry.update>>; reservation: any }> {
   const [entry, restaurant] = await Promise.all([
     assertEntry(restaurantId, id),
@@ -303,7 +380,12 @@ export async function seatWaitlistGuest(
     minute: '2-digit',
     hour12: false,
   }).format(new Date());
-  const duration = (s.defaultTurnMinutes as number) ?? 90;
+  // Duration precedence: explicit seat-time choice → host-chosen value stored on
+  // the entry → restaurant turn-time rules (same source as reservations; fixes
+  // the old flat defaultTurnMinutes-only behaviour that ignored party size).
+  const duration = durationMinutes
+    ?? entry.durationMinutes
+    ?? await resolveTurnTime(restaurantId, entry.partySize, baselineTurnMinutes(entry.partySize));
   const bufferMinutes = (s.bufferBetweenTurnsMinutes as number) ?? 15;
 
   // Resolve guest CRM link and validate table availability in parallel

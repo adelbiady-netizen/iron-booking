@@ -223,6 +223,68 @@ async function processCallWebhook(
   console.log('[link/timing] ⑤ SSE emit —', Date.now() - t0, 'ms total ← HOST AWARENESS POINT');
   eventBus.emit('incoming_call', payload);
   console.log('[link/call] SSE broadcast — restaurantId:', created.restaurantId, '| active sessions:', eventBus.listenerCount('incoming_call'));
+
+  // ── Callback queue maintenance ────────────────────────────────────────────
+  // Missed, routed calls enter the FIFO callback queue (queueStatus on the same
+  // row). Answered calls auto-resolve any open callback for that phone — the
+  // restaurant has spoken with the guest, so no callback is owed. Best-effort:
+  // a failure here must not break webhook ingestion.
+  try {
+    const answered = statusStr.toLowerCase() === 'answered';
+    if (answered) {
+      const resolvedCallbacks = await prisma.callLog.updateMany({
+        where: {
+          restaurantId: created.restaurantId,
+          phone: callerStr,
+          queueStatus: { in: ['PENDING_CALLBACK', 'CALLBACK_IN_PROGRESS'] },
+        },
+        data: {
+          queueStatus: 'CALLBACK_COMPLETED',
+          callbackCompletedAt: new Date(),
+          callbackNote: 'נסגר אוטומטית — התקבלה שיחה שנענתה מהמספר',
+        },
+      });
+      if (resolvedCallbacks.count > 0) {
+        console.log('[link/call] Auto-resolved', resolvedCallbacks.count, 'open callback(s) for', callerStr);
+        eventBus.emit('callback_updated', { restaurantId: created.restaurantId, callback: null });
+      }
+    } else {
+      // One open callback per phone per restaurant: a second missed call from
+      // the same number keeps the original FIFO position. Also skip when the
+      // same callid was already answered (ring→answered arrive as separate rows).
+      const [openForPhone, answeredSameCall] = await Promise.all([
+        prisma.callLog.findFirst({
+          where: {
+            restaurantId: created.restaurantId,
+            phone: callerStr,
+            queueStatus: { in: ['PENDING_CALLBACK', 'CALLBACK_IN_PROGRESS'] },
+          },
+          select: { id: true },
+        }),
+        callidStr
+          ? prisma.callLog.findFirst({
+              where: { callid: callidStr, status: { in: ['answered', 'ANSWERED', 'Answered'] } },
+              select: { id: true },
+            })
+          : Promise.resolve(null),
+      ]);
+      if (!openForPhone && !answeredSameCall) {
+        const queued = await prisma.callLog.update({
+          where: { id: created.id },
+          data: { queueStatus: 'PENDING_CALLBACK' },
+          select: {
+            id: true, phone: true, status: true, createdAt: true, guestName: true,
+            restaurantName: true, queueStatus: true, callbackNote: true,
+            handledBy: true, claimedAt: true, callbackCompletedAt: true,
+          },
+        });
+        console.log('[link/call] Enqueued callback — id:', queued.id, '| phone:', queued.phone);
+        eventBus.emit('callback_updated', { restaurantId: created.restaurantId, callback: queued });
+      }
+    }
+  } catch (err) {
+    console.error('[link/call] Callback queue maintenance failed (non-fatal):', err);
+  }
 }
 
 /**

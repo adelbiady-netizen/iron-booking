@@ -41,10 +41,10 @@ interface Props {
   // waitlist
   waitlist: WaitlistEntry[];
   waitlistLoading: boolean;
-  onWaitlistAdd: (data: { guestName: string; partySize: number; guestPhone?: string }) => Promise<void>;
+  onWaitlistAdd: (data: { guestName: string; partySize: number; guestPhone?: string; durationMinutes?: number }) => Promise<void>;
   onWaitlistSeat: (entry: WaitlistEntry) => void;
   onWaitlistNotify: (entry: WaitlistEntry) => Promise<void>;
-  onWaitlistUpdate?: (entry: WaitlistEntry, data: { partySize?: number; guestName?: string; notes?: string }) => Promise<void>;
+  onWaitlistUpdate?: (entry: WaitlistEntry, data: { partySize?: number; guestName?: string; notes?: string; durationMinutes?: number | null }) => Promise<void>;
   onWaitlistCancel: (entry: WaitlistEntry) => void;
   onWaitlistNoShow: (entry: WaitlistEntry) => void;
   nextInLine?: NextInLineItem[];
@@ -53,9 +53,13 @@ interface Props {
   priorityQueue?: PriorityEntry[];
   nowTime?: string;
   operationalNow?: number;
+  turnRules?: import('../utils/duration').TurnTimeRuleLite[];
   onContextMenuSeat?: (res: Reservation) => void;
   onSeatFromMap?: (res: Reservation) => void;
   date?: string;
+  // Current service-day anchor (restaurant timezone). Used for future-date gating
+  // instead of the browser/UTC calendar date.
+  serviceToday?: string;
   reorganizeQueue?: Reservation[];
   onReorganizeSelect?: (r: Reservation) => void;
   allTables?: { id: string; name: string }[];
@@ -80,8 +84,8 @@ export default function ReservationPanel({
   reservations, selectedId, highlightId, onSelect, loading,
   onNewReservation, onWalkIn,
   waitlist, waitlistLoading, onWaitlistAdd, onWaitlistSeat, onWaitlistNotify, onWaitlistUpdate, onWaitlistCancel, onWaitlistNoShow,
-  nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow,
-  onContextMenuSeat, onSeatFromMap, date, reorganizeQueue, onReorganizeSelect, allTables,
+  nextInLine, onSeatAtTable, entrySuggestions, priorityQueue, nowTime, operationalNow, turnRules,
+  onContextMenuSeat, onSeatFromMap, date, serviceToday, reorganizeQueue, onReorganizeSelect, allTables,
   onMarkArrived, onUnmarkArrived, onSendSms, onCancelReservation, isLiveView, onHoverRow, onSmartAssign, onChooseTable, onNoTableMode,
   compact = false,
   standbyReservations = [], standbyLoading = false, onSelectStandby,
@@ -155,7 +159,7 @@ export default function ReservationPanel({
     return () => clearInterval(id);
   }, []);
 
-  const todayStr     = new Date().toISOString().slice(0, 10);
+  const todayStr     = serviceToday ?? new Date().toISOString().slice(0, 10);
   const isFutureDate = !!date && date > todayStr;
 
   const STATUS_LABEL: Record<string, string> = {
@@ -387,6 +391,7 @@ export default function ReservationPanel({
           priorityQueue={priorityQueue}
           operationalNow={operationalNow}
           isToday={!isFutureDate}
+          turnRules={turnRules}
         />
       ) : (
         <>
