@@ -23,11 +23,10 @@ ALTER TABLE "waitlist_entries"
   ADD COLUMN IF NOT EXISTS "durationMinutes"  INTEGER,
   ADD COLUMN IF NOT EXISTS "tableReadySentAt" TIMESTAMP(3);
 
--- 3) Message log: waitlist-context sends + UltraMsg provider value
+-- 3) Message log: link waitlist-context sends (e.g. TABLE_READY) to their entry.
+-- Table-ready reuses the existing InforU SMS pipeline — no new provider/channel.
 ALTER TABLE "message_logs"
   ADD COLUMN IF NOT EXISTS "waitlistEntryId" TEXT;
 
 CREATE INDEX IF NOT EXISTS "message_logs_waitlistEntryId_idx"
   ON "message_logs" ("waitlistEntryId");
-
-ALTER TYPE "MessageProvider" ADD VALUE IF NOT EXISTS 'ULTRAMSG';

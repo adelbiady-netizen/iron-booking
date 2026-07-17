@@ -299,7 +299,7 @@ export const THe = {
     tableReadySending:       'שולח…',
     tableReadySentAgo:       (m: number) => m < 1 ? 'הודעת "השולחן מוכן" נשלחה זה עתה' : `הודעת "השולחן מוכן" נשלחה לפני ${m} דק׳`,
     tableReadyConfirmResend: 'הודעת "השולחן מוכן" כבר נשלחה לאורח. לשלוח שוב?',
-    tableReadySuccess:       (ch: string) => ch === 'WHATSAPP' ? 'ההודעה נשלחה ב־WhatsApp' : 'הודעת SMS נשלחה',
+    tableReadySuccess:       'הודעת SMS נשלחה',
     tableReadyFailed:        'שליחת ההודעה נכשלה',
     tableReadyNoPhone:       'אין מספר טלפון לאורח',
     editButton:          'ערוך',

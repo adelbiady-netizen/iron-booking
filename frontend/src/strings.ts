@@ -298,7 +298,7 @@ export const T = {
     tableReadySending:       'Sending…',
     tableReadySentAgo:       (m: number) => m < 1 ? 'Table-ready message sent just now' : `Table-ready message sent ${m}m ago`,
     tableReadyConfirmResend: 'A table-ready message was already sent. Send again?',
-    tableReadySuccess:       (ch: string) => ch === 'WHATSAPP' ? 'Message sent via WhatsApp' : 'SMS message sent',
+    tableReadySuccess:       'SMS message sent',
     tableReadyFailed:        'Failed to send the message',
     tableReadyNoPhone:       'No phone number on file',
     editButton:          'Edit',

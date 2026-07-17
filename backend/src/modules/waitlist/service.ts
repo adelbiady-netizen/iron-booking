@@ -282,10 +282,10 @@ export async function notifyGuest(restaurantId: string, id: string) {
 }
 
 // ─── "Table ready" message (שליחת הודעה — השולחן מוכן) ────────────────────────
-// Sends the branded table-ready message on the restaurant's channel and records
-// it in MessageLog. Duplicate-send protection: a second send returns 409 unless
-// force=true; the error payload carries the previous send time so the UI can
-// show "already sent at HH:MM" and ask for confirmation.
+// Sends the branded table-ready SMS through the existing InforU pipeline and
+// records it in MessageLog. Duplicate-send protection: a second send returns 409
+// unless force=true; the error payload carries the previous send time so the UI
+// can show "already sent at HH:MM" and ask for confirmation.
 // NEVER changes the guest to SEATED — seating stays a separate host action.
 export async function sendTableReadyMessage(
   restaurantId: string,
@@ -319,7 +319,7 @@ export async function sendTableReadyMessage(
   if (!result.success) {
     // Attempt is already recorded in MessageLog; surface the failure clearly.
     throw new BusinessRuleError(
-      `Table-ready message failed (${result.channel}): ${result.errorMessage ?? 'unknown error'}`,
+      `Table-ready SMS failed: ${result.errorMessage ?? 'unknown error'}`,
     );
   }
 
@@ -335,11 +335,11 @@ export async function sendTableReadyMessage(
   });
 
   console.log('[waitlist:table-ready]', {
-    entryId: id, phone: entry.guestPhone, channel: result.channel,
+    entryId: id, phone: entry.guestPhone,
     messageLogId: result.messageLogId, by: hostName, forced: force,
   });
 
-  return { entry: updated, channel: result.channel, messageLogId: result.messageLogId };
+  return { entry: updated, messageLogId: result.messageLogId };
 }
 
 export async function seatWaitlistGuest(

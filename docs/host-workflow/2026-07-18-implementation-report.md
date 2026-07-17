@@ -108,21 +108,23 @@ Context-aware rename in the Hebrew host UI (`strings-he.ts`, manage dashboard):
   **✉ שליחת הודעה — השולחן מוכן** in the entry details (מזדמנים list drawer/accordion).
 - **Message** (`backend/src/lib/tableReady.ts`): branded bilingual default per the spec template;
   adapts naturally when the guest name is missing; makes no indefinite-hold promise.
-- **Channel:** reuses existing infrastructure — WhatsApp (UltraMsg) when the restaurant has
-  credentials (the channel waitlist messages already use), falling back to the InforU/Mock SMS stack
-  when `smsEnabled`. No new messaging system.
-- **Audit trail:** every attempt writes `MessageLog` (`messageType: TABLE_READY`, new
-  `waitlistEntryId` link, channel, provider — new `ULTRAMSG` enum value — status
-  PENDING→SENT/FAILED, provider error on failure). The WhatsApp stack previously logged nothing;
-  table-ready sends are now fully logged. `WaitlistEntry.tableReadySentAt` stamps the last successful
-  send for cheap cross-device duplicate detection.
+- **Channel — existing InforU SMS only.** `sendTableReady` calls the same `lib/messaging.sendSms`
+  used by every other Iron Booking SMS (reservation-received, confirmation, reminder). No new
+  provider or channel is introduced: the send uses the restaurant's configured SMS provider
+  (`settings.smsProvider` → InforU in production, MOCK in dev/unconfigured) and the same
+  `settings.smsEnabled` gate. There is no WhatsApp path, no fallback, and no channel selection.
+- **Audit trail:** every attempt is recorded by `sendSms` in `MessageLog` — `messageType:
+  TABLE_READY`, the new `waitlistEntryId` link, `channel: SMS`, the actual InforU/MOCK provider,
+  status PENDING→SENT/FAILED, and the provider error message on failure. `WaitlistEntry.tableReadySentAt`
+  stamps the last successful send for cheap cross-device duplicate detection.
 - **Duplicate guard:** repeat send → `409` with `TABLE_READY_ALREADY_SENT` + previous send time; the
   UI shows "already sent X minutes ago" and asks for confirmation; `force: true` resends. A 409 raced
   from another device switches the UI into the same confirm flow.
 - **No auto-seat:** status moves WAITING → NOTIFIED only (+`notifiedAt`); seating remains a separate
   host action (asserted by integration test).
-- The legacy `POST /:id/notify` (English hardcoded WhatsApp text) is kept for compatibility;
-  the new endpoint supersedes it in the UI.
+- The legacy `POST /:id/notify` (a pre-existing endpoint using the separate WhatsApp helper) is left
+  untouched for backward compatibility but is not used by this feature; the new SMS endpoint powers
+  the UI.
 
 ## 7. Realtime summary
 
@@ -145,7 +147,10 @@ existing SSE relay with per-restaurant scoping.
 ## 9. Migrations
 
 `backend/prisma/migrations/20260717_callback_queue_waitlist_duration_table_ready.sql` (documentation;
-applied by `prisma db push` on deploy). All additive/nullable — safe against the running deploy.
+applied by `prisma db push` on deploy). All additive/nullable — safe against the running deploy:
+callback columns + `CallbackStatus` enum on `call_logs`, `durationMinutes` + `tableReadySentAt` on
+`waitlist_entries`, and `waitlistEntryId` on `message_logs`. The `MessageProvider` enum is unchanged
+(INFORU / MOCK) — table-ready reuses the existing InforU provider, so no new enum value was needed.
 Applied to the local dev DB; **production schema updates on next deploy** (not deployed per work order).
 
 ## 10. Remaining risks / follow-ups
@@ -159,7 +164,8 @@ Applied to the local dev DB; **production schema updates on next deploy** (not d
 - Link provider status vocabulary is free-form; enqueue treats any non-"answered" status as missed
   (matches the existing UI rule). If the provider emits interim statuses beyond ring/answered, watch
   the queue for false positives in the first field days.
-- WhatsApp channel for table-ready needs a restaurant with UltraMsg credentials for a live-field test
-  (integration test exercises the SMS/MOCK path; WhatsApp path is code-reviewed + logged).
+- Table-ready sends through the existing InforU SMS pipeline; a live-field test needs a restaurant
+  with `smsEnabled` + INFORU configured (the integration test exercises the same code path via the
+  MOCK provider, and the send is fully audited in `MessageLog`).
 - Manual field verification per [manual-verification-checklist.md](manual-verification-checklist.md)
   still required on real tablets (RTL layout, tel: links, two-device SSE timing).

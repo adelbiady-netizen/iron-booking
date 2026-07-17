@@ -1114,7 +1114,6 @@ enum MessageChannel {
 
 enum MessageProvider {
   INFORU
-  ULTRAMSG
   MOCK
 }
 

@@ -139,11 +139,14 @@ end time.
   **writes no MessageLog** (gap). `MessageProvider` enum = INFORU | MOCK (no ULTRAMSG value yet);
   `MessageLog` has no `waitlistEntryId` link.
 
-**Decision:** implement table-ready as a first-class waitlist action: channel = restaurant's existing
-behavior (WhatsApp if UltraMsg configured, else InforU SMS if enabled), always audited in `MessageLog`
-(add `ULTRAMSG` provider value + `waitlistEntryId` column), stamp `tableReadySentAt` on the entry for
-cheap cross-device duplicate detection, status WAITING→NOTIFIED (never SEATED), backend 409 on repeat
-unless `force`, frontend confirm dialog showing prior send time.
+**Decision (as built):** implement table-ready as a first-class waitlist action using the **existing
+InforU SMS pipeline only** (`lib/messaging.sendSms`) — same sender, same provider selection
+(INFORU / MOCK), same `smsEnabled` gate. No new provider or channel; the `MessageProvider` enum is
+unchanged. Always audited in `MessageLog` (add only the `waitlistEntryId` column; `channel: SMS`,
+actual InforU/MOCK provider), stamp `tableReadySentAt` on the entry for cheap cross-device duplicate
+detection, status WAITING→NOTIFIED (never SEATED), backend 409 on repeat unless `force`, frontend
+confirm dialog showing prior send time. (An earlier draft considered a WhatsApp/UltraMsg channel with
+fallback; that was dropped — table-ready is InforU SMS only.)
 
 ## 7. Realtime, permissions, tests, migrations
 
@@ -157,8 +160,8 @@ unless `force`, frontend confirm dialog showing prior send time.
   pattern with dev-super-login). New tests follow this convention.
 - **Migrations:** schema is applied by `prisma db push` on deploy; `prisma/migrations/*.sql` files are
   documentation of each change. Required here: `call_logs` callback columns + enum, `waitlist_entries.durationMinutes`
-  + `tableReadySentAt`, `message_logs.waitlistEntryId` + `ULTRAMSG` enum value. All additive/nullable —
-  backward compatible with the running deploy.
+  + `tableReadySentAt`, `message_logs.waitlistEntryId`. All additive/nullable — backward compatible
+  with the running deploy. (No `MessageProvider` enum change — table-ready reuses the InforU provider.)
 
 ## 8. Ambiguities / risks
 
@@ -169,5 +172,6 @@ unless `force`, frontend confirm dialog showing prior send time.
 - Najma data fix touches production rows (turn rules, settings, future reservations 90→120) — scoped by
   slug, idempotent, logged; longer holds may surface soft conflicts on already-tight days (host can
   shorten per reservation via the existing duration editor).
-- WhatsApp (UltraMsg) sends were historically unlogged; table-ready introduces logging for its own sends
-  only — backfilling other WhatsApp types is out of scope.
+- Table-ready uses the existing InforU SMS sender and is fully logged in `MessageLog`. The separate
+  UltraMsg WhatsApp helper (used by the legacy `/notify` and online-booking acknowledgments) remains
+  unlogged and unchanged — out of scope for this batch.

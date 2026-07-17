@@ -36,5 +36,10 @@ P('English variant renders correctly', () => {
   assert.ok(msg.includes('Your table at Najma is ready'));
 });
 
-console.log(`\n${passed}/5 table-ready tests passed`);
+P('message mentions no channel other than being a plain notification (InforU SMS only)', () => {
+  const msg = buildTableReadyMessage({ guestName: 'דנה', restaurantName: 'Najma' });
+  assert.ok(!/whatsapp/i.test(msg) && !msg.includes('וואטסאפ'));
+});
+
+console.log(`\n${passed}/6 table-ready tests passed`);
 process.exit(0);

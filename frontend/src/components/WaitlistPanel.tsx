@@ -100,9 +100,9 @@ function WaitlistEntryDetails({
     setReadyBusy(true);
     setReadyMsg(null);
     try {
-      const res = await api.waitlist.tableReady(entry.id, { force });
+      await api.waitlist.tableReady(entry.id, { force });
       setReadyConfirm(false);
-      setReadyMsg({ ok: true, text: T.waitlistPanel.tableReadySuccess(res.channel) });
+      setReadyMsg({ ok: true, text: T.waitlistPanel.tableReadySuccess });
     } catch (err) {
       if (err instanceof ApiError && (err.details as { code?: string } | undefined)?.code === 'TABLE_READY_ALREADY_SENT') {
         // Another device already sent it — surface the confirm flow instead of failing.

@@ -200,8 +200,8 @@ const trAdd = await SEND('POST', '/waitlist', {
 const trId = trAdd.body?.id;
 
 const send1 = await SEND('POST', `/waitlist/${trId}/table-ready`, { hostName: 'Host A' }, tokenA);
-P('table-ready message sends (MOCK SMS channel)', send1.status === 200 && send1.body?.channel === 'SMS',
-  `status=${send1.status} ch=${send1.body?.channel} err=${JSON.stringify(send1.body?.error ?? '').slice(0, 120)}`);
+P('table-ready SMS sends via existing pipeline', send1.status === 200 && Boolean(send1.body?.messageLogId),
+  `status=${send1.status} logId=${send1.body?.messageLogId} err=${JSON.stringify(send1.body?.error ?? '').slice(0, 120)}`);
 P('entry stamped with tableReadySentAt', Boolean(send1.body?.entry?.tableReadySentAt));
 P('guest NOT auto-seated (status NOTIFIED, not SEATED)', send1.body?.entry?.status === 'NOTIFIED');
 

@@ -529,7 +529,7 @@ export const api = {
     notify: (id: string) =>
       request<WaitlistEntry>(`/waitlist/${id}/notify`, { method: 'POST' }),
     tableReady: (id: string, opts?: { force?: boolean; hostName?: string }) =>
-      request<{ entry: WaitlistEntry; channel: 'WHATSAPP' | 'SMS'; messageLogId: string }>(`/waitlist/${id}/table-ready`, {
+      request<{ entry: WaitlistEntry; messageLogId: string }>(`/waitlist/${id}/table-ready`, {
         method: 'POST',
         body: JSON.stringify({ force: opts?.force === true, ...(opts?.hostName ? { hostName: opts.hostName } : {}) }),
       }),

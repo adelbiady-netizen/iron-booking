@@ -104,8 +104,8 @@ With the board **Live** (green LIVE pill visible):
 
 27. Add a מזדמן with a test phone (your own). Expand the row → press
     **✉ שליחת הודעה — השולחן מוכן**.
-    - [ ] Success feedback appears ("ההודעה נשלחה ב־WhatsApp" / "הודעת SMS נשלחה").
-    - [ ] The message arrives on the phone with restaurant branding and the guest name.
+    - [ ] Success feedback appears ("הודעת SMS נשלחה").
+    - [ ] The SMS arrives on the phone (via the restaurant's InforU sender) with restaurant branding and the guest name.
     - [ ] The entry shows "הודעת השולחן מוכן נשלחה לפני X דק׳".
     - [ ] The guest is **NOT** seated (still in the מזדמנים list, status הוצע/notified).
 28. Press the button again.
