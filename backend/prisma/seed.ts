@@ -15,6 +15,15 @@ const ADMIN_FIRST    = process.env.SEED_ADMIN_FIRST    || 'Dev';
 const ADMIN_LAST     = process.env.SEED_ADMIN_LAST     || 'Host';
 
 async function main() {
+  // Fail-safe: the seed injects demo data (incl. a known-credential ADMIN) and is
+  // a DEVELOPMENT-only tool. It must never run against production. Startup no longer
+  // invokes it; this guard also blocks accidental manual runs against a prod DB.
+  // Override intentionally with ALLOW_PROD_SEED=true.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    console.error('[seed] Refusing to run: NODE_ENV=production. This is a dev-only seed. Aborting.');
+    process.exit(1);
+  }
+
   console.log('Running seed...');
 
   // ── Restaurant ────────────────────────────────────────────────────────────
