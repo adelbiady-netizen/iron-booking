@@ -281,6 +281,12 @@ router.post('/pin-login', validate(PinLoginSchema), async (req: Request, res: Re
 // Returns a real JWT valid for all protected routes.
 
 router.post('/dev-login', async (req: Request, res: Response, next: NextFunction) => {
+    // SECURITY: dev-only, no-password backdoor that mints a real JWT. Must never
+    // be reachable in production. Respond 404 (do not confirm the route exists).
+    if (process.env.NODE_ENV === 'production') {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
+      return;
+    }
     const DEV_EMAIL = 'dev@ironbooking.com';
     const DEV_SLUG  = 'dev';
 
@@ -442,6 +448,13 @@ router.post('/dev-login', async (req: Request, res: Response, next: NextFunction
   // POST /auth/dev-super-login — creates/upserts a SUPER_ADMIN dev account
   // Self-seeding: creates the system restaurant + SUPER_ADMIN user on first call.
   router.post('/dev-super-login', async (_req: Request, res: Response) => {
+    // SECURITY: dev-only, no-password backdoor that mints a SUPER_ADMIN JWT for
+    // every restaurant. Must never be reachable in production. Respond 404 (do not
+    // confirm the route exists).
+    if (process.env.NODE_ENV === 'production') {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
+      return;
+    }
     const DEV_SUPER_EMAIL = 'dev-super@ironbooking.com';
     const SYSTEM_SLUG     = '_system';
 
