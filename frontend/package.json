@@ -9,6 +9,7 @@
     "test:live-restore": "node --experimental-strip-types src/utils/liveRestore.test.ts",
     "test:duration": "node --experimental-strip-types src/utils/duration.test.ts",
     "test:callback-badge": "node --experimental-strip-types src/utils/callbackBadge.test.ts",
+    "test:call-overlay": "node --experimental-strip-types src/utils/callOverlay.test.ts",
     "test:terminology": "node --experimental-strip-types src/i18n/terminology.test.ts"
   },
   "dependencies": {

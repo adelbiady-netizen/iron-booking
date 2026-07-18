@@ -7,7 +7,9 @@ import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
 import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased, arrivedFifoSort } from '../utils/arrival';
 import { optimisticExpectedEnd } from '../utils/time';
-import { callbackCountFromResponse, resolveOpenCallsTarget } from '../utils/callbackBadge';
+import { callbackCountFromResponse } from '../utils/callbackBadge';
+import { resolveFabTarget } from '../utils/callOverlay';
+import CallOverlay from '../components/CallOverlay';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import { trackEvent } from '../utils/telemetry';
@@ -263,6 +265,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
   // P1: server-authoritative unresolved callback count for the floating phone badge.
   const [callbackCount,      setCallbackCount]      = useState(0);
+  // P2: compact communication overlay opened from the phone FAB (desktop/wide).
+  const [showCallOverlay,    setShowCallOverlay]    = useState(false);
   const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
   const [panelCollapsed,     setPanelCollapsed]     = useState(false);
 
@@ -3053,8 +3057,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           onUnlockTable={handleUnlockTable}
           callbackCount={callbackCount}
           onOpenCalls={() => {
-            if (resolveOpenCallsTarget(isMobile) === 'mobile-calls-tab') setMobileTab('calls');
-            else setShowCallLog(true);
+            // P2: desktop/wide opens the compact overlay (primary daily workflow);
+            // mobile — incl. installed-PWA tablets — keeps the existing calls tab.
+            if (resolveFabTarget(isMobile) === 'mobile-calls-tab') setMobileTab('calls');
+            else setShowCallOverlay(true);
           }}
           callsLabel={T.hostDashboard.callLogBtn}
           onWaitlistSuggestion={handleSuggestionSeat}
@@ -3336,6 +3342,20 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null);
           }}
           onDismiss={() => { if (lastCallRef.current?.callid) lastCallRef.current = { ...lastCallRef.current, dismissed: true }; else lastCallRef.current = null; setIncomingCall(null); }}
+        />
+      )}
+
+      {/* P2: compact communication overlay (opened from the phone FAB on desktop/wide).
+          Server-authoritative data via /call-logs/callbacks; refetches on every
+          callback_updated. "View full history" opens the existing drawer (kept as
+          secondary history/detail — not removed). */}
+      {showCallOverlay && (
+        <CallOverlay
+          refreshKey={callbackRefreshKey}
+          connectionOk={sseStatus === 'connected'}
+          onClose={() => setShowCallOverlay(false)}
+          onViewFullHistory={() => setShowCallLog(true)}
+          onFindGuest={(phone) => { setGuestSearchPhone(phone); setActivePage('guests'); }}
         />
       )}
 

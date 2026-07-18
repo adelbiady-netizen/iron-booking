@@ -1053,6 +1053,17 @@ export const T = {
     permissionHint:   'Only managers and owners can manage hosts.',
   },
 
+  // ── Compact communication overlay (calls) ────────────────────────────────────
+  callOverlay: {
+    title:              'Calls',
+    requiresAttention:  'Requires attention',
+    viewFullHistory:    'View full call history',
+    retry:              'Retry',
+    reconnecting:       'Reconnecting…',
+    noRecent:           'No recent activity',
+    close:              'Close',
+  },
+
   // ── Operational Settings hub (Host app) ──────────────────────────────────────
   settingsHub: {
     title:              'Settings',
