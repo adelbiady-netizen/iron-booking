@@ -716,10 +716,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       applyReservationUpdate(updated);
       setSelectedRes(updated);
       showToast(T.guestDrawer.toastTableAssigned(table.name));
+      returnToLive(); // assigned a table (שבץ) → back to Live
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
     }
-  }, [selectedRes, showToast]);
+  }, [selectedRes, showToast, returnToLive]);
 
   const isActiveUnassigned = useCallback((r: Reservation | null): r is Reservation => {
     return !!r && !r.tableId && ['PENDING', 'CONFIRMED'].includes(r.status);
@@ -1649,20 +1650,19 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
-    // change-table: a completed table change is an operational action → snap back
-    // to Live. If nothing was picked (empty ids), preserve the host's prior
-    // position. assign/reallocate intentionally keep the floor at the
-    // reservation's date/time so the result is immediately visible.
-    if (tablePickActionRef.current === 'change-table') {
-      if (ids.length > 0) {
-        returnToLive();
-      } else {
-        const restore = tablePickRestoreRef.current;
-        if (restore) {
-          setDate(restore.date);
-          setTime(restore.time);
-          setLiveMode(restore.liveMode);
-        }
+    // Any completed pick-mode operational action (assign / seat / move /
+    // change-table / reallocate / combine / seat-from-map) is a successful
+    // workflow → snap back to Live. 'new-reservation' is excluded here: it opens
+    // the CreateDrawer and the mutation completes later (handleCreated). An empty
+    // pick (host cancelled a change-table) preserves the host's prior position.
+    if (ids.length > 0 && tablePickActionRef.current !== 'new-reservation') {
+      returnToLive();
+    } else if (tablePickActionRef.current === 'change-table') {
+      const restore = tablePickRestoreRef.current;
+      if (restore) {
+        setDate(restore.date);
+        setTime(restore.time);
+        setLiveMode(restore.liveMode);
       }
     }
     tablePickRestoreRef.current = null;
