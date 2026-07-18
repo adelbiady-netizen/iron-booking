@@ -2,8 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { api, ApiError } from '../api';
 import { useT } from '../i18n/useT';
-import type { CallbackItem } from '../types';
+import type { CallbackItem, CallbackUndoDescriptor } from '../types';
 import { buildOverlaySections, type OverlaySections } from '../utils/callOverlay';
+import {
+  shouldShowClearAll, isActionDisabled, hasUndoableItems, isUndoConflict,
+  runClearAll, runUndo, UNDO_WINDOW_MS,
+} from '../utils/callbackActions';
 
 // Compact communication overlay (P2). A floating panel opened from the phone FAB
 // that shows the callback queue as: (1) requires attention, (2) recently handled,
@@ -39,6 +43,13 @@ export default function CallOverlay({
   const [busyId,  setBusyId]  = useState<string | null>(null);
   const loadedRef = useRef(false);
   const [loading, setLoading] = useState(true);
+  // P3 — Clear All + Undo. `undoToast` holds the token for the LAST operation; it
+  // auto-dismisses after a short window (dismissal deletes no server record).
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing,     setClearing]     = useState(false);
+  const [undoToast,    setUndoToast]    = useState<CallbackUndoDescriptor | null>(null);
+  const [undoing,      setUndoing]      = useState(false);
+  const [conflict,     setConflict]     = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -76,6 +87,70 @@ export default function CallOverlay({
     } finally {
       setBusyId(null);
       load();
+    }
+  }
+
+  // Show an Undo toast for the just-completed operation; it auto-dismisses.
+  function showUndo(undo: CallbackUndoDescriptor) {
+    setConflict(false);
+    setUndoToast(undo);
+  }
+  useEffect(() => {
+    if (!undoToast) return;
+    const t = setTimeout(() => setUndoToast(null), UNDO_WINDOW_MS);
+    return () => clearTimeout(t);
+  }, [undoToast]);
+  useEffect(() => {
+    if (!conflict) return;
+    const t = setTimeout(() => setConflict(false), UNDO_WINDOW_MS);
+    return () => clearTimeout(t);
+  }, [conflict]);
+
+  // Mark one handled. Server-authoritative: never remove optimistically — we
+  // refetch after success and offer Undo from the returned token.
+  async function handleComplete(id: string) {
+    if (busyId || clearing) return;
+    setBusyId(id);
+    try {
+      const res = await api.callLogs.callbackComplete(id);
+      if (hasUndoableItems(res.undo)) showUndo(res.undo);
+    } catch {
+      // 409 / transient — refetch reconciles.
+    } finally {
+      setBusyId(null);
+      load();
+    }
+  }
+
+  // Clear All — confirmed bulk mark-handled over the current unresolved set.
+  async function handleClearAll() {
+    if (clearing || busyId) return;
+    setConfirmClear(false);
+    setClearing(true);
+    try {
+      const { undo } = await runClearAll({ clearAll: () => api.callLogs.callbackClearAll(), refetch: load });
+      if (undo) showUndo(undo);
+    } catch {
+      // refetch already ran inside runClearAll.
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  // Undo the last operation. Server re-validates; a conflict shows a calm notice.
+  async function handleUndo() {
+    if (!undoToast || undoing) return;
+    const descriptor = undoToast;
+    setUndoing(true);
+    try {
+      const { outcome } = await runUndo({ undo: (p) => api.callLogs.callbackUndo(p), refetch: load }, descriptor);
+      setUndoToast(null);
+      if (isUndoConflict(outcome)) setConflict(true);
+    } catch {
+      // Unknown result — clear the toast and let the refetch show the true state.
+      setUndoToast(null);
+    } finally {
+      setUndoing(false);
     }
   }
 
@@ -125,14 +200,14 @@ export default function CallOverlay({
               {T.callLog.cbCall}
             </a>
             <button
-              disabled={busy}
-              onClick={() => run(cb.id, () => api.callLogs.callbackComplete(cb.id))}
+              disabled={busy || clearing}
+              onClick={() => handleComplete(cb.id)}
               className="text-xs text-iron-text/85 border border-iron-border hover:border-iron-text/30 rounded px-2 py-1 disabled:opacity-50 transition-colors"
             >
               {T.callLog.cbComplete}
             </button>
             <button
-              disabled={busy}
+              disabled={busy || clearing}
               onClick={() => run(cb.id, () => api.callLogs.callbackCancel(cb.id))}
               className="text-xs text-iron-muted hover:text-status-danger border border-iron-border rounded px-2 py-1 disabled:opacity-50 transition-colors"
             >
@@ -192,9 +267,31 @@ export default function CallOverlay({
           <>
             {/* 1 — Requires attention (primary) */}
             <section className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-iron-muted">{T.callOverlay.requiresAttention}</p>
+                {shouldShowClearAll(sections.activeCount) && !confirmClear && (
+                  <button
+                    disabled={isActionDisabled(clearing || busyId !== null)}
+                    onClick={() => setConfirmClear(true)}
+                    className="text-[11px] text-iron-muted hover:text-iron-text underline underline-offset-2 disabled:opacity-50 transition-colors"
+                  >
+                    {T.callOverlay.clearAll}
+                  </button>
+                )}
               </div>
+              {confirmClear && (
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-iron-bg/60 border border-iron-border px-2.5 py-2">
+                  <span className="text-xs text-iron-text">{T.callOverlay.clearAllConfirm(sections.activeCount)}</span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button disabled={clearing} onClick={handleClearAll} className="text-xs text-white bg-iron-green/90 hover:bg-iron-green rounded px-2 py-1 disabled:opacity-50 transition-colors">
+                      {T.callOverlay.confirm}
+                    </button>
+                    <button disabled={clearing} onClick={() => setConfirmClear(false)} className="text-xs text-iron-muted border border-iron-border rounded px-2 py-1 disabled:opacity-50 transition-colors">
+                      {T.callOverlay.cancel}
+                    </button>
+                  </div>
+                </div>
+              )}
               {sections.isEmpty ? (
                 <div className="text-center py-6">
                   <div className="w-9 h-9 mx-auto mb-2 rounded-full bg-iron-green/10 border border-iron-green/30 flex items-center justify-center text-iron-green-light">✓</div>
@@ -224,6 +321,26 @@ export default function CallOverlay({
           </>
         )}
       </div>
+
+      {/* Undo toast / conflict notice for the last operation. */}
+      {(undoToast || conflict) && (
+        <div className="border-t border-iron-border px-3 py-2 flex-shrink-0">
+          {undoToast ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-iron-text">{T.callOverlay.undoDone}</span>
+              <button
+                disabled={undoing}
+                onClick={handleUndo}
+                className="text-xs font-medium text-iron-green-light hover:text-iron-green underline underline-offset-2 disabled:opacity-50 transition-colors"
+              >
+                {T.callOverlay.undo}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-status-warning">{T.callOverlay.undoConflict}</p>
+          )}
+        </div>
+      )}
 
       {/* 3 — Full history on demand */}
       <div className="border-t border-iron-border p-2.5 flex-shrink-0">

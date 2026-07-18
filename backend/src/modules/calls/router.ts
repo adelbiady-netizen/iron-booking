@@ -1,21 +1,26 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate } from '../../middleware/auth';
+import { randomUUID } from 'crypto';
+import { authenticate, type AuthPayload } from '../../middleware/auth';
 import { prisma } from '../../lib/prisma';
 import { eventBus } from '../../lib/eventBus';
+import { writeHostAudit } from '../../lib/hostAudit';
 import { OPEN_STATUSES, countOpen } from './callbackState';
+import {
+  CALLBACK_SELECT,
+  makePrismaCallbackStore,
+  planComplete,
+  planCancel,
+  planClearAll,
+  planUndo,
+  type Effects,
+} from './callbackOps';
 
 const router = Router();
 router.use(authenticate);
 
 // Kept name for readability; single source of truth is callbackState.OPEN_STATUSES.
 const OPEN_CALLBACK_STATUSES = OPEN_STATUSES;
-
-const CALLBACK_SELECT = {
-  id: true, phone: true, status: true, createdAt: true, guestName: true,
-  restaurantName: true, queueStatus: true, callbackNote: true,
-  handledBy: true, claimedAt: true, callbackCompletedAt: true,
-} as const;
 
 function hostNameFrom(req: { auth: { firstName?: string; lastName?: string }; body?: unknown }): string {
   const body = (req.body ?? {}) as { hostName?: unknown };
@@ -27,7 +32,24 @@ function emitCallbackUpdated(restaurantId: string, callback: unknown): void {
   eventBus.emit('callback_updated', { restaurantId, callback });
 }
 
+// Apply the append-only audit rows an operation produced. Fire-and-forget, so it
+// can never fail or delay the action the host just performed.
+function applyAudits(auth: AuthPayload, effects: Effects): void {
+  for (const a of effects.audits) writeHostAudit(auth, a.event, a.properties);
+}
+
 const NoteSchema = z.object({ note: z.string().max(300).nullable() });
+
+const UndoSchema = z.object({
+  operationId: z.string().optional(),
+  completedAt: z.string(),
+  items: z
+    .array(z.object({
+      id: z.string(),
+      previousStatus: z.enum(['PENDING_CALLBACK', 'CALLBACK_IN_PROGRESS']),
+    }))
+    .max(500),
+});
 
 router.get('/', async (req, res, next) => {
   try {
@@ -101,6 +123,61 @@ router.get('/callbacks', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /call-logs/callbacks/clear-all — mark every currently-unresolved callback
+// (PENDING + IN_PROGRESS) as handled in ONE atomic, tenant-scoped operation.
+//
+// Atomicity + concurrency live in the store's `lockOpen` (SELECT … FOR UPDATE):
+// a second Clear All running simultaneously waits, then sees zero open rows and
+// is a safe no-op; callbacks created after the lock are never in the set. The
+// response carries an `undo` token (affected IDs + previous states).
+router.post('/callbacks/clear-all', async (req, res, next) => {
+  try {
+    const restaurantId = req.auth.restaurantId;
+    const hostName = hostNameFrom(req);
+
+    const result = await prisma.$transaction((tx) =>
+      planClearAll(makePrismaCallbackStore(tx), {
+        restaurantId, hostName, operationId: randomUUID(), now: new Date(),
+      }),
+    );
+
+    applyAudits(req.auth, result.effects);
+    if (result.effects.emit) emitCallbackUpdated(restaurantId, null);
+    res.json({ count: result.count, undo: result.undo });
+  } catch (err) { next(err); }
+});
+
+// POST /call-logs/callbacks/undo — safely reverse a complete or clear-all.
+//
+// Per item, a compare-and-swap restores it ONLY IF it is still COMPLETED with the
+// exact `callbackCompletedAt` token from the original op. Any item independently
+// changed since (reopened, re-completed, cancelled) fails the swap and is returned
+// in `conflicted` — never overwritten. The client payload is intent, not permission.
+router.post('/callbacks/undo', async (req, res, next) => {
+  try {
+    const restaurantId = req.auth.restaurantId;
+    const parsed = UndoSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: { code: 'VALIDATION', message: 'Invalid undo payload' } });
+      return;
+    }
+    const { operationId, completedAt, items } = parsed.data;
+    const token = new Date(completedAt);
+    if (Number.isNaN(token.getTime())) {
+      res.status(400).json({ error: { code: 'VALIDATION', message: 'Invalid completedAt token' } });
+      return;
+    }
+
+    const result = await prisma.$transaction((tx) =>
+      planUndo(makePrismaCallbackStore(tx), { restaurantId, operationId, token, items }),
+    );
+
+    applyAudits(req.auth, result.effects);
+    if (result.effects.emit) emitCallbackUpdated(restaurantId, null);
+    res.json({ restored: result.restored, conflicted: result.conflicted });
+  } catch (err) { next(err); }
+});
+
 // POST /call-logs/:id/callback/start — claim atomically; 409 if someone else holds it
 router.post('/:id/callback/start', async (req, res, next) => {
   try {
@@ -129,7 +206,9 @@ router.post('/:id/callback/start', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /call-logs/:id/callback/complete — allowed from PENDING or IN_PROGRESS
+// POST /call-logs/:id/callback/complete — mark handled (D1). Server-authoritative:
+// the client never removes the item optimistically; it refetches after this
+// resolves. Returns an `undo` token so the action can be reversed from a toast.
 router.post('/:id/callback/complete', async (req, res, next) => {
   try {
     const restaurantId = req.auth.restaurantId;
@@ -137,25 +216,22 @@ router.post('/:id/callback/complete', async (req, res, next) => {
     const hostName = hostNameFrom(req);
     const note = typeof req.body?.note === 'string' ? req.body.note.slice(0, 300) : undefined;
 
-    const done = await prisma.callLog.updateMany({
-      where: { id, restaurantId, queueStatus: { in: [...OPEN_CALLBACK_STATUSES] } },
-      data: {
-        queueStatus: 'CALLBACK_COMPLETED',
-        handledBy: hostName,
-        callbackCompletedAt: new Date(),
-        ...(note !== undefined ? { callbackNote: note } : {}),
-      },
+    const result = await planComplete(makePrismaCallbackStore(prisma), {
+      restaurantId, id, hostName, note, operationId: randomUUID(), now: new Date(),
     });
 
-    const row = await prisma.callLog.findFirst({ where: { id, restaurantId }, select: CALLBACK_SELECT });
-    if (!row) { res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Callback not found' } }); return; }
-    if (done.count === 0) {
-      res.status(409).json({ error: { code: 'CALLBACK_NOT_OPEN', message: 'Callback is not open', details: { callback: row } } });
+    if (!result.ok) {
+      if (result.code === 'NOT_FOUND') {
+        res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Callback not found' } });
+        return;
+      }
+      res.status(409).json({ error: { code: 'CALLBACK_NOT_OPEN', message: 'Callback is not open', details: { callback: result.row } } });
       return;
     }
 
-    emitCallbackUpdated(restaurantId, row);
-    res.json(row);
+    applyAudits(req.auth, result.effects);
+    if (result.effects.emit) emitCallbackUpdated(restaurantId, result.row);
+    res.json({ ...result.row, undo: result.undo });
   } catch (err) { next(err); }
 });
 
@@ -167,25 +243,22 @@ router.post('/:id/callback/cancel', async (req, res, next) => {
     const hostName = hostNameFrom(req);
     const note = typeof req.body?.note === 'string' ? req.body.note.slice(0, 300) : undefined;
 
-    const cancelled = await prisma.callLog.updateMany({
-      where: { id, restaurantId, queueStatus: { in: [...OPEN_CALLBACK_STATUSES] } },
-      data: {
-        queueStatus: 'CALLBACK_CANCELLED',
-        handledBy: hostName,
-        callbackCompletedAt: new Date(),
-        ...(note !== undefined ? { callbackNote: note } : {}),
-      },
+    const result = await planCancel(makePrismaCallbackStore(prisma), {
+      restaurantId, id, hostName, note, operationId: randomUUID(), now: new Date(),
     });
 
-    const row = await prisma.callLog.findFirst({ where: { id, restaurantId }, select: CALLBACK_SELECT });
-    if (!row) { res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Callback not found' } }); return; }
-    if (cancelled.count === 0) {
-      res.status(409).json({ error: { code: 'CALLBACK_NOT_OPEN', message: 'Callback is not open', details: { callback: row } } });
+    if (!result.ok) {
+      if (result.code === 'NOT_FOUND') {
+        res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Callback not found' } });
+        return;
+      }
+      res.status(409).json({ error: { code: 'CALLBACK_NOT_OPEN', message: 'Callback is not open', details: { callback: result.row } } });
       return;
     }
 
-    emitCallbackUpdated(restaurantId, row);
-    res.json(row);
+    applyAudits(req.auth, result.effects);
+    if (result.effects.emit) emitCallbackUpdated(restaurantId, result.row);
+    res.json(result.row);
   } catch (err) { next(err); }
 });
 

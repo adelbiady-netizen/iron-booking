@@ -19,6 +19,7 @@
     "test:consent": "ts-node --transpile-only src/lib/consentAudit.test.ts",
     "test:online-settings": "ts-node --transpile-only src/lib/onlineSettings.test.ts",
     "test:callback-state": "ts-node --transpile-only src/modules/calls/callbackState.test.ts",
+    "test:callback-ops": "ts-node --transpile-only src/modules/calls/callbackOps.test.ts",
     "test:callback-sse": "ts-node --transpile-only src/modules/integrations/callbackSse.test.ts",
     "test:unsubscribe": "ts-node --transpile-only src/lib/unsubscribeToken.test.ts",
     "test:unsubscribe-phase3": "ts-node --transpile-only scripts/unsubscribe-phase3-verify.ts",

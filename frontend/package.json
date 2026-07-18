@@ -10,6 +10,7 @@
     "test:duration": "node --experimental-strip-types src/utils/duration.test.ts",
     "test:callback-badge": "node --experimental-strip-types src/utils/callbackBadge.test.ts",
     "test:call-overlay": "node --experimental-strip-types src/utils/callOverlay.test.ts",
+    "test:callback-actions": "node --experimental-strip-types src/utils/callbackActions.test.ts",
     "test:terminology": "node --experimental-strip-types src/i18n/terminology.test.ts"
   },
   "dependencies": {

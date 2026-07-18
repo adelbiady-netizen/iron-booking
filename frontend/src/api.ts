@@ -1197,7 +1197,7 @@ export const api = {
         method: 'POST', body: JSON.stringify(hostName ? { hostName } : {}),
       }),
     callbackComplete: (id: string, opts?: { note?: string; hostName?: string }) =>
-      request<import('./types').CallbackItem>(`/call-logs/${id}/callback/complete`, {
+      request<import('./types').CallbackItem & { undo: import('./types').CallbackUndoDescriptor }>(`/call-logs/${id}/callback/complete`, {
         method: 'POST', body: JSON.stringify({ ...(opts?.note != null ? { note: opts.note } : {}), ...(opts?.hostName ? { hostName: opts.hostName } : {}) }),
       }),
     callbackCancel: (id: string, opts?: { note?: string; hostName?: string }) =>
@@ -1206,6 +1206,16 @@ export const api = {
       }),
     callbackRelease: (id: string) =>
       request<import('./types').CallbackItem>(`/call-logs/${id}/callback/release`, { method: 'POST', body: '{}' }),
+    // Bulk mark-handled: one atomic server op over the currently-unresolved set.
+    callbackClearAll: (hostName?: string) =>
+      request<import('./types').CallbackClearAllResponse>('/call-logs/callbacks/clear-all', {
+        method: 'POST', body: JSON.stringify(hostName ? { hostName } : {}),
+      }),
+    // Safely reverse a complete / clear-all. The server re-validates every item.
+    callbackUndo: (payload: import('./types').CallbackUndoDescriptor) =>
+      request<import('./types').CallbackUndoResponse>('/call-logs/callbacks/undo', {
+        method: 'POST', body: JSON.stringify(payload),
+      }),
     callbackNote: (id: string, note: string | null) =>
       request<import('./types').CallbackItem>(`/call-logs/${id}/callback/note`, {
         method: 'PATCH', body: JSON.stringify({ note }),

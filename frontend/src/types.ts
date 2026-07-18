@@ -1024,6 +1024,25 @@ export interface CallbackItem {
   position?: number; // 1-based FIFO position (active queue only)
 }
 
+// Self-contained token returned by complete / clear-all and echoed back to Undo.
+// The server re-validates it (compare-and-swap on the completedAt token), so this
+// is intent, not authority — a stale token is safely rejected, never applied.
+export interface CallbackUndoDescriptor {
+  operationId: string;
+  completedAt: string | null;
+  items: Array<{ id: string; previousStatus: 'PENDING_CALLBACK' | 'CALLBACK_IN_PROGRESS' }>;
+}
+
+export interface CallbackClearAllResponse {
+  count: number;
+  undo: CallbackUndoDescriptor;
+}
+
+export interface CallbackUndoResponse {
+  restored: string[];
+  conflicted: string[];
+}
+
 // ─── Guest Intelligence Center ────────────────────────────────────────────────
 
 export type MemoryCategory = 'CELEBRATION' | 'RECOVERY' | 'EMOTIONAL_MOMENT' | 'MILESTONE' | 'PREFERENCE' | 'GROUP_EVENT';

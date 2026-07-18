@@ -1062,6 +1062,13 @@ export const T = {
     reconnecting:       'Reconnecting…',
     noRecent:           'No recent activity',
     close:              'Close',
+    clearAll:           'Mark all handled',
+    clearAllConfirm:    (n: number) => `Mark all ${n} callback items as handled?`,
+    confirm:            'Confirm',
+    cancel:             'Cancel',
+    undoDone:           'Handled',
+    undo:               'Undo',
+    undoConflict:       'This callback changed on another device and can no longer be restored.',
   },
 
   // ── Operational Settings hub (Host app) ──────────────────────────────────────
