@@ -188,6 +188,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     pendingWaitlistEntry?: WaitlistEntry;
     pendingMoveResId?: string;
     pendingAssignResId?: string;
+    pendingSeat?: boolean;   // true → assign path should SEAT (הושבה), not just assign the table
   } | null>(null);
   const [occupiedConflict, setOccupiedConflict] = useState<{
     occupiedBy: { id: string; guestName: string; time: string; partySize: number };
@@ -470,7 +471,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         if (dupeIds.length > 0) {
           console.error('[HostDashboard] API returned duplicate table IDs:', dupeIds, 'total:', ids.length, 'unique:', new Set(ids).size);
         }
-        setFloorTables(ft);
+        // Protect tables with a pending optimistic seat: a floor response that was
+        // queried BEFORE the seat committed (e.g. the time-travel fetch armed when שבץ
+        // opened the map) must not briefly revert a just-seated table to AVAILABLE — that
+        // makes the cell recede/"disappear" for ~2s until the next refetch. Keep the
+        // optimistic OCCUPIED cell until its snapshot clears (on server confirmation).
+        const pendingSeatTableIds = new Set(
+          [...optimisticSeatSnapshotRef.current.values()].map(s => s.tableId)
+        );
+        if (pendingSeatTableIds.size > 0) {
+          setFloorTables(prev => ft.map(t => {
+            if (!pendingSeatTableIds.has(t.id)) return t;
+            return prev.find(p => p.id === t.id) ?? t;
+          }));
+        } else {
+          setFloorTables(ft);
+        }
       }
       if (resOk) {
         const freshData = resResult.value.data as Reservation[];
@@ -1511,12 +1527,32 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     if (!waitlistAssignEntry) return;
     const entry   = waitlistAssignEntry;
     const tableId = waitlistAssignTableId ?? undefined;
-    const ok = await executeWaitlistSeat(entry, tableId);
-    if (ok) {
-      setWaitlistAssignEntry(null);
-      setWaitlistAssignTableId(null);
+
+    const finish = async () => {
+      const ok = await executeWaitlistSeat(entry, tableId);
+      if (ok) {
+        setWaitlistAssignEntry(null);
+        setWaitlistAssignTableId(null);
+      }
+    };
+
+    // Host-controlled override, no extra confirmation: if the picked table has an
+    // actively-seated guest, complete them (they're leaving) first — the pick + הושב
+    // עכשיו is the host's deliberate action. A mistaken completion is one-tap-undoable
+    // from the guest's own panel. Future-reservation conflicts are handled in executeWaitlistSeat.
+    const tbl = tableId ? floorTables.find(t => t.id === tableId) : undefined;
+    if (tbl?.currentReservation && (tbl.liveStatus === 'OCCUPIED' || tbl.liveStatus === 'STALE_OCCUPIED')) {
+      try {
+        const done = await api.reservations.complete(tbl.currentReservation.id);
+        setReservations(prev => prev.map(x => x.id === done.id ? { ...x, ...done } : x));
+      } catch (err) {
+        setRefreshKey(k => k + 1);
+        showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
+        return;
+      }
     }
-  }, [waitlistAssignEntry, waitlistAssignTableId, executeWaitlistSeat]);
+    await finish();
+  }, [waitlistAssignEntry, waitlistAssignTableId, executeWaitlistSeat, floorTables, showToast]);
 
   // Bidirectional date sync: called by CreateDrawer and GuestDrawer (edit mode)
   // whenever the host changes the reservation date or time inside the drawer.
@@ -1796,39 +1832,92 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         const [primaryId, ...secondaryIds] = ids;
         const primaryTable = floorTables.find(t => t.id === primaryId) ?? allTables.find(t => t.id === primaryId);
         const name = primaryTable?.name ?? primaryId;
-        // handlePickDone already applied optimistic update — just persist to server
-        const prevReservations = reservations;
-        try {
-          const updated = await api.reservations.update(r.id, {
-            tableId: primaryId,
-            combinedTableIds: secondaryIds,
-          });
-          // Reconcile with server truth and force an immediate floor refresh so
-          // floorTables reflects the new assignment without waiting for SSE.
-          setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
-          setRefreshKey(k => k + 1);
-          showToast(T.guestDrawer.toastTableAssigned(name));
-        } catch (err) {
-          // Roll back optimistic update
-          setReservations(prevReservations);
-          if (err instanceof ApiError && err.code === 'CONFLICT') {
-            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
-            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
-              setReorganizeConflict({
-                conflicts: det.conflicts,
-                pendingReservationId: r.id,
-                pendingTableId: primaryId,
-                pendingCombinedIds: secondaryIds,
-                tableName: name,
-                busy: false,
-                _key: ++reorganizeKeyRef.current,
-                pendingAssignResId: r.id,
-              });
-              return;
+
+        // Host-controlled override: any picked table that is physically occupied by a
+        // SEATED guest gets that guest completed (they're leaving) before we assign.
+        // Future-reservation conflicts are handled separately by the reorganize modal.
+        const occupants = ids
+          .map(tid => floorTables.find(t => t.id === tid))
+          .filter((t): t is FloorTable => !!t?.currentReservation
+            && (t.liveStatus === 'OCCUPIED' || t.liveStatus === 'STALE_OCCUPIED'))
+          .map(t => ({ occupantId: t.currentReservation!.id, tableName: t.name, guestName: t.currentReservation!.guestName }));
+
+        // A no-table guest is SEATED (הושבה → OCCUPIED) only if they've ARRIVED. A guest
+        // who hasn't arrived yet is just assigned to the table (status stays CONFIRMED) so
+        // the table shows as RESERVED/blue — pre-assigning must not fake occupancy. A SEATED
+        // party on the target table is still sent home (see below), by host choice.
+        // Move / change-table always plain re-assign.
+        const seatNow = hasNoTable && r.isArrived;
+
+        const persistAssign = async () => {
+          const prevReservations = reservations;
+          // Optimistic: paint the seat on the floor instantly (table → OCCUPIED with this
+          // guest) so the host gets immediate feedback; the network calls below reconcile
+          // in the background. Only when actually seating an arrived guest.
+          if (seatNow) handleOptimisticSeat(r, primaryId, secondaryIds);
+          try {
+            // Host-controlled: assigning onto a table with a SEATED party sends that party
+            // home (COMPLETED) — the host's deliberate call — whether or not the incoming
+            // guest has arrived. `occupants` is only ever the physically-seated tables;
+            // future-reservation (not-seated) conflicts go through the reorganize modal.
+            // A mistaken completion is one-tap-undoable from the guest's own panel.
+            for (const occ of occupants) {
+              const done = await api.reservations.complete(occ.occupantId);
+              setReservations(prev => prev.map(x => x.id === done.id ? { ...x, ...done } : x));
             }
+            // Arrived no-table guest → SEAT. Not-arrived → assign the table only
+            // (CONFIRMED → RESERVED/blue). Move / change-table → plain re-assign.
+            const placed = seatNow
+              ? await api.reservations.seat(r.id, primaryId, false, secondaryIds)
+              : await api.reservations.update(r.id, { tableId: primaryId, combinedTableIds: secondaryIds });
+            if (seatNow) optimisticSeatSnapshotRef.current.delete(r.id);  // confirmed by server
+            // Reconcile with server truth and force an immediate floor refresh so
+            // floorTables reflects the placement without waiting for SSE.
+            setReservations(prev => prev.map(x => x.id === placed.id ? { ...x, ...placed } : x));
+            setRefreshKey(k => k + 1);
+            showToast(seatNow ? T.hostDashboard.toastQuickSeated(name) : T.guestDrawer.toastTableAssigned(name), 'success');
+          } catch (err) {
+            // Roll back the optimistic seat / assignment and re-sync the floor (occupants
+            // may have already been completed before the failure).
+            if (seatNow) handleOptimisticSeatRollback(r.id);
+            setReservations(prevReservations);
+            setRefreshKey(k => k + 1);
+            if (err instanceof ApiError && err.code === 'CONFLICT') {
+              const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+              if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+                setReorganizeConflict({
+                  conflicts: det.conflicts,
+                  pendingReservationId: r.id,
+                  pendingTableId: primaryId,
+                  pendingCombinedIds: secondaryIds,
+                  tableName: name,
+                  busy: false,
+                  _key: ++reorganizeKeyRef.current,
+                  pendingAssignResId: r.id,
+                  pendingSeat: seatNow,
+                });
+                return;
+              }
+            }
+            // Seat rejected for a non-conflict reason (e.g. the reservation is for a future
+            // service date) → fall back to a plain table assignment so the host isn't blocked.
+            if (seatNow) {
+              try {
+                const assigned = await api.reservations.update(r.id, { tableId: primaryId, combinedTableIds: secondaryIds });
+                setReservations(prev => prev.map(x => x.id === assigned.id ? { ...x, ...assigned } : x));
+                setRefreshKey(k => k + 1);
+                showToast(T.guestDrawer.toastTableAssigned(name));
+                return;
+              } catch { /* fall through to the original error */ }
+            }
+            showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
           }
-          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
-        }
+        };
+
+        // No extra confirmation: picking the table + the normal אישור is the host's
+        // deliberate action. persistAssign completes any seated occupant, then assigns.
+        // A mistaken completion is one-tap-undoable from the guest's own panel.
+        await persistAssign();
       },
       pickAction,
       r.guestName,
@@ -3471,7 +3560,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           busy={reorganizeConflict.busy}
           onCancel={() => setReorganizeConflict(null)}
           onConfirm={async (selectedIds) => {
-            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry, pendingMoveResId, pendingAssignResId } = reorganizeConflict;
+            const { pendingReservationId, pendingTableId, pendingCombinedIds, tableName, pendingWaitlistEntry, pendingMoveResId, pendingAssignResId, pendingSeat } = reorganizeConflict;
             setReorganizeConflict(prev => prev ? { ...prev, busy: true } : null);
             try {
               if (pendingWaitlistEntry) {
@@ -3493,17 +3582,20 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 setReorganizeConflict(null);
                 showToast(T.guestDrawer.toastMoved(tableName), 'success');
               } else if (pendingAssignResId) {
-                // Assign-table path (שבץ לשולחן): re-issue update with overrideConflicts
-                const updated = await api.reservations.update(pendingAssignResId, {
-                  tableId: pendingTableId,
-                  combinedTableIds: pendingCombinedIds,
-                  overrideConflicts: true,
-                  reorganizeIds: selectedIds,
-                });
+                // Assign path (שבץ לשולחן): no-table guests are SEATED (הושבה); move/
+                // change-table just re-assign. Both displace the future reservation.
+                const updated = pendingSeat
+                  ? await api.reservations.seat(pendingAssignResId, pendingTableId, true, pendingCombinedIds, selectedIds)
+                  : await api.reservations.update(pendingAssignResId, {
+                      tableId: pendingTableId,
+                      combinedTableIds: pendingCombinedIds,
+                      overrideConflicts: true,
+                      reorganizeIds: selectedIds,
+                    });
                 setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
                 setRefreshKey(k => k + 1);
                 setReorganizeConflict(null);
-                showToast(T.guestDrawer.toastTableAssigned(tableName), 'success');
+                showToast(pendingSeat ? T.hostDashboard.toastQuickSeated(tableName) : T.guestDrawer.toastTableAssigned(tableName), 'success');
               } else {
                 const updated = await api.reservations.seat(pendingReservationId, pendingTableId, true, pendingCombinedIds, selectedIds);
                 setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
