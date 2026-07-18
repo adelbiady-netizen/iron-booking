@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:live-restore": "node --experimental-strip-types src/utils/liveRestore.test.ts",
+    "test:duration": "node --experimental-strip-types src/utils/duration.test.ts",
+    "test:terminology": "node --experimental-strip-types src/i18n/terminology.test.ts"
   },
   "dependencies": {
     "i18next": "^26.0.8",

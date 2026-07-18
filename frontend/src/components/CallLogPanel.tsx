@@ -1,17 +1,20 @@
 import { useEffect, useState, useCallback, Fragment } from 'react';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { useT } from '../i18n/useT';
 import { normalizePhone } from '../utils/phone';
-import type { CallLogItem } from '../types';
+import type { CallLogItem, CallbackItem } from '../types';
 
 interface Props {
   latestCall?: CallLogItem | null;
+  /** Bumped by HostDashboard whenever an SSE callback_updated event arrives. */
+  callbackRefreshKey?: number;
   onNewReservation: (phone: string) => void;
   onFindGuest: (phone: string) => void;
   onClose: () => void;
 }
 
 type Scope = 'today' | 'all';
+type View  = 'callbacks' | 'log';
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -38,7 +41,256 @@ function safeRecordingUrl(raw: string | null): string | null {
 
 const LIMIT = 25;
 
-export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest, onClose }: Props) {
+// ─── Callback queue view ─────────────────────────────────────────────────────
+// FIFO queue over missed calls. Order comes from the server (createdAt asc) so
+// every device sees the same positions; SSE + refetch keep devices in sync.
+
+function CallbackQueueView({ refreshKey, onNewReservation, onFindGuest }: {
+  refreshKey: string | number;
+  onNewReservation: (phone: string) => void;
+  onFindGuest: (phone: string) => void;
+}) {
+  const T = useT();
+  const [active, setActive]             = useState<CallbackItem[]>([]);
+  const [recentClosed, setRecentClosed] = useState<CallbackItem[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(false);
+  const [busyId, setBusyId]             = useState<string | null>(null);
+  const [notice, setNotice]             = useState<string | null>(null);
+  const [noteDraft, setNoteDraft]       = useState<{ id: string; text: string } | null>(null);
+  const [, setTick]                     = useState(0); // re-render for relative times
+
+  const load = useCallback(async () => {
+    setError(false);
+    try {
+      const res = await api.callLogs.callbacks();
+      setActive(res.active);
+      setRecentClosed(res.recentClosed);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load, refreshKey]);
+
+  // Relative "waiting since" labels tick every 30s
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function run(id: string, action: () => Promise<unknown>) {
+    setBusyId(id);
+    setNotice(null);
+    try {
+      await action();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const cb = (err.details as { callback?: CallbackItem } | undefined)?.callback;
+        if (cb?.queueStatus === 'CALLBACK_IN_PROGRESS' && cb.handledBy) {
+          setNotice(T.callLog.cbAlreadyClaimed(cb.handledBy));
+        } else {
+          setNotice(T.callLog.cbActionFailed);
+        }
+      } else {
+        setNotice(T.callLog.cbActionFailed);
+      }
+    } finally {
+      setBusyId(null);
+      load();
+    }
+  }
+
+  function minutesAgo(iso: string): number {
+    return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
+  }
+
+  function statusChip(cb: CallbackItem) {
+    switch (cb.queueStatus) {
+      case 'PENDING_CALLBACK':
+        return <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-status-danger/12 border border-status-danger/30 text-status-danger">{T.callLog.cbPending}</span>;
+      case 'CALLBACK_IN_PROGRESS':
+        return <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/12 border border-amber-500/30 text-amber-400">{cb.handledBy ? T.callLog.cbInProgressBy(cb.handledBy) : T.callLog.cbInProgress}</span>;
+      case 'CALLBACK_COMPLETED':
+        return <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-iron-green/12 border border-iron-green/30 text-iron-green-light">{T.callLog.cbCompleted}</span>;
+      case 'CALLBACK_CANCELLED':
+        return <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-iron-bg/60 border border-iron-border/40 text-iron-muted/70">{T.callLog.cbCancelled}</span>;
+      default:
+        return null;
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-5 h-5 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-5 py-12 text-center">
+        <p className="text-iron-muted/70 text-sm mb-3">{T.callLog.loadError}</p>
+        <button onClick={() => { setLoading(true); load(); }} className="text-xs font-medium text-iron-green-light hover:text-iron-green transition-colors">
+          {T.callLog.retry}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {notice && (
+        <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[12px]">
+          {notice}
+        </div>
+      )}
+
+      {active.length === 0 && (
+        <div className="px-5 py-12 text-center">
+          <p className="text-iron-muted/55 text-sm">{T.callLog.queueEmpty}</p>
+        </div>
+      )}
+
+      {active.map(cb => {
+        const normalized = cb.phone ? normalizePhone(cb.phone) : '';
+        const inProgress = cb.queueStatus === 'CALLBACK_IN_PROGRESS';
+        const busy = busyId === cb.id;
+        const editingNote = noteDraft?.id === cb.id;
+        return (
+          <div key={cb.id} className={`px-5 py-4 border-b border-iron-border/15 border-s-2 ${inProgress ? 'border-s-amber-500/60' : 'border-s-red-500/60'}`}>
+            {/* Row 1: position + status + waiting time */}
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="text-[13px] font-bold tabular-nums text-iron-muted/70 shrink-0">{T.callLog.queuePosition(cb.position ?? 0)}</span>
+              {statusChip(cb)}
+              <span className="text-iron-muted/55 text-[11px] font-medium tabular-nums ms-auto shrink-0">
+                {T.callLog.waitingFor(minutesAgo(cb.createdAt))} · {fmtTime(cb.createdAt)}
+              </span>
+            </div>
+
+            {/* Row 2: identity — tap phone to dial */}
+            <div className="mb-3">
+              {cb.guestName && <p className="font-semibold text-iron-text text-[16px] leading-tight">{cb.guestName}</p>}
+              <a href={`tel:${normalized}`} dir="ltr" className="inline-block text-iron-text font-bold tabular-nums text-[17px] leading-tight hover:text-iron-green-light transition-colors">
+                {fmtPhone(cb.phone)}
+              </a>
+              {cb.callbackNote && !editingNote && (
+                <p className="text-iron-muted/70 text-[12px] mt-1 whitespace-pre-wrap">{cb.callbackNote}</p>
+              )}
+            </div>
+
+            {/* Note editor */}
+            {editingNote && (
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  value={noteDraft.text}
+                  onChange={e => setNoteDraft({ id: cb.id, text: e.target.value })}
+                  maxLength={300}
+                  placeholder={T.callLog.cbNotePlaceholder}
+                  className="flex-1 bg-iron-bg/60 border border-iron-border/40 rounded-lg px-2.5 py-1.5 text-[12px] text-iron-text placeholder:text-iron-muted/40 focus:outline-none focus:border-iron-green/50"
+                  autoFocus
+                />
+                <button
+                  onClick={() => run(cb.id, () => api.callLogs.callbackNote(cb.id, noteDraft.text.trim() || null)).then(() => setNoteDraft(null))}
+                  className="text-[11px] font-semibold text-iron-green-light px-2 py-1.5 rounded-md bg-iron-green/10 border border-iron-green/25"
+                >
+                  {T.callLog.cbNoteSave}
+                </button>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <a
+                href={`tel:${normalized}`}
+                className="text-[11px] font-semibold text-iron-text px-2.5 py-1 rounded-md border border-iron-border/40 hover:bg-iron-bg/50 transition-colors"
+              >
+                ☎ {T.callLog.cbCall}
+              </a>
+              {cb.queueStatus === 'PENDING_CALLBACK' && (
+                <button
+                  disabled={busy}
+                  onClick={() => run(cb.id, () => api.callLogs.callbackStart(cb.id))}
+                  className="text-[11px] font-semibold text-amber-300 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/18 transition-colors disabled:opacity-50"
+                >
+                  {T.callLog.cbStart}
+                </button>
+              )}
+              {inProgress && (
+                <button
+                  disabled={busy}
+                  onClick={() => run(cb.id, () => api.callLogs.callbackRelease(cb.id))}
+                  className="text-[11px] font-medium text-iron-muted px-2.5 py-1 rounded-md border border-iron-border/40 hover:bg-iron-bg/50 transition-colors disabled:opacity-50"
+                >
+                  {T.callLog.cbRelease}
+                </button>
+              )}
+              <button
+                disabled={busy}
+                onClick={() => run(cb.id, () => api.callLogs.callbackComplete(cb.id, noteDraft?.id === cb.id ? { note: noteDraft.text.trim() || undefined } : undefined))}
+                className="text-[11px] font-semibold text-iron-green-light px-2.5 py-1 rounded-md bg-iron-green/10 border border-iron-green/25 hover:bg-iron-green/18 transition-colors disabled:opacity-50"
+              >
+                ✓ {T.callLog.cbComplete}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => run(cb.id, () => api.callLogs.callbackCancel(cb.id))}
+                className="text-[11px] font-medium text-iron-muted/70 px-2.5 py-1 rounded-md border border-iron-border/40 hover:bg-iron-bg/50 transition-colors disabled:opacity-50"
+              >
+                {T.callLog.cbCancel}
+              </button>
+              <button
+                onClick={() => setNoteDraft(editingNote ? null : { id: cb.id, text: cb.callbackNote ?? '' })}
+                className="text-[11px] font-medium text-iron-muted/70 px-2 py-1 rounded-md hover:bg-iron-bg/50 transition-colors ms-auto"
+              >
+                ✎
+              </button>
+              <button
+                onClick={() => onNewReservation(normalized)}
+                className="text-[11px] font-medium text-iron-muted px-2 py-1 rounded-md border border-iron-border/40 hover:bg-iron-bg/50 transition-colors"
+              >
+                {T.callLog.newReservation}
+              </button>
+              <button
+                onClick={() => onFindGuest(normalized)}
+                className="text-[11px] font-medium text-iron-muted px-2 py-1 rounded-md border border-iron-border/40 hover:bg-iron-bg/50 transition-colors"
+              >
+                {T.callLog.findGuest}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {recentClosed.length > 0 && (
+        <div>
+          <div className="px-5 py-2 flex items-center gap-3 bg-iron-bg/25 border-b border-iron-border/15 mt-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-iron-muted/60 leading-none">{T.callLog.cbClosedRecently}</span>
+            <div className="flex-1 h-px bg-iron-border/15" />
+          </div>
+          {recentClosed.map(cb => (
+            <div key={cb.id} className="px-5 py-3 border-b border-iron-border/10 opacity-70">
+              <div className="flex items-center gap-2">
+                {statusChip(cb)}
+                <span className="text-iron-text text-[13px] font-medium truncate">{cb.guestName ?? fmtPhone(cb.phone)}</span>
+                <span className="text-iron-muted/50 text-[11px] tabular-nums ms-auto shrink-0">
+                  {cb.callbackCompletedAt ? fmtTime(cb.callbackCompletedAt) : ''}
+                  {cb.handledBy ? ` · ${T.callLog.cbHandledBy(cb.handledBy)}` : ''}
+                </span>
+              </div>
+              {cb.callbackNote && <p className="text-iron-muted/60 text-[11px] mt-1 truncate">{cb.callbackNote}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function CallLogPanel({ latestCall, callbackRefreshKey = 0, onNewReservation, onFindGuest, onClose }: Props) {
   const T = useT();
   const [calls, setCalls]     = useState<CallLogItem[]>([]);
   const [total, setTotal]     = useState(0);
@@ -46,6 +298,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
   const [scope, setScope]     = useState<Scope>('today');
+  const [view, setView]       = useState<View>('callbacks');
 
   const load = useCallback(async (off: number, filterDate?: string) => {
     setLoading(true);
@@ -132,22 +385,40 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Scope toggle: Today / All */}
+          {/* View toggle: Callbacks / Log */}
           <div className="flex items-center bg-iron-bg/40 rounded-xl overflow-hidden divide-x divide-iron-border/20">
-            {(['today', 'all'] as Scope[]).map(s => (
+            {(['callbacks', 'log'] as View[]).map(v => (
               <button
-                key={s}
-                onClick={() => setScope(s)}
+                key={v}
+                onClick={() => setView(v)}
                 className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                  scope === s
+                  view === v
                     ? 'bg-iron-green/18 text-iron-green-light'
                     : 'text-iron-muted/70 hover:text-iron-text hover:bg-iron-bg/60'
                 }`}
               >
-                {s === 'today' ? T.callLog.today : T.callLog.all}
+                {v === 'callbacks' ? T.callLog.tabCallbacks : T.callLog.tabLog}
               </button>
             ))}
           </div>
+          {/* Scope toggle: Today / All (log view only) */}
+          {view === 'log' && (
+            <div className="flex items-center bg-iron-bg/40 rounded-xl overflow-hidden divide-x divide-iron-border/20">
+              {(['today', 'all'] as Scope[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setScope(s)}
+                  className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                    scope === s
+                      ? 'bg-iron-green/18 text-iron-green-light'
+                      : 'text-iron-muted/70 hover:text-iron-text hover:bg-iron-bg/60'
+                  }`}
+                >
+                  {s === 'today' ? T.callLog.today : T.callLog.all}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={onClose}
             className="text-iron-muted/50 hover:text-iron-text text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-iron-bg/60 transition-colors"
@@ -160,6 +431,14 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
+        {view === 'callbacks' && (
+          <CallbackQueueView
+            refreshKey={`${callbackRefreshKey}:${latestCall?.id ?? ''}`}
+            onNewReservation={onNewReservation}
+            onFindGuest={onFindGuest}
+          />
+        )}
+        {view === 'log' && (<>
         {loading && calls.length === 0 && (
           <div className="flex items-center justify-center py-16">
             <div className="flex flex-col items-center gap-3">
@@ -333,6 +612,7 @@ export default function CallLogPanel({ latestCall, onNewReservation, onFindGuest
             <div className="w-4 h-4 border-2 border-iron-green border-t-transparent rounded-full animate-spin" />
           </div>
         )}
+        </>)}
       </div>
     </div>
   );

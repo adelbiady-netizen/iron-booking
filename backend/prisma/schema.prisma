@@ -574,9 +574,15 @@ model WaitlistEntry {
   // Quote given when added
   quotedWaitMinutes Int?
 
+  // Host-chosen seating duration (minutes). Null = restaurant turn-time rules
+  // apply at seat time. Persisted so it survives refresh/devices and is used by
+  // the reservation created on seat (timeline + conflict math).
+  durationMinutes Int?
+
   // Timestamps
   addedAt    DateTime  @default(now())
   notifiedAt DateTime? // when we sent "table ready" notification (LIVE: verbal; FUTURE: via link)
+  tableReadySentAt DateTime? // last successful "table ready" SMS/WhatsApp send (duplicate-send guard)
   seatedAt   DateTime?
   leftAt     DateTime? // guest decided to leave
 
@@ -727,12 +733,30 @@ model CallLog {
   restaurantName String? // denormalised; set when group routing resolves to a known target
   guestName      String? // denormalised snapshot — first+last at call time; null if no match
 
+  // ── Callback queue (host workflow) ────────────────────────────────────────
+  // Separate lifecycle from the provider `status` string. Only missed, routed
+  // calls get a queueStatus; answered calls and unrouted records stay null.
+  // FIFO order = createdAt asc (server timestamp — stable across devices).
+  queueStatus         CallbackStatus?
+  callbackNote        String?
+  handledBy           String? // host name currently handling / who completed
+  claimedAt           DateTime? // when a host started the callback
+  callbackCompletedAt DateTime? // completed or cancelled
+
   restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
 
   @@index([phone])
   @@index([restaurantId])
   @@index([callid])
+  @@index([restaurantId, queueStatus, createdAt]) // FIFO queue reads
   @@map("call_logs")
+}
+
+enum CallbackStatus {
+  PENDING_CALLBACK
+  CALLBACK_IN_PROGRESS
+  CALLBACK_COMPLETED
+  CALLBACK_CANCELLED
 }
 
 // ─── Guest Hub ────────────────────────────────────────────────────────────────
@@ -1022,6 +1046,7 @@ model MessageLog {
   id                String               @id @default(uuid())
   restaurantId      String
   reservationId     String?
+  waitlistEntryId   String?              // set for waitlist-context sends (e.g. TABLE_READY)
   guestId           String?
   clubMemberId      String?              // set when message is club-context (birthday, anniversary, etc.)
   phone             String
@@ -1056,6 +1081,7 @@ model MessageLog {
   @@index([restaurantId, messageType])
   @@index([restaurantId, approvalStatus])
   @@index([reservationId])
+  @@index([waitlistEntryId])
   @@map("message_logs")
 }
 

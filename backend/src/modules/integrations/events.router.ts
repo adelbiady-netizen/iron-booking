@@ -14,9 +14,12 @@ const router = Router();
  * send custom headers.
  *
  * Emitted events:
- *   incoming_call  { id, phone, restaurantId, createdAt, status, duration,
- *                    recordUrl, group, restaurantName, routingStatus }
- *   floor_updated  { ts: number } — any reservation or waitlist-seat mutation
+ *   incoming_call    { id, phone, restaurantId, createdAt, status, duration,
+ *                      recordUrl, group, restaurantName, routingStatus }
+ *   floor_updated    { ts: number } — any reservation or waitlist-seat mutation
+ *   callback_updated { callback: {...} | null } — callback queue changed
+ *                    (enqueued / claimed / completed / cancelled). callback is
+ *                    the updated row, or null when clients should refetch.
  *
  * Tenant isolation: each relay function guards by restaurantId.
  * Unrouted calls (no restaurantId) are dropped silently at the source.
@@ -79,13 +82,26 @@ router.get('/', (req, res) => {
     }
   }
 
+  function relayCallbackUpdate(data: { restaurantId: string; callback: unknown }) {
+    if (data.restaurantId !== payload.restaurantId) return;
+    const frame = `event: callback_updated\ndata: ${JSON.stringify({ callback: data.callback ?? null, ts: Date.now() })}\n\n`;
+    try {
+      res.write(frame);
+      (res as unknown as { flush?: () => void }).flush?.();
+    } catch (err) {
+      console.error(sessionTag, 'callback_updated write error:', err);
+    }
+  }
+
   eventBus.on('incoming_call', relay);
   eventBus.on('floor_updated', relayFloorUpdate);
+  eventBus.on('callback_updated', relayCallbackUpdate);
 
   req.on('close', () => {
     clearInterval(ping);
     eventBus.off('incoming_call', relay);
     eventBus.off('floor_updated', relayFloorUpdate);
+    eventBus.off('callback_updated', relayCallbackUpdate);
     const remaining = eventBus.listenerCount('incoming_call');
     console.log(sessionTag, 'Connection closed — remaining sessions:', remaining);
   });

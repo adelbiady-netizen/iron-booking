@@ -76,9 +76,19 @@ router.get('/op-settings', async (req: Request, res: Response, next: NextFunctio
       select: { settings: true },
     });
     const s = (row.settings as Record<string, unknown>) ?? {};
+    // Active turn-time rules let the host UI preselect the restaurant's real
+    // seating duration (instead of the hardcoded 90/120 mirror) in create/
+    // walk-in/waitlist flows. Same source the backend uses via resolveTurnTime.
+    const turnTimeRules = await prisma.turnTimeRule.findMany({
+      where: { profile: { restaurantId: req.auth.restaurantId }, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: { partySizeMin: true, partySizeMax: true, durationMinutes: true },
+    }).catch(() => []);
     res.json({
       lateThresholdMinutes:   (s.lateThresholdMinutes   as number) ?? 20,
       noShowThresholdMinutes: (s.noShowThresholdMinutes as number) ?? 30,
+      defaultTurnMinutes:     (s.defaultTurnMinutes     as number) ?? null,
+      turnTimeRules,
     });
   } catch (err) { next(err); }
 });

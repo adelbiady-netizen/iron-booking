@@ -2,9 +2,16 @@ import { useState, useMemo, useEffect } from 'react';
 import type { GuestLookupResult, WaitlistEntry } from '../types';
 import type { TableSuggestion } from '../utils/seating';
 import type { PriorityEntry } from '../utils/flowControl';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { useT } from '../i18n/useT';
 import { isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
+import { resolveDefaultDuration, type TurnTimeRuleLite } from '../utils/duration';
+
+const DURATION_PRESETS = [60, 90, 120];
+
+function fmtEndTime(startMs: number, durationMin: number): string {
+  return new Date(startMs + durationMin * 60_000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 function waitMins(addedAt: string, opNow: number): number {
   return Math.floor((opNow - new Date(addedAt).getTime()) / 60_000);
@@ -20,6 +27,7 @@ interface EditData {
   partySize?: number;
   guestName?: string;
   notes?: string;
+  durationMinutes?: number | null;
 }
 
 // ── Inline accordion details panel ──────────────────────────────────────────
@@ -35,29 +43,38 @@ interface DetailsProps {
   onNotify?: (entry: WaitlistEntry) => Promise<void>;
   onSeatAtTable?: (tableId: string, entry: WaitlistEntry) => void;
   entrySuggestions?: Map<string, TableSuggestion[]>;
+  turnRules?: TurnTimeRuleLite[];
   onClose: () => void;
 }
 
 function WaitlistEntryDetails({
   entry, todayStr, operationalNow, isToday,
   onUpdate, onCancel, onNoShow, onNotify,
-  onSeatAtTable, entrySuggestions, onClose,
+  onSeatAtTable, entrySuggestions, turnRules, onClose,
 }: DetailsProps) {
   const T = useT();
+  const defaultDuration = resolveDefaultDuration(entry.partySize, turnRules);
   const [localName,  setLocalName]  = useState(entry.guestName);
   const [localParty, setLocalParty] = useState(String(entry.partySize));
   const [localNotes, setLocalNotes] = useState(entry.notes ?? '');
+  const [localDuration, setLocalDuration] = useState(String(entry.durationMinutes ?? defaultDuration));
   const [saving,     setSaving]     = useState(false);
   const [saveError,  setSaveError]  = useState<string | null>(null);
   const [notifyBusy, setNotifyBusy] = useState(false);
+  const [readyBusy,  setReadyBusy]  = useState(false);
+  const [readyConfirm, setReadyConfirm] = useState(false);
+  const [readyMsg,   setReadyMsg]   = useState<{ ok: boolean; text: string } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<{
     tableId: string; tableName: string; conflictMin: number;
   } | null>(null);
 
+  const parsedDuration = parseInt(localDuration, 10);
+  const durationValid = !isNaN(parsedDuration) && parsedDuration >= 30 && parsedDuration <= 480;
   const isDirty =
     localName.trim() !== entry.guestName ||
     parseInt(localParty, 10) !== entry.partySize ||
-    localNotes !== (entry.notes ?? '');
+    localNotes !== (entry.notes ?? '') ||
+    (durationValid && parsedDuration !== (entry.durationMinutes ?? defaultDuration));
 
   async function handleSave() {
     const n = parseInt(localParty, 10);
@@ -69,11 +86,32 @@ function WaitlistEntryDetails({
       if (localName.trim() !== entry.guestName) data.guestName = localName.trim();
       if (n !== entry.partySize) data.partySize = n;
       if (localNotes !== (entry.notes ?? '')) data.notes = localNotes;
+      if (durationValid && parsedDuration !== (entry.durationMinutes ?? defaultDuration)) data.durationMinutes = parsedDuration;
       await onUpdate?.(entry, data);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : T.waitlistPanel.drawerSaveError);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function sendTableReady(force: boolean) {
+    if (!entry.guestPhone) { setReadyMsg({ ok: false, text: T.waitlistPanel.tableReadyNoPhone }); return; }
+    setReadyBusy(true);
+    setReadyMsg(null);
+    try {
+      await api.waitlist.tableReady(entry.id, { force });
+      setReadyConfirm(false);
+      setReadyMsg({ ok: true, text: T.waitlistPanel.tableReadySuccess });
+    } catch (err) {
+      if (err instanceof ApiError && (err.details as { code?: string } | undefined)?.code === 'TABLE_READY_ALREADY_SENT') {
+        // Another device already sent it — surface the confirm flow instead of failing.
+        setReadyConfirm(true);
+      } else {
+        setReadyMsg({ ok: false, text: err instanceof Error && err.message ? err.message : T.waitlistPanel.tableReadyFailed });
+      }
+    } finally {
+      setReadyBusy(false);
     }
   }
 
@@ -131,6 +169,36 @@ function WaitlistEntryDetails({
               className="w-full bg-iron-bg border border-iron-border rounded px-2 py-1 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors resize-none"
             />
           </div>
+          <div>
+            <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.durationLabel}</label>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {DURATION_PRESETS.map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setLocalDuration(String(d))}
+                  className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                    parsedDuration === d
+                      ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light font-semibold'
+                      : 'border-iron-border text-iron-muted hover:text-iron-text'
+                  }`}
+                >
+                  {T.waitlistPanel.durationMinShort(d)}
+                </button>
+              ))}
+              <input
+                type="number" min={30} max={480} step={15}
+                value={localDuration}
+                onChange={e => setLocalDuration(e.target.value)}
+                className={`w-16 bg-iron-bg border rounded px-2 py-1 text-iron-text text-xs text-center focus:outline-none focus:border-iron-green transition-colors ${durationValid ? 'border-iron-border' : 'border-status-danger'}`}
+              />
+              {durationValid && (
+                <span className="text-[10px] text-iron-muted">
+                  {T.waitlistPanel.endsAtPreview(fmtEndTime(operationalNow, parsedDuration))}
+                </span>
+              )}
+            </div>
+          </div>
           {saveError && <p className="text-status-danger text-[11px]">{saveError}</p>}
           {isDirty && (
             <button
@@ -143,6 +211,53 @@ function WaitlistEntryDetails({
           )}
         </div>
       )}
+
+      {/* Table-ready message (never seats the guest — host still seats manually) */}
+      <div className="pl-6 space-y-1.5">
+        {readyMsg && (
+          <p className={`text-[11px] ${readyMsg.ok ? 'text-iron-green-light' : 'text-status-danger'}`}>{readyMsg.text}</p>
+        )}
+        {readyConfirm ? (
+          <div className="rounded-md bg-amber-900/15 border border-status-warning/30 px-2 py-1.5">
+            <p className="text-status-warning text-[10px] font-medium mb-1.5">
+              {entry.tableReadySentAt
+                ? `${T.waitlistPanel.tableReadySentAgo(Math.floor((Date.now() - new Date(entry.tableReadySentAt).getTime()) / 60_000))} · ${T.waitlistPanel.tableReadyConfirmResend}`
+                : T.waitlistPanel.tableReadyConfirmResend}
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                disabled={readyBusy}
+                onClick={() => sendTableReady(true)}
+                className="text-[10px] font-medium px-2 py-0.5 rounded bg-status-warning/20 border border-status-warning/40 text-status-warning hover:bg-status-warning/30 transition-colors disabled:opacity-40"
+              >
+                {readyBusy ? T.waitlistPanel.tableReadySending : T.waitlistPanel.tableReadyButton}
+              </button>
+              <button
+                onClick={() => setReadyConfirm(false)}
+                className="text-[10px] px-2 py-0.5 rounded border border-iron-border text-iron-muted hover:text-iron-text transition-colors"
+              >
+                {T.common.cancel}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              disabled={readyBusy || !entry.guestPhone}
+              title={!entry.guestPhone ? T.waitlistPanel.tableReadyNoPhone : undefined}
+              onClick={() => (entry.tableReadySentAt ? setReadyConfirm(true) : sendTableReady(false))}
+              className="text-[11px] px-2.5 py-1 rounded-md border border-iron-green/30 text-iron-green-light hover:bg-iron-green/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {readyBusy ? T.waitlistPanel.tableReadySending : `✉ ${T.waitlistPanel.tableReadyButton}`}
+            </button>
+            {entry.tableReadySentAt && (
+              <span className="text-[10px] text-iron-muted">
+                {T.waitlistPanel.tableReadySentAgo(Math.floor((Date.now() - new Date(entry.tableReadySentAt).getTime()) / 60_000))}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Secondary actions */}
       <div className="pl-6 flex flex-wrap gap-1.5">
@@ -248,7 +363,7 @@ function WaitlistEntryDetails({
 interface Props {
   entries: WaitlistEntry[];
   loading: boolean;
-  onAdd: (data: { guestName: string; partySize: number; guestPhone?: string; preferredTime?: string; section?: string; source?: string }) => Promise<void>;
+  onAdd: (data: { guestName: string; partySize: number; guestPhone?: string; preferredTime?: string; section?: string; source?: string; durationMinutes?: number }) => Promise<void>;
   onSeat: (entry: WaitlistEntry) => void;
   onNotify?: (entry: WaitlistEntry) => Promise<void>;
   onUpdate?: (entry: WaitlistEntry, data: EditData) => Promise<void>;
@@ -260,12 +375,13 @@ interface Props {
   priorityQueue?: PriorityEntry[];
   operationalNow?: number;
   isToday?: boolean;
+  turnRules?: TurnTimeRuleLite[];
 }
 
 export default function WaitlistPanel({
   entries, loading, onAdd, onSeat, onNotify, onUpdate, onCancel, onNoShow,
   nextInLine = [], onSeatAtTable, entrySuggestions, priorityQueue,
-  operationalNow, isToday = true,
+  operationalNow, isToday = true, turnRules,
 }: Props) {
   const T = useT();
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -276,6 +392,10 @@ export default function WaitlistPanel({
   const [preferredTime, setPreferredTime] = useState('');
   const [section,       setSection]       = useState('');
   const [source,        setSource]        = useState<'WALK_IN' | 'PHONE' | 'HOST' | 'ONLINE'>('WALK_IN');
+  // Seating duration — defaults to the restaurant rule for the party size and
+  // follows party-size changes until the host explicitly picks a value.
+  const [duration,        setDuration]        = useState(String(resolveDefaultDuration(2, turnRules)));
+  const [durationTouched, setDurationTouched] = useState(false);
   const [guestHint,     setGuestHint]     = useState<GuestLookupResult | null>(null);
   const [hintDismissed, setHintDismissed] = useState(false);
   const [busySeat,      setBusySeat]      = useState<string | null>(null);
@@ -297,7 +417,14 @@ export default function WaitlistPanel({
   function resetForm() {
     setName(''); setPartySize('2'); setPhone(''); setPreferredTime(''); setSection(''); setSource('WALK_IN'); setError(null);
     setGuestHint(null); setHintDismissed(false);
+    setDuration(String(resolveDefaultDuration(2, turnRules))); setDurationTouched(false);
   }
+
+  // Party-size changes update the default duration until the host chooses one.
+  useEffect(() => {
+    if (durationTouched) return;
+    setDuration(String(resolveDefaultDuration(Math.max(1, parseInt(partySize) || 1), turnRules)));
+  }, [partySize, durationTouched, turnRules]);
 
   useEffect(() => {
     if (!phone.trim()) { setGuestHint(null); setHintDismissed(false); return; }
@@ -317,6 +444,7 @@ export default function WaitlistPanel({
     setBusy(true);
     setError(null);
     try {
+      const dur = parseInt(duration, 10);
       await onAdd({
         guestName: name.trim(),
         partySize: Math.max(1, parseInt(partySize) || 1),
@@ -324,6 +452,7 @@ export default function WaitlistPanel({
         preferredTime: preferredTime.trim() || undefined,
         section: section.trim() || undefined,
         source,
+        durationMinutes: !isNaN(dur) && dur >= 30 && dur <= 480 ? dur : undefined,
       });
       resetForm();
       setShowForm(false);
@@ -415,6 +544,37 @@ export default function WaitlistPanel({
                 placeholder={T.waitlistPanel.preferredTimePlaceholder}
                 className="flex-1 bg-iron-bg border border-iron-border rounded-md px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted focus:outline-none focus:border-iron-green transition-colors"
               />
+            </div>
+            {/* Seating duration — quick picks + custom, with expected end time */}
+            <div>
+              <label className="text-[10px] text-iron-muted block mb-1">{T.waitlistPanel.durationLabel}</label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {DURATION_PRESETS.map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => { setDuration(String(d)); setDurationTouched(true); }}
+                    className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                      parseInt(duration, 10) === d
+                        ? 'bg-iron-green/20 border-iron-green/50 text-iron-green-light font-semibold'
+                        : 'border-iron-border text-iron-muted hover:text-iron-text'
+                    }`}
+                  >
+                    {T.waitlistPanel.durationMinShort(d)}
+                  </button>
+                ))}
+                <input
+                  type="number" min={30} max={480} step={15}
+                  value={duration}
+                  onChange={e => { setDuration(e.target.value); setDurationTouched(true); }}
+                  className="w-16 bg-iron-bg border border-iron-border rounded-md px-2 py-1 text-iron-text text-xs text-center focus:outline-none focus:border-iron-green transition-colors"
+                />
+                {(() => { const d = parseInt(duration, 10); return !isNaN(d) && d >= 30 && d <= 480 ? (
+                  <span className="text-[10px] text-iron-muted">
+                    {T.waitlistPanel.endsAtPreview(fmtEndTime(operationalNow ?? Date.now(), d))}
+                  </span>
+                ) : null; })()}
+              </div>
             </div>
             <div className="flex gap-2">
               <input
@@ -589,6 +749,7 @@ export default function WaitlistPanel({
                 <WaitlistEntryDetails
                   entry={entry}
                   todayStr={todayStr}
+                  turnRules={turnRules}
                   operationalNow={operationalNow ?? Date.now()}
                   isToday={isToday}
                   onUpdate={onUpdate}

@@ -10,6 +10,7 @@ import { optimisticExpectedEnd } from '../utils/time';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import { trackEvent } from '../utils/telemetry';
+import { takeSnapshot, resolveWorkflowReturn } from '../utils/liveRestore';
 import TopBar from '../components/TopBar';
 import { MANAGEMENT_WORKSPACE_ENABLED } from '../features';
 import { canSeeManagementEntry } from '../lib/managementAccess';
@@ -73,11 +74,6 @@ function scoreWaitlistMatch(entry: WaitlistEntry, table: FloorTable, operational
   return score;
 }
 
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function snapTo30(totalMinutes: number): string {
   const snapped = Math.round(totalMinutes / 30) * 30;
   const h = Math.floor(snapped / 60) % 24;
@@ -100,6 +96,13 @@ function snapTimeStr(timeStr: string): string {
 
 // Fallback used when restaurant settings don't specify an openingHour.
 const SERVICE_START_FALLBACK = '11:30';
+
+// Calendar "today" (YYYY-MM-DD) in the browser's local time. The single anchor
+// for "today" across this screen (serviceToday() aliases this in the release).
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function shiftDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -134,8 +137,14 @@ interface Props {
 export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoomStep, onZoomChange, theme, onThemeChange, onAdminPortal }: Props) {
   const T = useT();
   const isMobile = useIsMobile();
+  const operatingHours = auth.user.restaurant?.operatingHours;
+  // Release note: "today" is anchored to the calendar day (todayStr), matching
+  // current production. serviceToday() is the single source of truth for "today"
+  // across this screen. The timezone-aware business-day rework is prior-session
+  // work intentionally excluded from this host-workflow release.
+  const serviceToday = useCallback(() => todayStr(), []);
   const [mobileTab, setMobileTab] = useState<MobileTab>('list');
-  const [date, setDate]             = useState(todayStr);
+  const [date, setDate]             = useState(() => serviceToday());
   const [time, setTime]             = useState(nowTime);
   const [refreshKey, setRefreshKey] = useState(0);
   // Separate key for floor-objects (static layout data). Only incremented on layout
@@ -152,7 +161,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Stays equal to `date` on background polls so the list stays visible.
   const loadedDateRef  = useRef<string>('');
 
-  const [opSettings,   setOpSettings]   = useState({ lateThresholdMinutes: 20, noShowThresholdMinutes: 30 });
+  const [opSettings,   setOpSettings]   = useState<{ lateThresholdMinutes: number; noShowThresholdMinutes: number; defaultTurnMinutes?: number | null; turnTimeRules?: import('../utils/duration').TurnTimeRuleLite[] }>({ lateThresholdMinutes: 20, noShowThresholdMinutes: 30 });
   const [floorTables,  setFloorTables]  = useState<FloorTable[]>([]);
   const [floorObjs,    setFloorObjs]    = useState<FloorObjectData[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -200,6 +209,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [waitlist,            setWaitlist]            = useState<WaitlistEntry[]>([]);
   const [waitlistLoading,     setWaitlistLoading]     = useState(false);
   const [waitlistRefreshKey,  setWaitlistRefreshKey]  = useState(0);
+  const [callbackRefreshKey,  setCallbackRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
   const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity' | 'intelligence' | 'club'>('dashboard');
@@ -281,6 +291,13 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [tablePickSelectedIds, setTablePickSelectedIds] = useState<string[]>([]);
   const tablePickCallbackRef   = useRef<((ids: string[] | null) => void) | null>(null);
   const tablePickRestoreRef    = useRef<{ date: string; time: string; liveMode: boolean } | null>(null);
+  // Auto-return-to-Live: snapshot taken the first time a WORKFLOW (not the host)
+  // moves the board off Live — e.g. opening a reservation from a list jumps the
+  // timeline to that reservation's time. When the workflow ends (drawer closes),
+  // the board returns to Live if it was Live before, or to the host's prior
+  // planning position otherwise. Any HOST-driven navigation clears the snapshot
+  // so we never fight intentional browsing. Cleared on restore → no jump loops.
+  const liveRestoreRef         = useRef<{ date: string; time: string; liveMode: boolean } | null>(null);
   // Optimistic reservation to apply instantly when "שייך" is confirmed in change-table mode
   const tablePickOptimisticRef = useRef<{ resId: string; tableId: string; combinedTableIds: string[]; table: { id: string; name: string; section: null } | null } | null>(null);
 
@@ -393,6 +410,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setRefreshKey(k => k + 1);
       setWaitlistRefreshKey(k => k + 1);
     },
+    // Callback queue changed on any device (enqueued / claimed / completed /
+    // cancelled) → refetch the queue so all hosts see the same FIFO state.
+    callback_updated: () => {
+      setCallbackRefreshKey(k => k + 1);
+    },
   });
 
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
@@ -434,7 +456,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         api.tables.floor(date, time),
         api.reservations.list({ date, limit: '500' }),
         api.tables.insights(date, time),
-        api.reservations.list({ dateFrom: todayStr(), status: 'STANDBY', limit: '500' }),
+        api.reservations.list({ dateFrom: serviceToday(), status: 'STANDBY', limit: '500' }),
       ]);
       console.log('[perf:floor] API responses received', Math.round(performance.now() - t0) + 'ms');
       if (cancelled) return;
@@ -457,6 +479,17 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           return freshData.find(r => r.id === prev.id) ?? prev;
         });
         loadedDateRef.current = date;
+        // Telemetry (P0 "disappearing reservations"): board date vs business day vs
+        // DB total vs rendered. A gap between meta.total and rendered count localises
+        // loss to fetch scope (date/timezone) rather than a client-side filter.
+        const meta = resResult.value.meta as { total?: number } | undefined;
+        console.log('[board:telemetry]', JSON.stringify({
+          boardDate: date,
+          businessDay: serviceToday(),
+          restaurantTimezone: auth.user.restaurant?.timezone ?? null,
+          dbTotalForDate: meta?.total ?? null,
+          rendered: freshData.length,
+        }));
       }
       if (insightResult.status === 'fulfilled') setInsights(insightResult.value);
       if (standbyResult.status === 'fulfilled') {
@@ -529,7 +562,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     let cancelled = false;
     const isBackground = loadedDateRef.current === date;
     if (!isBackground) setWaitlistLoading(true);
-    console.log('[waitlist:fetch]', { date, todayStr: todayStr(), liveMode, url: `/waitlist?date=${date}&time=${time}` });
+    console.log('[waitlist:fetch]', { date, todayStr: serviceToday(), liveMode, url: `/waitlist?date=${date}&time=${time}` });
     api.waitlist.list(date, time)
       .then(data => { if (!cancelled) setWaitlist(data); })
       .catch(() => {})
@@ -539,6 +572,40 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   // Keep ref in sync so interval callbacks can read liveMode without stale closure
   useEffect(() => { liveModeRef.current = liveMode; }, [liveMode]);
+
+  // Current board position as a ref — lets stable useCallback handlers snapshot
+  // the position at interaction time without adding date/time/liveMode deps.
+  const boardPosRef = useRef({ date, time, liveMode });
+  useEffect(() => { boardPosRef.current = { date, time, liveMode }; }, [date, time, liveMode]);
+
+  // First SYSTEM-driven board move of a workflow → remember where the host was.
+  const snapshotForAutoReturn = useCallback(() => {
+    liveRestoreRef.current = takeSnapshot(liveRestoreRef.current, boardPosRef.current);
+  }, []);
+
+  // Workflow ended (drawer/modal closed, seating done) → go back. Live if the
+  // board was Live when the system moved it; otherwise the host's own planning
+  // position is restored untouched. No-op when the host navigated manually
+  // mid-workflow (manual navigation clears the snapshot).
+  const returnFromWorkflow = useCallback(() => {
+    const target = resolveWorkflowReturn(liveRestoreRef.current, { date: serviceToday(), time: nowTime() });
+    liveRestoreRef.current = null;
+    if (!target) return;
+    setDate(target.date);
+    setTime(target.time);
+    setLiveMode(target.liveMode);
+  }, []);
+
+  // Central workflow-end detector: when every workflow surface that can move the
+  // board is closed (reservation drawer, create drawer, table-pick mode) and a
+  // system-move snapshot is pending, restore. Covers ALL close paths — X button,
+  // Esc, save, seat, cancel — without instrumenting each one. Runs at most once
+  // per workflow (snapshot cleared inside returnFromWorkflow) → no jump loops.
+  useEffect(() => {
+    if (!selectedRes && !createMode && !tablePickMode && liveRestoreRef.current) {
+      returnFromWorkflow();
+    }
+  }, [selectedRes, createMode, tablePickMode, returnFromWorkflow]);
 
   // Auto-refresh floor every 30s, waitlist every 30s — only when in live mode.
   // The floor poll is the fallback that reconciles SECONDARY screens (a station
@@ -550,7 +617,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   useEffect(() => {
     const floorId = setInterval(() => {
       if (!liveModeRef.current) return;
-      setDate(todayStr());
+      setDate(serviceToday());
       setTime(nowTime());
       setRefreshKey(k => k + 1);
     }, 30_000);
@@ -585,7 +652,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   useEffect(() => {
     const id = setInterval(() => {
       setDate(d => {
-        const today = todayStr();
+        const today = serviceToday();
         return d < today ? today : d;
       });
     }, 60_000);
@@ -669,20 +736,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // correct time. Historical statuses (COMPLETED, CANCELLED, NO_SHOW) are excluded —
     // jumping to a past time during live service has no operational value.
     if (enriched.status === 'PENDING' || enriched.status === 'CONFIRMED' || enriched.status === 'SEATED') {
+      snapshotForAutoReturn();
       const [h, m] = enriched.time.split(':').map(Number);
       setTime(snapTo30(h * 60 + m));
       setLiveMode(false);
     }
-  }, [reservations]);
+  }, [reservations, snapshotForAutoReturn]);
 
   const handleReorganizeSelect = useCallback((r: Reservation) => {
     setReorganizeMode(false);
     setRebuildDayTarget(null);
     setSelectedRes(r);
+    snapshotForAutoReturn();
     const [h, m] = r.time.split(':').map(Number);
     setTime(snapTo30(h * 60 + m));
     setLiveMode(false);
-  }, []);
+  }, [snapshotForAutoReturn]);
 
   // Shared helper for any "open this reservation's details" action.
   // Applies the same board-time sync as handlePanelSelect so the floor map
@@ -692,11 +761,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const openReservationDetails = useCallback((res: Reservation) => {
     setSelectedRes(res);
     if (res.status === 'PENDING' || res.status === 'CONFIRMED' || res.status === 'SEATED') {
+      snapshotForAutoReturn();
       const [h, m] = res.time.split(':').map(Number);
       setTime(snapTo30(h * 60 + m));
       setLiveMode(false);
     }
-  }, []);
+  }, [snapshotForAutoReturn]);
 
   const handleUpdated = useCallback((updated: Reservation) => {
     optimisticSeatSnapshotRef.current.delete(updated.id);
@@ -957,7 +1027,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [allTables]);
 
   const handleGapWaitlistSeat = useCallback(async (tableId: string, entry: WaitlistEntry, startTime: string, endTime: string) => {
-    if (date > new Date().toISOString().slice(0, 10)) {
+    if (date > serviceToday()) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
@@ -1080,7 +1150,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Only populated on today's date; returns empty for future/past planning views.
   // Priority order: ARRIVED > CONFIRMED > PENDING > NOTIFIED waitlist > WAITING waitlist.
   const eligibleGuests = useMemo((): TableFirstGuest[] => {
-    if (date !== todayStr()) return [];
+    if (date !== serviceToday()) return [];
     const today = date;
     const result: TableFirstGuest[] = [];
 
@@ -1273,14 +1343,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     [reservations],
   );
 
-  const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string; preferredTime?: string; section?: string; source?: string }) => {
+  const handleWaitlistAdd = useCallback(async (data: { guestName: string; partySize: number; guestPhone?: string; preferredTime?: string; section?: string; source?: string; durationMinutes?: number }) => {
     const entry = await api.waitlist.add({ ...data, date });
     setWaitlist(prev => [...prev, entry]);
     setWaitlistRefreshKey(k => k + 1);
   }, [date]);
 
   const handleWaitlistSeat = useCallback((entry: WaitlistEntry) => {
-    if (entry.date.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
+    if (entry.date.slice(0, 10) > serviceToday()) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
@@ -1303,7 +1373,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
   }, [showToast]);
 
-  const handleWaitlistUpdate = useCallback(async (entry: WaitlistEntry, data: { partySize?: number; guestName?: string; notes?: string }) => {
+  const handleWaitlistUpdate = useCallback(async (entry: WaitlistEntry, data: { partySize?: number; guestName?: string; notes?: string; durationMinutes?: number | null }) => {
     const updated = await api.waitlist.update(entry.id, data);
     setWaitlist(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e));
     setWaitlistRefreshKey(k => k + 1);
@@ -1331,7 +1401,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [showToast]);
 
   const handleSuggestionSeat = useCallback((tableId: string, entry: WaitlistEntry) => {
-    if (entry.date.slice(0, 10) > new Date().toISOString().slice(0, 10)) {
+    if (entry.date.slice(0, 10) > serviceToday()) {
       showToast(T.waitlistPanel.seatFutureDisabled, 'error');
       return;
     }
@@ -1432,6 +1502,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     // Reject any date that isn't plain YYYY-MM-DD (Prisma returns ISO strings
     // like "2026-05-19T00:00:00.000Z" which would corrupt the API query params).
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    liveRestoreRef.current = null; // host chose a time — don't auto-return
     setDate(d);
     setTime(t);
     setLiveMode(false);
@@ -1681,6 +1752,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
     // Travel to reservation's time so the floor shows occupancy at that slot.
     // Always snap to 30-min boundary — the floor API and TopBar both expect snapped times.
+    snapshotForAutoReturn();
     const [rH, rM] = r.time.split(':').map(Number);
     const snappedResTime = snapTo30(rH * 60 + rM);
     setTime(snappedResTime);
@@ -1749,7 +1821,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }).then(sug => {
       setTablePickSuggestions(sug);
     }).catch(() => { /* suggestions are visual-only; silence errors */ });
-  }, [handlePickTables, floorTables, allTables, showToast]);
+  }, [handlePickTables, floorTables, allTables, showToast, snapshotForAutoReturn]);
 
   const handleContextMenuSeat = useCallback(async (res: Reservation) => {
     async function executeSeat(primaryId: string, secondaryIds: string[], forceOverrideOccupied = false) {
@@ -2263,7 +2335,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     const newRes = await api.reservations.create({
       guestName: 'Walk-in',
       partySize: quickSeatParty,
-      date: todayStr(),
+      date: serviceToday(),
       time: timeStr,
       source: 'WALK_IN',
       tableId: table.id,
@@ -2373,7 +2445,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setTimeout(() => setHighlightId(null), 2000);
   }, [showToast]);
 
-  const operatingHours = auth.user.restaurant?.operatingHours;
+  // operatingHours is declared once near the top of the component (business-day anchor).
 
   function serviceStartForDate(dateStr: string): string {
     if (operatingHours?.length) {
@@ -2388,6 +2460,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
 
   const handleDateChange = useCallback((d: string) => {
     if (!d) return; // ignore transient empty values from date picker
+    liveRestoreRef.current = null; // host-driven navigation — don't auto-return
     setDate(d);
     setTime(serviceStartForDate(d));
     setSelectedRes(null);
@@ -2396,12 +2469,14 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [operatingHours]);
 
   const handleTimeChange = useCallback((t: string) => {
+    liveRestoreRef.current = null; // host-driven navigation — don't auto-return
     setTime(snapTimeStr(t));
     setLiveMode(false);
   }, []);
 
   const handleNow = useCallback(() => {
-    setDate(todayStr());
+    liveRestoreRef.current = null; // already going live — nothing to restore later
+    setDate(serviceToday());
     setTime(nowTime());
     setSelectedRes(null);
     setLiveMode(true);
@@ -2409,6 +2484,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, []);
 
   const handlePrevDay = useCallback(() => {
+    liveRestoreRef.current = null; // host-driven navigation — don't auto-return
     setDate(d => {
       const next = shiftDate(d, -1);
       setTime(serviceStartForDate(next));
@@ -2420,6 +2496,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [operatingHours]);
 
   const handleNextDay = useCallback(() => {
+    liveRestoreRef.current = null; // host-driven navigation — don't auto-return
     setDate(d => {
       const next = shiftDate(d, 1);
       setTime(serviceStartForDate(next));
@@ -2431,6 +2508,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [operatingHours]);
 
   const handlePrev30 = useCallback(() => {
+    liveRestoreRef.current = null; // host-driven navigation — don't auto-return
     const { date: nd, time: nt } = shiftTime(date, time, -30);
     if (nd !== date) setDate(nd);
     setTime(nt);
@@ -2438,6 +2516,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   }, [date, time]);
 
   const handleNext30 = useCallback(() => {
+    liveRestoreRef.current = null; // host-driven navigation — don't auto-return
     const { date: nd, time: nt } = shiftTime(date, time, +30);
     if (nd !== date) setDate(nd);
     setTime(nt);
@@ -2875,7 +2954,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               floorTable={quickFloorTable}
               reservation={quickRes}
               allTables={allTables}
-              isFutureDate={date > todayStr()}
+              isFutureDate={date > serviceToday()}
               nowTime={time}
               isLiveView={isLiveView}
               onClose={() => setQuickTable(null)}
@@ -3008,6 +3087,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           {(showCallLog || (isMobile && mobileTab === 'calls')) ? (
             <CallLogPanel
               latestCall={latestCall}
+              callbackRefreshKey={callbackRefreshKey}
               onClose={() => { setShowCallLog(false); if (isMobile) setMobileTab('list'); }}
               onNewReservation={(phone) => {
                 setCallPrefillPhone(phone);
@@ -3032,6 +3112,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               waitlist={waitlist}
               waitlistLoading={waitlistLoading}
               onWaitlistAdd={handleWaitlistAdd}
+              turnRules={opSettings.turnTimeRules}
               onWaitlistSeat={handleWaitlistSeat}
               onWaitlistNotify={handleWaitlistNotify}
               onWaitlistUpdate={handleWaitlistUpdate}
@@ -3046,6 +3127,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               onContextMenuSeat={handleContextMenuSeat}
               onSeatFromMap={handleSeatFromMap}
               date={date}
+              serviceToday={serviceToday()}
               reorganizeQueue={reorganizeQueue}
               onReorganizeSelect={handleReorganizeSelect}
               allTables={allTables}
@@ -3102,6 +3184,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           setCreateMode(null); setEditingStandby(null); setPreselectedTableId(null); setPreselectedCombinedTableIds([]); setGapHint(null); setCallPrefillPhone('');
         }}>
           <CreateDrawer
+            turnRules={opSettings.turnTimeRules}
             initialMode={createMode ?? 'reservation'}
             defaultDate={date}
             defaultTime={time}
