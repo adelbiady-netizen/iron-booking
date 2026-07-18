@@ -1185,9 +1185,13 @@ export const api = {
       );
     },
     callbacks: () =>
-      request<{ active: import('./types').CallbackItem[]; recentClosed: import('./types').CallbackItem[] }>(
-        '/call-logs/callbacks'
-      ),
+      request<{
+        active: import('./types').CallbackItem[];
+        recentClosed: import('./types').CallbackItem[];
+        // Server-authoritative unresolved count (PENDING + IN_PROGRESS). Optional
+        // for resilience against an older backend; clients fall back to active.length.
+        count?: { pending: number; inProgress: number; total: number };
+      }>('/call-logs/callbacks'),
     callbackStart: (id: string, hostName?: string) =>
       request<import('./types').CallbackItem>(`/call-logs/${id}/callback/start`, {
         method: 'POST', body: JSON.stringify(hostName ? { hostName } : {}),

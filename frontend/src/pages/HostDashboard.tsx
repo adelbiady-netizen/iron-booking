@@ -7,6 +7,7 @@ import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from '../components/ReorganizeConflictModal';
 import { arrivalState, minutesUntilRes, isLiveServiceView, isFloorReleased, arrivedFifoSort } from '../utils/arrival';
 import { optimisticExpectedEnd } from '../utils/time';
+import { callbackCountFromResponse, resolveOpenCallsTarget } from '../utils/callbackBadge';
 import { getTopSuggestions, type TableSuggestion } from '../utils/seating';
 import { computePressure, prioritizeQueue, buildSoftHolds, type PressureInfo, type PriorityEntry } from '../utils/flowControl';
 import { trackEvent } from '../utils/telemetry';
@@ -260,6 +261,8 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [broadcastConfirming, setBroadcastConfirming] = useState(false);
   const [showSmartAssign,    setShowSmartAssign]    = useState(false);
   const [latestCall,         setLatestCall]         = useState<CallLogItem | null>(null);
+  // P1: server-authoritative unresolved callback count for the floating phone badge.
+  const [callbackCount,      setCallbackCount]      = useState(0);
   const [guestSearchPhone,   setGuestSearchPhone]   = useState('');
   const [panelCollapsed,     setPanelCollapsed]     = useState(false);
 
@@ -417,6 +420,19 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setCallbackRefreshKey(k => k + 1);
     },
   });
+
+  // P1: keep the floating-button badge in sync with the server-authoritative
+  // unresolved count. Always refetch (never optimistic increment/decrement) on
+  // every callback_updated (callbackRefreshKey — the repaired SSE path, covers
+  // create/complete/cancel/reopen/claim on this AND other devices) and on any
+  // new incoming call (latestCall). Also runs once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    api.callLogs.callbacks()
+      .then(r => { if (!cancelled) setCallbackCount(callbackCountFromResponse(r)); })
+      .catch(() => { /* transient; next event or reload resyncs */ });
+    return () => { cancelled = true; };
+  }, [callbackRefreshKey, latestCall?.id]);
 
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'success', action?: ToastMessage['action']) => {
     const id = ++toastIdRef.current;
@@ -3035,6 +3051,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           errorPhase={errorPhase}
           onLockTable={handleLockTable}
           onUnlockTable={handleUnlockTable}
+          callbackCount={callbackCount}
+          onOpenCalls={() => {
+            if (resolveOpenCallsTarget(isMobile) === 'mobile-calls-tab') setMobileTab('calls');
+            else setShowCallLog(true);
+          }}
+          callsLabel={T.hostDashboard.callLogBtn}
           onWaitlistSuggestion={handleSuggestionSeat}
           bestSuggestionTableId={bestSuggestionTableId}
           softHoldMap={softHoldMap}

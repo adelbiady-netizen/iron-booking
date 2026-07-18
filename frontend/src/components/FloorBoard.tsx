@@ -5,6 +5,7 @@ import type { PressureInfo } from '../utils/flowControl';
 import { logOverride } from '../utils/flowControl';
 import TableCard from './TableCard';
 import TableTimeline from './TableTimeline';
+import CallFab from './CallFab';
 import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatSectionName } from '../utils/displayHelpers';
@@ -369,6 +370,10 @@ interface Props {
   errorPhase?: 'none' | 'reconnecting' | 'failed';
   onLockTable?: (table: FloorTable) => void;
   onUnlockTable?: (tableId: string) => void;
+  // Floating call button (P1): unresolved callback count + opener for the calls surface.
+  callbackCount?: number;
+  onOpenCalls?: () => void;
+  callsLabel?: string;
   waitlist?: WaitlistEntry[];
   waitlistMatches?: Record<string, WaitlistEntry>;
   onWaitlistSuggestion?: (tableId: string, entry: WaitlistEntry) => void;
@@ -516,6 +521,9 @@ export default function FloorBoard({
   inPlanningMode = false,
   mobileMode: _mobileMode = false,
   futureResDisplay = 'DETAILED',
+  callbackCount = 0,
+  onOpenCalls,
+  callsLabel,
 }: Props) {
   const T = useT();
   const { locale } = useLocale();
@@ -1315,6 +1323,16 @@ export default function FloorBoard({
 
           return (
         <div className="flex-1 relative overflow-hidden">
+        {/* Floating phone / callback button (P1). Provisional placement: floor
+            bottom-right, stacked ABOVE the map-zoom stack, same edge/visual
+            language. Avoids the live-call surfaces (fixed bottom-LEFT) and the
+            right rail (this lives inside the floor board). Final placement is
+            pending on-device validation on the 8.7" tablet (D7). */}
+        {!pickMode && onOpenCalls && (
+          <div className="absolute bottom-36 right-4 z-30">
+            <CallFab count={callbackCount} onClick={onOpenCalls} label={callsLabel} />
+          </div>
+        )}
         {/* Map-only zoom controls — floating, bottom-right of the floor */}
         {!pickMode && (
           <div
