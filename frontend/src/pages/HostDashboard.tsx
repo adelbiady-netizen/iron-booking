@@ -596,6 +596,23 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setLiveMode(target.liveMode);
   }, []);
 
+  // ── Central "return to Live" after a completed operational action ──────────
+  // Host mental model: "I finished handling that guest — bring me back to what's
+  // happening now." Called from the SUCCESS path of every operational mutation
+  // (create / edit / walk-in / seat / mark-arrived / change table / move table).
+  // Pure browsing performs no mutation, so it never calls this → intentional
+  // planning views (a future time, tomorrow) are preserved. Snaps the board to
+  // Live at the current real time and refreshes the floor + reservation +
+  // waitlist lists, leaving the host ready for the next real-time task.
+  const returnToLive = useCallback(() => {
+    liveRestoreRef.current = null; // supersede any pending system-move snapshot
+    setDate(serviceToday());
+    setTime(nowTime());
+    setLiveMode(true);
+    setRefreshKey(k => k + 1);
+    setWaitlistRefreshKey(k => k + 1);
+  }, [serviceToday]);
+
   // Central workflow-end detector: when every workflow surface that can move the
   // board is closed (reservation drawer, create drawer, table-pick mode) and a
   // system-move snapshot is pending, restore. Covers ALL close paths — X button,
@@ -812,7 +829,10 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       // table AVAILABLE until the 60s poll or a manual refresh.
       setRefreshKey(k => k + 1);
     }
-  }, []);
+    // Completed operational action (edit / seat / change-table / cancel / etc. from
+    // the reservation drawer) → snap back to Live for the next real-time task.
+    returnToLive();
+  }, [returnToLive]);
 
   // Applies an optimistic seat to reservations + floorTables before the API responds.
   // Captures a rollback snapshot so handleOptimisticSeatRollback can restore exact prior state.
@@ -1078,10 +1098,11 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setWaitlist(prev => prev.filter(e => e.id !== entry.id));
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? 'table';
       showToast(T.hostDashboard.toastSeatAt(entry.guestName, tableName));
+      returnToLive(); // seated a waiting guest into a gap → back to Live
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     }
-  }, [date, floorTables, reservations, allTables, showToast]);
+  }, [date, floorTables, reservations, allTables, showToast, returnToLive]);
 
   const handleTimelineQuickAction = useCallback(async (action: 'seat' | 'move' | 'cancel', res: Reservation) => {
     if (action === 'seat') {
@@ -1444,6 +1465,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setTimeout(() => setHighlightId(null), 2000);
       const tableName = tableId ? (floorTables.find(t => t.id === tableId)?.name ?? 'table') : '';
       showToast(tableName ? T.hostDashboard.toastSeatAt(entry.guestName, tableName) : T.hostDashboard.toastSeated);
+      returnToLive(); // seated a waiting guest → back to Live
       return true;
     } catch (err) {
       if (err instanceof ApiError && err.code === 'CONFLICT') {
@@ -1627,15 +1649,20 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     }
     tablePickCallbackRef.current?.(ids);
     tablePickCallbackRef.current = null;
-    // change-table: restore floor position (date/time/liveMode) so the host returns
-    // to their live view. assign/reallocate intentionally keep the floor at the
+    // change-table: a completed table change is an operational action → snap back
+    // to Live. If nothing was picked (empty ids), preserve the host's prior
+    // position. assign/reallocate intentionally keep the floor at the
     // reservation's date/time so the result is immediately visible.
     if (tablePickActionRef.current === 'change-table') {
-      const restore = tablePickRestoreRef.current;
-      if (restore) {
-        setDate(restore.date);
-        setTime(restore.time);
-        setLiveMode(restore.liveMode);
+      if (ids.length > 0) {
+        returnToLive();
+      } else {
+        const restore = tablePickRestoreRef.current;
+        if (restore) {
+          setDate(restore.date);
+          setTime(restore.time);
+          setLiveMode(restore.liveMode);
+        }
       }
     }
     tablePickRestoreRef.current = null;
@@ -1878,6 +1905,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
         // across backend instances). Cancels any stale in-flight floor response that
         // would clobber the optimistic OCCUPIED patch above.
         setRefreshKey(k => k + 1);
+        returnToLive(); // quick-seated a guest from the floor → back to Live
         const tableName = floorTables.find(t => t.id === primaryId)?.name ?? primaryId;
         const advisory = updated._advisory;
         const toastMsg = advisory?.shortWindow
@@ -2125,6 +2153,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       const updated = await api.reservations.markArrived(res.id);
       setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
       showToast(T.guestDrawer.toastArrived, 'success');
+      returnToLive(); // marked a guest arrived → back to Live
     } catch (err) {
       setReservations(prev => prev.map(r => r.id === res.id ? res : r));
       showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
@@ -2132,7 +2161,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       inFlightRef.current.delete(res.id);
       setInFlightIds(new Set(inFlightRef.current));
     }
-  }, [showToast]);
+  }, [showToast, returnToLive]);
 
   const handleUnmarkArrived = useCallback(async (res: Reservation) => {
     if (inFlightRef.current.has(res.id)) return;
@@ -2211,6 +2240,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           setReservations(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
           setQuickTable(null);
           showToast(T.guestDrawer.toastMoved(targetName));
+          returnToLive(); // moved a guest to another table → back to Live
         } catch (err) {
           if (err instanceof ApiError && err.code === 'CONFLICT') {
             const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
@@ -2443,7 +2473,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     setHighlightId(created.id);
     showToast(created.status === 'SEATED' ? T.hostDashboard.toastSeated : T.hostDashboard.toastCreated);
     setTimeout(() => setHighlightId(null), 2000);
-  }, [showToast]);
+    // Reservation / walk-in created → snap back to Live for the next task.
+    returnToLive();
+  }, [showToast, returnToLive]);
 
   // operatingHours is declared once near the top of the component (business-day anchor).
 
@@ -3469,6 +3501,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 setReorganizeConflict(null);
                 showToast(T.hostDashboard.toastQuickSeated(tableName), 'success');
               }
+              returnToLive(); // conflict-override action (seat / move / assign) completed → back to Live
             } catch (err) {
               setReorganizeConflict(null);
               showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
