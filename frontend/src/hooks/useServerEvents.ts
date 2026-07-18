@@ -68,6 +68,18 @@ export function useServerEvents(handlers: EventHandlers): SseStatus {
         } catch { /* ignore malformed JSON */ }
       });
 
+      // Callback queue changed on some device (enqueued / claimed / completed /
+      // cancelled / released). Without this listener the server's callback_updated
+      // frame was silently dropped, so a callback handled on one device never
+      // updated the badge/queue on others. Handler refetches the authoritative
+      // count + queue.
+      es.addEventListener('callback_updated', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data) as unknown;
+          handlersRef.current['callback_updated']?.(data);
+        } catch { /* ignore malformed JSON */ }
+      });
+
       es.onerror = (err) => {
         console.warn('[useServerEvents] SSE error — readyState:', es?.readyState, err);
         es?.close();

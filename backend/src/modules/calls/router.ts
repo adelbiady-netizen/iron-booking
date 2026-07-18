@@ -3,11 +3,13 @@ import { z } from 'zod';
 import { authenticate } from '../../middleware/auth';
 import { prisma } from '../../lib/prisma';
 import { eventBus } from '../../lib/eventBus';
+import { OPEN_STATUSES, countOpen } from './callbackState';
 
 const router = Router();
 router.use(authenticate);
 
-const OPEN_CALLBACK_STATUSES = ['PENDING_CALLBACK', 'CALLBACK_IN_PROGRESS'] as const;
+// Kept name for readability; single source of truth is callbackState.OPEN_STATUSES.
+const OPEN_CALLBACK_STATUSES = OPEN_STATUSES;
 
 const CALLBACK_SELECT = {
   id: true, phone: true, status: true, createdAt: true, guestName: true,
@@ -87,9 +89,14 @@ router.get('/callbacks', async (req, res, next) => {
         select: CALLBACK_SELECT,
       }),
     ]);
+    // Server-authoritative unresolved count (D5): PENDING + IN_PROGRESS.
+    // `active` is the full open set (not paginated), so its count is reliable —
+    // clients use `count.total` for the floating-button badge rather than
+    // deriving it from a partial/paginated call-history list.
     res.json({
       active: active.map((c, i) => ({ ...c, position: i + 1 })),
       recentClosed,
+      count: countOpen(active),
     });
   } catch (err) { next(err); }
 });
