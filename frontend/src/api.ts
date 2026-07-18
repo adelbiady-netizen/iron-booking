@@ -1084,6 +1084,16 @@ export const api = {
       request<void>(`/hosts/${id}`, { method: 'DELETE' }),
   },
 
+  hostSettings: {
+    getOnlineReservations: () =>
+      request<{ onlineReservationsEnabled: boolean; maxOnlinePartySize: number }>('/host-settings/online-reservations'),
+    updateOnlineReservations: (body: { onlineReservationsEnabled?: boolean; maxOnlinePartySize?: number }) =>
+      request<{ onlineReservationsEnabled: boolean; maxOnlinePartySize: number }>(
+        '/host-settings/online-reservations',
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+  },
+
   analytics: {
     shiftSummary: (date: string) =>
       request<{

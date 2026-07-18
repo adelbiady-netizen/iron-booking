@@ -1053,6 +1053,36 @@ export const T = {
     permissionHint:   'Only managers and owners can manage hosts.',
   },
 
+  // ── Operational Settings hub (Host app) ──────────────────────────────────────
+  settingsHub: {
+    title:              'Settings',
+    subtitle:           'Day-to-day operational controls',
+    back:               '← Back',
+    tabTeam:            'Team',
+    tabOnline:          'Online Reservations',
+    tabNotifications:   'Notifications',
+    tabSms:             'SMS Templates',
+    soon:               'Soon',
+    // Online reservations panel
+    onlineTitle:        'Online Reservations',
+    onlineToggleLabel:  'Accept online reservations',
+    onlineOnHint:       'Guests can book online right now.',
+    onlineOffHint:      'Online booking is closed. Walk-ins and phone reservations are unaffected.',
+    statusOn:           'On',
+    statusOff:          'Off',
+    offConfirmTitle:    'Turn off online reservations?',
+    offConfirmBody:     'New online reservations will stop immediately. Existing reservations, walk-ins and phone bookings are not affected.',
+    offConfirmYes:      'Turn off',
+    offConfirmNo:       'Cancel',
+    maxPartyLabel:      'Maximum online party size',
+    maxPartyHint:       'Larger parties are asked to call the restaurant.',
+    save:               'Save',
+    saving:             'Saving…',
+    savedToast:         'Saved',
+    loadError:          'Could not load settings',
+    saveError:          'Could not save',
+  },
+
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'Edit Map',
@@ -1092,6 +1122,7 @@ export const T = {
     toastCancelFail:     'Failed to cancel',
     serviceReportBtn:    'Service Report',
     hostsBtn:            'Hosts',
+    settingsBtn:         'Settings',
     activityLogBtn:      'Activity Log',
     moreMenu:            'More',
     combineTables2:      'Combine Tables',

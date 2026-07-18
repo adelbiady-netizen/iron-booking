@@ -54,6 +54,12 @@ const roleHierarchy: Record<UserRole, number> = {
   SERVER:            10,
 };
 
+// Cardinal level for a role — used for anti-escalation guards where relative
+// ordering matters (e.g. a user may not grant or act on a role above their own).
+export function roleLevel(role: UserRole): number {
+  return roleHierarchy[role] ?? 0;
+}
+
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const userLevel = roleHierarchy[req.auth.role] ?? 0;

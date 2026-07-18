@@ -26,6 +26,7 @@ import GuestsPage from './GuestsPage';
 import IntelligencePage from './IntelligencePage';
 import ClubCenterPage from './ClubCenterPage';
 import HostsSettingsPage from './HostsSettingsPage';
+import SettingsPage from './SettingsPage';
 import ActivityLogPage from './ActivityLogPage';
 import { useServerEvents } from '../hooks/useServerEvents';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -212,7 +213,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   const [callbackRefreshKey,  setCallbackRefreshKey]  = useState(0);
 
   // null = closed, 'reservation' | 'walkin' = open in that mode
-  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'activity' | 'intelligence' | 'club'>('dashboard');
+  const [activePage,                  setActivePage]                  = useState<'dashboard' | 'guests' | 'hosts' | 'settings' | 'activity' | 'intelligence' | 'club'>('dashboard');
   const [layoutMode,                  setLayoutMode]                  = useState(false);
   const [createMode,                  setCreateMode]                  = useState<CreateMode | null>(null);
   const [preselectedTableId,          setPreselectedTableId]          = useState<string | null>(null);
@@ -2603,6 +2604,18 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
     );
   }
 
+  if (activePage === 'settings') {
+    return (
+      <>
+        <SettingsPage
+          onBack={() => setActivePage('dashboard')}
+          userRole={auth.user.role}
+        />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
+    );
+  }
+
   if (activePage === 'activity') {
     return (
       <>
@@ -2788,14 +2801,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             >
               {T.hostDashboard.activityLogBtn}
             </button>
-            {(['MANAGER', 'ADMIN', 'OWNER', 'HQ_ADMIN', 'GROUP_MANAGER', 'SUPER_ADMIN'] as const).includes(auth.user.role as 'MANAGER' | 'ADMIN' | 'OWNER' | 'HQ_ADMIN' | 'GROUP_MANAGER' | 'SUPER_ADMIN') && (
-              <button
-                onClick={() => { setShowMoreMenu(false); setActivePage('hosts'); }}
-                className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
-              >
-                {T.hostDashboard.hostsBtn}
-              </button>
-            )}
+            <button
+              onClick={() => { setShowMoreMenu(false); setActivePage('settings'); }}
+              className="w-full text-start px-3.5 py-2 text-xs font-medium text-iron-muted/80 hover:text-iron-text hover:bg-iron-border/20 transition-colors"
+            >
+              {T.hostDashboard.settingsBtn}
+            </button>
             {canAccessClub && (
               <button
                 onClick={() => { setShowMoreMenu(false); setActivePage('club'); }}
@@ -3632,6 +3643,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             onGuestsPage={() => handleGuestsPage()}
             guestsPageEnabled={canAccessGuests}
             onIntelligencePage={() => handleIntelligencePage()}
+            onSettings={() => { setMobileTab('list'); setActivePage('settings'); }}
           />
         </div>
       )}

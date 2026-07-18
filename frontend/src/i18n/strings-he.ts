@@ -1024,6 +1024,35 @@ export const THe = {
     permissionHint:   'רק מנהלים ובעלים יכולים לנהל מארחים.',
   },
 
+  // ── מרכז הגדרות תפעוליות (אפליקציית המארח) ───────────────────────────────────
+  settingsHub: {
+    title:              'הגדרות',
+    subtitle:           'בקרות תפעוליות שוטפות',
+    back:               '→ חזרה',
+    tabTeam:            'צוות',
+    tabOnline:          'הזמנות אונליין',
+    tabNotifications:   'התראות',
+    tabSms:             'תבניות SMS',
+    soon:               'בקרוב',
+    onlineTitle:        'הזמנות אונליין',
+    onlineToggleLabel:  'קבלת הזמנות אונליין',
+    onlineOnHint:       'אורחים יכולים להזמין אונליין כעת.',
+    onlineOffHint:      'הזמנות אונליין סגורות. הגעה ללא הזמנה והזמנות טלפוניות אינן מושפעות.',
+    statusOn:           'פעיל',
+    statusOff:          'כבוי',
+    offConfirmTitle:    'לכבות הזמנות אונליין?',
+    offConfirmBody:     'הזמנות אונליין חדשות ייפסקו מיד. הזמנות קיימות, הגעה ללא הזמנה והזמנות טלפוניות לא יושפעו.',
+    offConfirmYes:      'כבה',
+    offConfirmNo:       'ביטול',
+    maxPartyLabel:      'גודל קבוצה מקסימלי להזמנה אונליין',
+    maxPartyHint:       'קבוצות גדולות יותר יתבקשו ליצור קשר עם המסעדה.',
+    save:               'שמור',
+    saving:             'שומר…',
+    savedToast:         'נשמר',
+    loadError:          'טעינת ההגדרות נכשלה',
+    saveError:          'השמירה נכשלה',
+  },
+
   // ── HostDashboard ──────────────────────────────────────────────────────────
   hostDashboard: {
     editLayout:       'עריכת מפה',
@@ -1063,6 +1092,7 @@ export const THe = {
     toastCancelFail:     'הביטול נכשל',
     serviceReportBtn:    'דוח משמרת',
     hostsBtn:            'מארחים',
+    settingsBtn:         'הגדרות',
     activityLogBtn:      'יומן פעילות',
     moreMenu:            'עוד',
     combineTables2:      'שלב שולחנות',

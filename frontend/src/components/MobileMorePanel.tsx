@@ -36,6 +36,7 @@ interface Props {
   onAdminPortal?: () => void;
   onIntelligencePage?: () => void;
   onGuestsPage?: () => void;
+  onSettings?: () => void;
   guestsPageEnabled?: boolean;
 }
 
@@ -49,6 +50,7 @@ export default function MobileMorePanel({
   onAdminPortal,
   onIntelligencePage,
   onGuestsPage,
+  onSettings,
   guestsPageEnabled = true,
 }: Props) {
   const T = useT();
@@ -129,6 +131,19 @@ export default function MobileMorePanel({
       <div className="px-4 pt-3 pb-2">
         <p className="text-iron-muted/50 text-[11px] font-semibold tracking-widest uppercase px-1 mb-2">הגדרות</p>
         <div className="flex flex-col gap-1">
+          {/* Operational settings hub */}
+          {onSettings && (
+            <button
+              onClick={onSettings}
+              className="flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-start text-sm font-medium text-iron-text/85 hover:bg-iron-elevated active:bg-iron-card transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              {T.hostDashboard.settingsBtn}
+            </button>
+          )}
           {/* Language */}
           <div className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-iron-elevated/60">
             <span className="text-iron-text/85 text-sm font-medium">{T.topBar.language}</span>

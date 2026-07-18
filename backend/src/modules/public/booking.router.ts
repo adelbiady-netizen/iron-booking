@@ -9,6 +9,7 @@ import { resolveTurnTime, baselineTurnMinutes, resolveTimeWindows, resolveGroupC
 import { sendConfirmationSms, sendWhatsApp, buildWaitlistWhatsAppMessage } from '../../lib/sms';
 import { sendReservationReceivedSms } from '../../lib/messaging';
 import { writeConsentAudit, ConsentType, ConsentAction, ConsentSource } from '../../lib/consentAudit';
+import { readOnlineReservationSettings } from '../../lib/onlineSettings';
 import { findOrCreateGuest, splitName } from '../guests/service';
 import { config } from '../../config';
 import { eventBus } from '../../lib/eventBus';
@@ -73,11 +74,14 @@ function parseSettings(settings: unknown) {
     maxPartySize:              (s['maxPartySize']               as number) ?? 12,
     maxAdvanceBookingDays:     (s['maxAdvanceBookingDays']      as number) ?? 60,
     minAdvanceBookingHours:    (s['minAdvanceBookingHours']     as number) ?? 2,
-    maxOnlinePartySize:        (s['maxOnlinePartySize']         as number) ?? 5,
     maxOnlineCoversPerWindow:  (s['maxOnlineCoversPerWindow']   as number) ?? 40,
     // Show the "join our guest club" opt-in on the public booking form.
     // Off by default — HQ enables it per restaurant.
     guestClubSignupEnabled:    (s['guestClubSignupEnabled']     as boolean) ?? false,
+    // Online-reservation controls, toggled by managers from the Host app.
+    // Defaults owned by lib/onlineSettings (onlineReservationsEnabled → TRUE,
+    // maxOnlinePartySize → 5) so this guard and the Host endpoint never drift.
+    ...readOnlineReservationSettings(s),
   };
 }
 
@@ -796,6 +800,15 @@ router.post('/:slug/reserve', async (req: Request, res: Response, next: NextFunc
     const now        = new Date();
     const minBookingTime = addMinutes(now, s.minAdvanceBookingHours * 60);
     const maxDate        = addMinutes(now, s.maxAdvanceBookingDays * 24 * 60);
+
+    // Master online-reservations switch — when a manager turns online reservations
+    // OFF from the Host app, stop accepting NEW online bookings. This is the public
+    // guest path only; walk-ins and phone reservations use a different router and
+    // are unaffected, and existing reservations are never touched.
+    if (!s.onlineReservationsEnabled) {
+      console.log('[ONLINE_RESERVATIONS_CLOSED]', { restaurantId: restaurant.id, date: body.date, time: body.time });
+      return res.status(400).json({ error: { code: 'ONLINE_RESERVATIONS_CLOSED', message: 'הזמנות אונליין סגורות כרגע. נא ליצור קשר עם המסעדה.' } });
+    }
 
     // Party size guard
     const maxParty = Math.min(s.maxPartySize, config.maxPartySizeAbsolute);

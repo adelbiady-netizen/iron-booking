@@ -6,11 +6,22 @@ import type { HostUser } from '../types';
 interface Props {
   onBack: () => void;
   userRole: string;
+  // When rendered inside the Settings hub, the hub owns the page chrome
+  // (title + back), so we hide our own header and show just the content.
+  embedded?: boolean;
 }
 
 type Role = 'HOST' | 'SERVER' | 'MANAGER';
 
 const ROLES: Role[] = ['HOST', 'SERVER', 'MANAGER'];
+
+// Cardinal role levels — mirrors backend roleHierarchy (middleware/auth.ts).
+// Used only for anti-escalation UX: a user may not create, assign, or act on a
+// role higher than their own. The backend is authoritative and enforces the same.
+const ROLE_LEVEL: Record<string, number> = {
+  SUPER_ADMIN: 100, HQ_ADMIN: 80, GROUP_MANAGER: 60, RESTAURANT_ADMIN: 50,
+  OWNER: 40, ADMIN: 40, MANAGER: 30, HOST: 20, SERVER: 10,
+};
 
 function roleLabel(role: string, T: ReturnType<typeof useT>) {
   if (role === 'MANAGER') return T.hostsSettings.roleManager;
@@ -37,15 +48,16 @@ function initials(firstName: string, lastName: string) {
 
 interface HostFormProps {
   host?: HostUser;
+  allowedRoles: Role[];
   onSave: (data: { firstName: string; lastName: string; role: Role; avatarUrl: string }) => Promise<void>;
   onCancel: () => void;
   T: ReturnType<typeof useT>;
 }
 
-function HostForm({ host, onSave, onCancel, T }: HostFormProps) {
+function HostForm({ host, allowedRoles, onSave, onCancel, T }: HostFormProps) {
   const [firstName, setFirstName] = useState(host?.firstName ?? '');
   const [lastName,  setLastName]  = useState(host?.lastName  ?? '');
-  const [role,      setRole]      = useState<Role>((host?.role as Role) ?? 'HOST');
+  const [role,      setRole]      = useState<Role>((host?.role as Role) ?? allowedRoles[0] ?? 'HOST');
   const [avatarUrl, setAvatarUrl] = useState(host?.avatarUrl ?? '');
   const [busy,      setBusy]      = useState(false);
   const [error,     setError]     = useState('');
@@ -96,7 +108,7 @@ function HostForm({ host, onSave, onCancel, T }: HostFormProps) {
           {T.hostsSettings.fieldRole}
         </label>
         <div className="flex gap-1">
-          {ROLES.map(r => (
+          {allowedRoles.map(r => (
             <button
               key={r}
               type="button"
@@ -246,9 +258,7 @@ function PinDialog({ host, onSave, onCancel, T }: PinDialogProps) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const MANAGER_ROLES = new Set(['MANAGER', 'ADMIN', 'SUPER_ADMIN']);
-
-export default function HostsSettingsPage({ onBack, userRole }: Props) {
+export default function HostsSettingsPage({ onBack, userRole, embedded = false }: Props) {
   const T = useT();
   const [hosts,    setHosts]    = useState<HostUser[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -257,12 +267,16 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
   const [pinFor,   setPinFor]   = useState<HostUser | null>(null);
   const [toast,    setToast]    = useState<string | null>(null);
 
-  const canManage = MANAGER_ROLES.has(userRole);
+  // Team management is a routine operational action open to any authenticated
+  // Host-app user. The only restriction is anti-escalation: a user may not
+  // create/assign or act on a role higher than their own (backend enforces it).
+  const actorLevel = ROLE_LEVEL[userRole] ?? 0;
+  const assignableRoles = ROLES.filter(r => ROLE_LEVEL[r] <= actorLevel);
+  const canActOn = (host: HostUser) => (ROLE_LEVEL[host.role] ?? 0) <= actorLevel;
 
   useEffect(() => {
-    if (!canManage) return;
     load();
-  }, [canManage]);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -332,51 +346,43 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
     }
   }
 
-  if (!canManage) {
-    return (
-      <div className="h-full bg-iron-bg flex flex-col">
+  return (
+    <div className={embedded ? 'flex flex-col' : 'h-full bg-iron-bg flex flex-col'}>
+      {/* Header — hidden when embedded in the Settings hub (hub owns title + back) */}
+      {embedded ? (
+        <div className="flex items-center justify-end px-4 pt-4">
+          <button
+            onClick={() => { setCreating(true); setEditing(null); }}
+            className="text-xs bg-iron-green hover:bg-iron-green-light text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
+          >
+            {T.hostsSettings.addHost}
+          </button>
+        </div>
+      ) : (
         <div className="flex items-center gap-3 px-4 py-3 border-b border-iron-border">
-          <button onClick={onBack} className="text-iron-muted hover:text-iron-text text-sm transition-colors">
+          <button
+            onClick={onBack}
+            className="text-iron-muted hover:text-iron-text text-sm transition-colors"
+          >
             {T.hostsSettings.back}
           </button>
           <h1 className="text-iron-text font-semibold flex-1">{T.hostsSettings.title}</h1>
+          <button
+            onClick={() => { setCreating(true); setEditing(null); }}
+            className="text-xs bg-iron-green hover:bg-iron-green-light text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
+          >
+            {T.hostsSettings.addHost}
+          </button>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-status-warning/10 border border-status-warning/30 flex items-center justify-center mb-2">
-            <span className="text-status-warning text-xl">🔒</span>
-          </div>
-          <p className="text-iron-text font-semibold text-sm">{T.hostsSettings.permissionDenied}</p>
-          <p className="text-iron-muted text-xs">{T.hostsSettings.permissionHint}</p>
-        </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="h-full bg-iron-bg flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-iron-border">
-        <button
-          onClick={onBack}
-          className="text-iron-muted hover:text-iron-text text-sm transition-colors"
-        >
-          {T.hostsSettings.back}
-        </button>
-        <h1 className="text-iron-text font-semibold flex-1">{T.hostsSettings.title}</h1>
-        <button
-          onClick={() => { setCreating(true); setEditing(null); }}
-          className="text-xs bg-iron-green hover:bg-iron-green-light text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
-        >
-          {T.hostsSettings.addHost}
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className={embedded ? 'p-4' : 'flex-1 overflow-y-auto p-4'}>
         {/* Create form */}
         {creating && (
           <div className="bg-iron-card border border-iron-border rounded-xl p-4 mb-4">
             <p className="text-iron-text text-sm font-semibold mb-3">{T.hostsSettings.formTitleCreate}</p>
             <HostForm
+              allowedRoles={assignableRoles}
               onSave={handleCreate}
               onCancel={() => setCreating(false)}
               T={T}
@@ -410,6 +416,7 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
                     <p className="text-iron-text text-sm font-semibold mb-3">{T.hostsSettings.formTitleEdit}</p>
                     <HostForm
                       host={host}
+                      allowedRoles={assignableRoles}
                       onSave={handleEdit}
                       onCancel={() => setEditing(null)}
                       T={T}
@@ -448,7 +455,10 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
                       </p>
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions — hidden for users ranked above the current user */}
+                    {!canActOn(host) ? (
+                      <span className="text-[10px] text-iron-muted/60 flex-shrink-0">🔒</span>
+                    ) : (
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => setPinFor(host)}
@@ -475,6 +485,7 @@ export default function HostsSettingsPage({ onBack, userRole }: Props) {
                         {T.hostsSettings.deleteBtn}
                       </button>
                     </div>
+                    )}
                   </div>
                 )}
               </div>

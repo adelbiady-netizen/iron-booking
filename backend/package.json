@@ -17,6 +17,7 @@
     "test:engine": "ts-node --transpile-only src/engine/occupancy.test.ts",
     "test:service-day": "ts-node --transpile-only src/engine/serviceDay.test.ts",
     "test:consent": "ts-node --transpile-only src/lib/consentAudit.test.ts",
+    "test:online-settings": "ts-node --transpile-only src/lib/onlineSettings.test.ts",
     "test:unsubscribe": "ts-node --transpile-only src/lib/unsubscribeToken.test.ts",
     "test:unsubscribe-phase3": "ts-node --transpile-only scripts/unsubscribe-phase3-verify.ts",
     "test:consent-proof": "ts-node --transpile-only scripts/consent-proof-verify.ts",
