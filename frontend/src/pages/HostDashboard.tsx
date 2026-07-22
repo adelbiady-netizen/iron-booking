@@ -622,6 +622,22 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
   // Live at the current real time and refreshes the floor + reservation +
   // waitlist lists, leaving the host ready for the next real-time task.
   const returnToLive = useCallback(() => {
+    // PLANNING CONTEXT: the host is deliberately working on another service day
+    // (e.g. arranging Friday's floor on a Sunday). Navigating to that day IS the
+    // declaration of intent — never yank them back to today mid-session, or every
+    // table they assign would throw them out of the day they are arranging. They
+    // leave planning the same way they entered it: by navigating, or the Now
+    // button. Within today the board stays operational, so the return applies.
+    //
+    // Decide on the host's OWN context date, not the board's: a workflow may have
+    // jumped the board to a reservation's date (handlePickTables' pickDate), and
+    // the snapshot taken at that moment holds where the host actually was. Falling
+    // back to the live board date covers manual navigation (no snapshot taken).
+    const hostContextDate =
+      liveRestoreRef.current?.date
+      ?? tablePickRestoreRef.current?.date
+      ?? boardPosRef.current.date;
+    if (hostContextDate !== serviceToday()) return;
     liveRestoreRef.current = null; // supersede any pending system-move snapshot
     setDate(serviceToday());
     setTime(nowTime());
@@ -953,6 +969,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       // Bumping refreshKey also cancels that stale in-flight response via the load
       // effect's cleanup, matching handleCreated / handleGapWaitlistSeat.
       setRefreshKey(k => k + 1);
+      returnToLive(); // seated from a suggestion → back to Live
       const tableName = floorTables.find(t => t.id === tableId)?.name ?? tableId;
       const advisory = updated._advisory;
       const toastMsg = advisory?.shortWindow
@@ -1876,6 +1893,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             setReservations(prev => prev.map(x => x.id === placed.id ? { ...x, ...placed } : x));
             setRefreshKey(k => k + 1);
             showToast(seatNow ? T.hostDashboard.toastQuickSeated(name) : T.guestDrawer.toastTableAssigned(name), 'success');
+            returnToLive(); // שבץ / seat via table choice → back to Live
           } catch (err) {
             // Roll back the optimistic seat / assignment and re-sync the floor (occupants
             // may have already been completed before the failure).
@@ -1907,6 +1925,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
                 setReservations(prev => prev.map(x => x.id === assigned.id ? { ...x, ...assigned } : x));
                 setRefreshKey(k => k + 1);
                 showToast(T.guestDrawer.toastTableAssigned(name));
+                returnToLive(); // assign fallback succeeded → back to Live
                 return;
               } catch { /* fall through to the original error */ }
             }
@@ -2106,6 +2125,7 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
       setRefreshKey(k => k + 1);
       setInsights(prev => prev.filter(i => i.tableId !== tableId && i.reservationId !== res.id));
       showToast(T.hostDashboard.toastQuickSeated(tableName), 'success');
+      returnToLive(); // seated from the floor map → back to Live
     } catch (err) {
       showToast(err instanceof Error ? err.message : T.hostDashboard.toastSeatFail, 'error');
     } finally {
