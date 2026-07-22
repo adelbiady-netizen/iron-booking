@@ -212,7 +212,9 @@ export default function TopBar({
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(145deg, rgba(111,138,60,0.28) 0%, rgba(75,95,42,0.16) 100%)', border: '1px solid rgba(120,120,60,0.36)', boxShadow: '0 0 18px rgba(111,138,60,0.22), 0 0 10px rgba(255,215,130,0.11), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
               <span className="text-iron-green-light font-bold text-sm">IB</span>
             </div>
-            <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden md:block">
+            {/* Wordmark costs ~90px — on tablet widths that space is needed by the
+                command cluster, so keep only the IB mark below xl. */}
+            <span className="text-iron-text/85 font-semibold text-sm tracking-tight hidden xl:block">
               {T.topBar.brand}
             </span>
           </div>
@@ -221,8 +223,18 @@ export default function TopBar({
         </>
       )}
 
-      {/* ── Date / Time Command Cluster — absolutely centered ────────── */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5">
+      {/* Left spacer — centres the in-flow cluster below xl. Hidden at xl+, where
+          the cluster is absolutely centred and takes no space in the flex row. */}
+      <div className="flex-1 xl:hidden" />
+
+      {/* ── Date / Time Command Cluster ───────────────────────────────
+          xl+: absolutely centred in the viewport (original design).
+          Below xl (tablet — iPad Air): IN FLOW. Absolute positioning reserves no
+          width, so on narrower screens the cluster used to extend over the
+          right-hand controls and — being a positioned element — paint on top of
+          them, leaving those buttons visually covered and unclickable. In flow,
+          flexbox can never overlap them. */}
+      <div className="flex items-center gap-2.5 min-w-0 xl:absolute xl:left-1/2 xl:-translate-x-1/2">
         <div className={`flex items-stretch rounded-2xl border ${light ? 'border-iron-border/70' : 'border-white/[0.08]'} bg-iron-bg overflow-hidden`} style={{ boxShadow: insetShadow }}>
           {/* Date nav — quiet, compact secondary */}
           <NavBtn onClick={onPrevDay} title={T.topBar.prevDay}>‹</NavBtn>
@@ -305,7 +317,9 @@ export default function TopBar({
             style={{ background: wellBgDeep, border: `1px solid ${light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}`, boxShadow: light ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'inset 0 1px 3px rgba(0,0,0,0.30)' }}
           >
             <span className="text-iron-muted/55 text-[9px] font-medium tracking-[0.12em] uppercase leading-none mb-0.5">{T.topBar.realClock}</span>
-            <span className="text-iron-text/85 font-bold tabular-nums leading-none" style={{ fontSize: '30px', letterSpacing: '-0.03em' }}>{realClock}</span>
+            {/* Smaller below xl so the cluster fits beside the right-hand controls
+                on tablet widths (full size restored at xl+). */}
+            <span className="text-iron-text/85 font-bold tabular-nums leading-none text-[21px] xl:text-[30px]" style={{ letterSpacing: '-0.03em' }}>{realClock}</span>
           </div>
         )}
 
