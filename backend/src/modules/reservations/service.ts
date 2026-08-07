@@ -425,9 +425,24 @@ export async function updateReservation(
           if (det?.conflictingReservationId) {
             const conflictRes = await prisma.reservation.findUnique({
               where: { id: det.conflictingReservationId },
-              select: { id: true, guestName: true, time: true, partySize: true },
+              select: { id: true, guestName: true, time: true, partySize: true, status: true },
             });
             if (conflictRes) {
+              // A SEATED occupant that genuinely overlaps the requested slot.
+              // Distinct from future reservations: lets the host UI offer an explicit
+              // "displace the seated guest" last resort, and lets the gap-first assign
+              // flow tell a real overlap apart from a clean gap.
+              if (conflictRes.status === 'SEATED') {
+                throw new ConflictError('This table is occupied by a seated guest', {
+                  code: 'TABLE_OCCUPIED_BY_SEATED',
+                  occupant: {
+                    id:        conflictRes.id,
+                    guestName: conflictRes.guestName,
+                    time:      conflictRes.time,
+                    partySize: conflictRes.partySize,
+                  },
+                });
+              }
               const [resH, resM] = time.split(':').map(Number);
               const [fH, fM]     = conflictRes.time.split(':').map(Number);
               throw new ConflictError('This table has upcoming reservations', {
