@@ -1714,7 +1714,9 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             && (t.liveStatus === 'OCCUPIED' || t.liveStatus === 'STALE_OCCUPIED'))
           .map(t => ({ occupantId: t.currentReservation!.id, tableName: t.name, guestName: t.currentReservation!.guestName }));
 
-        const persistAssign = async () => {
+        // Last-resort displacement — used ONLY when the host confirms it on a real
+        // overlap: lift the seated occupant(s) to "no table", then assign.
+        const persistWithUnseat = async () => {
           const prevReservations = reservations;
           try {
             // Lift any seated occupant(s) to "no table" first so the target frees up
@@ -1727,8 +1729,6 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
               tableId: primaryId,
               combinedTableIds: secondaryIds,
             });
-            // Reconcile with server truth and force an immediate floor refresh so
-            // floorTables reflects the new assignment without waiting for SSE.
             setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
             setRefreshKey(k => k + 1);
             showToast(T.guestDrawer.toastTableAssigned(name));
@@ -1757,16 +1757,51 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           }
         };
 
-        if (occupants.length > 0) {
-          // Undo the optimistic assignment applied in handlePickDone until the host
-          // confirms displacing the seated guest(s).
-          setReservations(prev => prev.map(x => x.id === r.id
-            ? { ...x, tableId: null, combinedTableIds: [], table: null }
-            : x));
-          setAssignOccupiedConfirm({ occupants, guestName: r.guestName, run: persistAssign });
-          return;
+        // GAP-FIRST: try to assign WITHOUT displacing anyone. When the reservation fits
+        // in a gap (no real time overlap with the seated guest) the backend accepts it
+        // and the current guest is left untouched — the owner's rule. Only a genuine
+        // SEATED overlap (TABLE_OCCUPIED_BY_SEATED) falls through to the displace-confirm.
+        const prevReservations = reservations;
+        try {
+          const updated = await api.reservations.update(r.id, {
+            tableId: primaryId,
+            combinedTableIds: secondaryIds,
+          });
+          setReservations(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+          setRefreshKey(k => k + 1);
+          showToast(occupants.length > 0
+            ? T.guestDrawer.toastSeatedIntoGap(occupants[0].guestName)
+            : T.guestDrawer.toastTableAssigned(name));
+        } catch (err) {
+          setReservations(prevReservations);
+          setRefreshKey(k => k + 1);
+          if (err instanceof ApiError && err.code === 'CONFLICT') {
+            const det = err.details as { code?: string; conflicts?: ReorganizeConflict[] } | null;
+            // Real overlap with a seated guest — offer the explicit displace confirm
+            // (its confirm runs persistWithUnseat). Undo the optimistic assign first.
+            if (det?.code === 'TABLE_OCCUPIED_BY_SEATED' && occupants.length > 0) {
+              setReservations(prev => prev.map(x => x.id === r.id
+                ? { ...x, tableId: null, combinedTableIds: [], table: null }
+                : x));
+              setAssignOccupiedConfirm({ occupants, guestName: r.guestName, run: persistWithUnseat });
+              return;
+            }
+            if (det?.code === 'TABLE_HAS_FUTURE_RESERVATIONS' && det.conflicts?.length) {
+              setReorganizeConflict({
+                conflicts: det.conflicts,
+                pendingReservationId: r.id,
+                pendingTableId: primaryId,
+                pendingCombinedIds: secondaryIds,
+                tableName: name,
+                busy: false,
+                _key: ++reorganizeKeyRef.current,
+                pendingAssignResId: r.id,
+              });
+              return;
+            }
+          }
+          showToast(err instanceof Error ? err.message : T.guestDrawer.actionFailed, 'error');
         }
-        await persistAssign();
       },
       pickAction,
       r.guestName,

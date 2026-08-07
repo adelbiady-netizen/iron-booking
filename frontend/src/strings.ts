@@ -553,6 +553,7 @@ export const T = {
     toastUnseated:        'Guest returned to list',
     toastUndone:          'Action undone',
     toastTableAssigned:   (table: string) => `Table ${table} assigned`,
+    toastSeatedIntoGap:   (occupantName: string) => `Assigned to the gap · ${occupantName} untouched`,
     toastSeated:          (guest: string, table: string) => `${guest} seated at ${table}`,
     toastMoved:           (table: string) => `Moved to ${table}`,
     toastTableChanged:    (table: string) => `Table changed to ${table}`,
