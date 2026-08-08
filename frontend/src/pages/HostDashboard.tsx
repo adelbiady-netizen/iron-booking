@@ -1857,7 +1857,25 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
           .map(tid => floorTables.find(t => t.id === tid))
           .filter((t): t is FloorTable => !!t?.currentReservation
             && (t.liveStatus === 'OCCUPIED' || t.liveStatus === 'STALE_OCCUPIED'))
-          .map(t => ({ occupantId: t.currentReservation!.id, tableName: t.name, guestName: t.currentReservation!.guestName }));
+          .map(t => ({
+            occupantId: t.currentReservation!.id,
+            tableName:  t.name,
+            guestName:  t.currentReservation!.guestName,
+            time:       t.currentReservation!.time,
+            duration:   t.currentReservation!.duration,
+          }));
+
+        // GAP-FIRST: a seated occupant whose booked turn does NOT overlap the incoming
+        // reservation's window is LEFT SEATED when we merely pre-assign a not-yet-arrived
+        // guest — there's room by the times, so no one is sent home. Only a real time
+        // overlap (or seating a guest right now) completes the occupant. Overlap is judged
+        // on scheduled windows, matching the backend's getTableAvailability logic.
+        const toMin = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+        const rStart = toMin(r.time), rEnd = rStart + r.duration;
+        const occupantOverlaps = (o: { time: string; duration: number }) => {
+          const oStart = toMin(o.time), oEnd = oStart + o.duration;
+          return rStart < oEnd && oStart < rEnd;
+        };
 
         // A no-table guest is SEATED (הושבה → OCCUPIED) only if they've ARRIVED. A guest
         // who hasn't arrived yet is just assigned to the table (status stays CONFIRMED) so
@@ -1878,7 +1896,16 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             // guest has arrived. `occupants` is only ever the physically-seated tables;
             // future-reservation (not-seated) conflicts go through the reorganize modal.
             // A mistaken completion is one-tap-undoable from the guest's own panel.
+            let keptInGap: string | null = null;
             for (const occ of occupants) {
+              // Leave the occupant seated ONLY when we are pre-assigning a not-yet-arrived
+              // no-table guest that fits in a gap (no scheduled overlap). Seating now, or
+              // moving/changing an already-placed (possibly SEATED) party, still completes
+              // the occupant — never leave two parties seated on one physical table.
+              // Safe because the table-only `update` below uses buffer 0 server-side, whose
+              // overlap test matches occupantOverlaps exactly — a skipped occupant never
+              // makes the assign fail.
+              if (hasNoTable && !r.isArrived && !occupantOverlaps(occ)) { keptInGap = keptInGap ?? occ.guestName; continue; }
               const done = await api.reservations.complete(occ.occupantId);
               setReservations(prev => prev.map(x => x.id === done.id ? { ...x, ...done } : x));
             }
@@ -1892,7 +1919,12 @@ export default function HostDashboard({ auth, onLogout, onSwitchHost, zoom, zoom
             // floorTables reflects the placement without waiting for SSE.
             setReservations(prev => prev.map(x => x.id === placed.id ? { ...x, ...placed } : x));
             setRefreshKey(k => k + 1);
-            showToast(seatNow ? T.hostDashboard.toastQuickSeated(name) : T.guestDrawer.toastTableAssigned(name), 'success');
+            showToast(
+              keptInGap ? T.guestDrawer.toastSeatedIntoGap(keptInGap)
+              : seatNow ? T.hostDashboard.toastQuickSeated(name)
+              : T.guestDrawer.toastTableAssigned(name),
+              'success',
+            );
             returnToLive(); // שבץ / seat via table choice → back to Live
           } catch (err) {
             // Roll back the optimistic seat / assignment and re-sync the floor (occupants

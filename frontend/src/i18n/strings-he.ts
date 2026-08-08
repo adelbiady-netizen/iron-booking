@@ -555,6 +555,7 @@ export const THe = {
     toastCancelled:       'ההזמנה בוטלה',
     toastUndone:          'הפעולה בוטלה',
     toastTableAssigned:   (table: string) => `שולחן ${table} שויך`,
+    toastSeatedIntoGap:   (occupantName: string) => `שובצה לפער · ${occupantName} לא הושפע`,
     toastSeated:          (guest: string, table: string) => `${guest} הושב לשולחן ${table}`,
     toastMoved:           (table: string) => `הועבר לשולחן ${table}`,
     toastTableChanged:    (table: string) => `שולחן שונה ל${table}`,
