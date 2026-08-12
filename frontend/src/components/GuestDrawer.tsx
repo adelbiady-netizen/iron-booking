@@ -10,6 +10,8 @@ import { useT } from '../i18n/useT';
 import { useLocale } from '../i18n/useLocale';
 import { formatReservationSource, isCrmImportWithNoHistory, CRM_NO_HISTORY_LABEL } from '../utils/displayHelpers';
 import { arrivalState, minutesUntilRes } from '../utils/arrival';
+import { statusPill } from '../theme/statusTokens';
+import { ActionButton as ActionBtn, BTN } from './host/DrawerActions';
 import { fmtHostTime, normalizeTime } from '../utils/time';
 
 function fmtDateLong(dateStr: string, intlLocale: string): string {
@@ -72,16 +74,6 @@ function GDTextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 }
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
-
-const STATUS_PILL: Record<ReservationStatus, string> = {
-  PENDING:   'bg-status-warning/15 text-status-warning border border-status-warning/30',
-  CONFIRMED: 'bg-status-reserved/12 text-status-reserved/90 border border-status-reserved/25',
-  SEATED:    'bg-iron-green/22 text-iron-green-light border border-iron-green/35',
-  COMPLETED: 'bg-iron-border/18 text-iron-muted/75 border border-iron-border/25',
-  CANCELLED: 'bg-red-900/15 text-status-danger border border-red-900/25',
-  NO_SHOW:   'bg-orange-900/15 text-orange-400 border border-orange-900/25',
-  STANDBY:   'bg-amber-900/15 text-amber-400 border border-amber-900/25',
-};
 
 interface RowProps { label: string; value: string; accent?: boolean; warn?: boolean }
 function Row({ label, value, accent, warn }: RowProps) {
@@ -152,31 +144,8 @@ function TablePicker({ tables, excludeId, label, busy, onPick, onBack }: TablePi
 }
 
 // ─── Action button ────────────────────────────────────────────────────────────
-
-interface ActionBtnProps {
-  label: string;
-  cls: string;
-  onClick: () => void;
-  disabled: boolean;
-  title?: string;
-  primary?: boolean;
-}
-
-function ActionBtn({ label, cls, onClick, disabled, title, primary }: ActionBtnProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`rounded-xl border transition-[color,background-color,border-color,opacity,transform] duration-100 disabled:opacity-40 active:scale-[0.96] touch-manipulation ${
-        primary ? 'text-sm font-semibold px-4 py-4 min-h-[52px] flex-1' : 'text-xs font-semibold px-3 py-3'
-      } ${cls}`}
-      style={primary ? { boxShadow: '0 3px 12px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.10)' } : undefined}
-    >
-      {label}
-    </button>
-  );
-}
+// ActionBtn + variant classes now come from the shared host/DrawerActions
+// primitive so every Host drawer renders actions identically.
 
 const inputCls = 'w-full bg-iron-bg border border-iron-border/80 rounded-lg px-2.5 py-1.5 text-iron-text text-xs placeholder-iron-muted/80 focus:outline-none focus:border-iron-green-light/80 focus:ring-1 focus:ring-iron-green/20 transition-colors';
 
@@ -247,7 +216,7 @@ interface Props {
   restaurantId?: string;
   onClose: () => void;
   onUpdated: (r: Reservation) => void;
-  onSuccess?: (message: string) => void;
+  onSuccess?: (message: string, type?: 'success' | 'error', action?: { label: string; onClick: () => void }) => void;
   onTableLockChange?: () => void;
   nowTime?: string;
   isLiveView?: boolean;
@@ -295,7 +264,9 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
   const _todayStr = new Date().toISOString().slice(0, 10);
   const isFutureReservation = res.date.slice(0, 10) > _todayStr;
   const [cancelReason,  setCancelReason]  = useState('');
-  const [unseatConfirm, setUnseatConfirm] = useState(false);
+  // Unseat is now single-tap + Undo; the flag is retained only so the legacy
+  // reset calls in run()/seat handlers keep compiling (no confirm UI reads it).
+  const [, setUnseatConfirm] = useState(false);
   const [phoneCopied,   setPhoneCopied]   = useState(false);
   const [showProfile,   setShowProfile]   = useState(false);
   const [lockReason,   setLockReason]   = useState('');
@@ -568,7 +539,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
     }
   }
 
-  async function run(fn: () => Promise<Reservation>, successMsg?: string) {
+  async function run(fn: () => Promise<Reservation>, successMsg?: string, undo?: () => Promise<Reservation>) {
     if (inflightRef.current) return;
     inflightRef.current = true;
     setError(null);
@@ -582,7 +553,12 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       onUpdated(updated);
       setMode('view');
       setUnseatConfirm(false);
-      if (successMsg) onSuccess?.(successMsg);
+      if (successMsg) {
+        const undoAction = undo
+          ? { label: T.guestDrawer.actionUndo, onClick: () => { run(undo, T.guestDrawer.toastUndone); } }
+          : undefined;
+        onSuccess?.(successMsg, 'success', undoAction);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : T.guestDrawer.actionFailed);
     } finally {
@@ -766,11 +742,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
 
   // ─── Action buttons per status ──────────────────────────────────────────────
 
-  const btnGreen  = 'bg-iron-green-light border-iron-green-light text-white hover:bg-iron-green hover:border-iron-green';
-  const btnBlue   = 'bg-status-reserved/15 border-status-reserved/30 text-status-reserved hover:bg-status-reserved/25';
-  const btnAmber  = 'bg-status-warning/15 border-status-warning/30 text-status-warning hover:bg-status-warning/25';
-  const btnRed    = 'bg-red-900/15 border-red-900/25 text-status-danger hover:bg-red-900/25';
-  const btnNeutral= 'bg-iron-border/20 border-iron-border/40 text-iron-text hover:bg-iron-border/30';
+  const { green: btnGreen, blue: btnBlue, amber: btnAmber, red: btnRed, neutral: btnNeutral } = BTN;
 
   const assignedTable   = res.tableId ? tables.find(t => t.id === res.tableId) ?? null : null;
   const tableIsLocked   = assignedTable?.locked ?? false;
@@ -967,8 +939,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         )}
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
-          <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
-          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow, () => api.reservations.undo(res.id))} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => run(() => api.reservations.cancel(res.id), T.guestDrawer.toastCancelled, () => api.reservations.undo(res.id))} disabled={busy} />
         </div>
       </>
     );
@@ -1014,8 +986,8 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
         </div>
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
-          <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)} disabled={busy} />
-          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => setMode('cancel')} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionNoShow} cls={btnAmber} onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow, () => api.reservations.undo(res.id))} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed}   onClick={() => run(() => api.reservations.cancel(res.id), T.guestDrawer.toastCancelled, () => api.reservations.undo(res.id))} disabled={busy} />
         </div>
       </>
     );
@@ -1024,7 +996,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
       <>
         {/* Primary */}
         <div className="flex gap-2">
-          <ActionBtn label={T.guestDrawer.actionComplete} cls={btnGreen} onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted)} disabled={busy} primary />
+          <ActionBtn label={T.guestDrawer.actionComplete} cls={btnGreen} onClick={() => run(() => api.reservations.complete(res.id), T.guestDrawer.toastCompleted, () => api.reservations.undo(res.id))} disabled={busy} primary />
         </div>
         {/* Secondary */}
         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1043,33 +1015,27 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           {onSwap && res.tableId && (
             <ActionBtn label={T.guestDrawer.actionSwap} cls={btnNeutral} onClick={() => { onSwap(res); }} disabled={busy} />
           )}
-          {unseatConfirm ? (
-            <div className="flex flex-col gap-1.5 w-full">
-              <span className="text-xs text-iron-muted">{T.guestDrawer.unseatConfirmText}</span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  onClick={() => { setUnseatConfirm(false); run(() => api.reservations.unseat(res.id), T.guestDrawer.toastUnseated); }}
-                  disabled={busy}
-                  className="text-xs font-medium px-3 py-2 rounded-lg border border-iron-border/60 text-iron-text bg-iron-border/20 hover:bg-iron-border/35 transition-colors disabled:opacity-40 touch-manipulation"
-                >
-                  {T.guestDrawer.actionUnseat}
-                </button>
-                <button
-                  onClick={() => setUnseatConfirm(false)}
-                  disabled={busy}
-                  className="text-xs text-iron-muted hover:text-iron-text transition-colors py-2 px-1 touch-manipulation"
-                >
-                  {T.guestDrawer.backLink}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <ActionBtn label={T.guestDrawer.actionUnseat} cls={btnNeutral} onClick={() => setUnseatConfirm(true)} disabled={busy} />
-          )}
+          <ActionBtn
+            label={T.guestDrawer.actionUnseat}
+            cls={btnNeutral}
+            onClick={() => {
+              // Single-tap unseat (no confirm gate). Undo re-seats the same table.
+              const prevTableId = res.tableId;
+              const prevCombined = res.combinedTableIds ?? [];
+              run(
+                () => api.reservations.unseat(res.id),
+                T.guestDrawer.toastUnseated,
+                prevTableId
+                  ? () => api.reservations.seat(res.id, prevTableId, true, prevCombined, [], true)
+                  : undefined,
+              );
+            }}
+            disabled={busy}
+          />
         </div>
         {/* Destructive */}
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
-          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => setMode('cancel')} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => run(() => api.reservations.cancel(res.id), T.guestDrawer.toastCancelled, () => api.reservations.undo(res.id))} disabled={busy} />
         </div>
       </>
     );
@@ -1089,7 +1055,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
           />
         </div>
         <div className="flex gap-1.5 mt-3 pt-3 border-t border-iron-border/35">
-          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => setMode('cancel')} disabled={busy} />
+          <ActionBtn label={T.guestDrawer.actionCancel} cls={btnRed} onClick={() => run(() => api.reservations.cancel(res.id), T.guestDrawer.toastCancelled, () => api.reservations.undo(res.id))} disabled={busy} />
         </div>
       </>
     );
@@ -1242,7 +1208,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 {res.guest?.isVip && (
                   <span className="text-status-warning text-xs font-semibold bg-status-warning/14 px-2 py-0.5 rounded-full border border-status-warning/28 shrink-0">{T.common.vip}</span>
                 )}
-                <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${STATUS_PILL[res.status]}`}>
+                <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold shrink-0 ${statusPill(res.status)}`}>
                   {STATUS_LABEL[res.status]}
                 </span>
               </div>
@@ -1353,7 +1319,7 @@ export default function GuestDrawer({ reservation: init, tables, allReservations
                 {/* NO_SHOW_RISK: table is likely needed — surface the release action */}
                 {aState === 'NO_SHOW_RISK' && canAct && (
                   <button
-                    onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow)}
+                    onClick={() => run(() => api.reservations.noShow(res.id), T.guestDrawer.toastNoShow, () => api.reservations.undo(res.id))}
                     disabled={busy}
                     className="text-xs font-medium px-2 py-0.5 rounded border border-status-danger/35 text-status-danger hover:bg-red-900/20 transition-colors shrink-0 disabled:opacity-40"
                   >
