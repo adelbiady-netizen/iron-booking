@@ -28,6 +28,26 @@ export function buildReservationReceivedText(p: {
   return `Hi ${p.guestName}, we've received your reservation at ${p.restaurantName} for ${p.date} at ${p.time} for ${p.partySize} guests.${durationLine} We look forward to hosting you!`;
 }
 
+// WAITLIST_JOINED — sent immediately when a guest is placed on the waiting list
+// (STANDBY). No table is held, so this must NOT promise a reserved table — it
+// sets the "we'll reach out if a table opens" expectation instead. The mirror
+// case to RESERVATION_RECEIVED: same channel, opposite promise.
+export function buildWaitlistJoinedText(p: {
+  guestName: string;
+  restaurantName: string;
+  date: string;
+  time?: string | null;
+  partySize: number;
+  lang: 'en' | 'he';
+}): string {
+  if (p.lang === 'he') {
+    const timeLine = p.time ? ` בשעה ${p.time}` : '';
+    return `היי ${p.guestName}, הוספנו אותך לרשימת ההמתנה ל${p.restaurantName} בתאריך ${p.date}${timeLine} ל-${p.partySize} סועדים. ניצור איתך קשר אם יתפנה שולחן. תודה על הסבלנות!`;
+  }
+  const timeLine = p.time ? ` at ${p.time}` : '';
+  return `Hi ${p.guestName}, you're on the waitlist at ${p.restaurantName} for ${p.date}${timeLine} for ${p.partySize} guests. We'll contact you if a table opens up. Thanks for your patience!`;
+}
+
 // CONFIRMATION_REQUEST — asks the guest to confirm attendance, with a link.
 export function buildConfirmationRequestSmsText(
   r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null; duration?: number | null },

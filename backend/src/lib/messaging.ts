@@ -2,7 +2,7 @@ import { prisma } from './prisma';
 import { MessageChannel, MessageProvider, MessageStatus, MessageType } from '@prisma/client';
 import { formatDurationByLang } from './duration';
 import { composeSms } from './smsTemplates';
-import { buildReservationReceivedText } from './smsDefaults';
+import { buildReservationReceivedText, buildWaitlistJoinedText } from './smsDefaults';
 
 // ─── Reservation received ─────────────────────────────────────────────────────
 
@@ -44,6 +44,42 @@ export async function sendReservationReceivedSms(params: {
   );
 
   await sendSms({ restaurantId, to: phone, message, type: MessageType.RESERVATION_RECEIVED, reservationId, guestId });
+}
+
+// ─── Waitlist joined (STANDBY) ────────────────────────────────────────────────
+
+// Sent once when a guest is placed on the waiting list (STANDBY reservation).
+// Mirror of sendReservationReceivedSms but with the opposite promise: no table
+// is held. Fire-and-forget safe; dedup prevents duplicates on retries.
+export async function sendWaitlistJoinedSms(params: {
+  restaurantId:  string;
+  reservationId: string;
+  guestId?:      string;
+  phone:         string;
+  guestName:     string;
+  date:          string;
+  time?:         string | null;
+  partySize:     number;
+  lang:          'en' | 'he';
+}): Promise<void> {
+  const { restaurantId, reservationId, guestId, phone, guestName, date, time, partySize, lang } = params;
+
+  // One SENT WAITLIST message per reservation lifetime — no retries needed
+  const already = await prisma.messageLog.findFirst({
+    where: { reservationId, messageType: MessageType.WAITLIST, status: MessageStatus.SENT },
+  });
+  if (already) return;
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where:  { id: restaurantId },
+    select: { name: true },
+  });
+
+  const message = buildWaitlistJoinedText({
+    guestName, restaurantName: restaurant?.name ?? '', date, time, partySize, lang,
+  });
+
+  await sendSms({ restaurantId, to: phone, message, type: MessageType.WAITLIST, reservationId, guestId });
 }
 
 // ─── Public input / output types ─────────────────────────────────────────────

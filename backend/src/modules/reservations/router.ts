@@ -15,7 +15,7 @@ import {
 } from './schema';
 import * as service from './service';
 import { sendConfirmationSms } from '../../lib/sms';
-import { sendSms, sendReservationReceivedSms } from '../../lib/messaging';
+import { sendSms, sendReservationReceivedSms, sendWaitlistJoinedSms } from '../../lib/messaging';
 import { composeSms } from '../../lib/smsTemplates';
 import { buildConfirmationRequestSmsText, buildReminderSmsText } from '../../lib/smsDefaults';
 import { MessageType, MessageStatus } from '@prisma/client';
@@ -105,29 +105,50 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
       }),
     );
 
-    // Fire-and-forget: send "reservation received" SMS via InforU.
+    // Fire-and-forget acknowledgment SMS via InforU.
     // Skip walk-ins (guest is physically present) and missing phone numbers.
     // Failure is logged but never surfaces to the host — the reservation already exists.
+    // STANDBY = the waiting list (no table held): send a waitlist acknowledgment,
+    // NOT the reservation-confirmation ("your table is reserved") message.
     if (r.guestPhone && r.source !== 'WALK_IN') {
       const lang    = r.guestLang === 'he' ? 'he' : 'en';
       const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
-      void sendReservationReceivedSms({
-        restaurantId:  req.auth.restaurantId,
-        reservationId: r.id,
-        guestId:       r.guestId ?? undefined,
-        phone:         r.guestPhone,
-        guestName:     r.guestName,
-        date:          dateStr,
-        time:          r.time,
-        partySize:     r.partySize,
-        duration:      r.duration ?? undefined,
-        lang,
-      }).catch((err: unknown) => {
-        console.error(
-          `[ReservationReceived] Failed for reservation ${r.id}:`,
-          err instanceof Error ? err.message : String(err),
-        );
-      });
+      if (r.status === 'STANDBY') {
+        void sendWaitlistJoinedSms({
+          restaurantId:  req.auth.restaurantId,
+          reservationId: r.id,
+          guestId:       r.guestId ?? undefined,
+          phone:         r.guestPhone,
+          guestName:     r.guestName,
+          date:          dateStr,
+          time:          r.time,
+          partySize:     r.partySize,
+          lang,
+        }).catch((err: unknown) => {
+          console.error(
+            `[WaitlistJoined] Failed for reservation ${r.id}:`,
+            err instanceof Error ? err.message : String(err),
+          );
+        });
+      } else {
+        void sendReservationReceivedSms({
+          restaurantId:  req.auth.restaurantId,
+          reservationId: r.id,
+          guestId:       r.guestId ?? undefined,
+          phone:         r.guestPhone,
+          guestName:     r.guestName,
+          date:          dateStr,
+          time:          r.time,
+          partySize:     r.partySize,
+          duration:      r.duration ?? undefined,
+          lang,
+        }).catch((err: unknown) => {
+          console.error(
+            `[ReservationReceived] Failed for reservation ${r.id}:`,
+            err instanceof Error ? err.message : String(err),
+          );
+        });
+      }
     }
   } catch (err) { next(err); }
 });
