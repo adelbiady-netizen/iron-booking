@@ -117,12 +117,6 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
       maxCovers: table.maxCovers,
     };
 
-    // ── Capacity gate ──────────────────────────────────────────────────────────
-    if (table.maxCovers < ctx.partySize) {
-      suggestions.push({ ...base, score: 0, status: 'blocked', reasons: [{ code: 'TOO_SMALL' }] });
-      continue;
-    }
-
     // ── Block gate ────────────────────────────────────────────────────────────
     const block = blocks.find(b => b.tableId === table.id || b.tableId === null);
     if (block) {
@@ -143,6 +137,14 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
     // ── Conflict check (with buffer) ───────────────────────────────────────────
     // Uses reservationConflicts() — buffer applied to slot only, matching
     // getTableAvailability() semantics and fixing the prior double-buffer bug.
+    //
+    // Runs BEFORE the capacity gate on purpose. A table too small to seat the party
+    // alone is still a valid *combination* candidate — but only while it is actually
+    // free for the slot. Emitting CONFLICT here (instead of letting the capacity gate
+    // short-circuit to TOO_SMALL) means getBestTable()'s combination pool excludes a
+    // small table already committed to a later turn. Without this, a party of 14 could
+    // be auto-combined onto 5-seat tables booked for 19:00, and the host would only
+    // hit the clash on save — while the picker showed those tables as merely "too small".
     const conflict = tableResv.find(r =>
       reservationConflicts(
         r,
@@ -160,6 +162,16 @@ export async function suggestTables(ctx: MatchContext): Promise<TableSuggestion[
         // occupied=false (future CONFIRMED/PENDING) — soft block, host may override for walk-ins.
         reasons: [{ code: 'CONFLICT', at: conflict.time, occupied: conflict.status === 'SEATED' }],
       });
+      continue;
+    }
+
+    // ── Capacity gate ──────────────────────────────────────────────────────────
+    // After the conflict check: a too-small table that is ALSO time-conflicted has
+    // already been reported as CONFLICT above. Reaching here means the table is free
+    // for the slot but cannot seat the whole party on its own — a pure combination
+    // candidate, which getBestTable() keeps in the pool.
+    if (table.maxCovers < ctx.partySize) {
+      suggestions.push({ ...base, score: 0, status: 'blocked', reasons: [{ code: 'TOO_SMALL' }] });
       continue;
     }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsDesktop } from '../hooks/useIsDesktop';
-import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, Table } from '../types';
+import type { BackendTableSuggestion, BestTableResult, FloorObjectData, GuestLookupResult, Reservation, ScoredReason, Table } from '../types';
 import { api, ApiError } from '../api';
 import ReorganizeConflictModal, { type ReorganizeConflict } from './ReorganizeConflictModal';
 import { useT } from '../i18n/useT';
@@ -1115,6 +1115,48 @@ export default function CreateDrawer({
               {/* ── Table allocation ── */}
               <div>
                 <Label>{T.createDrawer.fieldTable}</Label>
+
+                {/* Conflict explainer — spells out WHY the picked tables can't take
+                    this slot. Reads resSuggestions, where the backend now surfaces a
+                    CONFLICT reason even on undersized combination candidates (a table
+                    booked for a later turn). Directly answers the field question
+                    "why won't it let me?" instead of the host silently landing on a
+                    different auto-suggested combination. */}
+                {(() => {
+                  const selectedIds = [resTable, ...resCombinedTableIds].filter(Boolean);
+                  const clashes = selectedIds
+                    .map(id => {
+                      const sug = resSuggestions.find(s => s.tableId === id);
+                      const conflict = sug?.reasons.find(
+                        (r): r is Extract<ScoredReason, { code: 'CONFLICT' }> => r.code === 'CONFLICT'
+                      );
+                      if (!conflict) return null;
+                      return { name: resolveTableName(id) || id, at: conflict.at };
+                    })
+                    .filter((c): c is { name: string; at: string | undefined } => c !== null);
+                  if (clashes.length === 0) return null;
+                  return (
+                    <div className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5">
+                      <p className="text-amber-300 text-xs font-semibold mb-0.5">
+                        {locale === 'he'
+                          ? 'השולחנות שבחרת תפוסים לסבב מאוחר יותר'
+                          : 'Selected tables are held for a later turn'}
+                      </p>
+                      <p className="text-amber-200/80 text-[11px] leading-relaxed">
+                        {clashes
+                          .map(c => (c.at
+                            ? (locale === 'he' ? `${c.name} — שמור ל־${c.at}` : `${c.name} — reserved at ${c.at}`)
+                            : c.name))
+                          .join(' · ')}
+                      </p>
+                      <p className="text-amber-200/60 text-[11px] mt-1 leading-relaxed">
+                        {locale === 'he'
+                          ? 'בחרו שולחן פנוי, קצרו את משך הישיבה, או העבירו את ההזמנה הקיימת.'
+                          : 'Pick a free table, shorten the turn, or move the existing reservation.'}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* New-reservation always-armed toggle-select display */}
                 {newResPickMode && !pickingOnMap && (

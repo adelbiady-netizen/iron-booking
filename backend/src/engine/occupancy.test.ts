@@ -138,6 +138,25 @@ test('res starts after slot ends → no conflict', () => {
   );
 });
 
+// ── Incident: party of 14 wanted 31–34 at 17:30, system offered 6+7 ──
+// Those tables were already booked for 19:00. A 17:30 booking with a 120-min
+// turn runs to 19:30 → with the 15-min buffer (bufferedEnd 19:45) it overlaps
+// the 19:00 seating. This is the exact clash the picker must surface (and the
+// combination pool must exclude), rather than hiding it behind TOO_SMALL.
+test('incident: 17:30 × 120min slot clashes with a 19:00 booking at 15-min buffer', () => {
+  assert.equal(
+    reservationConflicts({ time: '19:00', duration: 120 }, { date: D, time: '17:30', duration: 120 }, 15),
+    true,
+  );
+});
+
+test('incident: a short 17:30 × 60min turn clears the 19:00 booking (buffered end 18:45)', () => {
+  assert.equal(
+    reservationConflicts({ time: '19:00', duration: 120 }, { date: D, time: '17:30', duration: 60 }, 15),
+    false,
+  );
+});
+
 // ─── reservationOverlapsSlotTime ──────────────────────────────────────────────
 
 console.log('\nreservationOverlapsSlotTime');
