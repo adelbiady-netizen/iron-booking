@@ -27,18 +27,32 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
         case 'pos.pos_attached_ack':
           await handlePosAttachedAck(restaurantId);
           break;
+        // Order opened / visit bound. ATLAS emits pos.visit_opened; the older
+        // order.opened name is kept for back-compat.
         case 'order.opened':
+        case 'pos.visit_opened':
           await handleOrderOpened(restaurantId, event);
           break;
+        // Payment recorded. ATLAS emits visit.payment_completed.
         case 'payment.completed':
+        case 'visit.payment_completed':
           await handlePaymentCompleted(restaurantId, event);
           break;
+        // Order closed / table released → clear the active-order flag. ATLAS
+        // emits visit.table_released on close.
+        case 'order.closed':
+        case 'visit.table_released':
+          await handleOrderClosed(restaurantId, event);
+          break;
+        // Accepted but no state change yet (real handling lands in Phase 3b:
+        // course-stage colouring + itemised order history).
         case 'order.items_sent':
         case 'order.item_voided':
-          // Priority 2 — logged, no further action yet
-          break;
-        case 'order.closed':
-          await handleOrderClosed(restaurantId, event);
+        case 'visit.items_committed':
+        case 'visit.order_voided':
+        case 'visit.bill_requested':
+        case 'visit.course_stage_changed':
+        case 'visit.summary':
           break;
         case 'pos.table_directory_ack':
           await handleTableDirectoryAck(restaurantId, event);
@@ -67,8 +81,10 @@ async function handlePosAttachedAck(restaurantId: string): Promise<void> {
 async function handleOrderOpened(restaurantId: string, event: PosEventEnvelope): Promise<void> {
   if (!event.visit_id) return;
 
-  const payload = event.payload as { table_id?: string; cover_count?: number };
-  const { table_id, cover_count } = payload;
+  // ATLAS (pos.visit_opened) sends atlas_table_id; the legacy name was table_id.
+  const payload = event.payload as { atlas_table_id?: string; table_id?: string; cover_count?: number };
+  const table_id = payload.atlas_table_id ?? payload.table_id;
+  const cover_count = payload.cover_count;
   if (!table_id) {
     console.warn(`[pos] order.opened missing table_id — event_id=${event.event_id}`);
     return;
