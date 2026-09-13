@@ -334,6 +334,9 @@ export interface Reservation {
   lateNotifiedAt: string | null;
   isArrived: boolean;
   arrivedAt: string | null;
+  // POS-projected meal course stage (starter/main/dessert) — set by ATLAS via
+  // visit.course_stage_changed. Drives the course-stage pill on the floor.
+  courseStage?: string | null;
   confirmationToken: string | null;
   confirmationSentAt: string | null;
   confirmedAt: string | null;

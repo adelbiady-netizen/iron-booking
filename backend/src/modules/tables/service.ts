@@ -53,6 +53,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         source: true,
         seatedAt: true,
         isArrived: true,
+        courseStage: true,
         returnedToListAt: true,
         reorganizeAt: true,
         reorganizeFromTableId: true,

@@ -20,6 +20,16 @@ interface StatusStyle {
 
 const LOCKED_STYLE = 'border-status-warning/40 bg-status-warning/5 opacity-60';
 
+// Course-stage pill on a seated table — colour follows the meal stage projected
+// from the POS (visit.course_stage_changed): starter→blue, main→orange,
+// dessert→purple. Unknown stages render no pill.
+const COURSE_STAGE_STYLE: Record<string, { label: string; cls: string }> = {
+  starter: { label: 'ראשונה', cls: 'bg-blue-500/15 border-blue-500/40 text-blue-300' },
+  first:   { label: 'ראשונה', cls: 'bg-blue-500/15 border-blue-500/40 text-blue-300' },
+  main:    { label: 'עיקרית', cls: 'bg-orange-500/15 border-orange-500/40 text-orange-300' },
+  dessert: { label: 'קינוח',  cls: 'bg-purple-500/15 border-purple-500/40 text-purple-300' },
+};
+
 interface Props {
   table: FloorTable;
   selected: boolean;
@@ -160,6 +170,11 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <div>
             <div className="flex items-center gap-1 min-w-0">
               <p className="text-iron-text text-[13px] font-semibold truncate flex-1">{currentRes.guestName}</p>
+              {currentRes.courseStage && COURSE_STAGE_STYLE[currentRes.courseStage.toLowerCase()] && (
+                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-px rounded border ${COURSE_STAGE_STYLE[currentRes.courseStage.toLowerCase()].cls}`}>
+                  {COURSE_STAGE_STYLE[currentRes.courseStage.toLowerCase()].label}
+                </span>
+              )}
               {isCombined && (
                 <span className="shrink-0 text-[10px] font-bold px-1 py-px rounded border bg-status-reserved/15 border-status-reserved/30 text-status-reserved">⊞</span>
               )}
