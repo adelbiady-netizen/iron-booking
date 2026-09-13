@@ -411,15 +411,7 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
     console.log(`[perf:seat] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
-    void resolveTableIds(r.tableId).then(ids =>
-      emitVisitEvent(req.auth.restaurantId, 'visit.table_assigned', r.id, {
-        visit_id:       r.id,
-        guest_name:     r.guestName,
-        guest_count:    r.partySize,
-        ...ids,
-        assigned_at:    new Date().toISOString(),
-      }),
-    );
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -431,13 +423,7 @@ router.post('/:id/move', validate(MoveTableSchema), async (req: Request, res: Re
     console.log(`[perf:move] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
-    void resolveTableIds(r.tableId).then(ids =>
-      emitVisitEvent(req.auth.restaurantId, 'visit.table_assigned', r.id, {
-        visit_id:       r.id,
-        ...ids,
-        assigned_at:    new Date().toISOString(),
-      }),
-    );
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
