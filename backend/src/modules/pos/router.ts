@@ -722,6 +722,7 @@ router.post('/pos/admin/resync-visits', async (req: Request, res: Response) => {
         guest_name:     r.guestName,
         guest_count:    r.partySize,
         atlas_table_id: atlasTableId,
+        hospitality_table_id: r.tableId,
         reserved_at:    dateIso.slice(0, 10) + 'T' + r.time + ':00.000Z',
         notes:          r.guestNotes ?? undefined,
         walk_in:        r.source === 'WALK_IN',

@@ -33,6 +33,10 @@ interface VisitEventPayload {
   guest_name?:     string;
   guest_count?:    number;
   atlas_table_id?: string | null;
+  // Stable IB table id. ATLAS resolves this to its own current active table via
+  // tables.hospitality_table_id, so pinning survives ATLAS re-creating its table
+  // rows (atlas_table_id, ATLAS's internal UUID, goes stale on re-sync).
+  hospitality_table_id?: string | null;
   reserved_at?:    string;
   arrived_at?:     string;
   assigned_at?:    string;

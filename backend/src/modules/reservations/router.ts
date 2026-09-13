@@ -40,6 +40,16 @@ async function resolveAtlasTableId(tableId: string | null | undefined): Promise<
   return t?.atlasTableId ?? null;
 }
 
+// The two table ids a visit payload carries: atlas_table_id (ATLAS's internal
+// UUID) is kept for back-compat, but hospitality_table_id (the stable IB table
+// id) is the one ATLAS now resolves against — so pinning survives ATLAS
+// re-creating its table rows on a re-sync.
+async function resolveTableIds(
+  tableId: string | null | undefined,
+): Promise<{ atlas_table_id: string | null; hospitality_table_id: string | null }> {
+  return { atlas_table_id: await resolveAtlasTableId(tableId), hospitality_table_id: tableId ?? null };
+}
+
 // Queue a POS visit event — fire-and-forget, never throws into the request path.
 function emitVisitEvent(
   ...args: Parameters<typeof queueVisitEvent>
@@ -93,12 +103,12 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
     const r = await service.createReservation(req.auth.restaurantId, req.body, actorName(req));
     res.status(201).json(r);
     notifyFloorUpdated(req.auth.restaurantId);
-    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+    void resolveTableIds(r.tableId).then(ids =>
       emitVisitEvent(req.auth.restaurantId, 'visit.reservation_created', r.id, {
         visit_id:        r.id,
         guest_name:      r.guestName,
         guest_count:     r.partySize,
-        atlas_table_id:  atlasTableId,
+        ...ids,
         reserved_at:     r.date instanceof Date ? r.date.toISOString() : String(r.date) + 'T' + r.time + ':00.000Z',
         notes:           r.guestNotes ?? undefined,
         walk_in:         r.source === 'WALK_IN',
@@ -276,12 +286,12 @@ router.post('/:id/confirm', async (req: Request, res: Response, next: NextFuncti
   try {
     const r = await service.confirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     notifyFloorUpdated(req.auth.restaurantId);
-    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+    void resolveTableIds(r.tableId).then(ids =>
       emitVisitEvent(req.auth.restaurantId, 'visit.reservation_created', r.id, {
         visit_id:        r.id,
         guest_name:      r.guestName,
         guest_count:     r.partySize,
-        atlas_table_id:  atlasTableId,
+        ...ids,
         reserved_at:     r.date instanceof Date ? r.date.toISOString() : String(r.date) + 'T' + r.time + ':00.000Z',
         notes:           r.guestNotes ?? undefined,
         walk_in:         false,
@@ -337,12 +347,12 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
     console.log(`[perf:seat] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
-    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+    void resolveTableIds(r.tableId).then(ids =>
       emitVisitEvent(req.auth.restaurantId, 'visit.table_assigned', r.id, {
         visit_id:       r.id,
         guest_name:     r.guestName,
         guest_count:    r.partySize,
-        atlas_table_id: atlasTableId,
+        ...ids,
         assigned_at:    new Date().toISOString(),
       }),
     );
@@ -357,10 +367,10 @@ router.post('/:id/move', validate(MoveTableSchema), async (req: Request, res: Re
     console.log(`[perf:move] router total ${Date.now() - t0}ms`);
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
-    void resolveAtlasTableId(r.tableId).then(atlasTableId =>
+    void resolveTableIds(r.tableId).then(ids =>
       emitVisitEvent(req.auth.restaurantId, 'visit.table_assigned', r.id, {
         visit_id:       r.id,
-        atlas_table_id: atlasTableId,
+        ...ids,
         assigned_at:    new Date().toISOString(),
       }),
     );
