@@ -480,6 +480,10 @@ model Reservation {
   // True while the linked POS order is open. Cleared by order.closed event.
   // Blocks complete/unseat/release-table from IB while the cashier still has an active order.
   posOrderActive Boolean  @default(false) @map("pos_order_active")
+  // POS-projected meal course stage (e.g. starter/main/dessert) for floor
+  // colouring — set from ATLAS visit.course_stage_changed.
+  courseStage    String?   @map("course_stage")
+  courseStageAt  DateTime? @map("course_stage_at")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -498,6 +502,27 @@ model Reservation {
   @@index([restaurantId, tableId, date])
   @@index([guestId])
   @@map("reservations")
+}
+
+// Itemised order history projected from the POS on close (ATLAS visit.summary),
+// kept as a separate record per closed order so a guest/reservation accrues a
+// history without bloating the reservation row. summary holds the full snapshot
+// (items[], payments[], totals) exactly as ATLAS sent it.
+model PosOrderHistory {
+  id            String   @id @default(uuid())
+  restaurantId  String
+  reservationId String? // linked reservation (resolved via posVisitId); null for walk-ins
+  visitId       String // the POS visit id (orders.visit_id)
+  atlasOrderId  String?
+  totalAmount   Decimal? @db.Decimal(10, 2)
+  coverCount    Int?
+  closedAt      DateTime?
+  summary       Json // full visit.summary payload (items, payments, totals)
+  createdAt     DateTime @default(now())
+
+  @@unique([visitId, atlasOrderId])
+  @@index([restaurantId, reservationId])
+  @@index([restaurantId, createdAt])
 }
 
 enum ReservationStatus {

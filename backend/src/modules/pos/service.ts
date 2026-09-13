@@ -44,15 +44,21 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
         case 'visit.table_released':
           await handleOrderClosed(restaurantId, event);
           break;
-        // Accepted but no state change yet (real handling lands in Phase 3b:
-        // course-stage colouring + itemised order history).
+        // Meal course advanced (starter/main/dessert) → colour the floor.
+        case 'visit.course_stage_changed':
+          await handleCourseStageChanged(restaurantId, event);
+          break;
+        // Full itemised visit record on close → guest/reservation history.
+        case 'visit.summary':
+          await handleVisitSummary(restaurantId, event);
+          break;
+        // Accepted, no state change:
         case 'order.items_sent':
         case 'order.item_voided':
         case 'visit.items_committed':
         case 'visit.order_voided':
         case 'visit.bill_requested':
-        case 'visit.course_stage_changed':
-        case 'visit.summary':
+        case 'pos.visit_closed':
           break;
         case 'pos.table_directory_ack':
           await handleTableDirectoryAck(restaurantId, event);
@@ -142,6 +148,59 @@ async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope):
   await prisma.reservation.updateMany({
     where: { restaurantId, posVisitId: event.visit_id },
     data:  { posOrderActive: false },
+  });
+}
+
+// visit.course_stage_changed → record the meal stage on the bound reservation so
+// the floor can colour by course (starter/main/dessert).
+async function handleCourseStageChanged(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  if (!event.visit_id) return;
+  const { stage } = event.payload as { stage?: string };
+  if (!stage) return;
+  await prisma.reservation.updateMany({
+    where: { restaurantId, posVisitId: event.visit_id },
+    data:  { courseStage: stage, courseStageAt: new Date(event.occurred_at) },
+  });
+}
+
+// visit.summary (order closed) → store the full itemised record as guest history,
+// linked to the reservation when the visit is bound to one.
+async function handleVisitSummary(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  if (!event.visit_id) return;
+  const payload = event.payload as {
+    atlas_order_id?: string;
+    total_amount?: string | number;
+    cover_count?: number;
+    closed_at?: string;
+  };
+  if (!payload.atlas_order_id) return; // history keys on the order id
+
+  const reservation = await prisma.reservation.findFirst({
+    where:  { restaurantId, posVisitId: event.visit_id },
+    select: { id: true },
+  });
+  const totalAmount = payload.total_amount != null ? Number(payload.total_amount) : null;
+  const closedAt = payload.closed_at ? new Date(payload.closed_at) : null;
+
+  await prisma.posOrderHistory.upsert({
+    where:  { visitId_atlasOrderId: { visitId: event.visit_id, atlasOrderId: payload.atlas_order_id } },
+    create: {
+      restaurantId,
+      reservationId: reservation?.id ?? null,
+      visitId:       event.visit_id,
+      atlasOrderId:  payload.atlas_order_id,
+      totalAmount,
+      coverCount:    payload.cover_count ?? null,
+      closedAt,
+      summary:       event.payload as object,
+    },
+    update: {
+      reservationId: reservation?.id ?? null,
+      totalAmount,
+      coverCount:    payload.cover_count ?? null,
+      closedAt,
+      summary:       event.payload as object,
+    },
   });
 }
 
