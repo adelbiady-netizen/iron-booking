@@ -26,10 +26,18 @@ export type VisitEventType =
   | 'visit.guest_arrived'
   | 'visit.table_assigned'
   | 'visit.reservation_cancelled'
-  | 'visit.no_show';
+  | 'visit.no_show'
+  // Unified state projection: one snapshot on any reservation change + a
+  // terminal removal on hard delete. Supersedes the per-action events above,
+  // which are kept for backward compatibility during migration.
+  | 'visit.upserted'
+  | 'visit.removed';
 
 interface VisitEventPayload {
   visit_id:        string;
+  // Full projected visit state (visit.upserted): expected|arrived|seated|
+  // completed|cancelled|no_show. The POS upserts the registry to match.
+  state?:          string;
   guest_name?:     string;
   guest_count?:    number;
   atlas_table_id?: string | null;

@@ -26,6 +26,7 @@ import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/error
 import { eventBus } from '../../lib/eventBus';
 import { queueVisitEvent } from '../pos/dispatcher';
 import { reservedAtIso } from './reservedAt';
+import { reservationVisitState, isFloorlessState } from './visitState';
 
 // Notify all SSE-connected hosts in this restaurant that floor state changed.
 // Called after every mutation that creates, updates, or removes a reservation.
@@ -58,6 +59,39 @@ function emitVisitEvent(
   queueVisitEvent(...args).catch((err: unknown) =>
     console.error('[POS dispatcher] queueVisitEvent error:', err),
   );
+}
+
+// Minimal reservation shape the POS visit projection needs.
+type VisitReservation = {
+  id: string; status: string; isArrived: boolean; tableId: string | null;
+  guestName: string; partySize: number; date: Date | string; time: string;
+  guestNotes: string | null; source: string;
+};
+
+// Project the FULL current visit state to the POS after any reservation change.
+// The POS upserts the registry to match — so no mutation is ever missed, and a
+// move/edit/unseat/complete needs no bespoke event. STANDBY (waitlist) is never
+// projected onto the floor.
+function emitVisitUpsert(restaurantId: string, r: VisitReservation): void {
+  const state = reservationVisitState(r.status, r.isArrived);
+  if (isFloorlessState(state)) return;
+  void resolveTableIds(r.tableId).then(ids =>
+    emitVisitEvent(restaurantId, 'visit.upserted', r.id, {
+      visit_id:    r.id,
+      state,
+      ...ids,
+      guest_name:  r.guestName,
+      guest_count: r.partySize,
+      reserved_at: reservedAtIso(r.date, r.time),
+      notes:       r.guestNotes ?? undefined,
+      walk_in:     r.source === 'WALK_IN',
+    }),
+  );
+}
+
+// Project a hard-deleted reservation so the POS drops it from the floor.
+function emitVisitRemoved(restaurantId: string, visitId: string): void {
+  emitVisitEvent(restaurantId, 'visit.removed', visitId, { visit_id: visitId });
 }
 
 function buildConfirmationSmsText(
@@ -279,6 +313,7 @@ router.patch('/:id', validate(UpdateReservationSchema), async (req: Request, res
     const r = await service.updateReservation(req.auth.restaurantId, p(req, 'id'), req.body, actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -415,6 +450,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
     const r = await service.completeReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -449,6 +485,7 @@ router.post('/:id/unseat', async (req: Request, res: Response, next: NextFunctio
     const r = await service.unseatReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -472,6 +509,7 @@ router.post('/:id/release-table', async (req: Request, res: Response, next: Next
     const r = await service.releaseTableOwnership(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -497,6 +535,7 @@ router.delete('/:id', requireRole('ADMIN'), async (req: Request, res: Response, 
     );
     res.status(204).send();
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitRemoved(req.auth.restaurantId, p(req, 'id'));
   } catch (err) { next(err); }
 });
 
