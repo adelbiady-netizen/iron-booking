@@ -31,7 +31,10 @@ export type VisitEventType =
   // terminal removal on hard delete. Supersedes the per-action events above,
   // which are kept for backward compatibility during migration.
   | 'visit.upserted'
-  | 'visit.removed';
+  | 'visit.removed'
+  // Guest context (occasion / birthday / anniversary / tags) — surfaced at the
+  // POS table. ATLAS already projects this into the visit registry's context.
+  | 'visit.guest_context_updated';
 
 interface VisitEventPayload {
   visit_id:        string;
@@ -51,6 +54,11 @@ interface VisitEventPayload {
   notes?:          string;
   walk_in?:        boolean;
   reason?:         string;
+  // Guest-context fields (visit.guest_context_updated).
+  context_type?:   string;
+  message?:        string;
+  severity?:       string;
+  updated_at?:     string;
 }
 
 /**

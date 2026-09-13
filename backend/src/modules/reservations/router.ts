@@ -94,6 +94,25 @@ function emitVisitRemoved(restaurantId: string, visitId: string): void {
   emitVisitEvent(restaurantId, 'visit.removed', visitId, { visit_id: visitId });
 }
 
+// Project a reservation's guest context (occasion / birthday / anniversary /
+// tags) so the POS table knows — e.g. a birthday is surfaced to the waiter.
+// ATLAS merges each context_type into the visit registry's context JSONB.
+type GuestContextReservation = {
+  id: string; occasion: string | null; birthday: string | null;
+  anniversary: string | null; tags: string[];
+};
+function emitGuestContext(restaurantId: string, r: GuestContextReservation): void {
+  const now = new Date().toISOString();
+  const send = (context_type: string, message: string, severity: string): void =>
+    emitVisitEvent(restaurantId, 'visit.guest_context_updated', r.id, {
+      visit_id: r.id, context_type, message, severity, updated_at: now,
+    });
+  if (r.occasion)    send('occasion', r.occasion, 'info');
+  if (r.birthday)    send('birthday', r.birthday, 'celebrate');
+  if (r.anniversary) send('anniversary', r.anniversary, 'celebrate');
+  if (r.tags && r.tags.length > 0) send('tags', r.tags.join(', '), 'info');
+}
+
 function buildConfirmationSmsText(
   r: { guestName: string; date: Date | string; time: string; partySize: number; guestLang?: string | null; duration?: number | null },
   restaurantName: string,
@@ -149,6 +168,7 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
         walk_in:         r.source === 'WALK_IN',
       }),
     );
+    emitGuestContext(req.auth.restaurantId, r);
 
     // Fire-and-forget acknowledgment SMS via InforU.
     // Skip walk-ins (guest is physically present) and missing phone numbers.
@@ -288,6 +308,12 @@ router.post('/swap', validate(SwapReservationsSchema), async (req: Request, res:
     const result = await service.swapReservations(req.auth.restaurantId, reservationAId, reservationBId, actorName(req));
     res.json(result);
     notifyFloorUpdated(req.auth.restaurantId);
+    // Both reservations changed tables — project each one's fresh snapshot.
+    for (const swapId of [reservationAId, reservationBId]) {
+      void prisma.reservation
+        .findFirst({ where: { id: swapId, restaurantId: req.auth.restaurantId } })
+        .then(rr => { if (rr) emitVisitUpsert(req.auth.restaurantId, rr); });
+    }
   } catch (err) { next(err); }
 });
 
@@ -314,6 +340,7 @@ router.patch('/:id', validate(UpdateReservationSchema), async (req: Request, res
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
     emitVisitUpsert(req.auth.restaurantId, r);
+    emitGuestContext(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -333,6 +360,7 @@ router.post('/:id/confirm', async (req: Request, res: Response, next: NextFuncti
         walk_in:         false,
       }),
     );
+    emitGuestContext(req.auth.restaurantId, r);
 
     let smsFailed = false;
     if (r.guestPhone) {
@@ -426,6 +454,7 @@ router.post('/:id/combine', validate(CombineTablesSchema), async (req: Request, 
     );
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -496,6 +525,7 @@ router.post('/:id/unseat-keep-table', async (req: Request, res: Response, next: 
     const r = await service.unseatKeepTable(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -518,6 +548,7 @@ router.post('/:id/unconfirm', async (req: Request, res: Response, next: NextFunc
     const r = await service.unconfirmReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -545,6 +576,7 @@ router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction)
     const r = await service.undoReservation(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
@@ -668,6 +700,7 @@ router.post('/:id/unmark-arrived', async (req: Request, res: Response, next: Nex
     const r = await service.unmarkArrived(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
+    emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }
 });
 
