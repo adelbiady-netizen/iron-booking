@@ -25,6 +25,7 @@ import { config } from '../../config';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { eventBus } from '../../lib/eventBus';
 import { queueVisitEvent } from '../pos/dispatcher';
+import { reservedAtIso } from './reservedAt';
 
 // Notify all SSE-connected hosts in this restaurant that floor state changed.
 // Called after every mutation that creates, updates, or removes a reservation.
@@ -109,7 +110,7 @@ router.post('/', validate(CreateReservationSchema), async (req: Request, res: Re
         guest_name:      r.guestName,
         guest_count:     r.partySize,
         ...ids,
-        reserved_at:     r.date instanceof Date ? r.date.toISOString() : String(r.date) + 'T' + r.time + ':00.000Z',
+        reserved_at:     reservedAtIso(r.date, r.time),
         notes:           r.guestNotes ?? undefined,
         walk_in:         r.source === 'WALK_IN',
       }),
@@ -292,7 +293,7 @@ router.post('/:id/confirm', async (req: Request, res: Response, next: NextFuncti
         guest_name:      r.guestName,
         guest_count:     r.partySize,
         ...ids,
-        reserved_at:     r.date instanceof Date ? r.date.toISOString() : String(r.date) + 'T' + r.time + ':00.000Z',
+        reserved_at:     reservedAtIso(r.date, r.time),
         notes:           r.guestNotes ?? undefined,
         walk_in:         false,
       }),
