@@ -13,7 +13,7 @@
 
 import { createHash, randomUUID } from 'crypto';
 import { prisma } from '../../lib/prisma';
-import { atlasSyncEnabled } from './flag';
+import { atlasSyncEnabled, locationAllowed } from './flag';
 
 const MAX_ATTEMPTS   = 5;
 const POLL_INTERVAL  = 5_000;   // ms
@@ -55,6 +55,7 @@ export async function queueVisitEvent(
   if (!atlasSyncEnabled()) return;        // integration disabled — never queue outbound events
   const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
   if (!config?.atlasLocationId) return;   // not attached to ATLAS — skip silently
+  if (!locationAllowed(config.atlasLocationId)) return; // not in ATLAS_SYNC_ALLOWED_LOCATIONS — stay inert
 
   // Deterministic event_id: sha256(visitId:eventType) → UUID-formatted hex.
   // This means retries send the same event_id; ATLAS upserts are idempotent.
@@ -102,6 +103,7 @@ export async function queueLayoutChanged(
   if (!atlasSyncEnabled()) return;        // integration disabled — never queue outbound events
   const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
   if (!config?.atlasLocationId) return;
+  if (!locationAllowed(config.atlasLocationId)) return; // not in ATLAS_SYNC_ALLOWED_LOCATIONS — stay inert
 
   const hash    = createHash('sha256').update(`${restaurantId}:layout.changed:${layoutVersion}`).digest('hex');
   const eventId = `${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`;
@@ -178,6 +180,21 @@ async function deliverOne(row: {
     await prisma.posOutbox.update({
       where: { id: row.id },
       data:  { status: 'failed', lastError: 'no pos_config or atlasLocationId', lastAttemptAt: new Date() },
+    });
+    return;
+  }
+
+  if (!locationAllowed(config.atlasLocationId)) {
+    // Location is outside ATLAS_SYNC_ALLOWED_LOCATIONS — never deliver. Hold the
+    // row (stay 'pending', don't burn an attempt) so it flushes cleanly if the
+    // location is later added to the allowlist. Push nextRetryAt out so the
+    // poller does not spin on it every 5 s.
+    await prisma.posOutbox.update({
+      where: { id: row.id },
+      data:  {
+        nextRetryAt: new Date(Date.now() + 3_600_000),
+        lastError:   'location not in ATLAS_SYNC_ALLOWED_LOCATIONS — held',
+      },
     });
     return;
   }

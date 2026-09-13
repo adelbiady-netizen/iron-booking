@@ -6,7 +6,7 @@ import { PosIngestBodySchema } from './schema';
 import { ingestEvents } from './service';
 import { queueVisitEvent } from './dispatcher';
 import { buildLayoutPayload, buildVersionPayload } from './layout';
-import { requireAtlasSync } from './flag';
+import { requireAtlasSync, locationAllowed } from './flag';
 
 const router = Router();
 
@@ -35,12 +35,33 @@ async function authenticatePos(req: Request, res: Response, next: NextFunction):
   }
 
   (req as Request & { posRestaurantId: string }).posRestaurantId = config.restaurantId;
+  (req as Request & { posAtlasLocationId: string | null }).posAtlasLocationId = config.atlasLocationId;
+  next();
+}
+
+// Per-location allowlist gate for the runtime ATLAS-facing routes. Runs after
+// authenticatePos (which resolves the caller's atlasLocationId). Returns 503 —
+// same shape as requireAtlasSync — when the resolved location is not in
+// ATLAS_SYNC_ALLOWED_LOCATIONS, so a non-allowlisted location's calls are
+// refused even while the global switch is on. The dev escape-hatch path
+// (empty secret → empty restaurant) is left untouched.
+function requireLocationAllowed(req: Request, res: Response, next: NextFunction): void {
+  const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
+  if (restaurantId === '') { next(); return; } // dev escape hatch — unchanged
+  const atlasLocationId = (req as Request & { posAtlasLocationId: string | null }).posAtlasLocationId;
+  if (!locationAllowed(atlasLocationId)) {
+    res.status(503).json({
+      error:   'ATLAS_SYNC_LOCATION_NOT_ALLOWED',
+      message: 'This location is not in ATLAS_SYNC_ALLOWED_LOCATIONS — the bridge is scoped to other locations.',
+    });
+    return;
+  }
   next();
 }
 
 // POST /api/v1/events/ingest
 // Called by ATLAS POS dispatcher on every state change.
-router.post('/events/ingest', requireAtlasSync, authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events/ingest', requireAtlasSync, authenticatePos, requireLocationAllowed, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
 
@@ -63,7 +84,7 @@ router.post('/events/ingest', requireAtlasSync, authenticatePos, async (req: Req
 
 // GET /api/v1/pos/layout/version — cheap version check for ATLAS's reconcile.
 // Auth: same shared-secret as /events/ingest (Bearer = ATLAS's posSecret).
-router.get('/pos/layout/version', requireAtlasSync, authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/pos/layout/version', requireAtlasSync, authenticatePos, requireLocationAllowed, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
     if (!restaurantId) { res.status(400).json({ error: 'NO_RESTAURANT', message: 'restaurant not resolved from token' }); return; }
@@ -72,7 +93,7 @@ router.get('/pos/layout/version', requireAtlasSync, authenticatePos, async (req:
 });
 
 // GET /api/v1/pos/layout — full versioned layout asset (floors, zones, tables).
-router.get('/pos/layout', requireAtlasSync, authenticatePos, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/pos/layout', requireAtlasSync, authenticatePos, requireLocationAllowed, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const restaurantId = (req as Request & { posRestaurantId: string }).posRestaurantId;
     if (!restaurantId) { res.status(400).json({ error: 'NO_RESTAURANT', message: 'restaurant not resolved from token' }); return; }
@@ -105,6 +126,14 @@ router.post('/pos/admin/attach', requireAtlasSync, async (req: Request, res: Res
   }
 
   const { restaurantId, atlasLocationId, posApiBase, hospitalityApiBase, hospitalitySecret, posSecret } = body.data;
+
+  if (!locationAllowed(atlasLocationId)) {
+    res.status(503).json({
+      error:   'ATLAS_SYNC_LOCATION_NOT_ALLOWED',
+      message: 'This atlasLocationId is not in ATLAS_SYNC_ALLOWED_LOCATIONS — attach is scoped to other locations.',
+    });
+    return;
+  }
 
   const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) {
@@ -387,6 +416,10 @@ router.post('/pos/admin/resync-tables', requireAtlasSync, async (req: Request, r
   const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
   if (!config?.atlasLocationId) {
     res.status(404).json({ error: 'NO_POS_CONFIG', message: 'No ATLAS connection configured for this restaurant.' });
+    return;
+  }
+  if (!locationAllowed(config.atlasLocationId)) {
+    res.status(503).json({ error: 'ATLAS_SYNC_LOCATION_NOT_ALLOWED', message: 'This location is not in ATLAS_SYNC_ALLOWED_LOCATIONS.' });
     return;
   }
 
@@ -723,6 +756,10 @@ router.post('/pos/admin/populate-atlas-table-ids', requireAtlasSync, async (req:
   const config = await prisma.posConfig.findUnique({ where: { restaurantId } });
   if (!config?.atlasLocationId || !config.posApiBase || !config.hospitalitySecret) {
     res.status(404).json({ error: 'NO_POS_CONFIG', message: 'PosConfig missing atlasLocationId, posApiBase, or hospitalitySecret.' });
+    return;
+  }
+  if (!locationAllowed(config.atlasLocationId)) {
+    res.status(503).json({ error: 'ATLAS_SYNC_LOCATION_NOT_ALLOWED', message: 'This location is not in ATLAS_SYNC_ALLOWED_LOCATIONS.' });
     return;
   }
 
