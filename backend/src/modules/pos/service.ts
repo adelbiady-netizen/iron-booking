@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { eventBus } from '../../lib/eventBus';
 import type { PosEventEnvelope } from './schema';
 
 type IngestResult = {
@@ -76,6 +77,13 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
       console.error(`[pos] Failed to process event ${event.event_id} (${event.type}):`, err);
       rejected.push({ event_id: event.event_id, reason: 'processing_error' });
     }
+  }
+
+  // POS events change floor state (seating-bind, course stage, bill requested,
+  // table released). Nudge SSE-connected host floors to re-fetch so the board
+  // updates live without a manual refresh. Fire-and-forget.
+  if (accepted.length > 0) {
+    eventBus.emit('floor_updated', { restaurantId });
   }
 
   return { accepted, rejected };
