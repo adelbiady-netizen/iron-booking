@@ -170,6 +170,11 @@ export default function TableCard({ table, selected, isBestSuggestion, softHold,
           <div>
             <div className="flex items-center gap-1 min-w-0">
               <p className="text-iron-text text-[13px] font-semibold truncate flex-1">{currentRes.guestName}</p>
+              {currentRes.billRequested && (
+                <span className="shrink-0 text-[10px] font-bold px-1.5 py-px rounded border bg-amber-500/20 border-amber-500/50 text-amber-200">
+                  חשבון מבוקש
+                </span>
+              )}
               {currentRes.courseStage && COURSE_STAGE_STYLE[currentRes.courseStage.toLowerCase()] && (
                 <span className={`shrink-0 text-[10px] font-bold px-1.5 py-px rounded border ${COURSE_STAGE_STYLE[currentRes.courseStage.toLowerCase()].cls}`}>
                   {COURSE_STAGE_STYLE[currentRes.courseStage.toLowerCase()].label}

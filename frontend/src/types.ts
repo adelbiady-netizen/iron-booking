@@ -337,6 +337,9 @@ export interface Reservation {
   // POS-projected meal course stage (starter/main/dessert) — set by ATLAS via
   // visit.course_stage_changed. Drives the course-stage pill on the floor.
   courseStage?: string | null;
+  // POS "bill requested" flag — set by ATLAS via visit.bill_requested. Drives the
+  // "חשבון מבוקש" pill on the floor.
+  billRequested?: boolean;
   confirmationToken: string | null;
   confirmationSentAt: string | null;
   confirmedAt: string | null;

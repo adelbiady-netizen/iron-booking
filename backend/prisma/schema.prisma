@@ -484,6 +484,10 @@ model Reservation {
   // colouring — set from ATLAS visit.course_stage_changed.
   courseStage    String?   @map("course_stage")
   courseStageAt  DateTime? @map("course_stage_at")
+  // POS "bill requested" flag for floor colouring — set from ATLAS
+  // visit.bill_requested, cleared when the order opens or closes.
+  billRequested   Boolean   @default(false) @map("bill_requested")
+  billRequestedAt DateTime? @map("bill_requested_at")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

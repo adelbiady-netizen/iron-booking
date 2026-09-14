@@ -52,12 +52,16 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
         case 'visit.summary':
           await handleVisitSummary(restaurantId, event);
           break;
+        // Bill requested on the POS → flag the bound reservation so the host
+        // floor shows "חשבון מבוקש".
+        case 'visit.bill_requested':
+          await handleBillRequested(restaurantId, event);
+          break;
         // Accepted, no state change:
         case 'order.items_sent':
         case 'order.item_voided':
         case 'visit.items_committed':
         case 'visit.order_voided':
-        case 'visit.bill_requested':
         case 'pos.visit_closed':
           break;
         case 'pos.table_directory_ack':
@@ -120,7 +124,7 @@ async function handleOrderOpened(restaurantId: string, event: PosEventEnvelope):
   if (reservation) {
     await prisma.reservation.update({
       where: { id: reservation.id },
-      data:  { posVisitId: event.visit_id, posOrderActive: true },
+      data:  { posVisitId: event.visit_id, posOrderActive: true, billRequested: false, billRequestedAt: null },
     });
   } else {
     await prisma.posVisit.upsert({
@@ -144,10 +148,21 @@ async function handlePaymentCompleted(restaurantId: string, event: PosEventEnvel
 
 async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope): Promise<void> {
   if (!event.visit_id) return;
-  // Clear the active-order flag so IB can complete/release the table.
+  // Clear the active-order flag so IB can complete/release the table; also drop
+  // the bill-requested flag so it doesn't linger after the order is gone.
   await prisma.reservation.updateMany({
     where: { restaurantId, posVisitId: event.visit_id },
-    data:  { posOrderActive: false },
+    data:  { posOrderActive: false, billRequested: false, billRequestedAt: null },
+  });
+}
+
+// visit.bill_requested → flag the bound reservation so the floor can show the
+// guest asked for the check. Cleared when the order opens or closes.
+async function handleBillRequested(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  if (!event.visit_id) return;
+  await prisma.reservation.updateMany({
+    where: { restaurantId, posVisitId: event.visit_id },
+    data:  { billRequested: true, billRequestedAt: new Date(event.occurred_at) },
   });
 }
 
