@@ -122,7 +122,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     }
   }
 
-  return effectiveTables.map((table) => {
+  const __floor = effectiveTables.map((table) => {
     // Respect lockedUntil expiry without a DB write
     const effectiveLocked = table.locked && (!table.lockedUntil || table.lockedUntil > slotTime);
 
@@ -292,6 +292,13 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
       canFitIncomingTurn,
     };
   });
+  if (restaurantId === 'a408ffbf-b9ab-4c73-b37e-5416ce61538a') {
+    console.log('[DIAG floor]', 'date=' + (date instanceof Date ? date.toISOString() : date), 'time=' + time,
+      __floor.filter(t => t.liveStatus !== 'AVAILABLE')
+        .map(t => `${t.name}=${t.liveStatus}${t.currentReservation ? `(cs=${(t.currentReservation as { courseStage?: string }).courseStage ?? '-'},bill=${(t.currentReservation as { billRequested?: boolean }).billRequested ?? '-'})` : ''}`)
+        .join(' ') || '(all available)');
+  }
+  return __floor;
 }
 
 // ─── Table CRUD ───────────────────────────────────────────────────────────────
