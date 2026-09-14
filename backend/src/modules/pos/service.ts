@@ -164,11 +164,19 @@ async function handlePaymentCompleted(restaurantId: string, event: PosEventEnvel
 
 async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope): Promise<void> {
   if (!event.visit_id) return;
-  // Clear the active-order flag so IB can complete/release the table; also drop
-  // the bill-requested flag so it doesn't linger after the order is gone.
+  // Reached only on a FULL close (order.closed / visit.table_released) — a
+  // partial payment arrives as visit.payment_completed and never lands here.
+  // Clear the active-order + bill flags...
   await prisma.reservation.updateMany({
     where: { restaurantId, posVisitId: event.visit_id },
     data:  { posOrderActive: false, billRequested: false, billRequestedAt: null },
+  });
+  // ...and auto-complete a still-seated reservation so the host floor frees the
+  // table on its own when the cashier closes the bill (owner 2026-09-14). Only
+  // when SEATED — never overrides a cancelled/no-show/already-completed row.
+  await prisma.reservation.updateMany({
+    where: { restaurantId, posVisitId: event.visit_id, status: 'SEATED' },
+    data:  { status: 'COMPLETED', completedAt: new Date(event.occurred_at) },
   });
 }
 
