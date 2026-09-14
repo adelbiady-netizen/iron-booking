@@ -92,27 +92,35 @@ async function handleOrderOpened(restaurantId: string, event: PosEventEnvelope):
   if (!event.visit_id) return;
 
   // ATLAS (pos.visit_opened) sends atlas_table_id; the legacy name was table_id.
-  const payload = event.payload as { atlas_table_id?: string; table_id?: string; cover_count?: number };
+  // It also sends hospitality_table_id = our OWN table id, which is stable —
+  // atlas_table_id drifts when ATLAS recreates tables on a layout re-sync, which
+  // broke order→reservation binding (T4, 2026-09-14). Prefer the stable id.
+  const payload = event.payload as { atlas_table_id?: string; table_id?: string; hospitality_table_id?: string; cover_count?: number };
+  const hospitalityTableId = payload.hospitality_table_id;
   const table_id = payload.atlas_table_id ?? payload.table_id;
   const cover_count = payload.cover_count;
-  if (!table_id) {
-    console.warn(`[pos] order.opened missing table_id — event_id=${event.event_id}`);
+  if (!table_id && !hospitalityTableId) {
+    console.warn(`[pos] order.opened missing table id — event_id=${event.event_id}`);
     return;
   }
 
   const occurredAt = new Date(event.occurred_at);
 
-  // Resolve ATLAS table_id → Iron Booking table
-  const table = await prisma.table.findFirst({
-    where: { restaurantId, atlasTableId: table_id },
-  });
+  // Resolve to the Iron Booking table: prefer our own stable id, fall back to
+  // the (drift-prone) atlas_table_id for older events.
+  let table = hospitalityTableId
+    ? await prisma.table.findFirst({ where: { restaurantId, id: hospitalityTableId } })
+    : null;
+  if (!table && table_id) {
+    table = await prisma.table.findFirst({ where: { restaurantId, atlasTableId: table_id } });
+  }
 
   if (!table) {
     console.warn(`[pos] order.opened: unknown atlasTableId=${table_id} for restaurant=${restaurantId}`);
     // Still create a walk-in visit so the event isn't lost
     await prisma.posVisit.upsert({
       where:  { visitId: event.visit_id },
-      create: { visitId: event.visit_id, restaurantId, atlasTableId: table_id, coverCount: cover_count ?? null, openedAt: occurredAt },
+      create: { visitId: event.visit_id, restaurantId, atlasTableId: (table_id ?? hospitalityTableId)!, coverCount: cover_count ?? null, openedAt: occurredAt },
       update: {},
     });
     return;
@@ -129,7 +137,7 @@ async function handleOrderOpened(restaurantId: string, event: PosEventEnvelope):
   } else {
     await prisma.posVisit.upsert({
       where:  { visitId: event.visit_id },
-      create: { visitId: event.visit_id, restaurantId, atlasTableId: table_id, coverCount: cover_count ?? null, openedAt: occurredAt },
+      create: { visitId: event.visit_id, restaurantId, atlasTableId: (table_id ?? hospitalityTableId)!, coverCount: cover_count ?? null, openedAt: occurredAt },
       update: {},
     });
   }
