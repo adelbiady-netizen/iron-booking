@@ -7,7 +7,6 @@ import { ingestEvents } from './service';
 import { queueVisitEvent } from './dispatcher';
 import { buildLayoutPayload, buildVersionPayload } from './layout';
 import { requireAtlasSync, locationAllowed } from './flag';
-import { getFloorState } from '../tables/service';
 
 const router = Router();
 
@@ -669,59 +668,6 @@ router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
     };
   } catch (e) {
     result['step5_table_mapping_check'] = { error: String(e) };
-  }
-
-  // step6: recent INBOUND pos events (received FROM ATLAS via /events/ingest).
-  // Temporary diagnostic to see order.opened/course_stage/bill payloads + visit_id.
-  try {
-    const rows = await prisma.$queryRaw<Array<{ event_id: string; event_type: string; received_at: Date; payload_text: string }>>`
-      SELECT event_id::text, event_type, received_at, payload::text AS payload_text
-      FROM pos_event_log
-      ORDER BY received_at DESC
-      LIMIT 15
-    `;
-    result['step6_recent_inbound_events'] = rows;
-  } catch (e) {
-    result['step6_recent_inbound_events'] = { error: String(e) };
-  }
-
-  // step7: recent reservations with their POS-binding fields — shows whether
-  // pos.visit_opened bound (posVisitId set) and whether course/bill landed.
-  try {
-    const rows = await prisma.reservation.findMany({
-      where:   { restaurantId },
-      orderBy: { updatedAt: 'desc' },
-      take:    10,
-      select: {
-        id: true, guestName: true, status: true, tableId: true,
-        posVisitId: true, posOrderActive: true, courseStage: true,
-        billRequested: true, date: true, time: true, updatedAt: true,
-      },
-    });
-    result['step7_recent_reservations_pos'] = rows;
-  } catch (e) {
-    result['step7_recent_reservations_pos'] = { error: String(e) };
-  }
-
-  // step8: what the LIVE floor endpoint returns right now (liveStatus +
-  // courseStage per table) — exactly what the frontend renders from.
-  try {
-    const now = new Date();
-    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-    const timeStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
-    const floor = await getFloorState(restaurantId, new Date(`${dateStr}T00:00:00.000Z`), timeStr);
-    result['step8_floor_now'] = {
-      dateStr, timeStr,
-      tables: (floor as Array<Record<string, any>>).map((t) => ({
-        name:          t.name,
-        liveStatus:    t.liveStatus,
-        guest:         t.currentReservation?.guestName ?? null,
-        courseStage:   t.currentReservation?.courseStage ?? null,
-        billRequested: t.currentReservation?.billRequested ?? null,
-      })),
-    };
-  } catch (e) {
-    result['step8_floor_now'] = { error: String(e) };
   }
 
   res.json(result);

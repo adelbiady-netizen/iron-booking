@@ -3502,7 +3502,7 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
       {/* POS course-stage / bill-requested pill (projected from ATLAS via
           visit.course_stage_changed / visit.bill_requested). Shown on a live
           occupied tile only. Mirrors the TableCard list pill. */}
-      {isStillOccupiedAtBoardTime && currentRes && (currentRes.billRequested || currentRes.courseStage) && (() => {
+      {!inPlanningMode && isLiveOccupied && currentRes && (currentRes.billRequested || currentRes.courseStage) && (() => {
         const COURSE: Record<string, { label: string; bg: string; bd: string; fg: string }> = {
           appetizer: { label: 'ראשונה', bg: 'rgba(59,130,246,0.18)', bd: 'rgba(59,130,246,0.45)', fg: '#93c5fd' },
           starter:   { label: 'ראשונה', bg: 'rgba(59,130,246,0.18)', bd: 'rgba(59,130,246,0.45)', fg: '#93c5fd' },
