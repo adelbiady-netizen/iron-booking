@@ -3503,32 +3503,33 @@ function MapTable({ table, selected, combinedSelected, dimmed, bestSuggestion: _
           visit.course_stage_changed / visit.bill_requested). Shown on a live
           occupied tile only. Mirrors the TableCard list pill. */}
       {!inPlanningMode && isLiveOccupied && currentRes && (currentRes.billRequested || currentRes.courseStage) && (() => {
-        // Solid, high-contrast badges so the POS course/bill state reads at a
-        // glance across the floor (owner 2026-09-15: make them much bigger).
-        const COURSE: Record<string, { label: string; bg: string; fg: string }> = {
-          appetizer: { label: 'ראשונה', bg: '#3b82f6', fg: '#ffffff' },
-          starter:   { label: 'ראשונה', bg: '#3b82f6', fg: '#ffffff' },
-          first:     { label: 'ראשונה', bg: '#3b82f6', fg: '#ffffff' },
-          main:      { label: 'עיקרית', bg: '#f97316', fg: '#ffffff' },
-          dessert:   { label: 'קינוח',  bg: '#a855f7', fg: '#ffffff' },
+        // Icon badges — a clear, language-neutral symbol per POS state plus a
+        // short label (owner 2026-09-15: "nicer symbols"). Solid, high-contrast.
+        const COURSE: Record<string, { icon: string; label: string; bg: string }> = {
+          appetizer: { icon: '🥗', label: 'ראשונה', bg: '#3b82f6' },
+          starter:   { icon: '🥗', label: 'ראשונה', bg: '#3b82f6' },
+          first:     { icon: '🥗', label: 'ראשונה', bg: '#3b82f6' },
+          main:      { icon: '🍽️', label: 'עיקרית', bg: '#f97316' },
+          dessert:   { icon: '🍰', label: 'קינוח',  bg: '#a855f7' },
         };
         const stage = currentRes.courseStage ? currentRes.courseStage.toLowerCase() : null;
         const cs = stage ? COURSE[stage] : null;
         const badge: React.CSSProperties = {
-          fontSize: 12, fontWeight: 800, borderRadius: 6, padding: '3px 9px',
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          fontSize: 11, fontWeight: 800, borderRadius: 7, padding: '3px 8px',
           lineHeight: 1.15, letterSpacing: '0.01em', whiteSpace: 'nowrap',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+          color: '#ffffff', boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
         };
         return (
           <span style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap', justifyContent: 'center', userSelect: 'none' }}>
             {currentRes.billRequested && (
-              <span style={{ ...badge, color: '#ffffff', background: '#f59e0b' }}>
-                חשבון מבוקש
+              <span style={{ ...badge, background: '#f59e0b' }}>
+                <span style={{ fontSize: 13 }}>🧾</span>חשבון
               </span>
             )}
             {cs && (
-              <span style={{ ...badge, color: cs.fg, background: cs.bg }}>
-                {cs.label}
+              <span style={{ ...badge, background: cs.bg }}>
+                <span style={{ fontSize: 13 }}>{cs.icon}</span>{cs.label}
               </span>
             )}
           </span>
