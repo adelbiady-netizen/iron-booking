@@ -670,6 +670,20 @@ router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
     result['step5_table_mapping_check'] = { error: String(e) };
   }
 
+  // step6: recent INBOUND pos events (received FROM ATLAS via /events/ingest).
+  // Temporary diagnostic to see order.opened/course_stage/bill payloads + visit_id.
+  try {
+    const rows = await prisma.$queryRaw<Array<{ event_id: string; event_type: string; received_at: Date; payload_text: string }>>`
+      SELECT event_id::text, event_type, received_at, payload::text AS payload_text
+      FROM pos_event_log
+      ORDER BY received_at DESC
+      LIMIT 15
+    `;
+    result['step6_recent_inbound_events'] = rows;
+  } catch (e) {
+    result['step6_recent_inbound_events'] = { error: String(e) };
+  }
+
   res.json(result);
 });
 
