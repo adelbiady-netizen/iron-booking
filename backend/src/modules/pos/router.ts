@@ -7,6 +7,7 @@ import { ingestEvents } from './service';
 import { queueVisitEvent } from './dispatcher';
 import { buildLayoutPayload, buildVersionPayload } from './layout';
 import { requireAtlasSync, locationAllowed } from './flag';
+import { reservedAtIso } from '../reservations/reservedAt';
 
 const router = Router();
 
@@ -716,14 +717,13 @@ router.post('/pos/admin/resync-visits', async (req: Request, res: Response) => {
         : null;
       const atlasTableId = t?.atlasTableId ?? null;
 
-      const dateIso = r.date instanceof Date ? r.date.toISOString() : String(r.date);
       await queueVisitEvent(restaurantId, 'visit.reservation_created', r.id, {
         visit_id:       r.id,
         guest_name:     r.guestName,
         guest_count:    r.partySize,
         atlas_table_id: atlasTableId,
         hospitality_table_id: r.tableId,
-        reserved_at:    dateIso.slice(0, 10) + 'T' + r.time + ':00.000Z',
+        reserved_at:    reservedAtIso(r.date, r.time),
         notes:          r.guestNotes ?? undefined,
         walk_in:        r.source === 'WALK_IN',
       });
