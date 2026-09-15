@@ -684,6 +684,24 @@ router.get('/pos/admin/diagnose', async (req: Request, res: Response) => {
     result['step6_recent_inbound_events'] = { error: String(e) };
   }
 
+  // step7: recent reservations with their POS-binding fields — shows whether
+  // pos.visit_opened bound (posVisitId set) and whether course/bill landed.
+  try {
+    const rows = await prisma.reservation.findMany({
+      where:   { restaurantId },
+      orderBy: { updatedAt: 'desc' },
+      take:    10,
+      select: {
+        id: true, guestName: true, status: true, tableId: true,
+        posVisitId: true, posOrderActive: true, courseStage: true,
+        billRequested: true, date: true, time: true, updatedAt: true,
+      },
+    });
+    result['step7_recent_reservations_pos'] = rows;
+  } catch (e) {
+    result['step7_recent_reservations_pos'] = { error: String(e) };
+  }
+
   res.json(result);
 });
 
