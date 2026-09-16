@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { eventBus } from '../../lib/eventBus';
 import type { PosEventEnvelope } from './schema';
+import { localWallClock, pickReservationForOrder } from './reservationMatch';
 
 type IngestResult = {
   accepted: string[];
@@ -285,8 +286,13 @@ async function handleTableDirectoryAck(restaurantId: string, event: PosEventEnve
 // Find the best-matching CONFIRMED/SEATED reservation for a table at a given UTC instant.
 // Uses date from the timestamp and compares time strings lexicographically within that day.
 async function findReservationAtTable(restaurantId: string, ironTableId: string, at: Date) {
-  const dateOnly = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
-  const atMinutes = at.getUTCHours() * 60 + at.getUTCMinutes();
+  // Resolve the order instant to the restaurant's LOCAL calendar day + minutes.
+  // res.date/res.time are local wall-clock; the old code compared them against
+  // UTC, so the window check was off by the tz offset and silently fell back to
+  // "first reservation of the day" — the wrong one on a lunch+dinner table.
+  const { date, minutes } = localWallClock(at);
+  const [y, mo, d] = date.split('-').map(Number);
+  const dateOnly = new Date(Date.UTC(y, mo - 1, d)); // reservations store date as UTC-midnight of the local day
 
   const candidates = await prisma.reservation.findMany({
     where: {
@@ -298,16 +304,7 @@ async function findReservationAtTable(restaurantId: string, ironTableId: string,
     },
   });
 
-  // Find reservation whose [time, time+duration) window contains `at`
-  for (const res of candidates) {
-    const [h, m] = res.time.split(':').map(Number);
-    const startMinutes = h * 60 + m;
-    const endMinutes   = startMinutes + res.duration;
-    if (atMinutes >= startMinutes && atMinutes < endMinutes) {
-      return res;
-    }
-  }
-
-  // Fallback: take any reservation on the same day (loose match for walk-up seating)
-  return candidates[0] ?? null;
+  // Bind by time window (#3). A walk-in on a table whose only booking is far off
+  // stays UNBOUND (null) instead of being stamped with that reservation (#1).
+  return pickReservationForOrder(candidates, minutes);
 }
