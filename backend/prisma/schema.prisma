@@ -488,6 +488,12 @@ model Reservation {
   // visit.bill_requested, cleared when the order opens or closes.
   billRequested   Boolean   @default(false) @map("bill_requested")
   billRequestedAt DateTime? @map("bill_requested_at")
+  // POS fire-gating — set true on the FIRST kitchen-fire of the bound order
+  // (ATLAS visit.fired). The booking floor's order-occupied projection + the
+  // course/bill pill are gated on this: before fire the guest still shows SEATED
+  // (guest present) but with no POS pill. Reset on order close/void.
+  fired           Boolean   @default(false) @map("fired")
+  firedAt         DateTime? @map("fired_at")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

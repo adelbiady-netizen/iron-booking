@@ -55,6 +55,7 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         isArrived: true,
         courseStage: true,
         billRequested: true,
+        fired: true,
         returnedToListAt: true,
         reorganizeAt: true,
         reorganizeFromTableId: true,
@@ -173,6 +174,10 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
     // from releasing a SEATED table during live service (ghost-SEATED bug).
     const seated = tableReservations.find(r => r.status === 'SEATED');
     if (seated) {
+      // Fire-gating: the POS course/bill pill is projected onto the floor ONLY
+      // after the order's first kitchen-fire (visit.fired → reservation.fired).
+      // Before fire the guest still shows SEATED (guest present) but with no pill.
+      const posFired = seated.fired === true;
       const seatedScheduledEnd  = addMinutes(parseTimeOnDate(date, seated.time), seated.duration);
 
       // Operational end = min(max(scheduledEnd, seatedAt + minWindow), scheduledEnd + minWindow).
@@ -204,6 +209,8 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
           liveStatus: 'STALE_OCCUPIED' as const,
           currentReservation: {
             ...seated,
+            courseStage:   posFired ? seated.courseStage : null,
+            billRequested: posFired ? seated.billRequested : false,
             minutesRemaining: 0,
             expectedEndTime: fmtVirtualLocal(seatedScheduledEnd),
             isOverdue: false,
@@ -227,6 +234,8 @@ export async function getFloorState(restaurantId: string, date: Date, time: stri
         liveStatus: 'OCCUPIED' as const,
         currentReservation: {
           ...seated,
+          courseStage:   posFired ? seated.courseStage : null,
+          billRequested: posFired ? seated.billRequested : false,
           minutesRemaining,
           expectedEndTime: fmtVirtualLocal(operationalEnd),
           isOverdue,

@@ -450,12 +450,20 @@ router.post('/:id/combine', validate(CombineTablesSchema), async (req: Request, 
 });
 
 // Throws 409 if the reservation has an active POS order that hasn't been closed yet.
-async function guardNoPosOrder(restaurantId: string, reservationId: string): Promise<void> {
+// With { blockSeated: true } it also blocks a SEATED reservation even before an
+// order is opened — once the guest is seated (or an order is live) the cashier
+// owns the visit, so cancel/no-show must go through the POS (#5). Pre-seat states
+// (expected/confirmed/arrived without a POS order) are still allowed.
+async function guardNoPosOrder(
+  restaurantId: string,
+  reservationId: string,
+  opts?: { blockSeated?: boolean },
+): Promise<void> {
   const r = await prisma.reservation.findFirst({
     where: { id: reservationId, restaurantId },
-    select: { posOrderActive: true },
+    select: { posOrderActive: true, status: true },
   });
-  if (r?.posOrderActive) {
+  if (r?.posOrderActive || (opts?.blockSeated && r?.status === 'SEATED')) {
     throw new ConflictError(
       'לשולחן זה יש הזמנה פתוחה בקופה. יש לסגור את ההזמנה בקופה לפני שניתן לשחרר את השולחן מ-Iron Booking.',
       { code: 'POS_ORDER_ACTIVE' },
@@ -477,6 +485,8 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
 // POST /reservations/:id/no-show
 router.post('/:id/no-show', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Once SEATED or with an active POS order, no-show must go through the POS (#5).
+    await guardNoPosOrder(req.auth.restaurantId, p(req, 'id'), { blockSeated: true });
     const r = await service.markNoShow(req.auth.restaurantId, p(req, 'id'), actorName(req));
     res.json(r);
     notifyFloorUpdated(req.auth.restaurantId);
@@ -487,6 +497,9 @@ router.post('/:id/no-show', async (req: Request, res: Response, next: NextFuncti
 // POST /reservations/:id/cancel
 router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Once SEATED or with an active POS order, cancellation must go through the
+    // POS (#5) — pre-seat (expected/confirmed/arrived, no order) is still allowed.
+    await guardNoPosOrder(req.auth.restaurantId, p(req, 'id'), { blockSeated: true });
     const reason = req.body?.reason as string | undefined;
     const r = await service.cancelReservation(req.auth.restaurantId, p(req, 'id'), reason, actorName(req));
     res.json(r);

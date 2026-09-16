@@ -64,6 +64,17 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
         case 'visit.order_voided':
           await handleOrderVoided(restaurantId, event);
           break;
+        // Whole-order table transfer on the POS → mirror the move inbound so the
+        // bound reservation FOLLOWS the order to the new table (POS-authoritative),
+        // freeing the original table. Inbound-only — must NOT re-emit to ATLAS.
+        case 'pos.visit_table_changed':
+          await handleVisitTableChanged(restaurantId, event);
+          break;
+        // First kitchen-fire of the order → flip the fire flag. The floor's
+        // order-occupied projection + course/bill pill are gated on this.
+        case 'visit.fired':
+          await handleVisitFired(restaurantId, event);
+          break;
         // Accepted, no state change:
         case 'order.items_sent':
         case 'order.item_voided':
@@ -214,14 +225,15 @@ async function handlePaymentCompleted(restaurantId: string, event: PosEventEnvel
   });
 }
 
-async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+export async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope): Promise<void> {
   if (!event.visit_id) return;
   // Reached only on a FULL close (order.closed / visit.table_released) — a
   // partial payment arrives as visit.payment_completed and never lands here.
-  // Clear the active-order + bill flags...
+  // Clear the active-order + bill + fire flags... Keyed on posVisitId only, so it
+  // frees/completes the reservation identically for any source (online/host/walk-in).
   await prisma.reservation.updateMany({
     where: { restaurantId, posVisitId: event.visit_id },
-    data:  { posOrderActive: false, billRequested: false, billRequestedAt: null },
+    data:  { posOrderActive: false, billRequested: false, billRequestedAt: null, fired: false, firedAt: null },
   });
   // ...and auto-complete a still-seated reservation so the host floor frees the
   // table on its own when the cashier closes the bill (owner 2026-09-14). Only
@@ -249,8 +261,94 @@ async function handleOrderVoided(restaurantId: string, event: PosEventEnvelope):
       billRequestedAt: null,
       courseStage: null,
       courseStageAt: null,
+      fired: false,
+      firedAt: null,
       posVisitId: null,
     },
+  });
+}
+
+// pos.visit_table_changed → ATLAS moved the WHOLE order to another table (a POS
+// table transfer). Mirror it inbound: the bound reservation FOLLOWS the order to
+// the new table (POS-authoritative), which frees the original table. Inbound-only
+// — we do NOT emit visit.upserted back to ATLAS (that would loop the move straight
+// back out).
+async function handleVisitTableChanged(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  // ATLAS emits { atlas_order_id, from_table_id, to_table_id, changed_at } and sets
+  // the envelope visit_id to the order's registry visit id (same key as
+  // pos.visit_opened). NOTE the contract: the target is `to_table_id`, an ATLAS
+  // table id → Table.atlasTableId. ATLAS does NOT send hospitality_table_id here
+  // (unlike visit_opened) — we still prefer it if a future emit adds it.
+  const payload = event.payload as {
+    atlas_order_id?: string;
+    to_table_id?: string;
+    hospitality_table_id?: string;
+    atlas_table_id?: string;
+  };
+  const hospitalityTableId = payload.hospitality_table_id;
+  const atlasTableId = payload.to_table_id ?? payload.atlas_table_id;
+  if (!hospitalityTableId && !atlasTableId) {
+    console.warn(`[pos] visit_table_changed missing target table id — event_id=${event.event_id}`);
+    return;
+  }
+
+  // Resolve the target IB table: prefer our own stable id, fall back to the
+  // (drift-prone) atlas table id.
+  let table = hospitalityTableId
+    ? await prisma.table.findFirst({ where: { restaurantId, id: hospitalityTableId } })
+    : null;
+  if (!table && atlasTableId) {
+    table = await prisma.table.findFirst({ where: { restaurantId, atlasTableId } });
+  }
+  if (!table) {
+    console.warn(`[pos] visit_table_changed: unknown target table (hospitality=${hospitalityTableId} atlas=${atlasTableId}) restaurant=${restaurantId}`);
+    return;
+  }
+
+  // Correlate the move with the order. visit_id is the join key (matches
+  // reservation.posVisitId / posVisit.visitId); fall back to atlas_order_id for
+  // the walk-in/no-registry case where visit_id defaulted to the order id.
+  const visitId = event.visit_id ?? payload.atlas_order_id ?? null;
+  if (!visitId) return;
+
+  // Keep an unbound posVisit registry row in sync (best-effort) so a later
+  // bind-on-seat resolves the new table for an order-before-seat move.
+  const movedVisit = await prisma.posVisit.updateMany({
+    where: { restaurantId, visitId },
+    data:  { tableId: table.id },
+  });
+
+  // Move the bound reservation to follow the order to the new table.
+  const reservation = await prisma.reservation.findFirst({
+    where:  { restaurantId, posVisitId: visitId },
+    select: { id: true, tableId: true },
+  });
+  if (reservation) {
+    if (reservation.tableId !== table.id) {
+      await prisma.reservation.update({
+        where: { id: reservation.id },
+        data:  { tableId: table.id, previousTableId: reservation.tableId },
+      });
+    }
+  } else if (movedVisit.count === 0) {
+    console.warn(`[pos] visit_table_changed: no reservation or posVisit bound to visit=${visitId}`);
+  }
+}
+
+// visit.fired → the FIRST kitchen-fire of the bound order. Flip the reservation's
+// fire flag; the floor's order-occupied projection + course/bill pill are gated on
+// it (before fire the guest shows SEATED but no POS pill). Reset on close/void.
+async function handleVisitFired(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  // ATLAS emits { atlas_order_id, fired_at } with the envelope visit_id set to the
+  // order's registry visit id (same key as pos.visit_opened). Fall back to
+  // atlas_order_id for the walk-in/no-registry case where visit_id == order id.
+  const payload = event.payload as { atlas_order_id?: string; fired_at?: string };
+  const visitId = event.visit_id ?? payload.atlas_order_id ?? null;
+  if (!visitId) return;
+  const firedAt = payload.fired_at ? new Date(payload.fired_at) : new Date(event.occurred_at);
+  await prisma.reservation.updateMany({
+    where: { restaurantId, posVisitId: visitId },
+    data:  { fired: true, firedAt },
   });
 }
 
