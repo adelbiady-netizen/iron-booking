@@ -73,7 +73,7 @@ type VisitReservation = {
 // The POS upserts the registry to match — so no mutation is ever missed, and a
 // move/edit/unseat/complete needs no bespoke event. STANDBY (waitlist) is never
 // projected onto the floor.
-function emitVisitUpsert(restaurantId: string, r: VisitReservation): void {
+export function emitVisitUpsert(restaurantId: string, r: VisitReservation): void {
   const state = reservationVisitState(r.status, r.isArrived);
   if (isFloorlessState(state)) return;
   void resolveTableIds(r.tableId).then(ids =>

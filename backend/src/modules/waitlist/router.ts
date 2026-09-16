@@ -4,6 +4,7 @@ import { validate } from '../../middleware/validate';
 import { z } from 'zod';
 import * as service from './service';
 import { eventBus } from '../../lib/eventBus';
+import { emitVisitUpsert } from '../reservations/router';
 
 const router = Router();
 router.use(authenticate);
@@ -143,6 +144,11 @@ router.post('/:id/seat', validate(SeatSchema), async (req: Request, res: Respons
     );
     res.json(result);
     eventBus.emit('floor_updated', { restaurantId: req.auth.restaurantId });
+    // Seating a walk-in from the waitlist creates a SEATED reservation but,
+    // unlike the /reservations paths, never projected it to the POS — so the
+    // guest sat in the host but was invisible on the POS floor. Emit the same
+    // visit.upserted so the seated walk-in reaches ATLAS.
+    if (result?.reservation) emitVisitUpsert(req.auth.restaurantId, result.reservation);
   } catch (err) { next(err); }
 });
 
