@@ -8,7 +8,7 @@ export type VisitState =
   | 'expected'
   | 'arrived'
   | 'seated'
-  | 'completed'
+  | 'closed'
   | 'cancelled'
   | 'no_show'
   | 'standby';
@@ -23,7 +23,12 @@ export function reservationVisitState(status: string, isArrived: boolean): Visit
     case 'SEATED':
       return 'seated';
     case 'COMPLETED':
-      return 'completed';
+      // ATLAS's hospitality_visit_registry state CHECK allows 'closed', NOT
+      // 'completed'. Sending 'completed' made ATLAS reject the visit.upserted
+      // (internal_error) on every booking completion, so a completed no-order
+      // reservation stayed 'seated' and its POS table never freed. 'closed' is
+      // ATLAS's terminal state (filtered off the incoming floor) — the right one.
+      return 'closed';
     case 'CANCELLED':
       return 'cancelled';
     case 'NO_SHOW':

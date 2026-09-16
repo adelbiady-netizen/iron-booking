@@ -14,7 +14,7 @@ function test(name: string, fn: () => void): void {
 console.log('\nreservationVisitState');
 test('terminal statuses map through', () => {
   assert.equal(reservationVisitState('SEATED', false), 'seated');
-  assert.equal(reservationVisitState('COMPLETED', false), 'completed');
+  assert.equal(reservationVisitState('COMPLETED', false), 'closed'); // ATLAS registry allows 'closed', not 'completed'
   assert.equal(reservationVisitState('CANCELLED', false), 'cancelled');
   assert.equal(reservationVisitState('NO_SHOW', false), 'no_show');
   assert.equal(reservationVisitState('STANDBY', false), 'standby');
