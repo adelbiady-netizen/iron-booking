@@ -25,6 +25,7 @@ import { config } from '../../config';
 import { NotFoundError, BusinessRuleError, ConflictError } from '../../lib/errors';
 import { eventBus } from '../../lib/eventBus';
 import { queueVisitEvent } from '../pos/dispatcher';
+import { bindOpenOrderOnSeat } from '../pos/service';
 import { reservedAtIso } from './reservedAt';
 import { reservationVisitState, isFloorlessState } from './visitState';
 
@@ -410,6 +411,10 @@ router.post('/:id/seat', validate(AssignTableSchema), async (req: Request, res: 
     );
     console.log(`[perf:seat] router total ${Date.now() - t0}ms`);
     res.json(r);
+    // Bind-on-seat: attach an order already open at this table (order-before-seat
+    // / PENDING) so booking writeback + auto-complete flow. Best-effort, off the
+    // response path; notify the floor afterwards so the pill appears live.
+    await bindOpenOrderOnSeat(req.auth.restaurantId, r.id, req.body.tableId);
     notifyFloorUpdated(req.auth.restaurantId);
     emitVisitUpsert(req.auth.restaurantId, r);
   } catch (err) { next(err); }

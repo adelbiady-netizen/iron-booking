@@ -10,7 +10,12 @@
  */
 
 import assert from 'node:assert/strict';
-import { localWallClock, pickReservationForOrder, ResCandidate } from './reservationMatch';
+import {
+  localWallClock,
+  pickReservationForOrder,
+  pickBindablePosVisit,
+  ResCandidate,
+} from './reservationMatch';
 
 let passed = 0;
 let failed = 0;
@@ -97,6 +102,31 @@ test('overlapping windows: earliest-starting containing window wins', () => {
   const b: ResCandidate = { time: '20:00', duration: 120 }; // 1200..1320
   // at 20:15 both contain; earliest start (19:30) wins deterministically.
   assert.equal(pickReservationForOrder([b, a], 20 * 60 + 15), a);
+});
+
+console.log('\npickBindablePosVisit (bind-on-seat)');
+
+test('no open orders at the table -> null', () => {
+  assert.equal(pickBindablePosVisit([]), null);
+});
+
+test('one open order -> that order', () => {
+  const v = { visitId: 'o1', openedAt: '2026-09-16T09:00:00.000Z' };
+  assert.equal(pickBindablePosVisit([v]), v);
+});
+
+test('several open orders -> the most recently opened', () => {
+  const older = { visitId: 'old', openedAt: '2026-09-16T08:00:00.000Z' };
+  const newer = { visitId: 'new', openedAt: '2026-09-16T09:30:00.000Z' };
+  // pass in ascending order to prove it does not depend on input order
+  assert.equal(pickBindablePosVisit([older, newer]), newer);
+  assert.equal(pickBindablePosVisit([newer, older]), newer);
+});
+
+test('accepts Date objects too', () => {
+  const a = { visitId: 'a', openedAt: new Date('2026-09-16T08:00:00.000Z') };
+  const b = { visitId: 'b', openedAt: new Date('2026-09-16T10:00:00.000Z') };
+  assert.equal(pickBindablePosVisit([a, b]), b);
 });
 
 console.log(`\n${passed} passed, ${failed} failed\n`);

@@ -54,6 +54,22 @@ function toMinutes(hhmm: string): number {
 }
 
 /**
+ * Choose which live unbound POS order to attach when a host seats a reservation
+ * (bind-on-seat). Given the open posVisits already filtered to (this table, this
+ * restaurant, status 'open'), return the most-recently-opened one — the party
+ * currently at the table — or null when there is none. Sorts defensively so the
+ * choice does not depend on the query's ordering.
+ */
+export function pickBindablePosVisit<T extends { openedAt: Date | string }>(
+  candidates: T[],
+): T | null {
+  if (candidates.length === 0) return null;
+  return [...candidates].sort(
+    (a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime(),
+  )[0];
+}
+
+/**
  * Choose the reservation an opening order should bind to, given the candidate
  * reservations already filtered to (this table, today, CONFIRMED/SEATED,
  * posVisitId=null) and the order's LOCAL minutes-since-midnight.

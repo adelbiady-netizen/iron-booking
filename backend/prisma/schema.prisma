@@ -1772,7 +1772,8 @@ model PosOutbox {
 model PosVisit {
   visitId      String    @id @map("visit_id")      // = ATLAS order.id
   restaurantId String    @map("restaurant_id")
-  atlasTableId String    @map("atlas_table_id")    // ATLAS table_id UUID
+  atlasTableId String    @map("atlas_table_id")    // ATLAS table_id UUID (drift-prone)
+  tableId      String?   @map("table_id")          // our own stable IB table id — set when the order-open resolved a table but no reservation matched, so a later /seat can bind this unbound order (bind-on-seat)
   coverCount   Int?      @map("cover_count")
   openedAt     DateTime  @map("opened_at") @db.Timestamptz
   paidAmount   Decimal?  @map("paid_amount") @db.Decimal(10, 2)

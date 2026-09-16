@@ -1,7 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { eventBus } from '../../lib/eventBus';
 import type { PosEventEnvelope } from './schema';
-import { localWallClock, pickReservationForOrder } from './reservationMatch';
+import { localWallClock, pickReservationForOrder, pickBindablePosVisit } from './reservationMatch';
 
 type IngestResult = {
   accepted: string[];
@@ -144,11 +144,58 @@ async function handleOrderOpened(restaurantId: string, event: PosEventEnvelope):
       data:  { posVisitId: event.visit_id, posOrderActive: true, billRequested: false, billRequestedAt: null },
     });
   } else {
+    // No reservation matched yet (order-before-seat, or the booking is still
+    // PENDING). Persist the order as an unbound posVisit WITH our stable table
+    // id so a later /seat can attach it (bind-on-seat).
     await prisma.posVisit.upsert({
       where:  { visitId: event.visit_id },
-      create: { visitId: event.visit_id, restaurantId, atlasTableId: (table_id ?? hospitalityTableId)!, coverCount: cover_count ?? null, openedAt: occurredAt },
-      update: {},
+      create: { visitId: event.visit_id, restaurantId, atlasTableId: (table_id ?? hospitalityTableId)!, tableId: table.id, coverCount: cover_count ?? null, openedAt: occurredAt },
+      update: { tableId: table.id },
     });
+  }
+}
+
+/**
+ * Bind-on-seat: when a host seats a reservation, attach a live unbound POS order
+ * that was already opened at that table (the order-before-seat / still-PENDING
+ * case that order-open binding missed). Sets posVisitId so course/bill/payment
+ * writeback and auto-complete start flowing to this reservation. Best-effort —
+ * never throws into the seat hot path; a no-op when the reservation is already
+ * bound or no open order sits at the table.
+ */
+export async function bindOpenOrderOnSeat(
+  restaurantId: string,
+  reservationId: string,
+  ironTableId: string,
+): Promise<string | null> {
+  try {
+    const reservation = await prisma.reservation.findFirst({
+      where: { id: reservationId, restaurantId },
+      select: { id: true, posVisitId: true },
+    });
+    if (!reservation || reservation.posVisitId) return null; // already bound at order-open
+
+    const candidates = await prisma.posVisit.findMany({
+      where: { restaurantId, tableId: ironTableId, status: 'open' },
+    });
+    const visit = pickBindablePosVisit(candidates);
+    if (!visit) return null;
+
+    await prisma.$transaction([
+      prisma.reservation.update({
+        where: { id: reservationId },
+        data:  { posVisitId: visit.visitId, posOrderActive: true, billRequested: false, billRequestedAt: null },
+      }),
+      prisma.posVisit.update({
+        where: { visitId: visit.visitId },
+        data:  { status: 'bound' },
+      }),
+    ]);
+    console.log(`[pos] bind-on-seat: reservation ${reservationId} <- order ${visit.visitId} (table ${ironTableId})`);
+    return visit.visitId;
+  } catch (e) {
+    console.error('[pos] bind-on-seat failed', e);
+    return null;
   }
 }
 
