@@ -59,11 +59,15 @@ export async function ingestEvents(restaurantId: string, events: PosEventEnvelop
         case 'visit.bill_requested':
           await handleBillRequested(restaurantId, event);
           break;
+        // Whole order voided → free the table's active-order state so the host can
+        // close it (or a new order can bind). Not a paid close → no auto-complete.
+        case 'visit.order_voided':
+          await handleOrderVoided(restaurantId, event);
+          break;
         // Accepted, no state change:
         case 'order.items_sent':
         case 'order.item_voided':
         case 'visit.items_committed':
-        case 'visit.order_voided':
         case 'pos.visit_closed':
           break;
         case 'pos.table_directory_ack':
@@ -225,6 +229,28 @@ async function handleOrderClosed(restaurantId: string, event: PosEventEnvelope):
   await prisma.reservation.updateMany({
     where: { restaurantId, posVisitId: event.visit_id, status: 'SEATED' },
     data:  { status: 'COMPLETED', completedAt: new Date(event.occurred_at) },
+  });
+}
+
+// visit.order_voided → the WHOLE POS order was cancelled. Unlike a paid close
+// this must NOT auto-complete the reservation (the guest may still be seated and
+// re-order), but it must clear the active-order/bill/course state and UNBIND the
+// visit so the table is no longer stuck "ordering" — the host can close it from
+// booking, and a fresh order can bind again. (Before this, order_voided was a
+// no-op, so a voided table stayed SEATED + posOrderActive=true and could not be
+// closed from either side.)
+async function handleOrderVoided(restaurantId: string, event: PosEventEnvelope): Promise<void> {
+  if (!event.visit_id) return;
+  await prisma.reservation.updateMany({
+    where: { restaurantId, posVisitId: event.visit_id },
+    data:  {
+      posOrderActive: false,
+      billRequested: false,
+      billRequestedAt: null,
+      courseStage: null,
+      courseStageAt: null,
+      posVisitId: null,
+    },
   });
 }
 
